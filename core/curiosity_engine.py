@@ -1,0 +1,160 @@
+"""
+好奇心引擎 - 核心决策模块
+决定：什么值得探索？优先级是什么？
+"""
+import re
+from datetime import datetime, timezone
+from typing import Optional
+
+from . import knowledge_graph as kg
+
+
+class CuriosityEngine:
+    """
+    好奇心引擎
+    
+    核心思路：
+    1. 追踪"已知"与"未知"的边界
+    2. 在边界处生成好奇心
+    3. 基于多维度评分决定探索优先级
+    """
+    
+    # 用户 / 项目背景（可动态扩展）
+    USER_INTERESTS = [
+        "AI agent autonomy",
+        "metacognition",
+        "curiosity-driven exploration", 
+        "cognitive architecture",
+        "generative agents",
+        "self-improving AI",
+    ]
+    
+    def __init__(self):
+        self.state = kg.get_state()
+    
+    def generate_initial_curiosities(self) -> int:
+        """生成初始好奇心队列（仅当队列为空时）"""
+        state = kg.get_state()
+        if any(i["status"] == "pending" for i in state["curiosity_queue"]):
+            return 0  # 已有待探索项
+        
+        initial_topics = [
+            # 元认知相关
+            ("LLM self-reflection mechanisms", "理解 Agent 自我监控的实现方式", 9.0, 8.0),
+            ("curiosity-driven reinforcement learning", "AI 好奇心如何量化", 8.0, 7.0),
+            ("knowledge graph completion AI", "知识图谱补全方法", 7.0, 6.0),
+            
+            # Agent 架构相关
+            ("ReAct Reflexion agent frameworks", "最新 Agent 自我改进框架", 8.5, 7.5),
+            ("autonomous agent planning and replanning", "Agent 动态规划机制", 8.0, 7.0),
+            
+            # 认知架构
+            ("dual process theory AI", "快慢思考在 AI 中的应用", 7.0, 6.0),
+            ("working memory AI agent", "Agent 工作记忆实现方式", 7.5, 7.0),
+            
+            # OpenClaw / Agent 系统
+            ("openclaw agent framework capabilities", "当前平台的 Agent 能力边界", 9.0, 9.0),
+            ("OMO multi-agent orchestration", "多 Agent 协作架构", 8.0, 8.0),
+        ]
+        
+        count = 0
+        for topic, reason, rel, depth in initial_topics:
+            kg.add_curiosity(topic, reason, rel, depth)
+            count += 1
+        
+        return count
+    
+    def compute_curiosity_score(self, topic: str, base_relevance: float, base_depth: float) -> float:
+        """
+        动态评分：
+        Score = Relevance × Recency × Depth × Surprise
+        
+        - Relevance: 与用户兴趣的匹配度
+        - Recency: 多久没更新（越久越高，模拟"遗忘"效应）
+        - Depth: 知识缺口深度
+        - Surprise: 意外程度（新领域 vs 已知领域）
+        """
+        # Relevance: 匹配用户兴趣关键词
+        relevance = base_relevance
+        topic_lower = topic.lower()
+        for interest in self.USER_INTERESTS:
+            if any(kw in topic_lower for kw in interest.lower().split()):
+                relevance = min(10.0, relevance + 1.5)
+        
+        # Recency: 检查知识图谱中该 topic 的更新时间
+        state = kg.get_state()
+        last_updated = None
+        for t, v in state["knowledge"]["topics"].items():
+            if t.lower() in topic_lower or topic_lower in t.lower():
+                last_updated = v.get("last_updated")
+                break
+        
+        recency = 5.0  # 默认
+        if last_updated:
+            from datetime import timedelta
+            try:
+                last_dt = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
+                hours_old = (datetime.now(timezone.utc) - last_dt).total_seconds() / 3600
+                recency = min(10.0, hours_old / 24)  # 每天 +1 分，上限 10
+            except:
+                recency = 5.0
+        
+        # Depth: 知识缺口
+        depth = base_depth
+        
+        # Surprise: 越少人知道越有价值（简化：用该 topic 在图谱中的存在度）
+        known = 0
+        for t in state["knowledge"]["topics"]:
+            if t.lower() in topic_lower or topic_lower in t.lower():
+                known += 1
+        surprise = 10.0 if known == 0 else max(1.0, 10.0 - known * 2)
+        
+        score = relevance * 0.35 + recency * 0.25 + depth * 0.25 + surprise * 0.15
+        return round(score, 2)
+    
+    def rescore_all(self) -> None:
+        """重新评分所有待处理的好奇心项"""
+        state = kg.get_state()
+        updated = 0
+        for item in state["curiosity_queue"]:
+            if item["status"] == "pending":
+                new_score = self.compute_curiosity_score(
+                    item["topic"],
+                    item.get("relevance", 5.0),
+                    item.get("depth", 5.0)
+                )
+                if abs(new_score - item["score"]) > 0.5:
+                    item["score"] = new_score
+                    updated += 1
+        if updated > 0:
+            kg._save_state(state)
+        return updated
+    
+    def select_next(self) -> Optional[dict]:
+        """选择下一个要探索的好奇心项"""
+        top = kg.get_top_curiosities(k=1)
+        if top:
+            return top[0]
+        
+        # 如果队列空了，生成新的
+        count = self.generate_initial_curiosities()
+        if count > 0:
+            return kg.get_top_curiosities(k=1)[0]
+        return None
+    
+    def add_contextual_curiosity(self, context: str) -> None:
+        """
+        基于用户对话上下文自动生成好奇心
+        
+        从上下文提取关键词 → 扩展为好奇心项
+        """
+        # 简单关键词提取
+        words = re.findall(r'[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}', context)
+        for phrase in words[:5]:
+            if len(phrase) > 6:
+                kg.add_curiosity(
+                    topic=phrase,
+                    reason=f"从对话上下文发现: {context[:80]}",
+                    relevance=7.0,
+                    depth=6.0
+                )

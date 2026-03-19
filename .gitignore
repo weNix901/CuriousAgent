@@ -1,0 +1,48 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+*.log
+logs/
+knowledge/state.json
+knowledge/.curious_last_sync
+ui/.DS_Store
+
+# Sensitive
+.env
+.env.local
+*.pem
+*.key
+
+# OpenClaw workspace
+.openclaw/
+workspace/
+workspace-researcher/
+
+# Temp
+tmp/
+*.bak
