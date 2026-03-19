@@ -110,6 +110,79 @@ def api_inject():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/curious/trigger", methods=["POST"])
+def api_trigger():
+    """
+    触发探索（后台执行）
+
+    Request:
+        {"topic": "...", "depth": "medium"}
+
+    Response:
+        {"status": "accepted", "topic": "...", "estimated_time": "..."}
+    """
+    try:
+        data = request.get_json() or {}
+        topic = str(data.get("topic", "")).strip()
+        depth = data.get("depth", "medium")
+
+        if not topic:
+            return jsonify({"error": "topic is required"}), 400
+
+        if depth not in ["shallow", "medium", "deep"]:
+            return jsonify({"error": f"invalid depth: {depth}"}), 400
+
+        time_estimates = {
+            "shallow": "30秒",
+            "medium": "3-5分钟",
+            "deep": "10-15分钟"
+        }
+
+        def run_exploration_async():
+            try:
+                from core.curiosity_engine import CuriosityEngine
+                from core.explorer import Explorer
+                from core.knowledge_graph import add_curiosity, get_top_curiosities
+                import time as time_module
+
+                add_curiosity(
+                    topic=topic,
+                    reason="API trigger",
+                    relevance=8.0,
+                    depth=7.0
+                )
+
+                time_module.sleep(0.5)
+
+                items = get_top_curiosities(k=1)
+                if items and items[0]["topic"] == topic:
+                    engine = CuriosityEngine()
+                    explorer = Explorer(exploration_depth=depth)
+                    result = explorer.explore(items[0])
+                    print(f"[Async] Exploration completed: {topic}, notified: {result.get('notified', False)}")
+
+            except Exception as e:
+                print(f"[Async] Exploration failed: {e}")
+                import traceback
+                traceback.print_exc()
+
+        thread = threading.Thread(target=run_exploration_async, daemon=True)
+        thread.start()
+
+        return jsonify({
+            "status": "accepted",
+            "topic": topic,
+            "depth": depth,
+            "estimated_time": time_estimates.get(depth, "未知"),
+            "message": "探索已启动，完成后将通过现有机制通知"
+        }), 202
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 # ── Main ──────────────────────────────────────────────────────
 
 def main():
