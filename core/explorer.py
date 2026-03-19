@@ -5,6 +5,8 @@ import json
 import os
 import subprocess
 from . import knowledge_graph as kg
+from .arxiv_analyzer import ArxivAnalyzer
+from .llm_client import LLMClient
 
 
 VALID_EXPLORATION_DEPTHS = {"shallow", "medium", "deep"}
@@ -103,29 +105,39 @@ class Explorer:
 
     def _explore_layers(self, topic: str) -> dict:
         """Dispatch to appropriate layers based on exploration_depth"""
-        results = []
+        layer_results = {}
         all_sources = []
         actions = []
 
+        # Layer 1: Always runs
         l1_result = self._layer1_search(topic)
-        results.append(l1_result["findings"])
+        layer_results["layer1"] = l1_result
         all_sources.extend(l1_result["sources"])
         actions.append("layer1_search")
 
+        # Layer 2: medium/deep depth
         if self.exploration_depth in ("medium", "deep"):
-            l2_result = self._layer2_arxiv(topic)
-            results.append(l2_result["findings"])
-            all_sources.extend(l2_result["sources"])
-            actions.append("layer2_arxiv")
+            arxiv_links = l1_result.get("arxiv_links", [])
+            if arxiv_links:
+                l2_result = self._layer2_arxiv(topic, arxiv_links)
+                layer_results["layer2"] = l2_result
+                all_sources.extend(l2_result["sources"])
+                actions.append("layer2_arxiv")
 
-        if self.exploration_depth == "deep":
-            l3_result = self._layer3_insights(topic)
-            results.append(l3_result["findings"])
-            all_sources.extend(l3_result["sources"])
-            actions.append("layer3_insights")
+        # Layer 3: deep depth only
+        if self.exploration_depth == "deep" and "layer2" in layer_results:
+            papers = layer_results["layer2"].get("papers", [])
+            if papers:
+                l3_result = self._layer3_insights(topic, papers)
+                layer_results["layer3"] = l3_result
+                all_sources.extend(l3_result["sources"])
+                actions.append("layer3_insights")
 
+        # Synthesize findings from all layers
+        findings = self._synthesize_findings(topic, layer_results)
+        
         return {
-            "findings": "\n\n".join(results),
+            "findings": findings,
             "sources": list(set(all_sources)),
             "action": "+".join(actions)
         }
@@ -133,22 +145,70 @@ class Explorer:
     def _layer1_search(self, topic: str) -> dict:
         """Layer 1: Web search (always runs)"""
         search_results = self._call_bocha_search(topic)
+        
+        # Extract arXiv links from search results
+        arxiv_links = []
+        for result in search_results:
+            url = result.get("url", "")
+            if "arxiv.org" in url:
+                arxiv_links.append(url)
+        
         if search_results:
-            findings = self._synthesize_findings(topic, search_results)
+            findings = self._synthesize_web_results(topic, search_results)
             sources = [r["url"] for r in search_results if r.get("url")]
-            return {"findings": findings, "sources": sources}
+            return {
+                "findings": findings,
+                "sources": sources,
+                "arxiv_links": arxiv_links[:5],  # Max 5 arxiv links
+                "search_results": search_results
+            }
         findings = self._deep_inference(topic)
-        return {"findings": findings, "sources": []}
+        return {"findings": findings, "sources": [], "arxiv_links": [], "search_results": []}
 
-    def _layer2_arxiv(self, topic: str) -> dict:
+    def _layer2_arxiv(self, topic: str, arxiv_links: list = None) -> dict:
         """Layer 2: ArXiv search (medium/deep depth)"""
-        return {"findings": f"[Layer 2] ArXiv search for: {topic}", "sources": []}
+        if not arxiv_links:
+            return {"findings": "", "sources": [], "papers": []}
+        
+        analyzer = ArxivAnalyzer()
+        result = analyzer.analyze_papers(topic, arxiv_links)
+        
+        papers = result.get("papers", [])
+        sources = [f"https://arxiv.org/abs/{p['arxiv_id']}" for p in papers if p.get("arxiv_id")]
+        
+        # Build findings from paper analysis
+        findings_parts = []
+        for paper in papers:
+            findings_parts.append(f"论文: {paper.get('title', 'N/A')}")
+            findings_parts.append(f"相关性: {paper.get('relevance_score', 0):.2f}")
+            if paper.get("key_findings"):
+                findings_parts.append("关键发现: " + "; ".join(paper["key_findings"][:3]))
+            findings_parts.append("")
+        
+        return {
+            "findings": "\n".join(findings_parts) if findings_parts else "",
+            "sources": sources,
+            "papers": papers,
+            "papers_analyzed": result.get("papers_analyzed", 0),
+            "high_relevance_count": result.get("high_relevance_count", 0)
+        }
 
-    def _layer3_insights(self, topic: str) -> dict:
+    def _layer3_insights(self, topic: str, papers: list = None) -> dict:
         """Layer 3: Deep insights synthesis (deep depth only)"""
-        return {"findings": f"[Layer 3] Deep insights for: {topic}", "sources": []}
+        if not papers or len(papers) < 2:
+            return {"findings": "", "sources": []}
+        
+        client = LLMClient()
+        result = client.generate_insights(topic, papers)
+        
+        return {
+            "findings": result.get("insights", ""),
+            "sources": [],
+            "status": result.get("status", "unknown"),
+            "model": result.get("model", "minimax-m2.7")
+        }
 
-    def _synthesize_findings(self, topic: str, results: list) -> str:
+    def _synthesize_web_results(self, topic: str, results: list) -> str:
         """综合搜索结果，提炼发现"""
         synthesis = [f"关于「{topic}」的核心发现："]
         seen = set()
@@ -160,6 +220,48 @@ class Explorer:
                 synthesis.append(f"   {snippet[:250]}")
         synthesis.append(f"\n（共 {len(results)} 条相关结果）")
         return "".join(synthesis)
+
+    def _synthesize_findings(self, topic: str, layer_results: dict) -> str:
+        """综合各层发现为最终报告"""
+        parts = []
+        
+        # Layer 1: Web search findings
+        if "layer1" in layer_results:
+            l1 = layer_results["layer1"]
+            if l1.get("findings"):
+                parts.append("【搜索发现】")
+                parts.append(l1["findings"])
+        
+        # Layer 2: ArXiv analysis
+        if "layer2" in layer_results:
+            l2 = layer_results["layer2"]
+            if l2.get("findings"):
+                parts.append("\n【论文分析】")
+                parts.append(l2["findings"])
+        
+        # Layer 3: LLM insights
+        if "layer3" in layer_results:
+            l3 = layer_results["layer3"]
+            if l3.get("findings"):
+                parts.append("\n【深度洞察】")
+                parts.append(l3["findings"])
+        
+        return "\n".join(parts) if parts else ""
+
+    def _extract_sources(self, layer_results: dict) -> list:
+        """提取所有来源 URL 并去重"""
+        sources = []
+        
+        # Layer 1 sources
+        if "layer1" in layer_results:
+            sources.extend(layer_results["layer1"].get("sources", []))
+        
+        # Layer 2 arXiv links
+        if "layer2" in layer_results:
+            sources.extend(layer_results["layer2"].get("sources", []))
+        
+        # Deduplicate and limit
+        return list(dict.fromkeys(sources))[:10]
 
     def _deep_inference(self, topic: str) -> str:
         """无搜索结果时的深度推理"""

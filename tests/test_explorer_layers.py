@@ -77,8 +77,16 @@ class TestExplorerLayerDispatch:
         """Test that medium depth calls Layer 1 and Layer 2"""
         explorer = Explorer(exploration_depth="medium")
         
-        explorer._layer1_search = MagicMock(return_value={"findings": "layer1 results", "sources": ["url1"]})
-        explorer._layer2_arxiv = MagicMock(return_value={"findings": "layer2 results", "sources": []})
+        explorer._layer1_search = MagicMock(return_value={
+            "findings": "layer1 results", 
+            "sources": ["url1"],
+            "arxiv_links": ["https://arxiv.org/abs/2401.02009"]
+        })
+        explorer._layer2_arxiv = MagicMock(return_value={
+            "findings": "layer2 results", 
+            "sources": [],
+            "papers": []
+        })
         explorer._layer3_insights = MagicMock(return_value={"findings": "layer3 results", "sources": []})
         
         with patch('core.explorer.kg') as mock_kg:
@@ -100,8 +108,19 @@ class TestExplorerLayerDispatch:
         """Test that deep depth calls all three layers"""
         explorer = Explorer(exploration_depth="deep")
         
-        explorer._layer1_search = MagicMock(return_value={"findings": "layer1 results", "sources": ["url1"]})
-        explorer._layer2_arxiv = MagicMock(return_value={"findings": "layer2 results", "sources": []})
+        explorer._layer1_search = MagicMock(return_value={
+            "findings": "layer1 results", 
+            "sources": ["url1"],
+            "arxiv_links": ["https://arxiv.org/abs/2401.02009"]
+        })
+        explorer._layer2_arxiv = MagicMock(return_value={
+            "findings": "layer2 results", 
+            "sources": [],
+            "papers": [
+                {"title": "Paper 1", "relevance_score": 0.8, "key_findings": ["f1"]},
+                {"title": "Paper 2", "relevance_score": 0.7, "key_findings": ["f2"]}
+            ]
+        })
         explorer._layer3_insights = MagicMock(return_value={"findings": "layer3 results", "sources": []})
         
         with patch('core.explorer.kg') as mock_kg:
@@ -122,8 +141,19 @@ class TestExplorerLayerDispatch:
         """Test that _explore_layers returns combined results from all layers"""
         explorer = Explorer(exploration_depth="deep")
         
-        explorer._layer1_search = MagicMock(return_value={"findings": "L1: web search", "sources": ["url1"]})
-        explorer._layer2_arxiv = MagicMock(return_value={"findings": "L2: arxiv", "sources": ["url2"]})
+        explorer._layer1_search = MagicMock(return_value={
+            "findings": "L1: web search", 
+            "sources": ["url1"],
+            "arxiv_links": ["https://arxiv.org/abs/2401.02009"]
+        })
+        explorer._layer2_arxiv = MagicMock(return_value={
+            "findings": "L2: arxiv", 
+            "sources": ["url2"],
+            "papers": [
+                {"title": "Paper 1", "relevance_score": 0.8, "key_findings": ["f1"]},
+                {"title": "Paper 2", "relevance_score": 0.7, "key_findings": ["f2"]}
+            ]
+        })
         explorer._layer3_insights = MagicMock(return_value={"findings": "L3: insights", "sources": []})
         
         result = explorer._explore_layers("test topic")
