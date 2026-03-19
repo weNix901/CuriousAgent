@@ -229,46 +229,22 @@
   .click-hint { font-size: 11px; color: var(--accent); opacity: 0; transition: opacity 0.1s; margin-left: 6px; }
   .item:hover .click-hint, .history-item:hover .click-hint { opacity: 1; }
 
-  /* Tab Switch */
-  .view-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
-  .view-tab { flex: 1; padding: 9px 0; text-align: center; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 0.15s; user-select: none; }
-  .view-tab:hover { border-color: var(--accent); color: var(--accent); }
-  .view-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-  #graph-view { display: none; }
-  #graph-view.active { display: block; }
-  #list-view.hidden { display: none; }
-  /* Graph */
-  #graph-svg { width: 100%; height: 520px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: grab; display: block; }
-  #graph-svg:active { cursor: grabbing; }
-  .graph-node circle { transition: r 0.15s; }
-  .graph-node:hover circle { filter: brightness(1.3); }
-  .graph-node text { font-size: 11px; fill: var(--text-muted); pointer-events: none; }
-  .graph-link { stroke: var(--border); stroke-opacity: 0.5; stroke-width: 1px; }
-  .graph-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
-  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
-  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-
-
-  /* Tab Switch */
-  .view-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
-  .view-tab { flex: 1; padding: 9px 0; text-align: center; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 0.15s; user-select: none; }
-  .view-tab:hover { border-color: var(--accent); color: var(--accent); }
-  .view-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-  /* Views */
-  #graph-view { display: none; margin-top: 16px; }
-  #graph-view.active { display: block; }
-  #list-view.hidden { display: none; }
-  /* Graph SVG */
-  #graph-svg { width: 100%; height: 480px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: grab; display: block; }
-  #graph-svg:active { cursor: grabbing; }
-  .graph-node circle { transition: r 0.15s; }
-  .graph-node:hover circle { filter: brightness(1.3); }
-  .graph-node text { font-size: 11px; fill: var(--text-muted); pointer-events: none; }
-  .graph-link { stroke: var(--border); stroke-opacity: 0.5; stroke-width: 1px; }
-  .graph-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
-  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
-  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-
+.view-tabs{display:flex;gap:4px;margin-bottom:16px}
+.view-tab{flex:1;padding:9px 0;text-align:center;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:13px;cursor:pointer;transition:all .15s;user-select:none}
+.view-tab:hover{border-color:var(--accent);color:var(--accent)}
+.view-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+#graph-view{display:none;margin-top:16px}
+#graph-view.active{display:block}
+#list-view.hidden{display:none}
+#graph-svg{width:100%;height:480px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:grab;display:block}
+#graph-svg:active{cursor:grabbing}
+.graph-node circle{transition:r .15s}
+.graph-node:hover circle{filter:brightness(1.3)}
+.graph-node text{font-size:11px;fill:var(--text-muted);pointer-events:none}
+.graph-link{stroke:var(--border);stroke-opacity:.5;stroke-width:1px}
+.graph-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 </style>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
@@ -287,6 +263,11 @@
       <button class="btn btn-primary" onclick="runExplore()">▶ 运行探索</button>
     </div>
   </header>
+
+  <div class="view-tabs">
+    <button class="view-tab active" id="tab-list" onclick="switchView('list')">📋 列表视图</button>
+    <button class="view-tab" id="tab-graph" onclick="switchView('graph')">🔮 图谱视图</button>
+  </div>
 
   <!-- Stats -->
   <div class="stats" id="stats">
@@ -312,8 +293,9 @@
     </div>
   </div>
 
+  <div id="list-view">
   <!-- Main Grid -->
-  <div id="list-view" class="main-grid">
+  <div class="main-grid">
 
     <!-- Curiosity Queue -->
     <div class="panel">
@@ -392,33 +374,10 @@
 
   </div>
 
-  </div><!-- end #list-view -->
-
-  <!-- Graph View -->
-  <div id="graph-view" class="panel">
-    <div class="panel-header">
-      <div class="panel-title">🔮 知识图谱</div>
-      <span style="font-size:12px;color:var(--text-muted)">拖拽节点 · 滚轮缩放 · 点击查看详情</span>
-    </div>
-    <div class="panel-body" style="padding:8px;">
-      <svg id="graph-svg"></svg>
-      <div class="graph-legend">
-        <div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>深度 8-10</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>深度 5-7</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>深度 1-4</div>
-        <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>白边 = 待探索</div>
-        <div class="legend-item"><div class="legend-dot" style="background:var(--border)"></div>连线 = 主题相关</div>
-      </div>
-    </div>
-  </div>
-
 
   </div><!-- end #list-view -->
 
-  <!-- Graph + Console (always full-width, below tabs) -->
   <div id="graph-view">
-
-    <!-- Knowledge Graph -->
     <div class="panel">
       <div class="panel-header">
         <div class="panel-title">🔮 知识图谱</div>
@@ -435,16 +394,13 @@
         </div>
       </div>
     </div>
-
-    <!-- Console Log -->
     <div class="log-panel">
       <div class="log-header">💬 控制台</div>
       <div class="log-content" id="log-content"></div>
     </div>
-
   </div><!-- end #graph-view -->
 
-  
+
     <div class="log-header">💬 控制台</div>
     <div class="log-content" id="log-content"></div>
   </div>
@@ -552,194 +508,65 @@ async function quickExplore(topic) {
 }
 
 
-// ── View Switch ────────────────────────────────────────────────
-let currentView = 'list';
-
-function switchView(view) {
-  currentView = view;
-  var tabList = document.getElementById('tab-list');
-  var tabGraph = document.getElementById('tab-graph');
-  var listView = document.getElementById('list-view');
-  var graphView = document.getElementById('graph-view');
-  if (tabList) tabList.classList.toggle('active', view === 'list');
-  if (tabGraph) tabGraph.classList.toggle('active', view === 'graph');
-  if (listView) listView.classList.toggle('hidden', view !== 'list');
-  if (graphView) graphView.classList.toggle('active', view === 'graph');
-  if (view === 'graph') {
-    setTimeout(renderGraph, 50); // delay slightly to ensure DOM is visible
-  }
-}
-
-// ── Knowledge Graph ────────────────────────────────────────────
-function buildGraphData() {
-  if (!state) return { nodes: [], links: [] };
-  var topics = Object.entries(state.knowledge && state.knowledge.topics || {});
-  var queue = state.curiosity_queue || [];
-  var STOP = ['ai','agent','agents','in','for','the','and','of','to','learning','framework','self','a','based','systems'];
-  function tokens(s) {
-    return (s||'').toLowerCase().split(/[\s\-_:,]/).filter(function(t){return t.length>2 && STOP.indexOf(t)<0;});
-  }
-  var queueSet = {};
-  queue.forEach(function(q){ if (q.status !== 'done') queueSet[q.topic.toLowerCase()] = true; });
-
-  var nodes = topics.map(function(item) {
-    var name = item[0], v = item[1];
-    var inQ = !!queueSet[name.toLowerCase()];
-    var score = inQ ? (function(){
-      for (var i=0;i<queue.length;i++) if (queue[i].topic === name) return queue[i].score||0;
-      return 0;
-    })() : 0;
-    return { id: name, depth: v.depth||0, score: score, summary: v.summary||'', sources: v.sources||[], inQueue: inQ };
-  });
-
-  nodes.forEach(function(n){ n._t = {}; tokens(n.id).forEach(function(t){ n._t[t] = true; }); });
-
-  var links = [], seen = {};
-  for (var i=0; i<nodes.length; i++) {
-    for (var j=i+1; j<nodes.length; j++) {
-      var a = nodes[i], b = nodes[j];
-      var shared = 0;
-      for (var t in a._t) if (b._t[t]) shared++;
-      if (shared >= 1) {
-        var k = [a.id, b.id].sort().join('|');
-        if (!seen[k]) { seen[k] = true; links.push({source: a.id, target: b.id, strength: shared}); }
-      }
-    }
-  }
-  return {nodes: nodes, links: links};
-}
-
-function nodeColor(d) {
-  if (d.depth >= 8) return '#f85149';
-  if (d.depth >= 5) return '#d29922';
-  return '#3fb950';
-}
-
-function renderGraph() {
-  if (typeof d3 === 'undefined') { console.log('D3 not loaded'); return; }
-  var svg = d3.select('#graph-svg');
-  svg.selectAll('*').remove();
-  var data = buildGraphData();
-  if (!data.nodes.length) {
-    svg.append('text').attr('x','50%').attr('y','50%').attr('text-anchor','middle')
-      .attr('dominant-baseline','middle').attr('fill','#8b949e').attr('font-size','14px')
-      .text('暂无知识节点，请先运行探索');
-    return;
-  }
-  var W = (svg.node() && svg.node().parentElement && svg.node().parentElement.clientWidth) || 900;
-  var H = 520;
-  svg.attr('viewBox', '0 0 ' + W + ' ' + H);
-  var g = svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.2, 4]).on('zoom', function(e){ g.attr('transform', e.transform); }));
-  var link = g.append('g').selectAll('line').data(data.links).enter().append('line')
-    .attr('class','graph-link').attr('stroke-width', function(d){return d.strength;});
-  var nodeSel = g.append('g').selectAll('.graph-node').data(data.nodes).enter().append('g')
-    .attr('class','graph-node')
-    .call(d3.drag()
-      .on('start', function(e,d){ if(!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
-      .on('drag', function(e,d){ d.fx=e.x; d.fy=e.y; })
-      .on('end', function(e,d){ if(!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; })
-    )
-    .on('click', function(e,d){ e.stopPropagation(); showDetail('knowledge', d.id); });
-  nodeSel.append('circle')
-    .attr('r', function(d){ return d.inQueue ? Math.max(9, d.depth*1.2) : Math.max(6, d.depth*0.9); })
-    .attr('fill', nodeColor)
-    .attr('fill-opacity', function(d){ return d.inQueue ? 0.9 : 0.65; })
-    .attr('stroke', function(d){ return d.inQueue ? '#fff' : 'none'; })
-    .attr('stroke-width', function(d){ return d.inQueue ? 2 : 0; });
-  nodeSel.append('text').attr('dx', function(d){ return Math.max(8, d.depth*0.9)+4; }).attr('dy', 4)
-    .text(function(d){ return d.id.length > 26 ? d.id.substring(0,23) + '...' : d.id; });
-  nodeSel.append('title').text(function(d){ return d.id + '\n深度:' + d.depth + ' | ' + (d.inQueue ? '待探索' : '已探索'); });
-  var sim = d3.forceSimulation(data.nodes)
-    .force('link', d3.forceLink(data.links).id(function(d){return d.id;}).distance(130).strength(0.35))
-    .force('charge', d3.forceManyBody().strength(-280))
-    .force('center', d3.forceCenter(W/2, H/2))
-    .force('collision', d3.forceCollide().radius(function(d){ return Math.max(10, d.depth) + 22; }))
-    .on('tick', function() {
-      link.attr('x1', function(d){return d.source.x;}).attr('y1', function(d){return d.source.y;})
-          .attr('x2', function(d){return d.target.x;}).attr('y2', function(d){return d.target.y;});
-      nodeSel.attr('transform', function(d){return 'translate('+d.x+','+d.y+')';});
-    });
-}
-
-
-
-// ── View Switch ────────────────────────────────────────────────
 var currentView = 'list';
 function switchView(view) {
   currentView = view;
-  var tl = document.getElementById('tab-list');
-  var tg = document.getElementById('tab-graph');
-  var lv = document.getElementById('list-view');
-  var gv = document.getElementById('graph-view');
-  if (tl) tl.classList.toggle('active', view === 'list');
-  if (tg) tg.classList.toggle('active', view === 'graph');
-  if (lv) lv.classList.toggle('hidden', view !== 'list');
-  if (gv) gv.classList.toggle('active', view === 'graph');
-  if (view === 'graph') setTimeout(renderGraph, 80);
+  var tl=document.getElementById('tab-list'), tg=document.getElementById('tab-graph');
+  var lv=document.getElementById('list-view'), gv=document.getElementById('graph-view');
+  if(tl) tl.classList.toggle('active', view==='list');
+  if(tg) tg.classList.toggle('active', view==='graph');
+  if(lv) lv.classList.toggle('hidden', view!=='list');
+  if(gv) gv.classList.toggle('active', view==='graph');
+  if(view==='graph') setTimeout(renderGraph, 100);
 }
-
-// ── Knowledge Graph ────────────────────────────────────────────
 function buildGraphData() {
-  if (!state) return {nodes:[], links:[]};
-  var topics = Object.entries(state.knowledge && state.knowledge.topics || {});
-  var queue = state.curiosity_queue || [];
-  var STOP = ['ai','agent','agents','in','for','the','and','of','to','learning','framework','self','a','based','systems'];
-  function tokens(s) { return (s||'').toLowerCase().split(/[\s\-_:,]/).filter(function(t){return t.length>2&&STOP.indexOf(t)<0;}); }
-  var qMap = {};
-  queue.forEach(function(q){ if(q.status!=='done') qMap[q.topic.toLowerCase()]=true; });
-  var nodes = topics.map(function(item){
-    var name=item[0], v=item[1], inQ=!!qMap[name.toLowerCase()];
+  if(!state) return {nodes:[],links:[]};
+  var topics=Object.entries(state.knowledge&&state.knowledge.topics||{});
+  var queue=state.curiosity_queue||[];
+  var STOP=['ai','agent','agents','in','for','the','and','of','to','learning','framework','self','a','based','systems'];
+  function tokens(s){return(s||'').toLowerCase().split(/[\s\-_:,]/).filter(function(t){return t.length>2&&STOP.indexOf(t)<0;});}
+  var qMap={};
+  queue.forEach(function(q){if(q.status!=='done')qMap[q.topic.toLowerCase()]=true;});
+  var nodes=topics.map(function(item){
+    var name=item[0],v=item[1],inQ=!!qMap[name.toLowerCase()];
     var score=0;
-    if(inQ) for(var i=0;i<queue.length;i++) if(queue[i].topic===name){score=queue[i].score||0;break;}
-    return {id:name,depth:v.depth||0,score:score,summary:v.summary||'',sources:v.sources||[],inQueue:inQ};
+    if(inQ)for(var i=0;i<queue.length;i++)if(queue[i].topic===name){score=queue[i].score||0;break;}
+    return{id:name,depth:v.depth||0,score:score,summary:v.summary||'',sources:v.sources||[],inQueue:inQ};
   });
-  nodes.forEach(function(n){ n._t={}; tokens(n.id).forEach(function(t){n._t[t]=true;}); });
-  var links=[], seen={};
-  for(var i=0;i<nodes.length;i++) for(var j=i+1;j<nodes.length;j++){
-    var a=nodes[i],b=nodes[j], shared=0;
-    for(var t in a._t) if(b._t[t]) shared++;
-    if(shared>=1){
-      var k=[a.id,b.id].sort().join('|');
-      if(!seen[k]){seen[k]=true;links.push({source:a.id,target:b.id,strength:shared});}
-    }
+  nodes.forEach(function(n){n._t={};tokens(n.id).forEach(function(t){n._t[t]=true;});});
+  var links=[],seen={};
+  for(var i=0;i<nodes.length;i++)for(var j=i+1;j<nodes.length;j++){
+    var a=nodes[i],b=nodes[j],sh=0;
+    for(var t in a._t)if(b._t[t])sh++;
+    if(sh>=1){var k=[a.id,b.id].sort().join('|');if(!seen[k]){seen[k]=true;links.push({source:a.id,target:b.id,strength:sh});}}
   }
-  return {nodes:nodes,links:links};
+  return{nodes:nodes,links:links};
 }
-function nodeColor(d){ return d.depth>=8?'#f85149':d.depth>=5?'#d29922':'#3fb950'; }
-
+function nodeColor(d){return d.depth>=8?'#f85149':d.depth>=5?'#d29922':'#3fb950';}
 function renderGraph() {
-  if (typeof d3 === 'undefined') { console.log('D3 missing'); return; }
-  var svg = d3.select('#graph-svg');
+  if(typeof d3==='undefined'){console.log('D3 not loaded');return;}
+  var svg=d3.select('#graph-svg');
+  if(!svg.node())return;
   svg.selectAll('*').remove();
-  var data = buildGraphData();
-  if (!data.nodes.length) {
-    svg.append('text').attr('x','50%').attr('y','50%').attr('text-anchor','middle')
-      .attr('dominant-baseline','middle').attr('fill','#8b949e').attr('font-size','14px')
-      .text('暂无知识节点，请先运行探索'); return;
-  }
-  var W = (svg.node() && svg.node().parentElement && svg.node().parentElement.clientWidth) || 900;
-  var H = 480;
+  var data=buildGraphData();
+  if(!data.nodes.length){svg.append('text').attr('x','50%').attr('y','50%').attr('text-anchor','middle').attr('dominant-baseline','middle').attr('fill','#8b949e').attr('font-size','14px').text('暂无知识节点，请先运行探索');return;}
+  var W=(svg.node().parentElement&&svg.node().parentElement.clientWidth)||900;
+  var H=480;
   svg.attr('viewBox','0 0 '+W+' '+H);
-  var g = svg.append('g');
+  var g=svg.append('g');
   svg.call(d3.zoom().scaleExtent([0.2,4]).on('zoom',function(e){g.attr('transform',e.transform);}));
-  var link = g.append('g').selectAll('line').data(data.links).enter().append('line')
-    .attr('class','graph-link').attr('stroke-width',function(d){return d.strength;});
-  var nodeSel = g.append('g').selectAll('.graph-node').data(data.nodes).enter().append('g')
-    .attr('class','graph-node')
-    .call(d3.drag()
-      .on('start',function(e,d){if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
-      .on('drag',function(e,d){d.fx=e.x;d.fy=e.y;})
-      .on('end',function(e,d){if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}))
+  var link=g.append('g').selectAll('line').data(data.links).enter().append('line').attr('class','graph-link').attr('stroke-width',function(d){return d.strength;});
+  var nodeSel=g.append('g').selectAll('.graph-node').data(data.nodes).enter().append('g').attr('class','graph-node')
+    .call(d3.drag().on('start',function(e,d){if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on('drag',function(e,d){d.fx=e.x;d.fy=e.y;}).on('end',function(e,d){if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}))
     .on('click',function(e,d){e.stopPropagation();showDetail('knowledge',d.id);});
-  nodeSel.append('circle')
-    .attr('r',function(d){return d.inQueue?Math.max(9,d.depth*1.2):Math.max(6,d.depth*0.9);})
+  nodeSel.append('circle').attr('r',function(d){return d.inQueue?Math.max(9,d.depth*1.2):Math.max(6,d.depth*0.9);})
     .attr('fill',nodeColor).attr('fill-opacity',function(d){return d.inQueue?0.9:0.65;})
     .attr('stroke',function(d){return d.inQueue?'#fff':'none';}).attr('stroke-width',function(d){return d.inQueue?2:0;});
   nodeSel.append('text').attr('dx',function(d){return Math.max(8,d.depth*0.9)+4;}).attr('dy',4)
     .text(function(d){return d.id.length>26?d.id.substring(0,23)+'...':d.id;});
   nodeSel.append('title').text(function(d){return d.id+'\n深度:'+d.depth+' | '+(d.inQueue?'待探索':'已探索');});
-  var sim = d3.forceSimulation(data.nodes)
+  var sim=d3.forceSimulation(data.nodes)
     .force('link',d3.forceLink(data.links).id(function(d){return d.id;}).distance(130).strength(0.35))
     .force('charge',d3.forceManyBody().strength(-280))
     .force('center',d3.forceCenter(W/2,H/2))
@@ -747,7 +574,7 @@ function renderGraph() {
     .on('tick',function(){
       link.attr('x1',function(d){return d.source.x;}).attr('y1',function(d){return d.source.y;})
           .attr('x2',function(d){return d.target.x;}).attr('y2',function(d){return d.target.y;});
-      nodeSel.attr('transform',function(d){return 'translate('+d.x+','+d.y+')';});
+      nodeSel.attr('transform',function(d){return'translate('+d.x+','+d.y+')';});
     });
 }
 
