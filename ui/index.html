@@ -228,7 +228,35 @@
   .history-item[data-topic]:hover { background: rgba(88,166,255,0.05); border-radius: 6px; }
   .click-hint { font-size: 11px; color: var(--accent); opacity: 0; transition: opacity 0.1s; margin-left: 6px; }
   .item:hover .click-hint, .history-item:hover .click-hint { opacity: 1; }
+
+  /* Graph Tab */
+  .view-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .view-tab {
+    flex: 1; padding: 8px 0; text-align: center; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
+    font-size: 13px; cursor: pointer; transition: all 0.15s; user-select: none;
+  }
+  .view-tab:hover { border-color: var(--accent); color: var(--accent); }
+  .view-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  #graph-view { display: none; }
+  #graph-view.active { display: block; }
+  #list-view.active-view { }
+  #list-view:not(.active-view) { display: none; }
+
+  /* Graph canvas */
+  #graph-svg { width: 100%; height: 500px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: grab; }
+  #graph-svg:active { cursor: grabbing; }
+  .graph-node { cursor: pointer; }
+  .graph-node circle { transition: r 0.15s; }
+  .graph-node:hover circle { filter: brightness(1.3); }
+  .graph-node text { font-size: 11px; fill: var(--text-muted); pointer-events: none; }
+  .graph-link { stroke: var(--border); stroke-opacity: 0.5; stroke-width: 1px; }
+  .graph-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
 </style>
+<script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
 <div class="container">
@@ -245,6 +273,13 @@
       <button class="btn btn-primary" onclick="runExplore()">▶ 运行探索</button>
     </div>
   </header>
+
+  <!-- View Tabs -->
+  <div class="view-tabs">
+    <button class="view-tab active" id="tab-list" onclick="switchView('list')">📋 列表视图</button>
+    <button class="view-tab" id="tab-graph" onclick="switchView('graph')">🔮 图谱视图</button>
+  </div>
+
 
   <!-- Stats -->
   <div class="stats" id="stats">
@@ -269,6 +304,9 @@
       <div class="stat-sub">探索器状态</div>
     </div>
   </div>
+
+  <!-- List View -->
+  <div id="list-view" class="active-view">
 
   <!-- Main Grid -->
   <div class="main-grid">
@@ -348,6 +386,27 @@
       </div>
     </div>
 
+  </div>
+
+  </div>
+
+  <!-- Graph View -->
+  <div id="graph-view">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">🔮 知识图谱</div>
+        <span style="font-size:12px;color:var(--text-muted)">拖拽节点 · 滚轮缩放 · 点击查看详情</span>
+      </div>
+      <div class="panel-body" style="padding:8px;max-height:none;">
+        <svg id="graph-svg"></svg>
+        <div class="graph-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>深度 8-10</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>深度 5-7</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>深度 1-4</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>连线 = 主题相关</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Console Log -->
@@ -457,6 +516,156 @@ async function quickExplore(topic) {
   await injectCuriosity();
   setTimeout(() => runExplore(), 500);
 }
+
+
+// ── View Switch ────────────────────────────────────────────────
+
+let currentView = 'list';
+
+function switchView(view) {
+  currentView = view;
+  document.getElementById('tab-list').classList.toggle('active', view === 'list');
+  document.getElementById('tab-graph').classList.toggle('active', view === 'graph');
+  document.getElementById('list-view').style.display = view === 'list' ? '' : 'none';
+  document.getElementById('graph-view').style.display = view === 'graph' ? '' : 'none';
+  if (view === 'graph' && state) renderGraph();
+}
+
+// ── Knowledge Graph ────────────────────────────────────────────
+
+function buildGraphData() {
+  if (!state) return { nodes: [], links: [] };
+
+  const topics = Object.entries(state.knowledge?.topics || {});
+  const queue = state.curiosity_queue || [];
+  const queueTopics = new Set(queue.filter(q => q.status !== 'done').map(q => q.topic.toLowerCase()));
+
+  // Keywords for relationship detection
+  const STOPWORDS = new Set(['ai', 'agent', 'agents', 'in', 'for', 'the', 'and', 'of', 'to', 'learning', 'framework', 'self']);
+  function tokens(str) {
+    return (str || '').toLowerCase().split(/[\s\-_:,]/).filter(t => t.length > 2 && !STOPWORDS.has(t));
+  }
+
+  // Nodes
+  const nodes = topics.map(([name, v]) => ({
+    id: name,
+    depth: v.depth || 0,
+    score: queueTopics.has(name.toLowerCase()) ? (queue.find(q => q.topic === name)?.score || 0) : 0,
+    summary: v.summary || '',
+    sources: v.sources || [],
+    last_updated: v.last_updated || '',
+    inQueue: queueTopics.has(name.toLowerCase())
+  }));
+
+  // Links: connect nodes that share significant tokens
+  const nodeMap = {};
+  nodes.forEach(n => { nodeMap[n.id.toLowerCase()] = n; });
+  nodes.forEach(n => { n._tokens = new Set(tokens(n.id)); });
+
+  const links = [];
+  const seenLinks = new Set();
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[j];
+      const shared = [...a._tokens].filter(t => b._tokens.has(t)).length;
+      if (shared >= 1) {
+        const key = [a.id, b.id].sort().join('|');
+        if (!seenLinks.has(key)) {
+          seenLinks.add(key);
+          links.push({ source: a.id, target: b.id, strength: shared });
+        }
+      }
+    }
+  }
+
+  return { nodes, links };
+}
+
+function getNodeColor(depth) {
+  if (depth >= 8) return '#f85149';
+  if (depth >= 5) return '#d29922';
+  return '#3fb950';
+}
+
+function renderGraph() {
+  const svg = d3.select('#graph-svg');
+  svg.selectAll('*').remove();
+
+  const { nodes, links } = buildGraphData();
+  if (!nodes.length) {
+    svg.append('text')
+      .attr('x', '50%').attr('y', '50%')
+      .attr('text-anchor','middle').attr('dominant-baseline','middle')
+      .attr('fill','#8b949e').attr('font-size','14px')
+      .text('暂无知识节点，请先运行探索');
+    return;
+  }
+
+  const container = svg.node().parentElement;
+  const W = container.clientWidth || 800;
+  const H = 500;
+
+  svg.attr('viewBox', `0 0 ${W} ${H}`);
+
+  // Zoom
+  const g = svg.append('g');
+  svg.call(d3.zoom()
+    .scaleExtent([0.2, 4])
+    .on('zoom', e => g.attr('transform', e.transform)));
+
+  // Links
+  const linkSel = g.append('g').selectAll('line')
+    .data(links).enter().append('line')
+    .attr('class','graph-link')
+    .attr('stroke-width', d => d.strength);
+
+  // Node groups
+  const nodeSel = g.append('g').selectAll('.graph-node')
+    .data(nodes).enter().append('g')
+    .attr('class','graph-node')
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; })
+    )
+    .on('click', (e, d) => {
+      e.stopPropagation();
+      showDetail('knowledge', d.id);
+    });
+
+  // Circles
+  nodeSel.append('circle')
+    .attr('r', d => d.inQueue ? Math.max(8, d.depth * 1.2) : Math.max(6, d.depth * 0.9))
+    .attr('fill', d => getNodeColor(d.depth))
+    .attr('fill-opacity', d => d.inQueue ? 0.9 : 0.65)
+    .attr('stroke', d => d.inQueue ? '#fff' : 'none')
+    .attr('stroke-width', d => d.inQueue ? 2 : 0);
+
+  // Labels
+  nodeSel.append('text')
+    .attr('dx', d => Math.max(6, d.depth * 0.9) + 4)
+    .attr('dy', 4)
+    .text(d => d.id.length > 28 ? d.id.substring(0, 25) + '...' : d.id);
+
+  // Tooltip on hover
+  nodeSel.append('title').text(d =>
+    `${d.id}\n深度: ${d.depth} | ${d.inQueue ? '🔄待探索' : '✅已探索'}`
+  );
+
+  // Force simulation
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(120).strength(0.4))
+    .force('charge', d3.forceManyBody().strength(-300))
+    .force('center', d3.forceCenter(W / 2, H / 2))
+    .force('collision', d3.forceCollide().radius(d => Math.max(10, d.depth) + 20))
+    .on('tick', () => {
+      linkSel
+        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+      nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+    });
+}
+
 
 async function loadAll() {
   const data = await fetchState();
