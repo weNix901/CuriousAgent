@@ -46,10 +46,19 @@ def run_one_cycle(depth: str = "medium") -> dict:
     # 4. 执行探索
     result = explorer.explore(next_curiosity)
     
+    # 5. Auto-queue new topics from findings (only for medium/deep)
+    auto_queued = 0
+    if depth in ("medium", "deep"):
+        findings = result.get("findings", "")
+        keywords = engine._extract_keywords(findings)
+        if keywords:
+            auto_queued = engine.auto_queue_topics(keywords, parent_topic=next_curiosity["topic"])
+    
     return {
         "status": "success",
         "result": result,
-        "formatted": explorer.format_for_user(result)
+        "formatted": explorer.format_for_user(result),
+        "auto_queued": auto_queued
     }
 
 
