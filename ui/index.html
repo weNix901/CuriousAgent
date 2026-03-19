@@ -236,7 +236,7 @@
 #graph-view{display:none;margin-top:16px}
 #graph-view.active{display:block}
 #list-view.hidden{display:none}
-#graph-svg{width:100%;height:480px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:grab;display:block}
+#graph-svg{width:100%;height:960px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:grab;display:block}
 #graph-svg:active{cursor:grabbing}
 .graph-node circle{transition:r .15s}
 .graph-node:hover circle{filter:brightness(1.3)}
@@ -551,7 +551,7 @@ function renderGraph() {
   var data=buildGraphData();
   if(!data.nodes.length){svg.append('text').attr('x','50%').attr('y','50%').attr('text-anchor','middle').attr('dominant-baseline','middle').attr('fill','#8b949e').attr('font-size','14px').text('暂无知识节点，请先运行探索');return;}
   var W=(svg.node().parentElement&&svg.node().parentElement.clientWidth)||900;
-  var H=480;
+  var H=960;
   svg.attr('viewBox','0 0 '+W+' '+H);
   var g=svg.append('g');
   svg.call(d3.zoom().scaleExtent([0.2,4]).on('zoom',function(e){g.attr('transform',e.transform);}));
