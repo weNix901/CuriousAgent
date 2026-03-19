@@ -229,19 +229,6 @@
   .click-hint { font-size: 11px; color: var(--accent); opacity: 0; transition: opacity 0.1s; margin-left: 6px; }
   .item:hover .click-hint, .history-item:hover .click-hint { opacity: 1; }
 
-  /* Graph Tab */
-  .view-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
-  .view-tab {
-    flex: 1; padding: 8px 0; text-align: center; border-radius: 6px;
-    border: 1px solid var(--border); background: var(--surface); color: var(--text-muted);
-    font-size: 13px; cursor: pointer; transition: all 0.15s; user-select: none;
-  }
-  .view-tab:hover { border-color: var(--accent); color: var(--accent); }
-  .view-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-  #graph-view { display: none; }
-  #graph-view.active { display: block; }
-  #list-view.active-view { }
-  #list-view:not(.active-view) { display: none; }
 
   /* Graph canvas */
   #graph-svg { width: 100%; height: 500px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: grab; }
@@ -256,7 +243,6 @@
   .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
 </style>
-<script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
 <div class="container">
@@ -273,12 +259,6 @@
       <button class="btn btn-primary" onclick="runExplore()">▶ 运行探索</button>
     </div>
   </header>
-
-  <!-- View Tabs -->
-  <div class="view-tabs">
-    <button class="view-tab active" id="tab-list" onclick="switchView('list')">📋 列表视图</button>
-    <button class="view-tab" id="tab-graph" onclick="switchView('graph')">🔮 图谱视图</button>
-  </div>
 
 
   <!-- Stats -->
@@ -305,10 +285,7 @@
     </div>
   </div>
 
-  <!-- List View -->
-  <div id="list-view" class="active-view">
-
-  <!-- Main Grid -->
+    <!-- Main Grid -->
   <div class="main-grid">
 
     <!-- Curiosity Queue -->
@@ -386,12 +363,6 @@
       </div>
     </div>
 
-  </div>
-
-  </div>
-
-  <!-- Graph View -->
-  <div id="graph-view">
     <div class="panel">
       <div class="panel-header">
         <div class="panel-title">🔮 知识图谱</div>
@@ -407,7 +378,6 @@
         </div>
       </div>
     </div>
-  </div>
 
   <!-- Console Log -->
   <div class="log-panel">
@@ -517,19 +487,6 @@ async function quickExplore(topic) {
   setTimeout(() => runExplore(), 500);
 }
 
-
-// ── View Switch ────────────────────────────────────────────────
-
-let currentView = 'list';
-
-function switchView(view) {
-  currentView = view;
-  document.getElementById('tab-list').classList.toggle('active', view === 'list');
-  document.getElementById('tab-graph').classList.toggle('active', view === 'graph');
-  document.getElementById('list-view').style.display = view === 'list' ? '' : 'none';
-  document.getElementById('graph-view').style.display = view === 'graph' ? '' : 'none';
-  if (view === 'graph' && state) renderGraph();
-}
 
 // ── Knowledge Graph ────────────────────────────────────────────
 
@@ -671,6 +628,7 @@ async function loadAll() {
   const data = await fetchState();
   if (!data) { log('⚠️ 无法加载状态，请确保 API 服务已启动', 'error'); return; }
   state = data;
+  renderGraph();
   renderStats(data);
   renderCuriosity(data.curiosity_queue || []);
   renderHistory(data.exploration_log || []);
@@ -768,12 +726,6 @@ function renderKnowledge(topics) {
     </div>
   `).join('');
 }
-
-// Init
-refreshAll = loadAll;
-setInterval(loadAll, 30000); // Auto-refresh every 30s
-loadAll();
-log('👁️ Curious Agent 控制台已就绪', 'ok');
 
 // ── Detail Modal ────────────────────────────────────────────────
 
