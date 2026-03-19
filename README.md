@@ -264,13 +264,23 @@ curious-agent/
 ├── core/
 │   ├── knowledge_graph.py    # 知识图谱 + 持久化（JSON）
 │   ├── curiosity_engine.py   # 好奇心引擎（评分算法）
-│   └── explorer.py           # 探索器（Bocha Web Search + 推理）
+│   ├── explorer.py           # 探索器（分层架构）
+│   ├── arxiv_analyzer.py     # 📄 Layer 2: arXiv 论文分析
+│   └── llm_client.py         # 🤖 Layer 3: minimax LLM 客户端
 ├── ui/
 │   └── index.html           # 🌐 单页 Web 界面
 ├── knowledge/
 │   └── state.json           # 持久化状态
 ├── logs/
 │   └── curious.log          # 运行日志
+├── tests/
+│   ├── test_cli.py          # CLI 测试
+│   ├── test_explorer_layers.py  # 分层探索测试
+│   ├── test_arxiv_analyzer.py   # arXiv 分析测试
+│   ├── test_llm_client.py       # LLM 客户端测试
+│   ├── test_integration.py      # 集成测试
+│   ├── test_auto_queue.py       # 自动入队测试
+│   └── test_e2e.py              # E2E 测试
 ├── docs/                    # 详细文档
 │   ├── 01-调研报告.md       # 元认知理论 + 7框架调研
 │   ├── 02-设计文档.md       # 架构 + 算法 + 接口设计
@@ -289,12 +299,89 @@ curious-agent/
 - **前端**: Vanilla JS + D3.js v7（零依赖，单 HTML 文件）
 - **可视化**: D3.js 力导向图（Force-Directed Graph）
 - **搜索**: Bocha Search API（`/v1/web-search`）
+- **论文分析**: arxiv 库 + PyPDF2
+- **LLM**: minimax API（`minimax-m2.7` 模型）
 - **持久化**: JSON（v0.1）→ SQLite（v0.2 计划）
 - **定时**: Cron
 
 ---
 
-## 九、已探索的知识
+## 九、v0.2 新特性
+
+### 分层探索 (Layered Exploration)
+
+支持三种探索深度，适应不同场景需求：
+
+| 深度 | 层级 | 耗时 | 适用场景 |
+|------|------|------|---------|
+| `shallow` | Layer 1: Web Search | <30秒 | 快速了解、初步调研 |
+| `medium` | Layer 1 + Layer 2: arXiv 分析 | 3-5分钟 | 深入研究、论文追踪 |
+| `deep` | Layer 1 + Layer 2 + Layer 3: LLM 洞察 | 10-15分钟 | 全面分析、跨论文对比 |
+
+**CLI 使用：**
+```bash
+# 快速探索
+python3 curious_agent.py --run --run-depth shallow
+
+# 中等深度（默认）
+python3 curious_agent.py --run --run-depth medium
+
+# 深度探索
+python3 curious_agent.py --run --run-depth deep
+```
+
+**Layer 说明：**
+- **Layer 1 (Web Search)**: 调用 Bocha Search API，获取网页结果，提取 arXiv 链接
+- **Layer 2 (arXiv 分析)**: 下载论文元数据，计算相关性评分，提取关键发现
+- **Layer 3 (LLM 洞察)**: 使用 minimax API 生成跨论文对比分析、趋势观察、研究建议
+
+### 主动触发系统 (Active Trigger)
+
+支持多种触发方式，实现主动探索：
+
+**1. API 触发**
+```bash
+# 触发探索（后台异步执行）
+curl -X POST http://10.1.0.13:4849/api/curious/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"topic":"knowledge graph embedding","depth":"deep"}'
+
+# 响应
+{
+  "status": "accepted",
+  "topic": "knowledge graph embedding",
+  "depth": "deep",
+  "estimated_time": "10-15分钟"
+}
+```
+
+**2. 定时触发**
+- 早安探索 (9:00): 每日知识更新
+- 晚安探索 (21:00): 当日发现总结
+
+### 自动入队 (Auto-Queue)
+
+从探索发现中自动提取关键词，加入好奇心队列：
+
+- 探索完成后自动分析 findings
+- 提取学术关键词（大写短语、专业术语）
+- 去重后加入待探索队列
+- 仅在 medium/deep 深度启用
+
+**示例流程：**
+```
+探索 "knowledge graph embedding"
+  ↓
+发现关键词: TransE, RotatE, Neural Networks
+  ↓
+自动入队: ["TransE algorithm", "RotatE method", "Neural Networks for KG"]
+  ↓
+下一轮自动探索这些新话题
+```
+
+---
+
+## 十、已探索的知识
 
 当前知识图谱覆盖领域：
 
@@ -311,6 +398,14 @@ curious-agent/
 
 ---
 
-_最后更新: 2026-03-19 | v0.1 MVP_
+_最后更新: 2026-03-19 | v0.2_
 
 _设计理念：好奇驱动，主动探索，以我为名_
+
+**v0.2 更新日志：**
+- ✅ 分层探索架构 (shallow/medium/deep)
+- ✅ arXiv 论文分析集成
+- ✅ minimax LLM 洞察生成
+- ✅ API 触发端点 (`/api/curious/trigger`)
+- ✅ 自动入队功能
+- ✅ E2E 测试覆盖
