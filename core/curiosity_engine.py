@@ -158,3 +158,78 @@ class CuriosityEngine:
                     relevance=7.0,
                     depth=6.0
                 )
+    
+    def _extract_keywords(self, text: str) -> list:
+        """
+        从文本中提取关键词
+        
+        提取规则：
+        1. 大写开头的短语（如 "ReAct framework", "Chain-of-Thought"）
+        2. 过滤短词（< 4 字符）
+        3. 去重
+        4. 限制数量（最多 10 个）
+        """
+        if not text:
+            return []
+        
+        # 提取大写开头的短语（1-3 个词）
+        # Pattern: Capitalized word (including camelCase like "ReAct") followed by optional capitalized words
+        keywords = re.findall(r'[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2}', text)
+        
+        # 过滤短词并去重
+        seen = set()
+        filtered = []
+        for kw in keywords:
+            kw_lower = kw.lower()
+            if len(kw) > 3 and kw_lower not in seen:
+                seen.add(kw_lower)
+                filtered.append(kw)
+        
+        # 限制数量
+        return filtered[:10]
+    
+    def auto_queue_topics(self, topics: list, parent_topic: str) -> int:
+        """
+        自动将发现的关键词加入好奇心队列
+        
+        Args:
+            topics: 要添加的主题列表
+            parent_topic: 父主题（用于生成 reason）
+            
+        Returns:
+            实际添加的数量
+        """
+        if not topics:
+            return 0
+        
+        state = kg.get_state()
+        existing_pending = {
+            item["topic"].lower() 
+            for item in state["curiosity_queue"] 
+            if item["status"] == "pending"
+        }
+        
+        added = 0
+        for topic in topics:
+            # 跳过空字符串
+            if not topic or not topic.strip():
+                continue
+            
+            topic = topic.strip()
+            
+            # 跳过已存在的待处理项
+            if topic.lower() in existing_pending:
+                continue
+            
+            # 添加到队列
+            reason = f"auto: found in {parent_topic}"
+            kg.add_curiosity(
+                topic=topic,
+                reason=reason,
+                relevance=6.0,
+                depth=5.0
+            )
+            added += 1
+            existing_pending.add(topic.lower())
+        
+        return added
