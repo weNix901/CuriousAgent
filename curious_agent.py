@@ -23,8 +23,12 @@ from core.curiosity_engine import CuriosityEngine
 from core.explorer import Explorer
 
 
-def run_one_cycle() -> dict:
-    """执行一轮好奇心探索"""
+VALID_DEPTHS = {"shallow", "medium", "deep"}
+
+
+def run_one_cycle(depth: str = "medium") -> dict:
+    if depth not in VALID_DEPTHS:
+        raise ValueError(f"Invalid depth '{depth}'. Must be one of: {', '.join(sorted(VALID_DEPTHS))}")
     engine = CuriosityEngine()
     explorer = Explorer()
     
@@ -136,6 +140,7 @@ def main():
     parser.add_argument("--depth", type=float, default=6.0, help="注入时的 depth 分数")
     parser.add_argument("--reason", type=str, default="", help="注入原因")
     parser.add_argument("--run", action="store_true", help="运行一轮探索")
+    parser.add_argument("--run-depth", type=str, default="medium", choices=["shallow", "medium", "deep"], help="运行时的探索深度")
     
     args = parser.parse_args()
     
@@ -146,14 +151,13 @@ def main():
     elif args.daemon:
         daemon_mode(args.interval)
     elif args.run:
-        result = run_one_cycle()
+        result = run_one_cycle(depth=args.run_depth)
         if result["status"] == "idle":
             print(f"💤 {result['message']}")
         else:
             print(result["formatted"])
     else:
-        # 默认：运行一轮 + 打印状态
-        result = run_one_cycle()
+        result = run_one_cycle(depth=args.run_depth)
         print_status()
         if result["status"] == "success":
             print("\n📋 本轮探索结果:")
