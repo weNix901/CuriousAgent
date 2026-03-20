@@ -2,9 +2,9 @@
 
 > 一个具有**内在好奇心**的自主探索 Agent。不是等待用户提问，而是主动发现知识缺口、持续积累、主动分享。
 
-[![Status](https://img.shields.io/badge/status-v0.2.0-blue)](#)
+[![Status](https://img.shields.io/badge/status-v0.2.1-blue)](#)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](#)
-[![Release](https://img.shields.io/badge/release-v0.2.0-green)](./RELEASE_NOTE_v0.2.0.md)
+[![Release](https://img.shields.io/badge/release-v0.2.1-green)](./RELEASE_NOTE_v0.2.1.md)
 
 ---
 
@@ -382,7 +382,46 @@ curl -X POST http://10.1.0.13:4849/api/curious/trigger \
 
 ---
 
-## 十、已探索的知识
+## 十、v0.2.1 新特性
+
+### ICM 融合评分机制
+
+引入 **Intrinsic Curiosity Module** 启发式评分，让 Agent 能够自主评估话题的探索价值：
+
+```
+FinalScore = HumanScore × α + IntrinsicScore × (1 - α)
+```
+
+**三个内在信号（LLM 评估）**：
+- **预测误差**: 当前对该话题的理解程度
+- **图谱密度**: 知识网络中的位置重要性  
+- **新颖性**: 与已知知识的语义重叠度
+
+**用户控制**:
+```bash
+# 偏重人工意图 (70%)
+python3 curious_agent.py --inject "topic" --motivation human
+
+# 偏重自主探索 (30%)
+python3 curious_agent.py --inject "topic" --motivation curious
+
+# 纯探索模式 (0%)
+python3 curious_agent.py --run --pure-curious
+```
+
+### Bug 修复与增强
+
+| 修复项 | 改进 |
+|--------|------|
+| F1 队列删除 | `--delete`, `--force`, `--list-pending` 参数 |
+| F2 Layer 3 触发 | 修复 depth 参数传递，触发率从 2% → 20-30% |
+| F3 关键词过滤 | 停用词表 + 语义检查，噪音率 73% → <5% |
+| F4 启动脚本 | `run_curious.sh` 一键干净启动 |
+| F5 ArXiv 容错 | 超时重试 + fallback，成功率 20% → 60%+ |
+
+---
+
+## 十一、已探索的知识
 
 当前知识图谱覆盖领域：
 
@@ -399,11 +438,17 @@ curl -X POST http://10.1.0.13:4849/api/curious/trigger \
 
 ---
 
-_最后更新: 2026-03-20 | v0.2.0_
+_最后更新: 2026-03-20 | v0.2.1_
 
-📄 **Release Note**: [v0.2.0 Release Note](./RELEASE_NOTE_v0.2.0.md)
+📄 **Release Notes**: [v0.2.1 Release Note](./RELEASE_NOTE_v0.2.1.md) | [v0.2.0 Release Note](./RELEASE_NOTE_v0.2.0.md)
 
 _设计理念：好奇驱动，主动探索，以我为名_
+
+**v0.2.1 更新日志：**
+- ✅ ICM 融合评分机制（IntrinsicScorer 模块）
+- ✅ LLM 主导信号评估（pred_error/graph_density/novelty）
+- ✅ α 参数全接口支持（CLI/API/Web UI）
+- ✅ F1-F5 Bug 修复（队列删除/Layer 3触发/关键词过滤/启动脚本/ArXiv容错）
 
 **v0.2 更新日志：**
 - ✅ 分层探索架构 (shallow/medium/deep)

@@ -190,8 +190,8 @@ class TestAnalyzePapers:
         assert "high_relevance_count" in result
 
     @patch.object(ArxivAnalyzer, '_fetch_arxiv_metadata')
-    def test_analyze_papers_limits_to_three(self, mock_fetch):
-        """Test that analyze_papers limits analysis to 3 papers"""
+    def test_analyze_papers_limits_to_five(self, mock_fetch):
+        """Test that analyze_papers limits analysis to 5 papers"""
         from core.arxiv_analyzer import ArxivAnalyzer
         analyzer = ArxivAnalyzer()
         
@@ -208,12 +208,14 @@ class TestAnalyzePapers:
             "https://arxiv.org/abs/2401.02010",
             "https://arxiv.org/abs/2401.02011",
             "https://arxiv.org/abs/2401.02012",
-            "https://arxiv.org/abs/2401.02013"
+            "https://arxiv.org/abs/2401.02013",
+            "https://arxiv.org/abs/2401.02014",
+            "https://arxiv.org/abs/2401.02015"
         ]
         
         result = analyzer.analyze_papers("test topic", links)
         
-        assert result["papers_analyzed"] <= 3
+        assert result["papers_analyzed"] <= 5
 
     def test_analyze_papers_handles_empty_list(self):
         """Test that analyze_papers handles empty list"""
