@@ -165,3 +165,38 @@ def get_knowledge_summary() -> dict:
         "pending_curiosities": sum(1 for i in state["curiosity_queue"] if i["status"] == "pending"),
         "recent_explorations": len(state["exploration_log"])
     }
+
+
+def remove_curiosity(topic: str, force: bool = False) -> bool:
+    """
+    删除好奇心队列条目
+
+    Args:
+        topic: 话题名称
+        force: 是否强制删除（忽略状态）
+
+    Returns:
+        bool: 是否成功删除
+    """
+    state = _load_state()
+    queue = state.get("curiosity_queue", [])
+
+    for i, item in enumerate(queue):
+        if item.get("topic") == topic:
+            # 检查状态
+            if not force and item.get("status") in ["exploring", "done"]:
+                return False
+
+            # 删除
+            queue.pop(i)
+            state["curiosity_queue"] = queue
+            _save_state(state)
+            return True
+
+    return False
+
+
+def list_pending() -> list:
+    """列出所有待探索条目"""
+    state = _load_state()
+    return [item for item in state.get("curiosity_queue", []) if item.get("status") == "pending"]

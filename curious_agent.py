@@ -148,11 +148,8 @@ def inject_curiosity(topic: str, relevance: float = 7.0, depth: float = 6.0, rea
     if not reason:
         reason = f"用户主动注入: {topic}"
     
-    # Use fusion scoring
     engine = CuriosityEngine()
     score_result = engine.score_topic(topic, alpha=alpha)
-    
-    # Add to queue with fusion score
     kg.add_curiosity(topic, reason, score_result['final_score'], depth)
     
     print(f"✅ 已注入好奇心: {topic}")
@@ -160,6 +157,27 @@ def inject_curiosity(topic: str, relevance: float = 7.0, depth: float = 6.0, rea
     print(f"   - 人工评分: {score_result['human_score']:.2f}")
     print(f"   - 内在评分: {score_result['intrinsic_score']:.2f}")
     print(f"   原因: {reason}")
+
+
+def delete_curiosity(topic: str, force: bool = False):
+    """删除队列条目"""
+    success = kg.remove_curiosity(topic, force=force)
+    if success:
+        print(f"✅ 已删除: {topic}")
+    else:
+        print(f"❌ 删除失败: {topic} (可能不存在或状态不允许删除，使用 --force 强制删除)")
+
+
+def list_pending():
+    """列出待探索条目"""
+    pending = kg.list_pending()
+    if not pending:
+        print("📭 没有待探索的条目")
+        return
+    
+    print(f"📋 待探索条目 ({len(pending)} 项):")
+    for i, item in enumerate(pending, 1):
+        print(f"   {i}. [{item.get('score', 'N/A'):.1f}] {item['topic']}")
 
 
 def main():
@@ -176,6 +194,9 @@ def main():
     parser.add_argument("--alpha", type=float, default=0.5, help="人工信号权重 (0.0-1.0)，默认 0.5")
     parser.add_argument("--motivation", type=str, choices=["human", "curious"], help="预设 alpha: human=0.7, curious=0.3")
     parser.add_argument("--pure-curious", action="store_true", help="纯探索模式 (alpha=0.0)")
+    parser.add_argument("--delete", type=str, help="删除指定话题")
+    parser.add_argument("--force", action="store_true", help="强制删除（忽略状态）")
+    parser.add_argument("--list-pending", action="store_true", help="列出待探索条目")
     
     args = parser.parse_args()
     
@@ -183,6 +204,10 @@ def main():
     
     if args.status:
         print_status()
+    elif args.list_pending:
+        list_pending()
+    elif args.delete:
+        delete_curiosity(args.delete, force=args.force)
     elif args.inject:
         inject_curiosity(args.inject, args.score, args.depth, args.reason, alpha=alpha)
     elif args.daemon:
