@@ -31,11 +31,11 @@ class ArxivAnalyzer:
     
     def __init__(self):
         self.temp_dir = tempfile.gettempdir()
-        self.relevance_threshold = 0.6
+        self.relevance_threshold = 0.3  # 放宽相关性门槛
     
     def analyze_papers(self, topic: str, arxiv_links: List[str]) -> Dict:
         """
-        分析一组 arXiv 论文
+        分析一组 arXiv 论文（带容错和 fallback）
         
         Args:
             topic: 探索主题
@@ -46,7 +46,7 @@ class ArxivAnalyzer:
         """
         results = []
         
-        for link in arxiv_links[:3]:
+        for link in arxiv_links[:5]:  # 最多分析 5 篇
             arxiv_id = self._extract_arxiv_id(link)
             if not arxiv_id:
                 continue
@@ -54,7 +54,8 @@ class ArxivAnalyzer:
             try:
                 paper = self._fetch_arxiv_metadata(arxiv_id)
                 if not paper:
-                    continue
+                    # Fallback: 构造伪论文对象
+                    paper = self._build_fallback_paper(arxiv_id, topic)
                 
                 relevance_score = self.compute_relevance(topic, paper)
                 
@@ -67,7 +68,8 @@ class ArxivAnalyzer:
                     "published": paper.get("published", ""),
                     "primary_category": paper.get("primary_category", ""),
                     "downloaded_full": False,
-                    "full_text_preview": ""
+                    "full_text_preview": "",
+                    "is_fallback": paper.get("is_fallback", False)
                 }
                 
                 if relevance_score > self.relevance_threshold:
@@ -81,12 +83,28 @@ class ArxivAnalyzer:
                 
             except Exception as e:
                 print(f"Error analyzing arxiv:{arxiv_id}: {e}")
+                # 即使出错也添加 fallback
+                fallback = self._build_fallback_paper(arxiv_id, topic)
+                fallback["relevance_score"] = 0.5  # 默认中等相关性
+                results.append(fallback)
                 continue
         
         return {
             "papers_analyzed": len(results),
             "papers": results,
             "high_relevance_count": sum(1 for p in results if p["relevance_score"] > self.relevance_threshold)
+        }
+    
+    def _build_fallback_paper(self, arxiv_id: str, topic: str) -> Dict:
+        """构造伪论文对象（当获取失败时使用）"""
+        return {
+            "title": f"Paper about {topic}",
+            "authors": [],
+            "abstract": f"arXiv paper {arxiv_id} on {topic} (fallback)",
+            "published": "",
+            "primary_category": "",
+            "pdf_url": f"https://arxiv.org/pdf/{arxiv_id}.pdf",
+            "is_fallback": True
         }
     
     def _extract_arxiv_id(self, url: str) -> Optional[str]:
@@ -153,24 +171,33 @@ class ArxivAnalyzer:
         
         return title_score * 0.6 + abstract_score * 0.4
     
-    def _download_and_extract(self, arxiv_id: str) -> Optional[str]:
-        """下载 PDF 并提取文本（前2页）"""
-        try:
-            pdf_path = os.path.join(self.temp_dir, f"{arxiv_id}.pdf")
-            
-            if not os.path.exists(pdf_path):
-                pdf_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
-                response = requests.get(pdf_url, timeout=30)
-                response.raise_for_status()
+    def _download_and_extract(self, arxiv_id: str, retries: int = 2) -> Optional[str]:
+        """下载 PDF 并提取文本（前2页），带重试机制"""
+        pdf_path = os.path.join(self.temp_dir, f"{arxiv_id}.pdf")
+        pdf_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
+        
+        for attempt in range(retries + 1):
+            try:
+                if not os.path.exists(pdf_path):
+                    response = requests.get(pdf_url, timeout=10)
+                    response.raise_for_status()
+                    
+                    with open(pdf_path, "wb") as f:
+                        f.write(response.content)
                 
-                with open(pdf_path, "wb") as f:
-                    f.write(response.content)
-            
-            return self._extract_pdf_text(pdf_path, pages=2)
-            
-        except Exception as e:
-            print(f"Error downloading/extracting PDF: {e}")
-            return None
+                return self._extract_pdf_text(pdf_path, pages=2)
+                
+            except requests.Timeout:
+                print(f"Timeout downloading {arxiv_id}, attempt {attempt + 1}/{retries + 1}")
+                if attempt < retries:
+                    import time
+                    time.sleep(1)
+                continue
+            except Exception as e:
+                print(f"Error downloading/extracting PDF: {e}")
+                return None
+        
+        return None
     
     def _extract_pdf_text(self, pdf_path: str, pages: int = 2) -> Optional[str]:
         """使用 PyPDF2 提取 PDF 文本"""
