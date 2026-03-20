@@ -1,16 +1,6 @@
-#!/usr/bin/env python3
 """
-curious_api.py — Curious Agent REST API 服务器 (Flask)
-
-提供:
-  GET  /api/curious/state       → 完整状态
-  POST /api/curious/run         → 运行一轮探索
-  POST /api/curious/inject      → 注入好奇心
-  GET  /                        → Web 界面
-
-启动:
-  python3 curious_api.py
-  python3 curious_api.py --port 4848
+Curious Agent API Server
+提供 RESTful API 和静态文件服务
 """
 import argparse
 import os
@@ -21,42 +11,29 @@ import webbrowser
 
 from flask import Flask, jsonify, request, send_from_directory
 
-app = Flask(__name__, static_folder=None)
+app = Flask(__name__)
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-STATE_FILE = os.path.join(SCRIPT_DIR, "knowledge", "state.json")
-UI_DIR = os.path.join(SCRIPT_DIR, "ui")
-sys.path.insert(0, SCRIPT_DIR)
+# UI 静态文件目录
+UI_DIR = os.path.join(os.path.dirname(__file__), "ui")
 
-
-# ── State helpers ──────────────────────────────────────────────
-
-def load_state():
-    if not os.path.exists(STATE_FILE):
-        return {"knowledge": {"topics": {}}, "curiosity_queue": [],
-                "exploration_log": [], "last_update": None}
-    try:
-        import json
-        with open(STATE_FILE, encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {"knowledge": {"topics": {}}, "curiosity_queue": [],
-                "exploration_log": [], "last_update": None}
-
-
-# ── Routes ────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
     return send_from_directory(UI_DIR, "index.html")
 
-@app.route("/ui/<path:filename>")
-def ui_static(filename):
-    return send_from_directory(UI_DIR, filename)
 
 @app.route("/api/curious/state")
 def api_state():
-    return jsonify(load_state())
+    from core import knowledge_graph as kg
+    state = kg.get_state()
+    summary = kg.get_knowledge_summary()
+    return jsonify({
+        "status": "ok",
+        "knowledge": summary,
+        "queue_count": len(state["curiosity_queue"]),
+        "log_count": len(state["exploration_log"])
+    })
+
 
 @app.route("/api/curious/run", methods=["POST"])
 def api_run():
@@ -88,6 +65,7 @@ def api_run():
         traceback.print_exc()
         return jsonify({"status": "error", "error": str(e)}), 500
 
+
 @app.route("/api/curious/inject", methods=["POST"])
 def api_inject():
     try:
@@ -96,14 +74,35 @@ def api_inject():
         if not topic:
             return jsonify({"error": "topic is required"}), 400
 
+        alpha = float(data.get("alpha", 0.5))
+        mode = data.get("mode", "fusion")
+
+        from core.curiosity_engine import CuriosityEngine
         from core.knowledge_graph import add_curiosity
+
+        engine = CuriosityEngine()
+
+        if mode == "intrinsic":
+            result = engine.intrinsic_scorer.score(topic)
+            final_score = result['total']
+        else:
+            result = engine.score_topic(topic, alpha=alpha)
+            final_score = result['final_score']
+
         add_curiosity(
             topic=topic,
             reason=str(data.get("reason", "Web UI 注入")),
-            relevance=float(data.get("relevance", 7.0)),
+            relevance=final_score,
             depth=float(data.get("depth", 6.0))
         )
-        return jsonify({"status": "ok", "topic": topic})
+
+        return jsonify({
+            "status": "ok",
+            "topic": topic,
+            "score": final_score,
+            "alpha": alpha,
+            "mode": mode
+        })
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -112,15 +111,6 @@ def api_inject():
 
 @app.route("/api/curious/trigger", methods=["POST"])
 def api_trigger():
-    """
-    触发探索（后台执行）
-
-    Request:
-        {"topic": "...", "depth": "medium"}
-
-    Response:
-        {"status": "accepted", "topic": "...", "estimated_time": "..."}
-    """
     try:
         data = request.get_json() or {}
         topic = str(data.get("topic", "")).strip()
@@ -183,7 +173,39 @@ def api_trigger():
         return jsonify({"error": str(e)}), 500
 
 
-# ── Main ──────────────────────────────────────────────────────
+@app.route("/api/curious/queue", methods=["DELETE"])
+def api_delete_queue_item():
+    try:
+        topic = request.args.get("topic", "").strip()
+        force = request.args.get("force", "false").lower() == "true"
+
+        if not topic:
+            return jsonify({"error": "topic is required"}), 400
+
+        from core.knowledge_graph import remove_curiosity
+        success = remove_curiosity(topic, force=force)
+
+        if success:
+            return jsonify({"status": "success", "topic": topic, "deleted": True})
+        else:
+            return jsonify({"status": "error", "message": "Topic not found or cannot be deleted"}), 400
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/curious/queue/pending", methods=["GET"])
+def api_list_pending():
+    try:
+        from core.knowledge_graph import list_pending
+        pending = list_pending()
+        return jsonify({"status": "success", "count": len(pending), "items": pending})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
 
 def main():
     parser = argparse.ArgumentParser(description="Curious Agent API Server")
@@ -211,7 +233,6 @@ def main():
             webbrowser.open(url)
         threading.Thread(target=open_browser, daemon=True).start()
 
-    # threaded=True for concurrent request handling
     app.run(host=args.host, port=args.port, debug=False, threaded=True)
 
 
