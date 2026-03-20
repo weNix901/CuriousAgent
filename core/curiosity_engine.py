@@ -10,6 +10,26 @@ from . import knowledge_graph as kg
 from .intrinsic_scorer import IntrinsicScorer
 
 
+# 停用词表（领域相关）
+STOPWORDS = {
+    # 通用商业/SEO词
+    "AI Strategy", "AI Business", "Digital Marketing", "CTO", "COO",
+    "Chief Technology Officer", "Customer Loyalty", "Operations",
+    # 搜索结果噪音词
+    "SegmentFault", "CentOS", "Segmentation fault",
+    # 单字母/截断
+    "Agen", "TeST", "LL", "AI",
+}
+
+# 研究关键词（用于语义相关性检查）
+RESEARCH_KEYWORDS = {
+    "agent", "llm", "memory", "planning", "reasoning", "reflection",
+    "metacognition", "curiosity", "autonomous", "world model", "cognitive",
+    "framework", "architecture", "training", "arxiv", "reinforcement",
+    "chain-of-thought", "prompt", "embedding", "attention", "transformer",
+}
+
+
 class CuriosityEngine:
     """
     好奇心引擎
@@ -222,32 +242,48 @@ class CuriosityEngine:
     
     def _extract_keywords(self, text: str) -> list:
         """
-        从文本中提取关键词
+        从文本中提取关键词（带过滤）
         
         提取规则：
-        1. 大写开头的短语（如 "ReAct framework", "Chain-of-Thought"）
-        2. 过滤短词（< 4 字符）
-        3. 去重
-        4. 限制数量（最多 10 个）
+        1. 预处理：清理换行符
+        2. 大写开头的短语（如 "ReAct framework", "Chain-of-Thought"）
+        3. 过滤短词（< 4 字符）
+        4. 停用词过滤
+        5. 去重
+        6. 限制数量（最多 10 个）
         """
         if not text:
             return []
         
+        # 预处理：清理换行符
+        text = text.replace('\n', ' ').replace('\r', ' ')
+        
         # 提取大写开头的短语（1-3 个词）
-        # Pattern: Capitalized word (including camelCase like "ReAct") followed by optional capitalized words
         keywords = re.findall(r'[A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){0,2}', text)
         
-        # 过滤短词并去重
+        # 过滤：短词、停用词、去重
         seen = set()
         filtered = []
         for kw in keywords:
+            # 长度过滤
+            if len(kw) < 4:
+                continue
+            # 停用词过滤
+            if kw in STOPWORDS:
+                continue
+            # 去重
             kw_lower = kw.lower()
-            if len(kw) > 3 and kw_lower not in seen:
+            if kw_lower not in seen:
                 seen.add(kw_lower)
                 filtered.append(kw)
         
         # 限制数量
         return filtered[:10]
+    
+    def _is_research_related(self, keyword: str) -> bool:
+        """检查关键词是否与 AI/Agent 研究相关"""
+        kw_lower = keyword.lower()
+        return any(rk in kw_lower for rk in RESEARCH_KEYWORDS)
     
     def auto_queue_topics(self, topics: list, parent_topic: str) -> int:
         """
@@ -278,8 +314,21 @@ class CuriosityEngine:
             
             topic = topic.strip()
             
+            # 跳过空字符串
+            if not topic:
+                continue
+            
             # 跳过已存在的待处理项
             if topic.lower() in existing_pending:
+                continue
+            
+            # 语义相关性检查
+            if not self._is_research_related(topic):
+                continue
+            
+            # 预估评分门槛（使用融合评分）
+            score_result = self.score_topic(topic, alpha=0.5)
+            if score_result['final_score'] < 5.0:
                 continue
             
             # 添加到队列
@@ -287,7 +336,7 @@ class CuriosityEngine:
             kg.add_curiosity(
                 topic=topic,
                 reason=reason,
-                relevance=6.0,
+                relevance=score_result['final_score'],
                 depth=5.0
             )
             added += 1
