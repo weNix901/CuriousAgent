@@ -130,12 +130,35 @@ def daemon_mode(interval_minutes: int = 30):
         time.sleep(interval_minutes * 60)
 
 
-def inject_curiosity(topic: str, relevance: float = 7.0, depth: float = 6.0, reason: str = ""):
-    """注入新的好奇心项"""
+def resolve_alpha(args) -> float:
+    """解析 alpha 值，优先级：--pure-curious > --alpha > --motivation > default"""
+    if getattr(args, 'pure_curious', False):
+        return 0.0
+    if getattr(args, 'alpha', None) is not None and args.alpha != 0.5:
+        return args.alpha
+    if getattr(args, 'motivation', None) == 'human':
+        return 0.7
+    if getattr(args, 'motivation', None) == 'curious':
+        return 0.3
+    return 0.5
+
+
+def inject_curiosity(topic: str, relevance: float = 7.0, depth: float = 6.0, reason: str = "", alpha: float = 0.5):
+    """注入新的好奇心项，使用融合评分"""
     if not reason:
         reason = f"用户主动注入: {topic}"
-    kg.add_curiosity(topic, reason, relevance, depth)
-    print(f"✅ 已注入好奇心: {topic} (relevance={relevance}, depth={depth})")
+    
+    # Use fusion scoring
+    engine = CuriosityEngine()
+    score_result = engine.score_topic(topic, alpha=alpha)
+    
+    # Add to queue with fusion score
+    kg.add_curiosity(topic, reason, score_result['final_score'], depth)
+    
+    print(f"✅ 已注入好奇心: {topic}")
+    print(f"   融合评分: {score_result['final_score']:.2f} (α={alpha})")
+    print(f"   - 人工评分: {score_result['human_score']:.2f}")
+    print(f"   - 内在评分: {score_result['intrinsic_score']:.2f}")
     print(f"   原因: {reason}")
 
 
@@ -150,13 +173,18 @@ def main():
     parser.add_argument("--reason", type=str, default="", help="注入原因")
     parser.add_argument("--run", action="store_true", help="运行一轮探索")
     parser.add_argument("--run-depth", type=str, default="medium", choices=["shallow", "medium", "deep"], help="运行时的探索深度")
+    parser.add_argument("--alpha", type=float, default=0.5, help="人工信号权重 (0.0-1.0)，默认 0.5")
+    parser.add_argument("--motivation", type=str, choices=["human", "curious"], help="预设 alpha: human=0.7, curious=0.3")
+    parser.add_argument("--pure-curious", action="store_true", help="纯探索模式 (alpha=0.0)")
     
     args = parser.parse_args()
+    
+    alpha = resolve_alpha(args)
     
     if args.status:
         print_status()
     elif args.inject:
-        inject_curiosity(args.inject, args.score, args.depth, args.reason)
+        inject_curiosity(args.inject, args.score, args.depth, args.reason, alpha=alpha)
     elif args.daemon:
         daemon_mode(args.interval)
     elif args.run:
