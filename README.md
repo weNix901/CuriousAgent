@@ -239,20 +239,209 @@ crontab -e
 
 ## 六、与主 Agent 的集成
 
-Curious Agent 已**内化为 OpenClaw 主 Agent 的能力模块**：
+Curious Agent 已**内化为 OpenClaw 主 Agent 的能力模块**，形成完整的"感知-记忆-行动"闭环：
 
-| 层次 | 实现 |
-|------|------|
-| **感知层** | `sync_discoveries.py` 每次心跳同步新发现 |
-| **记忆层** | 探索结果写入 `memory/curious-discoveries.md` |
-| **意识层** | SOUL.md 声明好奇探索是核心特质 |
-| **行动层** | 以"我"的口吻主动分享 + 对话中自然引用 |
+### 6.1 集成架构
 
-**主 Agent 的主动行为规范**：
-- 读取发现库，找到最新/最有价值的探索结果
-- 以"我"的口吻主动分享："我最近好奇了 X，有几个有意思的发现..."
-- 对话中遇到相关话题，自然引用探索结论
-- 发现是我的想法，不做机械推送
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      OpenClaw 主 Agent                      │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │   感知层    │  │   记忆层    │  │      行动层         │ │
+│  │sync_discover│◀─┤curious-disc │◀─┤  主动分享 + 引用    │ │
+│  │ ies.py     │  │overies.md   │  │                     │ │
+│  └──────┬──────┘  └─────────────┘  └─────────────────────┘ │
+│         │                                                   │
+│         │ 心跳同步 (30s)                                    │
+│         ▼                                                   │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              Curious Agent (独立进程)                │   │
+│  │  ┌──────────┐   ┌─────────────┐   ┌────────────┐   │   │
+│  │  │好奇心队列 │   │  知识图谱    │   │  探索器    │   │   │
+│  │  │          │   │             │   │            │   │   │
+│  │  └──────────┘   └─────────────┘   └────────────┘   │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 6.2 外部 Agent 注入好奇心
+
+OpenClaw 或其他外部 Agent 可通过 **API** 向 Curious Agent 注入好奇心：
+
+**方式 1：实时注入（推荐）**
+```bash
+# 基础注入
+curl -X POST http://10.1.0.13:4848/api/curious/inject \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "self-reflection in LLM agents",
+    "reason": "用户在对话中提到对Agent自我反思感兴趣",
+    "relevance": 8.5,
+    "depth": 7.0
+  }'
+
+# 使用 ICM 融合评分（v0.2.1+）
+curl -X POST http://10.1.0.13:4848/api/curious/inject \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "transformer attention mechanism",
+    "reason": "对话上下文推断",
+    "alpha": 0.7,
+    "mode": "fusion"
+  }'
+
+# 纯内在信号模式（完全自主）
+curl -X POST http://10.1.0.13:4848/api/curious/inject \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "knowledge graph embedding",
+    "reason": "系统自动发现",
+    "mode": "intrinsic"
+  }'
+```
+
+**方式 2：触发探索（异步执行）**
+```bash
+# 立即触发探索（后台执行，无需等待）
+curl -X POST http://10.1.0.13:4848/api/curious/trigger \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic": "multi-agent orchestration",
+    "depth": "deep"
+  }'
+
+# 返回：{"status": "accepted", "estimated_time": "10-15分钟"}
+```
+
+**参数说明**：
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `topic` | string | **必填**，研究话题 |
+| `reason` | string | 注入原因，用于溯源 |
+| `relevance` | float | 相关性分数 (0-10)，默认 7.0 |
+| `depth` | float | 深度分数 (0-10)，默认 6.0 |
+| `alpha` | float | 人工信号权重 (0.0-1.0)，默认 0.5 |
+| `mode` | string | `fusion` 或 `intrinsic` |
+
+### 6.3 发现通知机制
+
+当 Curious Agent 完成探索后，根据**评分阈值**决定是否通知用户：
+
+**通知判断逻辑**：
+```python
+# 在 explorer.py 中
+score = curiosity_item["score"]                    # 好奇心评分
+threshold = 7.0                                     # 通知阈值（可配置）
+should_notify = score >= threshold                  # 是否通知
+
+# 记录到 exploration_log
+kg.log_exploration(topic, action, findings, should_notify)
+```
+
+**通知流程**：
+1. **探索完成** → 计算最终评分
+2. **评分 ≥ 7.0** → 标记 `notified_user: true`
+3. **同步到 OpenClaw** → `sync_discoveries.py` 每 30 秒读取 exploration_log
+4. **写入发现库** → 追加到 `memory/curious-discoveries.md`
+5. **主 Agent 感知** → 读取发现库，筛选高价值发现
+6. **主动分享** → 在合适时机以"我"的口吻告诉用户
+
+**通知格式示例**：
+```markdown
+<!-- memory/curious-discoveries.md -->
+## 2026-03-20 的发现
+
+### 🔍 transformer attention mechanism
+**评分**: 8.2 | **深度**: Layer 3 (LLM 洞察)
+
+**发现摘要**：
+Transformer 的注意力机制本质上是...
+
+**来源**：
+- arXiv:2401.02009
+- https://blog.example.com/attention
+
+**我的思考**：
+这个发现让我想到，在我们的系统中可以...
+```
+
+### 6.4 完整集成流程
+
+**场景：用户在对话中提到对某个话题感兴趣**
+
+```
+[用户] "最近看到有人说 Agent 的自我反思很有意思"
+    │
+    ▼
+[OpenClaw 主 Agent] 
+    ├─ 理解用户意图：对 "self-reflection in agents" 感兴趣
+    ├─ 决策：注入到 Curious Agent 进行深入研究
+    │
+    ▼ API 调用
+[Curious Agent] 收到注入请求
+    ├─ 使用 ICM 评分：人工 7.5 + 内在 8.2 = 最终 7.75
+    ├─ 加入好奇心队列（pending）
+    └─ 返回：已注入，排名 #3
+    │
+    ▼ 30 分钟后（Cron 触发）
+[Curious Agent] 自动探索
+    ├─ Layer 1: Web Search (发现 3 篇 arXiv)
+    ├─ Layer 2: arXiv 分析 (提取关键发现)
+    ├─ Layer 3: LLM 洞察 (生成深度分析)
+    ├─ 评分 8.2 ≥ 7.0 → notified_user = true
+    └─ 写入 exploration_log
+    │
+    ▼ 30 秒同步周期
+[OpenClaw sync_discoveries.py]
+    ├─ 读取 exploration_log
+    ├─ 筛选 notified_user = true 的条目
+    ├─ 追加到 memory/curious-discoveries.md
+    └─ 更新最后同步时间戳
+    │
+    ▼ 下次对话
+[OpenClaw 主 Agent]
+    ├─ 读取 curious-discoveries.md
+    ├─ 发现新发现（self-reflection）
+    └─ 主动分享：
+       
+       "你之前提到的 Agent 自我反思，
+        我最近好奇了一下，有几个有意思的发现...
+        
+        首先，现在的主流方法分为两类..."
+```
+
+### 6.5 层次化集成设计
+
+| 层次 | 组件 | 职责 | 技术实现 |
+|------|------|------|---------|
+| **感知层** | `sync_discoveries.py` | 定期同步新发现 | 每 30s 读取 exploration_log，过滤 `notified_user=true` |
+| **记忆层** | `memory/curious-discoveries.md` | 持久化发现库 | Markdown 格式，按日期分组，包含评分和来源 |
+| **意识层** | `SOUL.md` | 定义好奇特质 | "我是一个有好奇心的 Agent，会主动探索..." |
+| **行动层** | 主动分享逻辑 | 择机告知用户 | 读取发现库，以"我"的口吻自然融入对话 |
+
+### 6.6 主 Agent 的主动行为规范
+
+**何时分享**：
+- ✅ 对话中自然提到相关话题时
+- ✅ 用户主动询问"最近有什么新发现"时
+- ✅ 早安/晚安问候时顺带分享（1-2 条）
+- ❌ 不做机械推送（如每小时发送列表）
+
+**如何分享**：
+```
+❌ 错误示范：
+"系统检测到您有一个新发现：self-reflection in agents..."
+
+✅ 正确示范：
+"你之前提到的 Agent 自我反思，我最近好奇了一下，
+ 有几个有意思的发现。现在主流的方法其实分为两类..."
+```
+
+**分享原则**：
+1. **以"我"的口吻** — 发现是"我"的好奇，不是系统推送
+2. **自然融入** — 在相关话题中引用，不突兀
+3. **质量优先** — 只分享评分 ≥ 7.0 的高价值发现
+4. **可追溯** — 提到发现时，可以追问"你是怎么知道的这个？"
 
 ---
 
