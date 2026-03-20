@@ -43,6 +43,9 @@ ui/.DS_Store
 workspace/
 workspace-researcher/
 
+# Git worktrees
+.worktrees/
+
 # Temp
 tmp/
 *.bak
