@@ -344,3 +344,225 @@ class TestCuriosityEngineInitialization:
         engine = CuriosityEngine()
         
         assert hasattr(engine, '_get_exploration_history')
+
+
+class TestGenerateInitialCuriosities:
+    """Test suite for generate_initial_curiosities"""
+    
+    @patch('core.knowledge_graph.get_state')
+    @patch('core.knowledge_graph.add_curiosity')
+    def test_generate_when_queue_empty(self, mock_add, mock_get_state):
+        """Test generates 8 initial topics when queue is empty"""
+        mock_get_state.return_value = {"curiosity_queue": []}
+        
+        engine = CuriosityEngine()
+        count = engine.generate_initial_curiosities()
+        
+        assert count == 8
+        assert mock_add.call_count == 8
+    
+    @patch('core.knowledge_graph.get_state')
+    @patch('core.knowledge_graph.add_curiosity')
+    def test_skip_when_queue_has_pending(self, mock_add, mock_get_state):
+        """Test skips generation when queue has pending items"""
+        mock_get_state.return_value = {
+            "curiosity_queue": [{"status": "pending", "topic": "existing"}]
+        }
+        
+        engine = CuriosityEngine()
+        count = engine.generate_initial_curiosities()
+        
+        assert count == 0
+        mock_add.assert_not_called()
+    
+    @patch('core.knowledge_graph.get_state')
+    @patch('core.knowledge_graph.add_curiosity')
+    def test_generated_topics_structure(self, mock_add, mock_get_state):
+        """Test generated topics have correct structure"""
+        mock_get_state.return_value = {"curiosity_queue": []}
+        
+        engine = CuriosityEngine()
+        engine.generate_initial_curiosities()
+        
+        # Check first call
+        call_args = mock_add.call_args_list[0]
+        assert call_args[1]["topic"] == "LLM self-reflection mechanisms"
+        assert call_args[1]["relevance"] == 9.0
+        assert call_args[1]["depth"] == 8.0
+
+
+class TestComputeCuriosityScore:
+    """Test suite for compute_curiosity_score"""
+    
+    def test_score_matches_user_interests(self):
+        """Test score increases when topic matches user interests"""
+        engine = CuriosityEngine()
+        
+        # Topic matching "AI agent autonomy" interest
+        score_match = engine.compute_curiosity_score(
+            "agent autonomy framework", 5.0, 5.0
+        )
+        
+        # Topic not matching any interest
+        score_no_match = engine.compute_curiosity_score(
+            "random unrelated topic", 5.0, 5.0
+        )
+        
+        assert score_match > score_no_match
+    
+    def test_score_returns_0_to_10_range(self):
+        """Test score always returns value in 0-10 range"""
+        engine = CuriosityEngine()
+        
+        for rel in [1.0, 5.0, 10.0]:
+            for depth in [1.0, 5.0, 10.0]:
+                score = engine.compute_curiosity_score("test", rel, depth)
+                assert 0 <= score <= 10
+    
+    def test_score_calculates_recency(self):
+        """Test score includes recency calculation"""
+        from core import knowledge_graph as kg
+        from datetime import datetime, timezone, timedelta
+        
+        engine = CuriosityEngine()
+        
+        # Add topic with recent update
+        kg.add_knowledge("recent_topic", depth=5)
+        
+        # Add topic with old update
+        state = kg.get_state()
+        state["knowledge"]["topics"]["old_topic"] = {
+            "known": True,
+            "depth": 5,
+            "last_updated": (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        }
+        kg._save_state(state)
+        
+        score_recent = engine.compute_curiosity_score("recent_topic", 5.0, 5.0)
+        score_old = engine.compute_curiosity_score("old_topic", 5.0, 5.0)
+        
+        # Old topic should have higher recency score
+        assert score_old >= score_recent
+
+
+class TestAddContextualCuriosity:
+    """Test suite for add_contextual_curiosity"""
+    
+    @patch('core.knowledge_graph.add_curiosity')
+    def test_extracts_keywords_from_context(self, mock_add):
+        """Test extracts keywords from conversation context"""
+        engine = CuriosityEngine()
+        context = "I am interested in Transformer Attention and Self Reflection"
+        
+        engine.add_contextual_curiosity(context)
+        
+        assert mock_add.called
+        # Should extract phrases like "Transformer Attention"
+        call_topics = [call[1]["topic"] for call in mock_add.call_args_list]
+        assert any("Transformer" in t or "Reflection" in t for t in call_topics)
+    
+    @patch('core.knowledge_graph.add_curiosity')
+    def test_filters_short_phrases(self, mock_add):
+        """Test filters phrases shorter than 7 characters"""
+        engine = CuriosityEngine()
+        context = "AI LLM and NLP are interesting"
+        
+        engine.add_contextual_curiosity(context)
+        
+        # Short phrases should be filtered
+        call_topics = [call[1]["topic"] for call in mock_add.call_args_list]
+        assert "AI" not in call_topics
+        assert "LLM" not in call_topics
+    
+    @patch('core.knowledge_graph.add_curiosity')
+    def test_limits_to_5_phrases(self, mock_add):
+        """Test limits to max 5 phrases"""
+        engine = CuriosityEngine()
+        context = "One Two Three Four Five Six Seven Eight"
+        
+        engine.add_contextual_curiosity(context)
+        
+        assert mock_add.call_count <= 5
+
+
+class TestGetExplorationHistory:
+    """Test suite for _get_exploration_history"""
+    
+    def test_returns_empty_dict_when_no_logs(self):
+        """Test returns empty dict when exploration_log is empty"""
+        from core import knowledge_graph as kg
+        
+        engine = CuriosityEngine()
+        history = engine._get_exploration_history()
+        
+        assert isinstance(history, dict)
+        assert len(history) == 0
+    
+    def test_builds_history_from_logs(self):
+        """Test builds history dict from exploration_log"""
+        from core import knowledge_graph as kg
+        
+        engine = CuriosityEngine()
+        
+        # Add log entries
+        kg.log_exploration("topic1", "action", "findings", notified=True)
+        kg.log_exploration("topic1", "action2", "findings2", notified=False)
+        kg.log_exploration("topic2", "action", "findings", notified=True)
+        
+        history = engine._get_exploration_history()
+        
+        assert "topic1" in history
+        assert "topic2" in history
+        assert len(history["topic1"]) == 2  # Two records for topic1
+
+
+class TestRescoreAllFixed:
+    """Fixed test suite for rescore_all"""
+    
+    @patch('core.curiosity_engine.CuriosityEngine.score_topic')
+    @patch('core.knowledge_graph.get_state')
+    @patch('core.knowledge_graph._save_state')
+    def test_rescore_all_updates_pending_items(self, mock_save, mock_get_state, mock_score):
+        """Test rescore_all updates scores for all pending items"""
+        mock_get_state.return_value = {
+            "curiosity_queue": [
+                {"topic": "item1", "status": "pending", "score": 5.0},
+                {"topic": "item2", "status": "pending", "score": 6.0},
+                {"topic": "item3", "status": "done", "score": 7.0}  # Should skip
+            ]
+        }
+        mock_score.return_value = {"final_score": 9.0}
+        
+        engine = CuriosityEngine()
+        engine.rescore_all()
+        
+        # Should call score_topic for pending items only
+        assert mock_score.call_count == 2
+
+
+class TestSelectNextFixed:
+    """Fixed test suite for select_next with proper isolation"""
+    
+    @patch('core.knowledge_graph.get_state')
+    def test_select_next_returns_none_when_empty(self, mock_get_state):
+        """Test returns None when queue is empty"""
+        mock_get_state.return_value = {"curiosity_queue": []}
+        
+        engine = CuriosityEngine()
+        result = engine.select_next()
+        
+        assert result is None
+    
+    @patch('core.knowledge_graph.get_state')
+    def test_select_next_skips_done_items(self, mock_get_state):
+        """Test skips done items and returns None if all done"""
+        mock_get_state.return_value = {
+            "curiosity_queue": [
+                {"topic": "done_item", "status": "done", "score": 81.0}
+            ]
+        }
+        
+        engine = CuriosityEngine()
+        result = engine.select_next()
+        
+        assert result is None
