@@ -65,7 +65,7 @@ def api_run():
         from core.explorer import Explorer
 
         engine = CuriosityEngine()
-        explorer = Explorer()
+        explorer = Explorer(exploration_depth="medium")
         engine.generate_initial_curiosities()
         engine.rescore_all()
         next_item = engine.select_next()

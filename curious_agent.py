@@ -30,7 +30,7 @@ def run_one_cycle(depth: str = "medium") -> dict:
     if depth not in VALID_DEPTHS:
         raise ValueError(f"Invalid depth '{depth}'. Must be one of: {', '.join(sorted(VALID_DEPTHS))}")
     engine = CuriosityEngine()
-    explorer = Explorer()
+    explorer = Explorer(exploration_depth=depth)
     
     # 1. 生成初始好奇心（如需要）
     engine.generate_initial_curiosities()
