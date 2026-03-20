@@ -1,28 +1,49 @@
 """
 LLM Client - Layer 3 洞察生成
 
-使用 minimax API 生成论文对比洞察
+使用 volcengine API (OpenAI-compatible) 生成论文对比洞察
 """
 import os
+from pathlib import Path
 from typing import List, Dict, Optional
 
 import requests
 
 
+def _load_env():
+    """从 .env 文件加载环境变量"""
+    env_file = Path(__file__).parent.parent / ".env"
+    if env_file.exists():
+        with open(env_file) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
+                    os.environ.setdefault(key.strip(), value.strip())
+
+_load_env()
+
+
 class LLMClient:
     """
-    minimax LLM 客户端
+    volcengine LLM 客户端 (OpenAI-compatible)
     
     职责：
-    1. 调用 minimax API 生成论文对比洞察
+    1. 调用 volcengine API 生成论文对比洞察
     2. 处理 API 错误和超时
     3. 格式化输出
     """
     
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ.get("MINIMAX_API_KEY", "")
-        self.api_url = "https://api.minimax.chat/v1/text/chatcompletion_v2"
-        self.model = "minimax-m2.7"
+        self.api_key = api_key or os.environ.get(
+            "VOLCENGINE_API_KEY",
+            "5f64834e-9ecb-4328-8fb5-953f597c4171"
+        )
+        self.api_url = os.environ.get(
+            "VOLCENGINE_API_URL",
+            "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
+        )
+        self.model = os.environ.get("VOLCENGINE_MODEL", "ark-code-latest")
         self.timeout = 60
     
     def generate_insights(self, topic: str, papers: List[Dict]) -> Dict:
