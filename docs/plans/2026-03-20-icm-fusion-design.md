@@ -49,30 +49,40 @@ FinalScore = HumanScore × α + IntrinsicScore × (1 - α)
   α               = 用户可控权重（默认 0.5，范围 0.0-1.0）
 ```
 
-### 2.3 内在评分算法
+### 2.3 内在评分算法（LLM 主导 + 图谱辅助）
 
 ```python
 def intrinsic_score(topic, knowledge_graph, exploration_history):
     """
     三个内在信号，每个 0-10 分
+    
+    设计原则：
+    - LLM 是主要计算方式（语义理解、推理能力）
+    - 图谱统计作为辅助（冷启动、LLM 不可用时降级）
     """
-    # 1. 预测误差（Prediction Error）
-    #    = 之前探索后，对这个话题的理解误差
-    #    误差越大 → 我们越不了解 → 越值得探索
-    pred_error = predict_error(topic, exploration_history)
+    # 1. 预测误差（Prediction Error）- LLM 评估
+    #    = LLM 评估：基于探索历史，我们对这个话题的理解程度
+    #    LLM 会综合分析历史探索的 insight 质量、深度、一致性
+    pred_error = llm_assess_prediction_error(topic, exploration_history)
 
-    # 2. 关联密度（Graph Density）
-    #    = 图谱中该话题的连接节点数
-    #    连接越少 → 越孤立 → 知识空白越大 → 越值得探索
-    density = graph_density(topic, knowledge_graph)
+    # 2. 关联密度（Graph Density）- LLM 评估 + 图谱辅助
+    #    = LLM 评估：该话题在知识网络中的位置重要性
+    #    图谱提供连接数、路径长度等统计数据供 LLM 参考
+    density = llm_assess_graph_density(topic, knowledge_graph)
 
-    # 3. 新颖性（Novelty）
-    #    = 与已知知识库的重叠度
-    #    重叠越少 → 越新鲜 → 探索价值越高
-    novelty = novelty_score(topic, knowledge_graph)
+    # 3. 新颖性（Novelty）- LLM 评估 + 图谱辅助
+    #    = LLM 评估：与已知知识库的语义重叠度
+    #    图谱提供相关话题列表，LLM 做语义对比
+    novelty = llm_assess_novelty(topic, knowledge_graph)
 
     return (pred_error * 0.4 + density * 0.3 + novelty * 0.3)
 ```
+
+**LLM 主导的原因**：
+1. **语义理解**：能识别 "transformer attention" 和 "self-attention mechanism" 的相似性
+2. **综合推理**：能综合多个信号做出判断，而非简单公式
+3. **自适应**：根据话题领域自动调整评估标准
+4. **可解释**：LLM 可以给出评分的推理过程
 
 ---
 
@@ -91,7 +101,7 @@ core/
 └── ...
 ```
 
-### 3.2 IntrinsicScorer 模块
+### 3.2 IntrinsicScorer 模块（LLM 主导 + 图谱辅助）
 
 ```python
 # core/intrinsic_scorer.py
@@ -100,35 +110,57 @@ class IntrinsicScorer:
     """
     ICM 启发的内在评分器
     职责：计算话题的内在探索价值，不依赖人工输入
+    
+    设计原则：
+    - LLM 是主要计算方式（语义理解、综合推理）
+    - 图谱统计作为辅助输入（冷启动、LLM 不可用时降级）
     """
     
-    def __init__(self, knowledge_graph, exploration_history, config=None):
+    def __init__(self, knowledge_graph, exploration_history, config=None, llm_client=None):
         self.kg = knowledge_graph
         self.history = exploration_history
         self.config = config or {}
+        self.llm = llm_client or self._init_llm()
+    
+    def _init_llm(self):
+        """初始化 LLM 客户端"""
+        from core.llm_client import LLMClient
+        return LLMClient()
     
     def score(self, topic: str) -> dict:
         """
         计算话题的内在评分
         
+        流程：
+        1. 收集图谱统计数据（作为 LLM 的上下文）
+        2. 调用 LLM 评估三个信号
+        3. 加权汇总
+        
         Returns:
             {
                 'total': float,           # 0-10 总分
                 'signals': {
-                    'pred_error': float,  # 0-10 预测误差
-                    'graph_density': float, # 0-10 图谱密度（反向）
-                    'novelty': float,     # 0-10 新颖性
+                    'pred_error': float,  # 0-10 预测误差（LLM 评估）
+                    'graph_density': float, # 0-10 图谱密度（LLM 评估）
+                    'novelty': float,     # 0-10 新颖性（LLM 评估）
                 },
                 'weights': {              # 各信号权重
                     'pred_error': 0.4,
                     'graph_density': 0.3,
                     'novelty': 0.3,
-                }
+                },
+                'reasoning': str          # LLM 的推理过程（可解释性）
             }
         """
-        pred_error = self._calc_pred_error(topic)
-        density = self._calc_graph_density(topic)
-        novelty = self._calc_novelty(topic)
+        # 收集图谱上下文
+        context = self._gather_context(topic)
+        
+        # LLM 评估三个信号
+        llm_result = self._llm_assess_signals(topic, context)
+        
+        pred_error = llm_result['pred_error']
+        density = llm_result['graph_density']
+        novelty = llm_result['novelty']
         
         total = (pred_error * 0.4 + density * 0.3 + novelty * 0.3)
         
@@ -143,94 +175,156 @@ class IntrinsicScorer:
                 'pred_error': 0.4,
                 'graph_density': 0.3,
                 'novelty': 0.3,
-            }
+            },
+            'reasoning': llm_result.get('reasoning', ''),
+            'context': context  # 用于调试
         }
     
-    def _calc_pred_error(self, topic: str) -> float:
+    def _gather_context(self, topic: str) -> dict:
         """
-        预测误差计算
-        逻辑：
-        - 从未探索过 → 误差高（10分）
-        - 探索过但 insight 质量低 → 误差中高（7-9分）
-        - 探索过且 insight 质量高 → 误差低（1-3分）
+        收集图谱上下文，作为 LLM 评估的辅助信息
         """
-        records = self.history.get_topic_records(topic)
+        # 1. 探索历史
+        records = self.history.get(topic, [])
+        history_summary = {
+            'explore_count': len(records),
+            'avg_insight_quality': sum(r.get('insight_quality', 5) for r in records) / len(records) if records else 0,
+            'last_explore': records[-1].get('timestamp') if records else None,
+        }
         
-        if not records:
-            return 10.0  # 完全未知
+        # 2. 图谱连接
+        related_topics = self._get_related_topics(topic)
         
-        # 计算平均 insight 质量
-        avg_quality = sum(r.get('insight_quality', 5) for r in records) / len(records)
+        # 3. 相关话题的摘要（供 LLM 对比）
+        related_summaries = []
+        for related in related_topics[:5]:  # 最多 5 个相关话题
+            topic_data = self.kg.get('topics', {}).get(related, {})
+            if topic_data:
+                related_summaries.append({
+                    'topic': related,
+                    'summary': topic_data.get('summary', '')[:200]  # 截断
+                })
         
-        # 探索次数越多，误差衰减
-        explore_count = len(records)
-        decay = min(explore_count * 1.5, 5)  # 最多衰减 5 分
-        
-        # 质量越高，误差越低
-        error = 10 - avg_quality - decay
-        return max(0.0, error)
+        return {
+            'topic': topic,
+            'history': history_summary,
+            'related_count': len(related_topics),
+            'related_topics': related_topics,
+            'related_summaries': related_summaries,
+        }
     
-    def _calc_graph_density(self, topic: str) -> float:
+    def _llm_assess_signals(self, topic: str, context: dict) -> dict:
         """
-        图谱密度计算（反向）
-        逻辑：
-        - 连接节点越多 → 了解越充分 → 密度分越低
-        - 孤立节点 → 知识空白 → 密度分越高
-        """
-        related_count = self.kg.count_related_topics(topic)
+        使用 LLM 评估三个内在信号
         
-        # 映射：0个连接=10分，10+连接=0分
+        LLM 会综合语义理解、历史数据、图谱关系做出判断
+        """
+        prompt = f"""
+你是一个用于评估 AI Agent 好奇心优先级的评分系统。
+
+请评估以下话题的内在探索价值，给出三个信号的评分（1-10分）：
+
+【待评估话题】
+{topic}
+
+【探索历史】
+- 探索次数: {context['history']['explore_count']}
+- 平均洞察质量: {context['history']['avg_insight_quality']:.1f}/10
+- 上次探索: {context['history']['last_explore'] or '从未'}
+
+【知识图谱上下文】
+- 相关话题数: {context['related_count']}
+- 相关话题列表: {', '.join(context['related_topics'][:10])}
+
+【相关话题摘要】
+{chr(10).join([f"- {s['topic']}: {s['summary'][:100]}..." for s in context['related_summaries']])}
+
+请评估以下三个信号（1-10分，10=最高）：
+
+1. **预测误差 (pred_error)**: 我们当前对这个话题的理解程度
+   - 从未探索过 → 高误差 (8-10)
+   - 探索过但 insight 质量低/不一致 → 中高误差 (6-8)
+   - 探索过且 insight 质量高 → 低误差 (1-4)
+   - 需要探索来消除认知不确定性 → 误差高
+
+2. **图谱密度 (graph_density)**: 该话题在知识网络中的位置重要性
+   - 与许多核心话题关联 → 密度低 (1-3)，因为了解充分
+   - 孤立节点，连接少 → 密度高 (7-10)，知识空白
+   - 处于知识边疆 → 密度高，值得探索
+
+3. **新颖性 (novelty)**: 与已知知识库的语义重叠度
+   - 全新概念，从未涉及 → 高新颖 (8-10)
+   - 与已知话题高度相似 → 低新颖 (1-3)
+   - 需考虑语义相似，非字面匹配
+
+请以 JSON 格式返回（不要其他文字）：
+{{
+    "pred_error": 评分,
+    "graph_density": 评分,
+    "novelty": 评分,
+    "reasoning": "简要的评分理由"
+}}
+"""
+        
+        try:
+            response = self.llm.chat(prompt)
+            import json
+            result = json.loads(response)
+            return {
+                'pred_error': max(0, min(10, float(result.get('pred_error', 5)))),
+                'graph_density': max(0, min(10, float(result.get('graph_density', 5)))),
+                'novelty': max(0, min(10, float(result.get('novelty', 5)))),
+                'reasoning': result.get('reasoning', '')
+            }
+        except Exception as e:
+            # LLM 失败时，降级到纯统计方法
+            print(f"LLM assessment failed: {e}, falling back to stats")
+            return self._fallback_stats_assessment(topic, context)
+    
+    def _fallback_stats_assessment(self, topic: str, context: dict) -> dict:
+        """
+        纯统计降级方案（LLM 不可用时）
+        """
+        history = context['history']
+        
+        # 1. 预测误差（统计版）
+        if history['explore_count'] == 0:
+            pred_error = 10.0
+        else:
+            avg_quality = history['avg_insight_quality']
+            decay = min(history['explore_count'] * 1.5, 5)
+            pred_error = max(0, 10 - avg_quality - decay)
+        
+        # 2. 图谱密度（统计版）
+        related_count = context['related_count']
         if related_count == 0:
-            return 10.0
+            density = 10.0
         elif related_count >= 10:
-            return 0.0
+            density = 0.0
         else:
-            return 10 - related_count
-    
-    def _calc_novelty(self, topic: str) -> float:
-        """
-        新颖性计算（混合方案）
+            density = 10 - related_count
         
-        默认：纯统计方法（零成本）
-        可选：LLM 语义增强（高精度）
-        """
-        use_llm = self.config.get('use_llm_for_novelty', False)
-        
-        if use_llm:
-            return self._novelty_with_llm(topic)
+        # 3. 新颖性（统计版）
+        if history['explore_count'] == 0 and related_count == 0:
+            novelty = 10.0
         else:
-            return self._novelty_pure_stats(topic)
+            novelty = max(0, 10 - history['explore_count'] * 2 - related_count * 0.5)
+        
+        return {
+            'pred_error': pred_error,
+            'graph_density': density,
+            'novelty': novelty,
+            'reasoning': '[Fallback] Stats-based assessment (LLM unavailable)'
+        }
     
-    def _novelty_pure_stats(self, topic: str) -> float:
-        """
-        纯统计方法
-        
-        指标：
-        1. Jaccard 文本相似度（与已知话题的重叠）
-        2. 邻居节点距离（图谱拓扑）
-        3. 历史探索频次
-        """
-        topic_words = set(topic.lower().split())
-        known_topics = self.kg.get_all_topics()
-        
-        # 1. 最大文本重叠度
-        max_overlap = 0.0
-        for known in known_topics:
-            known_words = set(known.lower().split())
-            if not known_words:
-                continue
-            intersection = len(topic_words & known_words)
-            union = len(topic_words | known_words)
-            similarity = intersection / union if union > 0 else 0
-            max_overlap = max(max_overlap, similarity)
-        
-        # 2. 邻居节点数（越少越新颖）
-        related_count = self.kg.count_related_topics(topic)
-        neighbor_score = max(0, 10 - related_count) / 10 * 3  # 权重 3
-        
-        # 3. 历史探索频次（越多越不新颖）
-        explore_count = self.history.get_explore_count(topic)
-        explore_score = max(0, 10 - explore_count * 2) / 10 * 3  # 权重 3
+    def _get_related_topics(self, topic: str) -> list:
+        """获取相关话题列表"""
+        relations = self.kg.get('relations', [])
+        related = set()
+        for rel in relations:
+            if topic in rel:
+                related.update([r for r in rel if r != topic])
+        return list(related)
         
         # 综合：重叠度低 + 邻居少 + 未探索 = 高分
         novelty = (1 - max_overlap) * 4 + neighbor_score + explore_score
@@ -614,10 +708,10 @@ assert 'novelty' in score['signals']
 
 ### Phase 1: 核心模块（Week 1）
 1. 创建 `core/intrinsic_scorer.py` 模块
-2. 实现 `_calc_pred_error()`
-3. 实现 `_calc_graph_density()`
-4. 实现 `_calc_novelty()`（默认统计版）
-5. 单元测试覆盖
+2. 实现 `_gather_context()` - 收集图谱统计作为 LLM 上下文
+3. 实现 `_llm_assess_signals()` - LLM 评估三个信号（主要方式）
+4. 实现 `_fallback_stats_assessment()` - 统计降级方案（LLM 失败时使用）
+5. 单元测试覆盖（包含 LLM mock 和 fallback 测试）
 
 ### Phase 2: 集成与接口（Week 1-2）
 1. 修改 `CuriosityEngine` 集成 `IntrinsicScorer`
@@ -639,7 +733,7 @@ assert 'novelty' in score['signals']
 
 | 风险 | 影响 | 应对策略 |
 |------|------|---------|
-| IntrinsicScorer 信号计算不准确 | 探索质量下降 | 先上线统计版，观察后再考虑 LLM 增强 |
+| LLM 评分延迟或失败 | 评分响应慢或降级 | 实现 fallback 统计方案，LLM 失败时自动降级 |
 | α 参数调优困难 | 用户体验差 | 提供预设值（human/curious/balanced），降低决策成本 |
 | F2-F5 修复引入回归 | 现有功能损坏 | 每个修复配单元测试，E2E 验证 |
 | 性能下降（评分计算耗时） | 响应变慢 | 评分结果缓存，图谱索引优化 |
