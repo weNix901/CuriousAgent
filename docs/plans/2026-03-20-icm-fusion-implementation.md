@@ -4,9 +4,9 @@
 
 **Goal:** 实现 ICM 融合评分机制（IntrinsicScorer 模块 + CuriosityEngine 集成）并修复 F1-F5 五个 bug
 
-**Architecture:** 新增独立的 `core/intrinsic_scorer.py` 模块计算内在评分（pred_error/graph_density/novelty），`CuriosityEngine` 通过组合方式调用它实现融合公式 FinalScore = HumanScore × α + IntrinsicScore × (1 - α)
+**Architecture:** 新增独立的 `core/intrinsic_scorer.py` 模块，使用 **LLM 作为主要评分方式**，图谱统计作为辅助输入。`CuriosityEngine` 通过组合方式调用它实现融合公式 FinalScore = HumanScore × α + IntrinsicScore × (1 - α)
 
-**Tech Stack:** Python 3.11+, Flask, JSON persistence, minimax LLM (optional)
+**Tech Stack:** Python 3.11+, Flask, JSON persistence, minimax LLM (必需，主要评分方式)
 
 ---
 
@@ -56,45 +56,68 @@ Expected: FAIL with "ModuleNotFoundError: No module named 'core.intrinsic_scorer
 class IntrinsicScorer:
     """
     ICM 启发的内在评分器
-    职责：计算话题的内在探索价值，不依赖人工输入
+    职责：计算话题的内在探索价值
+    
+    设计原则：
+    - LLM 是主要计算方式（语义理解、综合推理）
+    - 图谱统计作为辅助输入（冷启动、LLM 不可用时降级）
     """
     
-    def __init__(self, knowledge_graph, exploration_history, config=None):
+    def __init__(self, knowledge_graph, exploration_history, config=None, llm_client=None):
         self.kg = knowledge_graph
         self.history = exploration_history
         self.config = config or {}
+        self.llm = llm_client or self._init_llm()
+    
+    def _init_llm(self):
+        """初始化 LLM 客户端"""
+        from core.llm_client import LLMClient
+        return LLMClient()
     
     def score(self, topic: str) -> dict:
         """
-        计算话题的内在评分
+        计算话题的内在评分（LLM 主导 + 图谱辅助）
         
         Returns:
             {
                 'total': float,           # 0-10 总分
                 'signals': {
-                    'pred_error': float,  # 0-10 预测误差
-                    'graph_density': float, # 0-10 图谱密度（反向）
-                    'novelty': float,     # 0-10 新颖性
+                    'pred_error': float,  # 0-10 预测误差（LLM 评估）
+                    'graph_density': float, # 0-10 图谱密度（LLM 评估）
+                    'novelty': float,     # 0-10 新颖性（LLM 评估）
                 },
                 'weights': {              # 各信号权重
                     'pred_error': 0.4,
                     'graph_density': 0.3,
                     'novelty': 0.3,
-                }
+                },
+                'reasoning': str          # LLM 的推理过程
             }
         """
+        # 收集图谱上下文
+        context = self._gather_context(topic)
+        
+        # LLM 评估三个信号
+        llm_result = self._llm_assess_signals(topic, context)
+        
+        total = (llm_result['pred_error'] * 0.4 + 
+                 llm_result['graph_density'] * 0.3 + 
+                 llm_result['novelty'] * 0.3)
+        
         return {
-            'total': 5.0,
+            'total': round(total, 2),
             'signals': {
-                'pred_error': 5.0,
-                'graph_density': 5.0,
-                'novelty': 5.0,
+                'pred_error': round(llm_result['pred_error'], 2),
+                'graph_density': round(llm_result['graph_density'], 2),
+                'novelty': round(llm_result['novelty'], 2),
             },
             'weights': {
                 'pred_error': 0.4,
                 'graph_density': 0.3,
                 'novelty': 0.3,
-            }
+            },
+            'reasoning': llm_result.get('reasoning', ''),
+            'context': context  # 用于调试
         }
 ```
 
@@ -114,7 +137,7 @@ git commit -m "feat: add IntrinsicScorer module skeleton"
 
 ---
 
-### Task 2: 实现 _calc_pred_error 方法
+### Task 2: 实现 _gather_context 方法（收集图谱上下文）
 
 **Files:**
 - Modify: `core/intrinsic_scorer.py`
@@ -125,167 +148,94 @@ git commit -m "feat: add IntrinsicScorer module skeleton"
 ```python
 # tests/test_intrinsic_scorer.py - add to TestIntrinsicScorer class
 
-def test_pred_error_for_unknown_topic(self):
-    """未探索过的话题应该有最高预测误差"""
-    scorer = IntrinsicScorer(knowledge_graph={}, exploration_history={})
-    error = scorer._calc_pred_error("unknown topic")
-    assert error == 10.0
-
-def test_pred_error_decreases_with_exploration(self):
-    """探索次数越多，预测误差应该越低"""
-    history = {
-        "known topic": [
-            {"insight_quality": 8},
-            {"insight_quality": 9}
-        ]
+def test_gather_context_returns_dict(self):
+    """测试 _gather_context 返回正确的上下文结构"""
+    kg = {
+        "topics": {"related_topic": {"summary": "test summary"}},
+        "relations": [["test topic", "related_topic"]]
     }
-    scorer = IntrinsicScorer(knowledge_graph={}, exploration_history=history)
+    history = {"test topic": [{"insight_quality": 8, "timestamp": "2024-01-01"}]}
+    scorer = IntrinsicScorer(knowledge_graph=kg, exploration_history=history)
     
-    error1 = scorer._calc_pred_error("known topic")
-    # 探索两次且质量高，误差应该较低
-    assert error1 < 5.0
+    context = scorer._gather_context("test topic")
+    
+    assert isinstance(context, dict)
+    assert context['topic'] == "test topic"
+    assert 'history' in context
+    assert 'related_count' in context
+    assert 'related_topics' in context
+
+def test_gather_context_for_new_topic(self):
+    """测试新话题返回空历史"""
+    kg = {"topics": {}, "relations": []}
+    history = {}
+    scorer = IntrinsicScorer(knowledge_graph=kg, exploration_history=history)
+    
+    context = scorer._gather_context("new topic")
+    
+    assert context['history']['explore_count'] == 0
+    assert context['related_count'] == 0
 ```
 
 **Step 2: Run test to verify it fails**
 
 ```bash
-pytest tests/test_intrinsic_scorer.py::TestIntrinsicScorer::test_pred_error_for_unknown_topic -v
+pytest tests/test_intrinsic_scorer.py::TestIntrinsicScorer::test_gather_context_returns_dict -v
 ```
-Expected: FAIL with "AttributeError: 'IntrinsicScorer' object has no attribute '_calc_pred_error'"
+Expected: FAIL with "AttributeError: 'IntrinsicScorer' object has no attribute '_gather_context'"
 
 **Step 3: Write minimal implementation**
 
 ```python
 # core/intrinsic_scorer.py - add to IntrinsicScorer class
 
-def _calc_pred_error(self, topic: str) -> float:
+def _gather_context(self, topic: str) -> dict:
     """
-    预测误差计算
-    逻辑：
-    - 从未探索过 -> 误差高（10分）
-    - 探索过但 insight 质量低 -> 误差中高（7-9分）
-    - 探索过且 insight 质量高 -> 误差低（1-3分）
+    收集图谱上下文，作为 LLM 评估的辅助信息
     """
+    # 1. 探索历史
     records = self.history.get(topic, [])
-    
-    if not records:
-        return 10.0  # 完全未知
-    
-    # 计算平均 insight 质量
-    avg_quality = sum(r.get('insight_quality', 5) for r in records) / len(records)
-    
-    # 探索次数越多，误差衰减
-    explore_count = len(records)
-    decay = min(explore_count * 1.5, 5)  # 最多衰减 5 分
-    
-    # 质量越高，误差越低
-    error = 10 - avg_quality - decay
-    return max(0.0, error)
-```
-
-**Step 4: Run test to verify it passes**
-
-```bash
-pytest tests/test_intrinsic_scorer.py::TestIntrinsicScorer::test_pred_error_for_unknown_topic tests/test_intrinsic_scorer.py::TestIntrinsicScorer::test_pred_error_decreases_with_exploration -v
-```
-Expected: PASS
-
-**Step 5: Commit**
-
-```bash
-git add tests/test_intrinsic_scorer.py core/intrinsic_scorer.py
-git commit -m "feat: implement pred_error calculation in IntrinsicScorer"
-```
-
----
-
-### Task 3: 实现 _calc_graph_density 方法
-
-**Files:**
-- Modify: `core/intrinsic_scorer.py`
-- Test: `tests/test_intrinsic_scorer.py`
-
-**Step 1: Write the failing test**
-
-```python
-# tests/test_intrinsic_scorer.py - add to TestIntrinsicScorer class
-
-def test_graph_density_for_isolated_topic(self):
-    """孤立的话题应该有最高密度分"""
-    kg = {
-        "topics": {
-            "other topic": {"related": ["another topic"]}
-        },
-        "relations": []
+    history_summary = {
+        'explore_count': len(records),
+        'avg_insight_quality': sum(r.get('insight_quality', 5) for r in records) / len(records) if records else 0,
+        'last_explore': records[-1].get('timestamp') if records else None,
     }
-    scorer = IntrinsicScorer(knowledge_graph=kg, exploration_history={})
-    density = scorer._calc_graph_density("isolated topic")
-    assert density == 10.0
-
-def test_graph_density_for_connected_topic(self):
-    """连接多的话题应该有较低密度分"""
-    kg = {
-        "topics": {
-            "connected topic": {},
-            "related1": {},
-            "related2": {},
-            "related3": {}
-        },
-        "relations": [
-            ["connected topic", "related1"],
-            ["connected topic", "related2"],
-            ["connected topic", "related3"]
-        ]
-    }
-    scorer = IntrinsicScorer(knowledge_graph=kg, exploration_history={})
-    density = scorer._calc_graph_density("connected topic")
-    assert density < 10.0
-    assert density > 0.0
-```
-
-**Step 2: Run test to verify it fails**
-
-```bash
-pytest tests/test_intrinsic_scorer.py::TestIntrinsicScorer::test_graph_density_for_isolated_topic -v
-```
-Expected: FAIL with "AttributeError: 'IntrinsicScorer' object has no attribute '_calc_graph_density'"
-
-**Step 3: Write minimal implementation**
-
-```python
-# core/intrinsic_scorer.py - add to IntrinsicScorer class
-
-def _calc_graph_density(self, topic: str) -> float:
-    """
-    图谱密度计算（反向）
-    逻辑：
-    - 连接节点越多 -> 了解越充分 -> 密度分越低
-    - 孤立节点 -> 知识空白 -> 密度分越高
-    """
-    related_count = self._count_related_topics(topic)
     
-    # 映射：0个连接=10分，10+连接=0分
-    if related_count == 0:
-        return 10.0
-    elif related_count >= 10:
-        return 0.0
-    else:
-        return 10 - related_count
+    # 2. 图谱连接
+    related_topics = self._get_related_topics(topic)
+    
+    # 3. 相关话题的摘要（供 LLM 对比）
+    related_summaries = []
+    for related in related_topics[:5]:  # 最多 5 个相关话题
+        topic_data = self.kg.get('topics', {}).get(related, {})
+        if topic_data:
+            related_summaries.append({
+                'topic': related,
+                'summary': topic_data.get('summary', '')[:200]  # 截断
+            })
+    
+    return {
+        'topic': topic,
+        'history': history_summary,
+        'related_count': len(related_topics),
+        'related_topics': related_topics,
+        'related_summaries': related_summaries,
+    }
 
-def _count_related_topics(self, topic: str) -> int:
-    """统计与话题相关的节点数"""
+def _get_related_topics(self, topic: str) -> list:
+    """获取相关话题列表"""
     relations = self.kg.get('relations', [])
-    count = 0
+    related = set()
     for rel in relations:
         if topic in rel:
-            count += 1
-    return count
+            related.update([r for r in rel if r != topic])
+    return list(related)
 ```
 
 **Step 4: Run test to verify it passes**
 
 ```bash
-pytest tests/test_intrinsic_scorer.py -k "graph_density" -v
+pytest tests/test_intrinsic_scorer.py -k "gather_context" -v
 ```
 Expected: PASS
 
@@ -293,12 +243,12 @@ Expected: PASS
 
 ```bash
 git add tests/test_intrinsic_scorer.py core/intrinsic_scorer.py
-git commit -m "feat: implement graph_density calculation in IntrinsicScorer"
+git commit -m "feat: implement _gather_context for LLM assessment"
 ```
 
 ---
 
-### Task 4: 实现 _calc_novelty 方法（统计版）
+### Task 3: 实现 _llm_assess_signals 方法（LLM 评估三个信号）
 
 **Files:**
 - Modify: `core/intrinsic_scorer.py`
@@ -309,92 +259,124 @@ git commit -m "feat: implement graph_density calculation in IntrinsicScorer"
 ```python
 # tests/test_intrinsic_scorer.py - add to TestIntrinsicScorer class
 
-def test_novelty_for_completely_new_topic(self):
-    """全新的话题应该有最高新颖性"""
-    kg = {"topics": {"known topic": {}}, "relations": []}
-    scorer = IntrinsicScorer(knowledge_graph=kg, exploration_history={})
-    novelty = scorer._calc_novelty("completely new xyz topic")
-    assert novelty > 7.0  # 应该很高
+from unittest.mock import Mock, MagicMock
 
-def test_novelty_for_similar_topic(self):
-    """相似的话题应该有较低新颖性"""
-    kg = {"topics": {"agent memory": {}}, "relations": []}
-    scorer = IntrinsicScorer(knowledge_graph=kg, exploration_history={})
-    novelty = scorer._calc_novelty("agent memory")  # 完全相同
-    assert novelty < 5.0  # 应该较低
+def test_llm_assess_signals_returns_scores(self):
+    """测试 LLM 评估返回三个信号分数"""
+    # Mock LLM 返回 JSON 响应
+    mock_llm = Mock()
+    mock_llm.chat.return_value = '''
+    {
+        "pred_error": 8.5,
+        "graph_density": 7.0,
+        "novelty": 9.0,
+        "reasoning": "从未探索过的新话题"
+    }
+    '''
+    
+    scorer = IntrinsicScorer(
+        knowledge_graph={"topics": {}, "relations": []},
+        exploration_history={},
+        llm_client=mock_llm
+    )
+    
+    context = scorer._gather_context("test topic")
+    result = scorer._llm_assess_signals("test topic", context)
+    
+    assert 'pred_error' in result
+    assert 'graph_density' in result
+    assert 'novelty' in result
+    assert 0 <= result['pred_error'] <= 10
+    assert 0 <= result['graph_density'] <= 10
+    assert 0 <= result['novelty'] <= 10
+    assert 'reasoning' in result
 ```
 
 **Step 2: Run test to verify it fails**
 
 ```bash
-pytest tests/test_intrinsic_scorer.py::TestIntrinsicScorer::test_novelty_for_completely_new_topic -v
+pytest tests/test_intrinsic_scorer.py::TestIntrinsicScorer::test_llm_assess_signals_returns_scores -v
 ```
-Expected: FAIL with "AttributeError: 'IntrinsicScorer' object has no attribute '_calc_novelty'"
+Expected: FAIL with "AttributeError: 'IntrinsicScorer' object has no attribute '_llm_assess_signals'"
 
 **Step 3: Write minimal implementation**
 
 ```python
 # core/intrinsic_scorer.py - add to IntrinsicScorer class
 
-def _calc_novelty(self, topic: str) -> float:
+def _llm_assess_signals(self, topic: str, context: dict) -> dict:
     """
-    新颖性计算（混合方案）
+    使用 LLM 评估三个内在信号
     
-    默认：纯统计方法（零成本）
-    可选：LLM 语义增强（高精度）
+    LLM 会综合语义理解、历史数据、图谱关系做出判断
     """
-    use_llm = self.config.get('use_llm_for_novelty', False)
-    
-    if use_llm:
-        return self._novelty_with_llm(topic)
-    else:
-        return self._novelty_pure_stats(topic)
+    prompt = f"""
+你是一个用于评估 AI Agent 好奇心优先级的评分系统。
 
-def _novelty_pure_stats(self, topic: str) -> float:
-    """
-    纯统计方法
-    
-    指标：
-    1. Jaccard 文本相似度（与已知话题的重叠）
-    2. 邻居节点距离（图谱拓扑）
-    3. 历史探索频次
-    """
-    topic_words = set(topic.lower().split())
-    known_topics = self.kg.get('topics', {}).keys()
-    
-    # 1. 最大文本重叠度
-    max_overlap = 0.0
-    for known in known_topics:
-        known_words = set(known.lower().split())
-        if not known_words:
-            continue
-        intersection = len(topic_words & known_words)
-        union = len(topic_words | known_words)
-        similarity = intersection / union if union > 0 else 0
-        max_overlap = max(max_overlap, similarity)
-    
-    # 2. 邻居节点数（越少越新颖）
-    related_count = self._count_related_topics(topic)
-    neighbor_score = max(0, 10 - related_count) / 10 * 3  # 权重 3
-    
-    # 3. 历史探索频次（越多越不新颖）
-    explore_count = len(self.history.get(topic, []))
-    explore_score = max(0, 10 - explore_count * 2) / 10 * 3  # 权重 3
-    
-    # 综合：重叠度低 + 邻居少 + 未探索 = 高分
-    novelty = (1 - max_overlap) * 4 + neighbor_score + explore_score
-    return min(10, novelty)
+请评估以下话题的内在探索价值，给出三个信号的评分（1-10分）：
 
-def _novelty_with_llm(self, topic: str) -> float:
-    """LLM 语义增强方法（占位）"""
-    # 暂不实现，返回统计结果
-    return self._novelty_pure_stats(topic)
+【待评估话题】
+{topic}
+
+【探索历史】
+- 探索次数: {context['history']['explore_count']}
+- 平均洞察质量: {context['history']['avg_insight_quality']:.1f}/10
+- 上次探索: {context['history']['last_explore'] or '从未'}
+
+【知识图谱上下文】
+- 相关话题数: {context['related_count']}
+- 相关话题列表: {', '.join(context['related_topics'][:10])}
+
+【相关话题摘要】
+{chr(10).join([f"- {s['topic']}: {s['summary'][:100]}..." for s in context['related_summaries']])}
+
+请评估以下三个信号（1-10分，10=最高）：
+
+1. **预测误差 (pred_error)**: 我们当前对这个话题的理解程度
+   - 从未探索过 -> 高误差 (8-10)
+   - 探索过但 insight 质量低/不一致 -> 中高误差 (6-8)
+   - 探索过且 insight 质量高 -> 低误差 (1-4)
+   - 需要探索来消除认知不确定性 -> 误差高
+
+2. **图谱密度 (graph_density)**: 该话题在知识网络中的位置重要性
+   - 与许多核心话题关联 -> 密度低 (1-3)，因为了解充分
+   - 孤立节点，连接少 -> 密度高 (7-10)，知识空白
+   - 处于知识边疆 -> 密度高，值得探索
+
+3. **新颖性 (novelty)**: 与已知知识库的语义重叠度
+   - 全新概念，从未涉及 -> 高新颖 (8-10)
+   - 与已知话题高度相似 -> 低新颖 (1-3)
+   - 需考虑语义相似，非字面匹配
+
+请以 JSON 格式返回（不要其他文字）：
+{{
+    "pred_error": 评分,
+    "graph_density": 评分,
+    "novelty": 评分,
+    "reasoning": "简要的评分理由"
+}}
+"""
+    
+    try:
+        response = self.llm.chat(prompt)
+        import json
+        result = json.loads(response)
+        return {
+            'pred_error': max(0, min(10, float(result.get('pred_error', 5)))),
+            'graph_density': max(0, min(10, float(result.get('graph_density', 5)))),
+            'novelty': max(0, min(10, float(result.get('novelty', 5)))),
+            'reasoning': result.get('reasoning', '')
+        }
+    except Exception as e:
+        # LLM 失败时，降级到纯统计方法
+        print(f"LLM assessment failed: {e}, falling back to stats")
+        return self._fallback_stats_assessment(topic, context)
 ```
 
 **Step 4: Run test to verify it passes**
 
 ```bash
-pytest tests/test_intrinsic_scorer.py -k "novelty" -v
+pytest tests/test_intrinsic_scorer.py::TestIntrinsicScorer::test_llm_assess_signals_returns_scores -v
 ```
 Expected: PASS
 
@@ -402,12 +384,12 @@ Expected: PASS
 
 ```bash
 git add tests/test_intrinsic_scorer.py core/intrinsic_scorer.py
-git commit -m "feat: implement novelty calculation (stats-based) in IntrinsicScorer"
+git commit -m "feat: implement _llm_assess_signals for LLM-based signal assessment"
 ```
 
 ---
 
-### Task 5: 更新 score() 方法集成三个信号
+### Task 4: 实现 _fallback_stats_assessment 方法（降级方案）
 
 **Files:**
 - Modify: `core/intrinsic_scorer.py`
@@ -418,88 +400,151 @@ git commit -m "feat: implement novelty calculation (stats-based) in IntrinsicSco
 ```python
 # tests/test_intrinsic_scorer.py - add to TestIntrinsicScorer class
 
-def test_score_calculates_all_signals(self):
-    """测试 score() 正确计算所有信号"""
-    kg = {"topics": {"known": {}}, "relations": []}
-    history = {"known": [{"insight_quality": 8}]}
+def test_fallback_stats_for_unknown_topic(self):
+    """测试降级方案对全新话题返回高分"""
+    kg = {"topics": {}, "relations": []}
+    history = {}
     scorer = IntrinsicScorer(knowledge_graph=kg, exploration_history=history)
+    
+    context = scorer._gather_context("new topic")
+    result = scorer._fallback_stats_assessment("new topic", context)
+    
+    # 全新话题应该各信号都较高
+    assert result['pred_error'] >= 8.0
+    assert result['graph_density'] >= 8.0
+    assert result['novelty'] >= 8.0
+    assert '[Fallback]' in result['reasoning']
+
+def test_fallback_stats_for_known_topic(self):
+    """测试降级方案对已探索话题返回低分"""
+    history = {"known": [{"insight_quality": 9}, {"insight_quality": 8}]}
+    kg = {"topics": {"known": {}, "related1": {}, "related2": {}}, "relations": [["known", "related1"], ["known", "related2"]]}
+    scorer = IntrinsicScorer(knowledge_graph=kg, exploration_history=history)
+    
+    context = scorer._gather_context("known")
+    result = scorer._fallback_stats_assessment("known", context)
+    
+    # 已探索话题应该各信号都较低
+    assert result['pred_error'] < 5.0
+```
+
+**Step 2: Run test to verify it fails**
+
+```bash
+pytest tests/test_intrinsic_scorer.py::TestIntrinsicScorer::test_fallback_stats_for_unknown_topic -v
+```
+Expected: FAIL with "AttributeError: 'IntrinsicScorer' object has no attribute '_fallback_stats_assessment'"
+
+**Step 3: Write minimal implementation**
+
+```python
+# core/intrinsic_scorer.py - add to IntrinsicScorer class
+
+def _fallback_stats_assessment(self, topic: str, context: dict) -> dict:
+    """
+    纯统计降级方案（LLM 不可用时）
+    """
+    history = context['history']
+    
+    # 1. 预测误差（统计版）
+    if history['explore_count'] == 0:
+        pred_error = 10.0
+    else:
+        avg_quality = history['avg_insight_quality']
+        decay = min(history['explore_count'] * 1.5, 5)
+        pred_error = max(0, 10 - avg_quality - decay)
+    
+    # 2. 图谱密度（统计版）
+    related_count = context['related_count']
+    if related_count == 0:
+        density = 10.0
+    elif related_count >= 10:
+        density = 0.0
+    else:
+        density = 10 - related_count
+    
+    # 3. 新颖性（统计版）
+    if history['explore_count'] == 0 and related_count == 0:
+        novelty = 10.0
+    else:
+        novelty = max(0, 10 - history['explore_count'] * 2 - related_count * 0.5)
+    
+    return {
+        'pred_error': pred_error,
+        'graph_density': density,
+        'novelty': novelty,
+        'reasoning': '[Fallback] Stats-based assessment (LLM unavailable)'
+    }
+```
+
+**Step 4: Run test to verify it passes**
+
+```bash
+pytest tests/test_intrinsic_scorer.py -k "fallback" -v
+```
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add tests/test_intrinsic_scorer.py core/intrinsic_scorer.py
+git commit -m "feat: implement _fallback_stats_assessment for LLM failure case"
+```
+
+---
+
+### Task 5: 更新 score() 方法集成 LLM 评估
+
+**Files:**
+- Modify: `core/intrinsic_scorer.py`
+- Test: `tests/test_intrinsic_scorer.py`
+
+**Step 1: Write the failing test**
+
+```python
+# tests/test_intrinsic_scorer.py - add to TestIntrinsicScorer class
+
+from unittest.mock import Mock
+
+def test_score_uses_llm_assessment(self):
+    """测试 score() 使用 LLM 评估并返回完整结果"""
+    # Mock LLM
+    mock_llm = Mock()
+    mock_llm.chat.return_value = '''
+    {
+        "pred_error": 8.0,
+        "graph_density": 7.5,
+        "novelty": 9.0,
+        "reasoning": "新话题，值得探索"
+    }
+    '''
+    
+    scorer = IntrinsicScorer(
+        knowledge_graph={"topics": {}, "relations": []},
+        exploration_history={},
+        llm_client=mock_llm
+    )
     
     result = scorer.score("new topic")
     
     assert 'total' in result
     assert 'signals' in result
     assert 'weights' in result
-    assert 'pred_error' in result['signals']
-    assert 'graph_density' in result['signals']
-    assert 'novelty' in result['signals']
+    assert 'reasoning' in result
+    assert 'context' in result
     assert 0 <= result['total'] <= 10
+    # 验证总分计算：8.0*0.4 + 7.5*0.3 + 9.0*0.3 = 8.15
+    assert result['total'] == 8.15
 ```
 
 **Step 2: Run test to verify it fails**
 
 ```bash
-pytest tests/test_intrinsic_scorer.py::TestIntrinsicScorer::test_score_calculates_all_signals -v
+pytest tests/test_intrinsic_scorer.py::TestIntrinsicScorer::test_score_uses_llm_assessment -v
 ```
-Expected: 当前返回固定值 5.0，需要更新实现
+Expected: 当前实现需要更新
 
 **Step 3: 更新 score() 方法**
-
-```python
-# core/intrinsic_scorer.py - update score() method
-
-def score(self, topic: str) -> dict:
-    """
-    计算话题的内在评分
-    
-    Returns:
-        {
-            'total': float,           # 0-10 总分
-            'signals': {
-                'pred_error': float,  # 0-10 预测误差
-                'graph_density': float, # 0-10 图谱密度（反向）
-                'novelty': float,     # 0-10 新颖性
-            },
-            'weights': {              # 各信号权重
-                'pred_error': 0.4,
-                'graph_density': 0.3,
-                'novelty': 0.3,
-            }
-        }
-    """
-    pred_error = self._calc_pred_error(topic)
-    density = self._calc_graph_density(topic)
-    novelty = self._calc_novelty(topic)
-    
-    total = (pred_error * 0.4 + density * 0.3 + novelty * 0.3)
-    
-    return {
-        'total': round(total, 2),
-        'signals': {
-            'pred_error': round(pred_error, 2),
-            'graph_density': round(density, 2),
-            'novelty': round(novelty, 2),
-        },
-        'weights': {
-            'pred_error': 0.4,
-            'graph_density': 0.3,
-            'novelty': 0.3,
-        }
-    }
-```
-
-**Step 4: Run test to verify it passes**
-
-```bash
-pytest tests/test_intrinsic_scorer.py::TestIntrinsicScorer::test_score_calculates_all_signals -v
-```
-Expected: PASS
-
-**Step 5: Commit**
-
-```bash
-git add tests/test_intrinsic_scorer.py core/intrinsic_scorer.py
-git commit -m "feat: integrate all three signals in IntrinsicScorer.score()"
-```
 
 ---
 
