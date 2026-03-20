@@ -2,8 +2,9 @@
 
 > 一个具有**内在好奇心**的自主探索 Agent。不是等待用户提问，而是主动发现知识缺口、持续积累、主动分享。
 
-[![Status](https://img.shields.io/badge/status-MVP-green)](#)
+[![Status](https://img.shields.io/badge/status-v0.2.0-blue)](#)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](#)
+[![Release](https://img.shields.io/badge/release-v0.2.0-green)](./RELEASE_NOTE_v0.2.0.md)
 
 ---
 
@@ -398,7 +399,9 @@ curl -X POST http://10.1.0.13:4849/api/curious/trigger \
 
 ---
 
-_最后更新: 2026-03-19 | v0.2_
+_最后更新: 2026-03-20 | v0.2.0_
+
+📄 **Release Note**: [v0.2.0 Release Note](./RELEASE_NOTE_v0.2.0.md)
 
 _设计理念：好奇驱动，主动探索，以我为名_
 
