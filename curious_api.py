@@ -27,11 +27,13 @@ def api_state():
     from core import knowledge_graph as kg
     state = kg.get_state()
     summary = kg.get_knowledge_summary()
+    topics = state.get("knowledge", {}).get("topics", {})
     return jsonify({
         "status": "ok",
-        "knowledge": summary,
-        "queue_count": len(state["curiosity_queue"]),
-        "log_count": len(state["exploration_log"])
+        "knowledge": {**summary, "topics": topics},
+        "curiosity_queue": state.get("curiosity_queue", []),
+        "exploration_log": state.get("exploration_log", []),
+        "last_update": state.get("last_update")
     })
 
 
