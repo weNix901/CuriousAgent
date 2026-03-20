@@ -331,7 +331,19 @@
               <input type="number" id="inject-depth" value="6.0" min="0" max="10" step="0.5">
             </div>
           </div>
-          <div class="inject-row">
+          <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:6px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <label style="font-size:12px;color:var(--text-muted);">探索倾向 (α)</label>
+              <span id="alpha-value" style="font-size:12px;font-weight:600;color:var(--accent);">0.5</span>
+            </div>
+            <input type="range" id="alpha-slider" min="0" max="1" step="0.1" value="0.5" style="width:100%;" oninput="updateAlphaDisplay(this.value)">
+            <div style="display:flex;justify-content:space-between;margin-top:6px;">
+              <button type="button" class="btn" style="font-size:11px;padding:4px 8px;" onclick="setAlpha(0.7)">人工 0.7</button>
+              <button type="button" class="btn" style="font-size:11px;padding:4px 8px;" onclick="setAlpha(0.5)">平衡 0.5</button>
+              <button type="button" class="btn" style="font-size:11px;padding:4px 8px;" onclick="setAlpha(0.3)">好奇 0.3</button>
+            </div>
+          </div>
+          <div class="inject-row" style="margin-top:10px;">
             <button class="btn btn-primary" onclick="injectCuriosity()" style="width:100%">💉 注入</button>
           </div>
         </div>
@@ -448,7 +460,7 @@ async function fetchState() {
   } catch {
     // Fallback: call the script directly via CGI
     try {
-      const r = await fetch('/api/curious/status');
+      const r = await fetch('/api/curious/state');
       return await r.json();
     } catch {
       return null;
@@ -480,18 +492,28 @@ async function runExplore() {
   await loadAll();
 }
 
+function updateAlphaDisplay(value) {
+  document.getElementById('alpha-value').textContent = value;
+}
+
+function setAlpha(value) {
+  document.getElementById('alpha-slider').value = value;
+  updateAlphaDisplay(value);
+}
+
 async function injectCuriosity() {
   const topic = document.getElementById('inject-topic').value.trim();
   const rel = parseFloat(document.getElementById('inject-rel').value) || 7;
   const depth = parseFloat(document.getElementById('inject-depth').value) || 6;
   const reason = document.getElementById('inject-reason').value.trim() || '用户注入';
+  const alpha = parseFloat(document.getElementById('alpha-slider').value) || 0.5;
   if (!topic) { alert('请输入话题'); return; }
-  log(`💉 注入好奇心: ${topic} (rel=${rel}, depth=${depth})`, 'info');
+  log(`💉 注入好奇心: ${topic} (α=${alpha})`, 'info');
   try {
     const r = await fetch('/api/curious/inject', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({topic, relevance:rel, depth, reason})
+      body: JSON.stringify({topic, relevance:rel, depth, reason, alpha})
     });
     const data = await r.json();
     if (data.error) { log('❌ ' + data.error, 'error'); }
