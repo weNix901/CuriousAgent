@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from . import knowledge_graph as kg
+from .intrinsic_scorer import IntrinsicScorer
 
 
 class CuriosityEngine:
@@ -29,8 +30,68 @@ class CuriosityEngine:
         "self-improving AI",
     ]
     
-    def __init__(self):
+    def __init__(self, config=None):
         self.state = kg.get_state()
+        self.config = config or {}
+        # Initialize intrinsic scorer with knowledge graph and exploration history
+        self.intrinsic_scorer = IntrinsicScorer(
+            knowledge_graph=self.state.get("knowledge", {}),
+            exploration_history=self._get_exploration_history(),
+            config=config
+        )
+    
+    def _get_exploration_history(self) -> dict:
+        """从知识图谱获取探索历史"""
+        state = kg.get_state()
+        history = {}
+        # 从 exploration_log 中提取历史
+        for log in state.get("exploration_log", []):
+            topic = log.get("topic")
+            if topic:
+                if topic not in history:
+                    history[topic] = []
+                history[topic].append({
+                    "insight_quality": log.get("insight_quality", 5),
+                    "timestamp": log.get("timestamp"),
+                    "findings": log.get("findings", {})
+                })
+        return history
+    
+    def score_topic(self, topic: str, alpha: float = 0.5) -> dict:
+        """
+        融合评分：人工信号 + 内在信号
+        
+        Args:
+            topic: 话题名称
+            alpha: 人工信号权重（0.0-1.0），默认 0.5
+        
+        Returns:
+            {
+                'final_score': float,      # 融合后总分
+                'human_score': float,      # 人工评分
+                'intrinsic_score': float,  # 内在评分
+                'alpha': float,            # 使用的权重
+                'signals': dict,           # 内在信号详情
+            }
+        """
+        # 人工评分（原有逻辑）
+        human_score = self.compute_curiosity_score(topic, 5.0, 5.0)
+        
+        # 内在评分（新增）
+        intrinsic_result = self.intrinsic_scorer.score(topic)
+        intrinsic_score = intrinsic_result['total']
+        
+        # 融合
+        final_score = human_score * alpha + intrinsic_score * (1 - alpha)
+        
+        return {
+            'final_score': round(final_score, 2),
+            'human_score': round(human_score, 2),
+            'intrinsic_score': round(intrinsic_score, 2),
+            'alpha': alpha,
+            'signals': intrinsic_result.get('signals', {}),
+            'weights': intrinsic_result.get('weights', {}),
+        }
     
     def generate_initial_curiosities(self) -> int:
         """生成初始好奇心队列（仅当队列为空时）"""
