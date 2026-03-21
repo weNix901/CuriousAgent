@@ -1,101 +1,123 @@
 """
-LLM Client - Layer 3 洞察生成
+LLM Client - Compatible interface, delegates to LLMManager
 
-使用 volcengine API (OpenAI-compatible) 生成论文对比洞察
+Backward compatible interface that delegates to LLMManager
 """
 import os
-from pathlib import Path
 from typing import List, Dict, Optional
-
-import requests
-
-
-def _load_env():
-    """从 .env 文件加载环境变量"""
-    env_file = Path(__file__).parent.parent / ".env"
-    if env_file.exists():
-        with open(env_file) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, value = line.split("=", 1)
-                    os.environ.setdefault(key.strip(), value.strip())
-
-_load_env()
 
 
 class LLMClient:
     """
-    volcengine LLM 客户端 (OpenAI-compatible)
-    
-    职责：
-    1. 调用 volcengine API 生成论文对比洞察
-    2. 处理 API 错误和超时
-    3. 格式化输出
+    Backward-compatible LLMClient that delegates to LLMManager
     """
     
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.environ.get(
-            "VOLCENGINE_API_KEY",
-            "5f64834e-9ecb-4328-8fb5-953f597c4171"
-        )
-        self.api_url = os.environ.get(
-            "VOLCENGINE_API_URL",
-            "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
-        )
-        self.model = os.environ.get("VOLCENGINE_MODEL", "ark-code-latest")
-        self.timeout = 60
-    
-    def generate_insights(self, topic: str, papers: List[Dict]) -> Dict:
+    def __init__(self, api_key: Optional[str] = None, provider_name: Optional[str] = None, model_name: Optional[str] = None):
         """
-        生成论文对比洞察
+        Initialize LLMClient.
         
         Args:
-            topic: 探索主题
-            papers: Layer 2 分析的论文列表
-            
-        Returns:
-            洞察结果字典
+            api_key: Deprecated, kept for backward compatibility
+            provider_name: Override provider selection
+            model_name: Override model selection
         """
-        if not self.api_key:
-            return {
-                "status": "error",
-                "error": "MINIMAX_API_KEY not configured",
-                "insights": ""
-            }
-        
-        if len(papers) < 2:
-            return {
-                "status": "skipped",
-                "reason": "Need at least 2 papers for comparison",
-                "insights": ""
-            }
-        
-        try:
-            prompt = self._generate_comparison_prompt(topic, papers)
-            response = self._call_api(prompt)
-            
-            return {
-                "status": "success",
-                "insights": response,
-                "papers_compared": len(papers),
-                "model": self.model
-            }
-            
-        except Exception as e:
-            return {
-                "status": "error",
-                "error": str(e),
-                "insights": ""
-            }
+        from core.llm_manager import LLMManager
+        self.manager = LLMManager.get_instance()
+        self.provider_override = provider_name
+        self.model_override = model_name
+        # Backward compatibility attributes
+        self.api_key = api_key or os.environ.get("MINIMAX_API_KEY") or os.environ.get("VOLCENGINE_API_KEY", "")
+        self.model = os.environ.get("VOLCENGINE_MODEL", "minimax-m2.7")
+        self.timeout = 60
     
+    def chat(self, prompt: str, **kwargs) -> str:
+        """Send chat request"""
+        return self.manager.chat(
+            prompt,
+            task_type="general",
+            provider_override=self.provider_override,
+            model_override=self.model_override,
+            **kwargs
+        )
+    
+    def generate_insights(self, topic: str, papers: List[Dict], **kwargs):
+        """Generate paper insights (Layer 3)"""
+        prompt = self._build_insight_prompt(topic, papers)
+        return self.manager.chat(
+            prompt,
+            task_type="insights",
+            provider_override=self.provider_override,
+            model_override=self.model_override,
+            **kwargs
+        )
+    
+    def _build_insight_prompt(self, topic: str, papers: List[Dict]) -> str:
+        """Build insight prompt"""
+        parts = [f"研究主题: {topic}\n\n"]
+        for i, paper in enumerate(papers, 1):
+            parts.append(f"论文{i}: {paper.get('title', 'N/A')}\n")
+            parts.append(f"摘要: {paper.get('abstract', '')[:300]}...\n")
+            parts.append(f"关键发现: {', '.join(paper.get('key_findings', [])[:3])}\n\n")
+        parts.append("请提供深度洞察报告，包括：\n")
+        parts.append("1. 主要研究趋势\n")
+        parts.append("2. 各论文之间的关系\n")
+        parts.append("3. 对实际应用的建议\n")
+        return "".join(parts)
+    
+    def evaluate_intrinsic_signals(self, topic: str, findings: dict) -> dict:
+        """Evaluate intrinsic signals (for ICM)"""
+        prompt = f"""Evaluate the intrinsic signals (0-10 scale) for the following exploration:
+
+Topic: {topic}
+Findings: {findings.get('summary', '')[:500]}
+
+Return JSON format:
+{{
+  "pred_error": <prediction error score>,
+  "graph_density": <graph density score>,
+  "novelty": <novelty score>
+}}
+
+Scoring criteria:
+- pred_error: higher score means larger prediction error (worth exploring)
+- graph_density: higher score means fewer connections (isolated knowledge)
+- novelty: higher score means less overlap with known knowledge"""
+        
+        import json
+        try:
+            response = self.manager.chat(
+                prompt,
+                task_type="icm_signals",
+                provider_override=self.provider_override,
+                model_override=self.model_override
+            )
+            start = response.find('{')
+            end = response.rfind('}')
+            if start >= 0 and end > start:
+                return json.loads(response[start:end+1])
+        except Exception as e:
+            print(f"[LLMClient] Error evaluating signals: {e}")
+        
+        return {"pred_error": 5.0, "graph_density": 5.0, "novelty": 5.0}
+
+    # === Backward compatibility methods ===
+
+    def _call_api(self, prompt: str) -> str:
+        """Legacy API call method - delegates to manager"""
+        try:
+            return self.chat(prompt)
+        except ValueError as e:
+            if "No available LLM providers" in str(e):
+                return f"[LLMClient] No providers configured for prompt: {prompt[:50]}..."
+            raise
+
     def _generate_comparison_prompt(self, topic: str, papers: List[Dict]) -> str:
-        """生成对比分析的 prompt"""
-        prompt = f"""你是一位 AI 研究分析专家。请基于以下论文分析，生成深度洞察报告。
+        """Legacy prompt generation - use _build_insight_prompt instead"""
+        prompt_parts = [f"""You are an AI research analysis expert. Generate a deep insights report based on the following paper analysis.
 
-研究主题: {topic}
+Research Topic: {topic}
 
-"""
+"""]
         
         for i, paper in enumerate(papers, 1):
             title = paper.get('title', 'N/A')
@@ -104,60 +126,22 @@ class LLMClient:
             key_findings = paper.get('key_findings', [])
             relevance_score = paper.get('relevance_score', 0)
             
-            prompt += f"""论文{i}:
-标题: {title}
-作者: {', '.join(authors[:3]) if authors else 'N/A'}
-摘要: {abstract[:500] if abstract else 'N/A'}...
-关键发现: {'; '.join(key_findings[:3]) if key_findings else 'N/A'}
-相关性评分: {relevance_score:.2f}
+            prompt_parts.append(f"""Paper {i}:
+Title: {title}
+Authors: {', '.join(authors[:3]) if authors else 'N/A'}
+Abstract: {abstract[:500] if abstract else 'N/A'}...
+Key Findings: {'; '.join(key_findings[:3]) if key_findings else 'N/A'}
+Relevance Score: {relevance_score:.2f}
 
-"""
+""")
         
-        prompt += """请提供以下分析:
-1. 方法论对比表（维度：方法类型、创新点、局限性）
-2. 核心贡献总结
-3. 跨论文趋势观察
-4. 对该研究领域的建议
-5. 是否值得深入探索（是/否 + 理由）
+        prompt_parts.append("""Please provide the following analysis:
+1. Methodology comparison table (dimensions: method type, innovation, limitations)
+2. Summary of core contributions
+3. Cross-paper trend observations
+4. Recommendations for the research field
+5. Whether it's worth exploring in depth (yes/no + reason)
 
-请以结构化格式输出。"""
+Please output in a structured format.""")
         
-        return prompt
-    
-    def chat(self, prompt: str) -> str:
-        """简单的聊天接口，供 IntrinsicScorer 调用"""
-        return self._call_api(prompt)
-
-    def _call_api(self, prompt: str) -> str:
-        """调用 minimax API"""
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-        
-        payload = {
-            "model": self.model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You are a helpful research analysis assistant."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            "temperature": 0.7,
-            "max_tokens": 2000
-        }
-        
-        response = requests.post(
-            self.api_url,
-            headers=headers,
-            json=payload,
-            timeout=self.timeout
-        )
-        response.raise_for_status()
-        
-        data = response.json()
-        return data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        return "".join(prompt_parts)
