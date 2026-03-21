@@ -29,35 +29,103 @@ VALID_DEPTHS = {"shallow", "medium", "deep"}
 def run_one_cycle(depth: str = "medium") -> dict:
     if depth not in VALID_DEPTHS:
         raise ValueError(f"Invalid depth '{depth}'. Must be one of: {', '.join(sorted(VALID_DEPTHS))}")
+    
+    from core.meta_cognitive_monitor import MetaCognitiveMonitor
+    from core.meta_cognitive_controller import MetaCognitiveController
+    from core.event_bus import EventBus
+    from core.llm_manager import LLMManager
+    
     engine = CuriosityEngine()
-    explorer = Explorer(exploration_depth=depth)
     
-    # 1. 生成初始好奇心（如需要）
     engine.generate_initial_curiosities()
-    
-    # 2. 重新评分
     engine.rescore_all()
     
-    # 3. 选择下一个
     next_curiosity = engine.select_next()
     if not next_curiosity:
-        return {"status": "idle", "message": "没有待探索的好奇心"}
+        return {"status": "idle", "message": "No pending curiosities"}
     
-    # 4. 执行探索
+    topic = next_curiosity["topic"]
+    
+    llm_manager = LLMManager.get_instance()
+    monitor = MetaCognitiveMonitor(llm_client=llm_manager)
+    controller = MetaCognitiveController(monitor)
+    
+    allowed, reason = controller.should_explore(topic)
+    if not allowed:
+        print(f"[MGV] Exploration blocked: {topic} — {reason}")
+        kg.mark_topic_done(topic, reason)
+        EventBus.emit("exploration.blocked", {"topic": topic, "reason": reason})
+        return {"status": "blocked", "topic": topic, "reason": reason}
+    
+    explorer = Explorer(exploration_depth=depth)
     result = explorer.explore(next_curiosity)
     
-    # 5. Auto-queue new topics from findings (only for medium/deep)
+    findings = {
+        "summary": result.get("findings", ""),
+        "sources": result.get("sources", []),
+        "papers": result.get("papers", [])
+    }
+    
+    quality = monitor.assess_exploration_quality(topic, findings)
+    marginal = monitor.compute_marginal_return(topic, quality)
+    
+    monitor.record_exploration(topic, quality, marginal, notified=False)
+    
+    should_notify, notify_reason = controller.should_notify(topic)
+    notified = False
+    
+    if should_notify:
+        formatted = explorer.format_for_user(result)
+        
+        EventBus.emit("discovery.high_quality", {
+            "topic": topic,
+            "quality": quality,
+            "formatted": formatted,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+        EventBus.emit("notification.external", {
+            "topic": topic,
+            "quality": quality,
+            "message": formatted
+        })
+        
+        kg.update_last_exploration_notified(topic, True)
+        monitor.record_exploration(topic, quality, marginal, notified=True)
+        notified = True
+    
+    continue_allowed, continue_reason = controller.should_continue(topic)
+    
+    if continue_allowed:
+        kg.add_curiosity(
+            topic,
+            reason=f"Marginal:{marginal:.2f}, Quality:{quality:.1f}",
+            relevance=quality / 10.0,
+            depth=quality / 10.0 * 5
+        )
+    else:
+        kg.mark_topic_done(topic, continue_reason)
+        EventBus.emit("exploration.completed", {
+            "topic": topic,
+            "reason": continue_reason,
+            "final_quality": quality
+        })
+    
     auto_queued = 0
     if depth in ("medium", "deep"):
-        findings = result.get("findings", "")
-        keywords = engine._extract_keywords(findings)
+        keywords = engine._extract_keywords(findings["summary"])
         if keywords:
-            auto_queued = engine.auto_queue_topics(keywords, parent_topic=next_curiosity["topic"])
+            auto_queued = engine.auto_queue_topics(keywords, parent_topic=topic)
     
     return {
         "status": "success",
+        "topic": topic,
         "result": result,
         "formatted": explorer.format_for_user(result),
+        "quality": quality,
+        "marginal_return": marginal,
+        "notified": notified,
+        "continue": continue_allowed,
         "auto_queued": auto_queued
     }
 
