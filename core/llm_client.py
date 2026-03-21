@@ -124,6 +124,10 @@ class LLMClient:
         
         return prompt
     
+    def chat(self, prompt: str) -> str:
+        """简单的聊天接口，供 IntrinsicScorer 调用"""
+        return self._call_api(prompt)
+
     def _call_api(self, prompt: str) -> str:
         """调用 minimax API"""
         headers = {
