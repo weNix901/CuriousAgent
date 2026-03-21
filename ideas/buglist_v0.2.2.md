@@ -146,14 +146,105 @@ python3 curious_agent.py --run --run-depth deep
 
 ---
 
-## 待确认问题
+---
+
+## Bug #3：话题名称中数字被 URL 解析丢失
+
+### 严重程度
+🟡 低
+
+### 影响范围
+- 话题名称包含数字时（如 "Curious Agent Architecture 2026"）被错误解析
+- 解析时 "2026" 被截断为 "26" 或完全丢失
+- 导致同一话题被识别为不同话题（如 "Curious Agent Architecture 2026" vs "Curious Agent Architecture 26"）
+
+### 根因
+API 端点使用 URL query parameter 传递 topic，`+` 号或数字解析逻辑有问题。
+API `/api/metacognitive/check?topic=xxx` 在处理包含数字的话题时，数字被截断或错误解析。
+
+### 复现步骤
+
+```bash
+# 注入包含数字的话题
+python3 curious_agent.py --inject "Curious Agent Architecture 2026" --score 8.0 --reason "测试"
+
+# 执行探索
+python3 curious_agent.py --run --run-depth deep
+
+# 查看 API 返回
+curl "http://localhost:4848/api/metacognitive/check?topic=Curious%20Agent%20Architecture%202026"
+# 返回的 topic 字段可能显示为 "Curious Agent Architecture 26"（数字被截断）
+```
+
+### 修复建议
+
+1. **短期**：在 API 端点对 topic 参数做 URL decode + 规范化
+2. **长期**：改用 POST body 传递 topic，避免 URL 编码问题
+
+```python
+@app.get("/api/metacognitive/check")
+def check_topic(topic: str = None):
+    if topic is None:
+        return jsonify({"error": "topic is required"}), 400
+    
+    # URL decode 并规范化
+    topic = topic.strip()
+    # 处理可能的编码问题
+    topic = re.sub(r'\s+', ' ', topic)  # 规范化空白字符
+    
+    # ... 后续逻辑
+```
+
+### 验证方法
+
+```bash
+# 注入包含数字的话题
+python3 curious_agent.py --inject "AI Trends 2026" --score 7.0 --reason "测试"
+
+# 执行探索后检查
+curl "http://localhost:4848/api/metacognitive/check?topic=AI%20Trends%202026"
+# 预期：返回的 topic 字段应保持 "AI Trends 2026"
+```
+
+---
+
+## Bug #4：关键词提取时数字被过滤
+
+### 严重程度
+🟡 低
+
+### 影响范围
+- 探索结果中提取关键词时，数字被过滤
+- 导致 "2026" 等有意义的数字被丢弃
+
+### 根因
+`_extract_keywords` 方法使用正则 `\b[a-z]{4,}\b` 过滤，只保留 4 个字母以上的单词，数字被排除。
+
+### 修复建议
+
+在 `_extract_keywords` 中保留包含数字的术语（如 "LLM"、"AI"、"V2"、"V3"）：
+
+```python
+def _extract_keywords(self, text: str) -> list:
+    # 保留包含数字的术语
+    words_with_numbers = re.findall(r'\b[a-z]*\d+[a-z]*\b', text.lower())
+    # 保留纯字母单词
+    words_only_letters = re.findall(r'\b[a-z]{4,}\b', text.lower())
+    # 合并去重
+    keywords = list(set(words_with_numbers + words_only_letters))
+    # ... 后续过滤逻辑
+```
+
+---
+
+## 问题 #1：循环阻止阈值提前触发
 
 ### Q1：循环阻止阈值提前触发
 **现象**：由于 Bug #1 的双重记录，`explore_counts` 会是实际值的 2 倍
 **预期**：话题探索 3 次后应被阻止，但由于 bug，可能在探索 2 次后就被阻止
 **验证方法**：修复 Bug #1 后，执行 3 次探索，确认第 4 次被阻止
 
-### Q2：边际收益默认 1.0 是否合理
+## 问题 #2：边际收益默认 1.0 是否合理
 **现象**：首次探索的 `marginal_return` 默认返回 1.0（固定高值）
 **问题**：首次探索 quality=8.0，第二次 quality=7.0，marginal=-1.0 会触发停止
 **分析**：首次探索没有历史，用默认 1.0 是合理的 placeholder
@@ -161,6 +252,24 @@ python3 curious_agent.py --run --run-depth deep
 
 ---
 
+---
+
+## 📋 Bug 汇总
+
+| Bug # | 名称 | 严重程度 | 状态 |
+|-------|------|---------|------|
+| #1 | 双重记录 | 🔴 中 | 待修复 |
+| #2 | LLMClient 未加载 config | 🔴 高 | ✅ 已修复 |
+| #3 | 话题名称数字被解析丢失 | 🟡 低 | 待修复 |
+| #4 | 关键词数字被过滤 | 🟡 低 | 待修复 |
+
+| 问题 # | 名称 | 说明 |
+|--------|------|------|
+| #1 | 循环阻止阈值提前触发 | 因 Bug #1 导致 |
+| #2 | 边际收益默认 1.0 | 需观察调整 |
+
+---
+
 _最后更新：2026-03-21_
 _发现者：R1D3-researcher_
-_状态：待 OpenCode 修复_
+_状态：待 OpenCode 修复（Bug #1, #3, #4）_
