@@ -200,3 +200,134 @@ def list_pending() -> list:
     """列出所有待探索条目"""
     state = _load_state()
     return [item for item in state.get("curiosity_queue", []) if item.get("status") == "pending"]
+
+
+# === Meta-cognitive tracking functions ===
+
+def _ensure_meta_cognitive(state: dict) -> dict:
+    """Ensure state.json contains meta_cognitive field"""
+    if "meta_cognitive" not in state:
+        state["meta_cognitive"] = {
+            "explore_counts": {},
+            "marginal_returns": {},
+            "last_quality": {},
+            "exploration_log": [],
+            "completed_topics": {}
+        }
+    return state
+
+
+def mark_topic_done(topic: str, reason: str) -> None:
+    """Mark topic as completed, preventing further exploration"""
+    state = _load_state()
+    state = _ensure_meta_cognitive(state)
+
+    mc = state["meta_cognitive"]
+    if "completed_topics" not in mc:
+        mc["completed_topics"] = {}
+
+    mc["completed_topics"][topic] = {
+        "reason": reason,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    _save_state(state)
+
+
+def update_last_exploration_notified(topic: str, notified: bool) -> None:
+    """Update last exploration notified flag"""
+    state = _load_state()
+    state = _ensure_meta_cognitive(state)
+
+    mc = state["meta_cognitive"]
+    if "last_notified" not in mc:
+        mc["last_notified"] = {}
+
+    mc["last_notified"][topic] = {
+        "notified": notified,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    _save_state(state)
+
+
+def get_topic_keywords(topic: str) -> list:
+    """Get existing keywords for topic"""
+    state = _load_state()
+    topics = state.get("knowledge", {}).get("topics", {})
+    if topic in topics:
+        return topics[topic].get("keywords", [])
+    return []
+
+
+def get_topic_depth(topic: str) -> float:
+    """Get current depth for topic"""
+    state = _load_state()
+    topics = state.get("knowledge", {}).get("topics", {})
+    if topic in topics:
+        return topics[topic].get("depth", 0)
+    return 0.0
+
+
+def is_topic_completed(topic: str) -> bool:
+    """Check if topic is completed (marked as no longer explore)"""
+    state = _load_state()
+    state = _ensure_meta_cognitive(state)
+    mc = state.get("meta_cognitive", {})
+    completed = mc.get("completed_topics", {})
+    return topic in completed
+
+
+def update_meta_exploration(topic: str, quality: float, marginal_return: float, notified: bool) -> None:
+    """Update exploration meta-cognitive data"""
+    state = _load_state()
+    state = _ensure_meta_cognitive(state)
+
+    mc = state["meta_cognitive"]
+
+    if "explore_counts" not in mc:
+        mc["explore_counts"] = {}
+    mc["explore_counts"][topic] = mc["explore_counts"].get(topic, 0) + 1
+
+    if "marginal_returns" not in mc:
+        mc["marginal_returns"] = {}
+    if topic not in mc["marginal_returns"]:
+        mc["marginal_returns"][topic] = []
+    mc["marginal_returns"][topic].append(marginal_return)
+
+    if "last_quality" not in mc:
+        mc["last_quality"] = {}
+    mc["last_quality"][topic] = quality
+
+    if "exploration_log" not in mc:
+        mc["exploration_log"] = []
+    mc["exploration_log"].append({
+        "topic": topic,
+        "quality": quality,
+        "marginal_return": marginal_return,
+        "notified": notified,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+
+    _save_state(state)
+
+
+def get_meta_cognitive_state() -> dict:
+    """Get complete meta-cognitive state"""
+    state = _load_state()
+    state = _ensure_meta_cognitive(state)
+    return state.get("meta_cognitive", {})
+
+
+def get_topic_explore_count(topic: str) -> int:
+    """Get exploration count for topic"""
+    state = _load_state()
+    state = _ensure_meta_cognitive(state)
+    mc = state.get("meta_cognitive", {})
+    return mc.get("explore_counts", {}).get(topic, 0)
+
+
+def get_topic_marginal_returns(topic: str) -> list:
+    """Get marginal return history for topic"""
+    state = _load_state()
+    state = _ensure_meta_cognitive(state)
+    mc = state.get("meta_cognitive", {})
+    return mc.get("marginal_returns", {}).get(topic, [])
