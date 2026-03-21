@@ -209,6 +209,66 @@ def api_list_pending():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/metacognitive/state")
+def api_metacognitive_state():
+    from core import knowledge_graph as kg
+    state = kg.get_state()
+    mc = kg.get_meta_cognitive_state()
+    return jsonify({
+        "status": "ok",
+        "meta_cognitive": mc,
+        "summary": {
+            "completed_topics": len(mc.get("completed_topics", {})),
+            "total_explorations": sum(mc.get("explore_counts", {}).values()),
+            "topics_with_history": len(mc.get("explore_counts", {}))
+        }
+    })
+
+
+@app.route("/api/metacognitive/check")
+def api_metacognitive_check():
+    from core import knowledge_graph as kg
+    from core.meta_cognitive_monitor import MetaCognitiveMonitor
+    from core.meta_cognitive_controller import MetaCognitiveController
+    topic = request.args.get("topic", "").strip()
+    if not topic:
+        return jsonify({"error": "topic parameter required"}), 400
+    monitor = MetaCognitiveMonitor()
+    controller = MetaCognitiveController(monitor)
+    summary = controller.get_decision_summary(topic)
+    return jsonify({
+        "status": "ok",
+        "topic": topic,
+        "decision": summary
+    })
+
+
+@app.route("/api/metacognitive/history/<topic>")
+def api_metacognitive_history(topic):
+    from core import knowledge_graph as kg
+    state = kg.get_state()
+    mc = state.get("meta_cognitive", {})
+    logs = [log for log in mc.get("exploration_log", []) if log.get("topic") == topic]
+    return jsonify({
+        "status": "ok",
+        "topic": topic,
+        "history": logs,
+        "count": kg.get_topic_explore_count(topic),
+        "completed": kg.is_topic_completed(topic)
+    })
+
+
+@app.route("/api/metacognitive/topics/completed")
+def api_metacognitive_completed():
+    from core import knowledge_graph as kg
+    mc = kg.get_meta_cognitive_state()
+    completed = mc.get("completed_topics", {})
+    return jsonify({
+        "status": "ok",
+        "completed_topics": [{"topic": topic, **data} for topic, data in completed.items()]
+    })
+
+
 def main():
     parser = argparse.ArgumentParser(description="Curious Agent API Server")
     parser.add_argument("--port", type=int, default=4848)
