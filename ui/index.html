@@ -384,6 +384,32 @@
       </div>
     </div>
 
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">🧠 元认知状态</div>
+        <span id="meta-status" style="font-size:12px;color:var(--text-muted)">加载中...</span>
+      </div>
+      <div class="panel-body" id="metacognitive-panel">
+        <div class="stats" style="margin-bottom:12px;grid-template-columns:repeat(3,1fr);">
+          <div class="stat-card" style="padding:12px;">
+            <div class="stat-label">已完成话题</div>
+            <div class="stat-value" id="meta-completed" style="font-size:20px;">0</div>
+          </div>
+          <div class="stat-card" style="padding:12px;">
+            <div class="stat-label">总探索次数</div>
+            <div class="stat-value" id="meta-total" style="font-size:20px;">0</div>
+          </div>
+          <div class="stat-card" style="padding:12px;">
+            <div class="stat-label">有历史话题</div>
+            <div class="stat-value" id="meta-topics" style="font-size:20px;">0</div>
+          </div>
+        </div>
+        <div id="completed-topics-list">
+          <div class="empty">暂无已完成话题</div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
 
@@ -608,7 +634,49 @@ async function loadAll() {
   renderCuriosity(data.curiosity_queue || []);
   renderHistory(data.exploration_log || []);
   renderKnowledge(data.knowledge?.topics || {});
+  await loadMetaState();
   log('📊 状态已刷新', 'ok');
+}
+
+async function loadMetaState() {
+  try {
+    const r = await fetch('/api/metacognitive/state');
+    if (!r.ok) return;
+    const data = await r.json();
+    if (data.status === 'ok') {
+      const summary = data.summary;
+      document.getElementById('meta-completed').textContent = summary.completed_topics;
+      document.getElementById('meta-total').textContent = summary.total_explorations;
+      document.getElementById('meta-topics').textContent = summary.topics_with_history;
+      document.getElementById('meta-status').textContent = '已更新';
+      await loadCompletedTopics();
+    }
+  } catch (e) {
+    console.error('Error loading meta state:', e);
+  }
+}
+
+async function loadCompletedTopics() {
+  try {
+    const r = await fetch('/api/metacognitive/topics/completed');
+    if (!r.ok) return;
+    const data = await r.json();
+    const container = document.getElementById('completed-topics-list');
+    if (data.completed_topics.length === 0) {
+      container.innerHTML = '<div class="empty">暂无已完成话题</div>';
+    } else {
+      container.innerHTML = data.completed_topics.map(t => `
+        <div class="item">
+          <div class="item-header">
+            <div class="item-title">${t.topic}</div>
+          </div>
+          <div class="item-reason">${t.reason}</div>
+        </div>
+      `).join('');
+    }
+  } catch (e) {
+    console.error('Error loading completed topics:', e);
+  }
 }
 
 function renderStats(data) {
