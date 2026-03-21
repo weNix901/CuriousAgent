@@ -175,10 +175,19 @@ def api_trigger():
         return jsonify({"error": str(e)}), 500
 
 
+import re
+import urllib.parse
+
+def normalize_topic(topic: str) -> str:
+    topic = urllib.parse.unquote(topic)
+    topic = re.sub(r'\s+', ' ', topic)
+    return topic.strip()
+
+
 @app.route("/api/curious/queue", methods=["DELETE"])
 def api_delete_queue_item():
     try:
-        topic = request.args.get("topic", "").strip()
+        topic = normalize_topic(request.args.get("topic", ""))
         force = request.args.get("force", "false").lower() == "true"
 
         if not topic:
@@ -230,7 +239,7 @@ def api_metacognitive_check():
     from core import knowledge_graph as kg
     from core.meta_cognitive_monitor import MetaCognitiveMonitor
     from core.meta_cognitive_controller import MetaCognitiveController
-    topic = request.args.get("topic", "").strip()
+    topic = normalize_topic(request.args.get("topic", ""))
     if not topic:
         return jsonify({"error": "topic parameter required"}), 400
     monitor = MetaCognitiveMonitor()

@@ -87,8 +87,6 @@ def run_one_cycle(depth: str = "medium") -> dict:
     quality = monitor.assess_exploration_quality(topic, findings)
     marginal = monitor.compute_marginal_return(topic, quality)
     
-    monitor.record_exploration(topic, quality, marginal, notified=False)
-    
     should_notify, notify_reason = controller.should_notify(topic)
     notified = False
     
@@ -109,8 +107,9 @@ def run_one_cycle(depth: str = "medium") -> dict:
         })
         
         kg.update_last_exploration_notified(topic, True)
-        monitor.record_exploration(topic, quality, marginal, notified=True)
         notified = True
+    
+    monitor.record_exploration(topic, quality, marginal, notified=notified)
     
     continue_allowed, continue_reason = controller.should_continue(topic)
     
