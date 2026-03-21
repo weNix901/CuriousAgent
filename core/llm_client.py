@@ -22,7 +22,26 @@ class LLMClient:
             model_name: Override model selection
         """
         from core.llm_manager import LLMManager
-        self.manager = LLMManager.get_instance()
+        from core.config import get_config
+        
+        # Load config and initialize LLMManager if not already initialized
+        config = get_config()
+        llm_config = {
+            "providers": {},
+            "selection_strategy": "capability"
+        }
+        for p in config.llm_providers:
+            llm_config["providers"][p.name] = {
+                "api_url": p.api_url,
+                "timeout": p.timeout,
+                "enabled": p.enabled,
+                "models": [
+                    {"model": m.model, "weight": m.weight, "capabilities": m.capabilities, "max_tokens": m.max_tokens}
+                    for m in p.models
+                ]
+            }
+        
+        self.manager = LLMManager.get_instance(llm_config)
         self.provider_override = provider_name
         self.model_override = model_name
         # Backward compatibility attributes

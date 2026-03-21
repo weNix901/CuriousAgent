@@ -34,6 +34,24 @@ def run_one_cycle(depth: str = "medium") -> dict:
     from core.meta_cognitive_controller import MetaCognitiveController
     from core.event_bus import EventBus
     from core.llm_manager import LLMManager
+    from core.config import get_config
+    
+    # Load config and initialize LLMManager
+    config = get_config()
+    llm_config = {
+        "providers": {},
+        "selection_strategy": "capability"
+    }
+    for p in config.llm_providers:
+        llm_config["providers"][p.name] = {
+            "api_url": p.api_url,
+            "timeout": p.timeout,
+            "enabled": p.enabled,
+            "models": [
+                {"model": m.model, "weight": m.weight, "capabilities": m.capabilities, "max_tokens": m.max_tokens}
+                for m in p.models
+            ]
+        }
     
     engine = CuriosityEngine()
     
@@ -46,7 +64,7 @@ def run_one_cycle(depth: str = "medium") -> dict:
     
     topic = next_curiosity["topic"]
     
-    llm_manager = LLMManager.get_instance()
+    llm_manager = LLMManager.get_instance(llm_config)
     monitor = MetaCognitiveMonitor(llm_client=llm_manager)
     controller = MetaCognitiveController(monitor)
     
