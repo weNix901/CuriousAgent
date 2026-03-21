@@ -76,43 +76,59 @@ Step 0          Step 1           Step 2           Step 3           Step 4       
 **架构**：
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      LLMManager（单例）                      │
-├─────────────────────────────────────────────────────────────┤
-│  providers: {                                              │
-│    "volcengine": LLMProvider(api_key, url, model, weight),│
-│    "openai":     LLMProvider(api_key, url, model, weight),│
-│    "anthropic":  LLMProvider(api_key, url, model, weight),│
-│  }                                                         │
-│                                                             │
-│  selection_strategy: "weighted_rr" | "capability"          │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Router（路由选择）                         │
-│                                                             │
-│  weighted_round_robin: 按 weight 权重轮询                    │
-│  capability: 根据任务类型选择最合适的模型                    │
-└─────────────────────────────────────────────────────────────┘
-                           │
-            ┌──────────────┼──────────────┐
-            ▼              ▼              ▼
-     ┌──────────┐   ┌──────────┐   ┌──────────┐
-     │volcengine│   │ OpenAI   │   │Anthropic │
-     │ ark-code │   │ gpt-4o   │   │ claude-3  │
-     │  (得快)  │   │  (强大)  │   │ (推理强) │
-     └──────────┘   └──────────┘   └──────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           LLMManager（单例）                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  providers: {                                                           │
+│    "volcengine": [                                                       │
+│        ModelEntry(model="ark-code-latest", weight=3,                     │
+│                   capabilities=["fast","general","keywords","quality"]),  │
+│        ModelEntry(model="deepseek-chat", weight=2,                       │
+│                   capabilities=["reasoning","analysis"]),                │
+│    ],                                                                    │
+│    "openai": [                                                          │
+│        ModelEntry(model="gpt-4o", weight=2,                             │
+│                   capabilities=["general","creative","icm_signals"]),     │
+│        ModelEntry(model="gpt-4o-mini", weight=3,                        │
+│                   capabilities=["fast","keywords","quality"]),            │
+│    ],                                                                    │
+│    "anthropic": [                                                       │
+│        ModelEntry(model="claude-sonnet-4", weight=1,                    │
+│                   capabilities=["reasoning","insights","analysis"]),      │
+│    ],                                                                    │
+│  }                                                                       │
+│                                                                         │
+│  selection_strategy: "weighted_rr" | "capability"                       │
+│  routing_keys: {task_type → (provider, model)}                          │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     Router（两层路由选择）                                 │
+│                                                                         │
+│  第一层：按 task_type 选 provider                                        │
+│  第二层：同 provider 内按 task_type 选 model                             │
+│                                                                         │
+│  task_type:                                                             │
+│    "keywords"  → volcengine[ark-code-latest]                            │
+│    "quality"   → openai[gpt-4o-mini]                                   │
+│    "insights"  → anthropic[claude-sonnet-4]                             │
+│    "icm_signals" → openai[gpt-4o]                                      │
+│    "general"   → 加权轮询所有 provider                                   │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 **使用场景分工建议**：
 
-| 场景 | 推荐模型 | 理由 |
-|------|---------|------|
-| 关键词提取 | volcengine (ark-code) | 简单任务，不需要强推理，weight 高 |
-| 论文对比洞察（Layer 3） | anthropic (claude) | 复杂推理任务，需要长上下文 |
-| 内在信号评估（ICM） | openai (gpt-4o) | 平衡速度与能力 |
-| 质量评分 | volcengine (ark-code) | 任务简单，高并发 |
+| 场景 | 推荐 Provider | 推荐 Model | 理由 |
+|------|-------------|-----------|------|
+| 关键词提取 | volcengine | ark-code-latest | 简单任务，不需要强推理 |
+| 关键词提取（备选） | openai | gpt-4o-mini | 并发高时降级 |
+| 论文对比洞察（Layer 3） | anthropic | claude-sonnet-4 | 复杂推理任务，需要长上下文 |
+| 内在信号评估（ICM） | openai | gpt-4o | 平衡速度与能力 |
+| 质量评分 | openai | gpt-4o-mini | 任务简单，高并发 |
+| 通用任务 | 加权轮询 | — | 分摊负载 |
 
 **实现代码**：
 
@@ -121,30 +137,59 @@ Step 0          Step 1           Step 2           Step 3           Step 4       
 
 import os
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
+
+
+@dataclass
+class ModelEntry:
+    """
+    单个模型的配置条目
+    
+    同一个 Provider 下可以配置多个模型，
+    根据 task_type 和 weight 动态选择
+    """
+    model: str                          # 模型名称
+    weight: int = 1                     # 同 provider 内权重
+    capabilities: list = field(default_factory=list)  # 支持的能力
+    max_tokens: int = 2000              # 最大 token
+    temperature: float = 0.7             # 默认温度
+
 
 @dataclass
 class LLMProvider:
-    name: str
-    api_url: str
-    model: str
-    api_key: str
-    timeout: int = 60
-    weight: int = 1  # 权重越高，被选中的概率越高
-    capabilities: list = None  # 支持的任务类型
+    """
+    LLM Provider 配置
+    
+    一个 Provider（如 volcengine）下可配置多个 Model（如 ark-code-latest、deepseek-chat）
+    """
+    name: str                           # provider 名称
+    api_url: str                        # API 端点
+    api_key: str                        # API key
+    models: list[ModelEntry] = field(default_factory=list)  # 该 provider 下的模型列表
+    timeout: int = 60                   # 默认超时
+    default_model: str = ""             # 默认模型（第一个）
+    enabled: bool = True                # 是否启用
 
-    def __post_init__(self):
-        self.capabilities = self.capabilities or ["general"]
+    def get_model(self, task_type: str = "general") -> ModelEntry:
+        """根据 task_type 在该 provider 内选择合适的模型"""
+        # 1. 精确匹配 capability
+        for m in self.models:
+            if task_type in m.capabilities:
+                return m
+        # 2. 返回第一个（默认）
+        return self.models[0] if self.models else ModelEntry(model=self.default_model)
 
 
 class LLMManager:
     """
-    多 LLM Provider 管理器
+    多 Provider + 多 Model 的 LLM 管理器
     
-    支持：
-    1. weighted_round_robin — 按权重轮询（默认）
-    2. capability — 根据任务类型选模型
+    核心能力：
+    1. 多 Provider 支持（volcengine / openai / anthropic / ...）
+    2. 同 Provider 多 Model 支持（按 task_type 选模型）
+    3. 两层路由：Provider 层（capability/加权轮询）+ Model 层（capability）
+    4. 并发请求支持
     """
     
     _instance: Optional["LLMManager"] = None
@@ -153,7 +198,7 @@ class LLMManager:
         config = config or {}
         self.providers: list[LLMProvider] = []
         self._init_providers(config.get("providers", {}))
-        self.strategy = config.get("selection_strategy", "weighted_rr")
+        self.strategy = config.get("selection_strategy", "capability")
     
     @classmethod
     def get_instance(cls, config: dict = None) -> "LLMManager":
@@ -167,67 +212,149 @@ class LLMManager:
         cls._instance = None
     
     def _init_providers(self, providers_config: dict):
-        """初始化所有 provider"""
-        for name, cfg in providers_config.items():
-            api_key = os.environ.get(f"{name.upper()}_API_KEY") or cfg.get("api_key")
+        """初始化所有 provider 及其下的 models"""
+        for provider_name, cfg in providers_config.items():
+            api_key = os.environ.get(f"{provider_name.upper()}_API_KEY") or cfg.get("api_key")
             if not api_key:
-                print(f"[LLMManager] Skipping {name}: no API key")
+                print(f"[LLMManager] Skipping {provider_name}: no API key")
                 continue
-            self.providers.append(LLMProvider(
-                name=name,
+            
+            # 解析该 provider 下的所有模型
+            models = []
+            raw_models = cfg.get("models", [])
+            
+            # 兼容旧格式：直接是 model 字段（单个模型）
+            if "model" in cfg and not raw_models:
+                raw_models = [{"model": cfg["model"], "weight": cfg.get("weight", 1),
+                               "capabilities": cfg.get("capabilities", ["general"])}]
+            
+            for m_cfg in raw_models:
+                models.append(ModelEntry(
+                    model=m_cfg.get("model", ""),
+                    weight=m_cfg.get("weight", 1),
+                    capabilities=m_cfg.get("capabilities", ["general"]),
+                    max_tokens=m_cfg.get("max_tokens", 2000),
+                    temperature=m_cfg.get("temperature", 0.7),
+                ))
+            
+            provider = LLMProvider(
+                name=provider_name,
                 api_url=cfg.get("api_url", ""),
-                model=cfg.get("model", ""),
                 api_key=api_key,
+                models=models,
                 timeout=cfg.get("timeout", 60),
-                weight=cfg.get("weight", 1),
-                capabilities=cfg.get("capabilities", ["general"]),
-            ))
+                default_model=models[0].model if models else "",
+                enabled=cfg.get("enabled", True),
+            )
+            self.providers.append(provider)
         
         if not self.providers:
             print("[LLMManager] Warning: No LLM providers configured")
     
-    def select(self, task_type: str = "general") -> LLMProvider:
-        """根据策略选择 provider"""
-        if len(self.providers) == 1:
-            return self.providers[0]
+    def select(self, task_type: str = "general") -> tuple[LLMProvider, ModelEntry]:
+        """
+        根据策略选择 (provider, model)
+        
+        Returns:
+            (LLMProvider, ModelEntry)
+        """
+        if len(self.providers) == 1 and len(self.providers[0].models) == 1:
+            p = self.providers[0]
+            return p, p.models[0]
         
         if self.strategy == "capability":
             return self._capability_based(task_type)
         else:
-            return self._weighted_rr()
+            return self._weighted_rr(task_type)
     
-    def _weighted_rr(self) -> LLMProvider:
-        """加权轮询"""
-        total_weight = sum(p.weight for p in self.providers)
+    def _capability_based(self, task_type: str) -> tuple[LLMProvider, ModelEntry]:
+        """基于能力选择：遍历所有 provider 的所有 model，找精确匹配"""
+        for p in self.providers:
+            if not p.enabled:
+                continue
+            model = p.get_model(task_type)
+            if model and task_type in model.capabilities:
+                return p, model
+        # fallback：加权轮询
+        return self._weighted_rr(task_type)
+    
+    def _weighted_rr(self, task_type: str = "general") -> tuple[LLMProvider, ModelEntry]:
+        """加权轮询：先选 provider，再在 provider 内选 model"""
+        # 按 weight 计算所有 (provider, model) 的权重
+        candidates = []
+        for p in self.providers:
+            if not p.enabled:
+                continue
+            for m in p.models:
+                # provider weight × model weight
+                weight = self._get_provider_weight(p.name) * m.weight
+                candidates.append((p, m, weight))
+        
+        if not candidates:
+            raise ValueError("No available LLM providers")
+        
+        total_weight = sum(c[2] for c in candidates)
         r = random.randint(1, total_weight)
         cumsum = 0
-        for p in self.providers:
-            cumsum += p.weight
+        for p, m, w in candidates:
+            cumsum += w
             if r <= cumsum:
-                return p
-        return self.providers[-1]
+                return p, m
+        return candidates[-1][:2]
     
-    def _capability_based(self, task_type: str) -> LLMProvider:
-        """基于能力的模型选择"""
+    def _get_provider_weight(self, provider_name: str) -> int:
+        """获取 provider 的权重（从配置或默认 1）"""
         for p in self.providers:
-            if task_type in p.capabilities:
-                return p
-        return self.providers[0]
+            if p.name == provider_name:
+                # provider 权重 = 所有 model weight 之和
+                return sum(m.weight for m in p.models) if p.models else 1
+        return 1
     
-    def chat(self, prompt: str, task_type: str = "general", **kwargs) -> str:
-        """向选中的 provider 发送请求"""
-        provider = self.select(task_type)
+    def chat(self, prompt: str, task_type: str = "general",
+             model_override: str = None, provider_override: str = None,
+             **kwargs) -> str:
+        """
+        向选中的 provider + model 发送请求
+        
+        Args:
+            prompt: 对话 prompt
+            task_type: 任务类型，影响路由选择
+            model_override: 强制使用指定模型（绕过路由）
+            provider_override: 强制使用指定 provider（绕过路由）
+            **kwargs: 传递给底层 API 的参数（temperature, max_tokens 等）
+        """
+        if provider_override:
+            provider = next((p for p in self.providers if p.name == provider_override), None)
+            if not provider:
+                raise ValueError(f"Provider {provider_override} not found")
+            if model_override:
+                model = next((m for m in provider.models if m.model == model_override), None)
+                if not model:
+                    raise ValueError(f"Model {model_override} not found in {provider_override}")
+            else:
+                model = provider.get_model(task_type)
+        else:
+            provider, model = self.select(task_type)
+            if model_override:
+                model = next((m for m in provider.models if m.model == model_override), model)
+        
+        # 合并参数
+        temperature = kwargs.pop("temperature", model.temperature)
+        max_tokens = kwargs.pop("max_tokens", model.max_tokens)
         
         import requests
         headers = {
             "Authorization": f"Bearer {provider.api_key}",
             "Content-Type": "application/json"
         }
+        
+        # OpenAI-compatible API
         payload = {
-            "model": provider.model,
+            "model": model.model,
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": kwargs.get("temperature", 0.7),
-            "max_tokens": kwargs.get("max_tokens", 2000),
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            **kwargs
         }
         
         response = requests.post(
@@ -239,23 +366,83 @@ class LLMManager:
         response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"]
     
-    def chat_batch(self, prompts: list, task_type: str = "general", max_workers: int = 3) -> list:
-        """并发发送多个 LLM 请求"""
+    def chat_batch(self, prompts: list, task_type: str = "general",
+                   max_workers: int = 3, **kwargs) -> list:
+        """
+        并发发送多个 LLM 请求，自动分摊到不同 provider
+        
+        会尽可能把请求分散到不同的 provider，
+        避免同一个 provider 的 API 限流
+        """
         import concurrent.futures
+        
         results = [None] * len(prompts)
+        
+        # 按 provider 分组，优先用权重高的 provider
+        assignments = self._assign_to_providers(len(prompts), task_type)
+        
+        def send_request(idx: int, provider_name: str, model_name: str, prompt: str):
+            return idx, self.chat(prompt, provider_override=provider_name,
+                                  model_override=model_name, **kwargs)
+        
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(self.chat, p, task_type): i for i, p in enumerate(prompts)}
+            futures = []
+            for idx, (p_name, m_name) in enumerate(assignments):
+                futures.append(executor.submit(send_request, idx, p_name, m_name, prompts[idx]))
+            
             for future in concurrent.futures.as_completed(futures):
-                idx = futures[future]
-                try:
-                    results[idx] = future.result()
-                except Exception as e:
-                    print(f"[LLMManager] Request {idx} failed: {e}")
-                    results[idx] = ""
+                idx, result = future.result()
+                results[idx] = result
+        
         return results
+    
+    def _assign_to_providers(self, count: int, task_type: str) -> list:
+        """
+        将 N 个请求分配到不同的 (provider, model)
+        
+        策略：轮询分配，确保负载分散
+        """
+        assignments = []
+        available = []
+        
+        for p in self.providers:
+            if not p.enabled:
+                continue
+            for m in p.models:
+                available.append((p.name, m.model, self._get_provider_weight(p.name) * m.weight))
+        
+        if not available:
+            raise ValueError("No available LLM models")
+        
+        # 按权重展开，轮询分配
+        expanded = []
+        for p_name, m_name, w in available:
+            expanded.extend([(p_name, m_name)] * w)
+        
+        random.shuffle(expanded)
+        
+        for i in range(count):
+            assignments.append(expanded[i % len(expanded)])
+        
+        return assignments
+    
+    def list_capabilities(self) -> dict:
+        """列出所有 provider 和 model 的能力"""
+        result = {}
+        for p in self.providers:
+            result[p.name] = {
+                "api_url": p.api_url,
+                "models": {}
+            }
+            for m in p.models:
+                result[p.name]["models"][m.model] = {
+                    "capabilities": m.capabilities,
+                    "weight": m.weight
+                }
+        return result
 ```
 
-**config.json 多 Provider 配置示例**：
+**config.json 多 Provider + 多 Model 配置示例**：
 
 ```json
 {
@@ -265,28 +452,115 @@ class LLMManager:
     "providers": {
       "volcengine": {
         "api_url": "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
-        "model": "ark-code-latest",
         "timeout": 60,
-        "weight": 3,
-        "capabilities": ["fast", "general", "keywords", "quality"]
+        "enabled": true,
+        "models": [
+          {
+            "model": "ark-code-latest",
+            "weight": 3,
+            "capabilities": ["fast", "general", "keywords", "quality"],
+            "max_tokens": 2000
+          },
+          {
+            "model": "deepseek-chat",
+            "weight": 2,
+            "capabilities": ["reasoning", "analysis", "icm_signals"],
+            "max_tokens": 4000
+          }
+        ]
       },
       "openai": {
         "api_url": "https://api.openai.com/v1/chat/completions",
-        "model": "gpt-4o",
         "timeout": 120,
-        "weight": 2,
-        "capabilities": ["general", "icm_signals", "creative"]
+        "enabled": true,
+        "models": [
+          {
+            "model": "gpt-4o",
+            "weight": 2,
+            "capabilities": ["general", "creative", "insights", "icm_signals"],
+            "max_tokens": 4000
+          },
+          {
+            "model": "gpt-4o-mini",
+            "weight": 3,
+            "capabilities": ["fast", "keywords", "quality"],
+            "max_tokens": 2000
+          }
+        ]
       },
       "anthropic": {
         "api_url": "https://api.anthropic.com/v1/messages",
-        "model": "claude-sonnet-4-20250514",
         "timeout": 120,
-        "weight": 1,
-        "capabilities": ["reasoning", "insights", "analysis"]
+        "enabled": true,
+        "models": [
+          {
+            "model": "claude-sonnet-4-20250514",
+            "weight": 1,
+            "capabilities": ["reasoning", "insights", "analysis"],
+            "max_tokens": 4000
+          },
+          {
+            "model": "claude-3-5-haiku-20241022",
+            "weight": 2,
+            "capabilities": ["fast", "keywords", "quality"],
+            "max_tokens": 2000
+          }
+        ]
       }
     }
   }
 }
+```
+
+**关键设计决策**：
+
+1. **两层路由**：先按 `task_type` 选 `provider`，再在 provider 内按 `task_type` 选 `model`
+2. **provider 间加权轮询**：`provider.weight = Σ(model.weight)`，跨 provider 负载均衡
+3. **model_override / provider_override**：支持强制指定，跳过路由
+4. **`chat_batch` 智能分散**：自动将并发请求分配到不同 provider，避免单点限流
+5. **向后兼容**：支持旧的单 `model` 字段格式（自动转成 `models` 数组）
+
+**与旧版 LLMClient 的兼容性**：
+
+```python
+# core/llm_client.py — 改造为委托给 LLMManager
+
+class LLMClient:
+    """兼容现有代码的 LLMClient，改为委托给 LLMManager"""
+    
+    def __init__(self, provider_name: str = None, model_name: str = None):
+        from core.llm_manager import LLMManager
+        self.manager = LLMManager.get_instance()
+        self.provider_override = provider_name
+        self.model_override = model_name
+    
+    def chat(self, prompt: str, **kwargs) -> str:
+        return self.manager.chat(
+            prompt,
+            provider_override=self.provider_override,
+            model_override=self.model_override,
+            **kwargs
+        )
+    
+    def generate_insights(self, topic: str, papers: list, **kwargs):
+        """论文洞察生成（Layer 3 专用）"""
+        prompt = self._build_insight_prompt(topic, papers)
+        return self.manager.chat(
+            prompt,
+            task_type="insights",
+            provider_override=self.provider_override,
+            model_override=self.model_override,
+            **kwargs
+        )
+    
+    def _build_insight_prompt(self, topic: str, papers: list) -> str:
+        parts = [f"研究主题: {topic}\n"]
+        for i, paper in enumerate(papers, 1):
+            parts.append(f"论文{i}: {paper.get('title', 'N/A')}\n")
+            parts.append(f"摘要: {paper.get('abstract', '')[:300]}...\n")
+            parts.append(f"关键发现: {', '.join(paper.get('key_findings', [])[:3])}\n\n")
+        parts.append("请提供深度洞察报告。")
+        return "".join(parts)
 ```
 
 **改造现有 LLMClient**：
@@ -657,24 +931,54 @@ curious-agent/
     "providers": {
       "volcengine": {
         "api_url": "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
-        "model": "ark-code-latest",
         "timeout": 60,
-        "weight": 3,
-        "capabilities": ["fast", "general", "keywords", "quality"]
+        "enabled": true,
+        "models": [
+          {
+            "model": "ark-code-latest",
+            "weight": 3,
+            "capabilities": ["fast", "general", "keywords", "quality"],
+            "max_tokens": 2000
+          },
+          {
+            "model": "deepseek-chat",
+            "weight": 2,
+            "capabilities": ["reasoning", "analysis", "icm_signals"],
+            "max_tokens": 4000
+          }
+        ]
       },
       "openai": {
         "api_url": "https://api.openai.com/v1/chat/completions",
-        "model": "gpt-4o",
         "timeout": 120,
-        "weight": 2,
-        "capabilities": ["general", "icm_signals"]
+        "enabled": true,
+        "models": [
+          {
+            "model": "gpt-4o",
+            "weight": 2,
+            "capabilities": ["general", "creative", "insights", "icm_signals"],
+            "max_tokens": 4000
+          },
+          {
+            "model": "gpt-4o-mini",
+            "weight": 3,
+            "capabilities": ["fast", "keywords", "quality"],
+            "max_tokens": 2000
+          }
+        ]
       },
       "anthropic": {
         "api_url": "https://api.anthropic.com/v1/messages",
-        "model": "claude-sonnet-4-20250514",
         "timeout": 120,
-        "weight": 1,
-        "capabilities": ["reasoning", "insights"]
+        "enabled": true,
+        "models": [
+          {
+            "model": "claude-sonnet-4-20250514",
+            "weight": 1,
+            "capabilities": ["reasoning", "insights", "analysis"],
+            "max_tokens": 4000
+          }
+        ]
       }
     }
   }
@@ -699,19 +1003,34 @@ class MetaCognitiveThresholds:
     high_quality_threshold: float = 7.0
 
 @dataclass
-class LLMProvider:
-    api_url: str
+class ModelEntry:
     model: str
+    weight: int = 1
+    capabilities: list = field(default_factory=list)
+    max_tokens: int = 2000
+    temperature: float = 0.7
+
+@dataclass
+class LLMProvider:
+    name: str
+    api_url: str
+    models: list = field(default_factory=list)
     api_key: Optional[str] = None
     timeout: int = 60
-    weight: int = 1
+    enabled: bool = True
+
+    def get_model(self, task_type: str = "general") -> ModelEntry:
+        for m in self.models:
+            if task_type in m.capabilities:
+                return m
+        return self.models[0] if self.models else ModelEntry(model="")
 
 @dataclass
 class Config:
     thresholds: MetaCognitiveThresholds
     user_interests: list = field(default_factory=list)
     notification: dict = field(default_factory=dict)
-    llm_providers: dict = field(default_factory=dict)
+    llm_providers: list = field(default_factory=list)  # list[LLMProvider]
     default_llm_provider: str = "volcengine"
 
 def load_config() -> Config:
@@ -730,16 +1049,37 @@ def load_config() -> Config:
         high_quality_threshold=mc.get("high_quality_threshold", 7.0),
     )
     
-    llm_providers = {}
+    llm_providers = []
     for name, cfg in raw.get("llm", {}).get("providers", {}).items():
         api_key = os.environ.get(f"{name.upper()}_API_KEY") or cfg.get("api_key")
-        llm_providers[name] = LLMProvider(
+        
+        # 解析 models 列表
+        models = []
+        for m_cfg in cfg.get("models", []):
+            models.append(ModelEntry(
+                model=m_cfg.get("model", ""),
+                weight=m_cfg.get("weight", 1),
+                capabilities=m_cfg.get("capabilities", ["general"]),
+                max_tokens=m_cfg.get("max_tokens", 2000),
+                temperature=m_cfg.get("temperature", 0.7),
+            ))
+        
+        # 兼容旧格式
+        if "model" in cfg and not models:
+            models.append(ModelEntry(
+                model=cfg["model"],
+                weight=cfg.get("weight", 1),
+                capabilities=cfg.get("capabilities", ["general"]),
+            ))
+        
+        llm_providers.append(LLMProvider(
+            name=name,
             api_url=cfg.get("api_url", ""),
-            model=cfg.get("model", ""),
+            models=models,
             api_key=api_key,
             timeout=cfg.get("timeout", 60),
-            weight=cfg.get("weight", 1),
-        )
+            enabled=cfg.get("enabled", True),
+        ))
     
     return Config(
         thresholds=thresholds,
