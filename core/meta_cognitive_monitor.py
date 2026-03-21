@@ -96,13 +96,15 @@ Return only keywords, nothing else."""
             except Exception:
                 pass
 
-        words = re.findall(r'\b[a-z]{4,}\b', text.lower())
+        words_with_numbers = re.findall(r'\b[a-z]*\d+[a-z]*\b', text.lower())
+        words_only_letters = re.findall(r'\b[a-z]{4,}\b', text.lower())
+        all_words = list(set(words_with_numbers + words_only_letters))
         stopwords = {
             'that', 'this', 'with', 'from', 'have', 'been', 'will', 'would',
             'could', 'their', 'they', 'them', 'than', 'only', 'also', 'when',
             'where', 'what', 'which', 'while', 'during', 'before', 'after'
         }
-        filtered = [w for w in words if w not in stopwords]
+        filtered = [w for w in all_words if w not in stopwords]
 
         from collections import Counter
         word_counts = Counter(filtered)
