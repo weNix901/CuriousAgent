@@ -1,0 +1,43 @@
+{
+  "meta_cognitive": {
+    "max_explore_count": 3,
+    "min_marginal_return": 0.3,
+    "high_quality_threshold": 7.0
+  },
+  "user_interests": [
+    "agent framework",
+    "self-reflection",
+    "metacognition"
+  ],
+  "notification": {
+    "enabled": true,
+    "min_quality": 7.0
+  },
+  "llm": {
+    "default_provider": "volcengine",
+    "selection_strategy": "capability",
+    "providers": {
+      "volcengine": {
+        "api_url": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+        "timeout": 60,
+        "enabled": true,
+        "models": [
+          {
+            "model": "ark-code-latest",
+            "weight": 3,
+            "capabilities": ["fast", "general", "keywords", "quality"],
+            "max_tokens": 2000,
+            "temperature": 0.7
+          },
+          {
+            "model": "deepseek-chat",
+            "weight": 2,
+            "capabilities": ["reasoning", "analysis", "icm_signals"],
+            "max_tokens": 4000,
+            "temperature": 0.5
+          }
+        ]
+      }
+    }
+  }
+}
