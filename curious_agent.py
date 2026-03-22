@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core import knowledge_graph as kg
 from core.curiosity_engine import CuriosityEngine
 from core.explorer import Explorer
+from core.reasoning_compressor import ReasoningCompressor, CompressionLevel
 
 
 VALID_DEPTHS = {"shallow", "medium", "deep"}
@@ -86,12 +87,28 @@ def run_one_cycle(depth: str = "medium") -> dict:
     
     quality = monitor.assess_exploration_quality(topic, findings)
     marginal = monitor.compute_marginal_return(topic, quality)
+    exploration_count = monitor.get_explore_count(topic)
     
-    should_notify, notify_reason = controller.should_notify(topic)
+    # 应用认知跳跃压缩（基于当前 quality）
+    compressor = ReasoningCompressor()
+    compression = compressor.compress(
+        topic=topic,
+        quality=quality,
+        marginal_return=marginal,
+        exploration_count=exploration_count,
+        depth=depth,
+        layer_count=result.get("action", "").count("+") + 1,
+        findings=result.get("findings", "")
+    )
+    compression_level = compression.level
+    
+    # 通知决策：quality >= 7.0 且 非 SILENT 压缩
+    should_notify = (quality >= 7.0) and (compression.level != CompressionLevel.SILENT)
     notified = False
+    formatted = ""
     
     if should_notify:
-        formatted = explorer.format_for_user(result)
+        formatted = compressor.format_output(result, compression)
         
         EventBus.emit("discovery.high_quality", {
             "topic": topic,
@@ -108,6 +125,12 @@ def run_one_cycle(depth: str = "medium") -> dict:
         
         kg.update_last_exploration_notified(topic, True)
         notified = True
+    elif compression.level == CompressionLevel.SILENT:
+        # SILENT 级别：记录但不通知
+        print(f"[ReasoningCompressor] SILENT 跳过: {topic} (Q={quality:.1f}, marginal={marginal:.2f})")
+    else:
+        # 质量不足（< 7.0）但非 SILENT：静默记录，不推送
+        pass
     
     monitor.record_exploration(topic, quality, marginal, notified=notified)
     
@@ -134,11 +157,14 @@ def run_one_cycle(depth: str = "medium") -> dict:
         if keywords:
             auto_queued = engine.auto_queue_topics(keywords, parent_topic=topic)
     
+    # 使用压缩后的 formatted（若 should_notify=False 则为空）
+    final_formatted = formatted if should_notify else explorer.format_for_user(result)
+
     return {
         "status": "success",
         "topic": topic,
         "result": result,
-        "formatted": explorer.format_for_user(result),
+        "formatted": final_formatted,
         "quality": quality,
         "marginal_return": marginal,
         "notified": notified,
