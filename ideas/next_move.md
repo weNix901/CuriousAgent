@@ -104,20 +104,34 @@ class CuriosityDecomposer:
         """
 ```
 
-### 分解策略（三种）
+### 分解策略（四步级联）
 
-**1. 知识图谱推理**
-- 从已有 knowledge graph 里查找 topic 的连接关系
-- 如果 graph 中已有 agent → memory 的边，直接用
-
-**2. LLM 推理**
+**Step 1: LLM 推理生成候选**
 - 给定领域，常见分解方式是什么
-- 例：「agent」常见组件：memory, planning, tool use, context
-- 例：「harness」在 AI Agent 领域指：runtime, MCP, ACP
+- 例：「agent」→ ["agent memory", "agent planning", "agent harness", ...]
+- 允许有噪音候选（后续 Step 2 过滤）
 
-**3. 搜索趋势推断**
-- 哪些子 topic 最近搜索量在涨
-- 利用探索队列中已有的结构（如果队列里已有 agent 相关词，可能形成树）
+**Step 2: 搜索验证（多 Provider 并行）**
+- LLM 生成的每个候选 sub-topic，向多个搜索 Provider 并行查询
+- 统计每个 Provider 返回的结果数量
+- 过滤逻辑：
+  - 0 个 Provider 有结果 → 丢弃（LLM 幻觉）
+  - 1 个 Provider 有结果 → 可疑，降低优先级
+  - 2+ 个 Provider 有结果 → 有效，保留
+- 信号强度分级：
+  - 合计 < 10 结果 → 弱信号，低优先级
+  - 合计 10-100 → 中等信号，正常入队
+  - 合计 100+ → 强信号，高优先级
+
+**Step 3: 知识图谱补充**
+- 从 KG 已有结构推断父子关系
+- 如果 graph 中已有 agent → memory 的边，直接继承
+- 探索结果写回 KG 时，建立 component_of 边
+
+**Step 4: 澄清机制**
+- 如果 Step 1-3 都无法判断领域属性
+- 抛出 ClarificationNeeded → OpenClaw 通知用户澄清
+- 「agent」是什么领域？AI / 软件开发 / 其他？
 
 ---
 
