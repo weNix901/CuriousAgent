@@ -372,3 +372,319 @@ Curious Agent 继续探索
 | 闭环完整性 | 探索→验证→整合→行为影响 全链路可观测 |
 
 **如果 Curious Agent v0.2.4 验证通过** → 后续功能区可复用此范式快速接入，形成真正的数字生命体神经系统。
+
+---
+
+## 9. R1D3 审视-反思-指令 自主闭环高阶设计
+
+> **目标**：让 R1D3 从"探索结果的被动接收者"变成"探索方向的主动决策者"
+> **优先级**：v0.2.4 核心特性，等 opencode 完成 v0.2.3 后立即细化
+
+### 9.1 完整闭环状态机
+
+```
+                    ┌─────────────────────────────┐
+                    │         IDLE                │
+                    │   等待注入 topic/mission    │
+                    └──────────┬──────────────────┘
+                               │ 注入触发
+                               ▼
+                    ┌─────────────────────────────┐
+                    │     EXPLORING               │
+                    │  Curious Agent 执行探索      │
+                    └──────────┬──────────────────┘
+                               │ 探索完成，输出 findings
+                               ▼
+                    ┌─────────────────────────────┐
+                    │      REVIEWING              │◄──────┐
+                    │  R1D3 审视 + 反思 findings  │       │
+                    │  生成评估报告               │       │
+                    └──────────┬──────────────────┘       │
+                               │                          │
+                    ┌──────────┴──────────┐              │
+                    │                     │              │
+               continue=true          continue=false        │
+                    │                     │              │
+                    ▼                     ▼              │
+          ┌──────────────────┐  ┌──────────────────┐    │
+          │   DIRECTING      │  │    COMPLETED      │    │
+          │ R1D3 发出新指令   │  │   人类消费结果     │    │
+          │ 更新探索方向      │  └──────────────────┘    │
+          └────────┬─────────┘                           │
+                   │                                     │
+                   │ 新指令指向新方向                      │
+                   └─────────────────────────────────────┘
+                               (回到 EXPLORING)
+```
+
+**状态说明**：
+
+| 状态 | R1D3 行为 | Curious Agent 行为 |
+|------|----------|-------------------|
+| IDLE | 等待注入 | 无 |
+| EXPLORING | 旁观 | 执行探索，输出 findings |
+| REVIEWING | **审视 + 反思 + 决策** | 等待 |
+| DIRECTING | 发新指令给 Curious Agent | 接收新指令 |
+| COMPLETED | 输出结果给人类 | 归档 |
+
+### 9.2 R1D3 审视者：评估维度
+
+R1D3 在 REVIEWING 状态时，从以下维度审视 Curious Agent 的 findings：
+
+```python
+class ExplorationReview:
+    """R1D3 对探索结果的审视报告"""
+    
+    # 1. 完整性评估
+    coverage_score: float           # 0-1，探索范围覆盖了多少
+    missing_dimensions: list[str] # 缺失的维度列表
+    
+    # 2. 质量评估
+    depth_score: float             # 0-1，深度是否足够
+    reliability_score: float       # 0-1，信息源可信度
+    novelty_score: float          # 0-1，相比已有知识的新颖度
+    
+    # 3. 方向评估
+    direction_correct: bool        # 探索方向是否正确
+    direction_suggestion: str      # 如果方向偏了，建议怎么调整
+    
+    # 4. 缺口识别
+    gaps: list[GAP]               # 识别出的知识缺口
+    #   - type: "surface" | "depth" | "connection" | "correction"
+    #   - description: str
+    #   - priority: "high" | "medium" | "low"
+    
+    # 5. 决策
+    decision: {
+        "continue": bool,         # 是否继续探索
+        "confidence": float,      # R1D3 对闭环的信心 0-1
+        "new_directions": list[  # 新的探索方向列表
+            {
+                "topic": str,     # 新 topic
+                "reason": str,    # 为什么需要探索这个方向
+                "priority": int   # 优先级
+            }
+        ],
+        "redirect_topic": str | None,  # 如果要修改原 topic
+        "stop_reason": str | None      # 如果决定闭环，原因是啥
+    }
+```
+
+### 9.3 缺口类型定义（GAP Types）
+
+R1D3 识别的知识缺口分为四类：
+
+| 缺口类型 | 描述 | 举例 | 应对策略 |
+|---------|------|------|---------|
+| `surface` | 表面覆盖，未深入 | "知道 LangChain 是什么，但不懂源码" | 深入探索 |
+| `depth` | 深度不足 | "懂概念，但不会实操" | 补充实践/代码示例 |
+| `connection` | 缺少关联 | "懂 A 和 B，但不懂 A→B 的关系" | 补充对比/迁移 |
+| `correction` | 方向偏差 | "探索的 topic 偏了，应该往 X 走" | 修改方向，重新探索 |
+
+### 9.4 R1D3 反思决策算法
+
+```python
+def r1d3_review_and_decide(findings: Findings, topic: str) -> ReviewReport:
+    """
+    R1D3 的审视 + 反思 + 决策
+    这是自主闭环的核心决策函数
+    """
+    
+    # Step 1: 完整性评估
+    coverage = evaluate_coverage(findings, topic)
+    missing = identify_missing_dimensions(findings, topic)
+    
+    # Step 2: 质量评估
+    depth_ok = evaluate_depth(findings)
+    reliability = evaluate_reliability(findings)
+    novelty = evaluate_novelty(findings)
+    
+    # Step 3: 缺口识别
+    gaps = []
+    for dim in missing:
+        gaps.append(GAP(
+            type="surface" if dim.depth < threshold else "depth",
+            description=f"维度 '{dim.name}' 覆盖不足",
+            priority="high" if dim.essential else "medium"
+        ))
+    
+    # Step 4: 检查方向偏差
+    if is_direction_misaligned(findings, topic):
+        gaps.append(GAP(
+            type="correction",
+            description="探索方向与 topic 有偏差",
+            priority="high"
+        ))
+    
+    # Step 5: 检查关联缺口
+    related_topics = find_related_topics(topic)
+    for rt in related_topics:
+        if not has_connection(findings, topic, rt):
+            gaps.append(GAP(
+                type="connection",
+                description=f"缺少 '{topic}' 与 '{rt}' 的关联",
+                priority="medium"
+            ))
+    
+    # Step 6: 决策
+    if len(gaps) == 0:
+        return ReviewReport(
+            coverage_score=1.0,
+            gaps=[],
+            decision={
+                "continue": False,
+                "confidence": 0.95,
+                "stop_reason": "探索充分，缺口已填满"
+            }
+        )
+    
+    if has_high_priority_corrections(gaps):
+        return ReviewReport(
+            gaps=gaps,
+            decision={
+                "continue": True,
+                "confidence": 0.6,
+                "redirect_topic": suggest_corrected_topic(topic, gaps)
+            }
+        )
+    
+    if len(gaps) <= 2 and all(g.priority == "low" for g in gaps):
+        return ReviewReport(
+            gaps=gaps,
+            decision={
+                "continue": False,
+                "confidence": 0.8,
+                "stop_reason": "剩余缺口优先级低，可接受"
+            }
+        )
+    
+    # 有实质缺口，继续探索
+    return ReviewReport(
+        gaps=gaps,
+        decision={
+            "continue": True,
+            "confidence": 0.7,
+            "new_directions": [
+                {"topic": g.description, "reason": f"填补缺口: {g.type}", "priority": g.priority_to_int()}
+                for g in sorted(gaps, key=lambda x: x.priority_to_int())
+            ]
+        }
+    )
+```
+
+### 9.5 R1D3 → Curious Agent 指令协议
+
+R1D3 在 DIRECTING 状态生成的指令格式：
+
+```python
+class ExplorationDirective:
+    """R1D3 发给 Curious Agent 的探索指令"""
+    
+    mission_id: str                # 关联的原始 mission id
+    instruction_type: str          # "continue" | "redirect" | "expand"
+    
+    # continue: 继续当前 topic，补充探索指定方向
+    # redirect: 整体切换 topic
+    # expand: 扩展探索范围
+    
+    directive: str                 # 自然语言指令
+                                  # 例："探索topic X与Y的关联，重点关注A和B的区别"
+    
+    context: {
+        "original_topic": str,     # 原始 topic
+        "review_summary": str,     # R1D3 的审视总结
+        "gaps_addressed": list[str],  # 这次要填补的缺口
+        "exploration_history": list[Findings]  # 之前的探索历史摘要
+    }
+    
+    constraints: {
+        "max_depth": int,          # 最大探索深度
+        "focus_areas": list[str], # 重点关注的子主题
+        "avoid_areas": list[str], # 避免重复的子主题
+        "time_budget": str         # 时间预算，例："10min"
+    }
+    
+    success_criteria: str          # 这次探索的验收标准
+```
+
+### 9.6 循环终止条件
+
+闭环在以下任一条件满足时终止：
+
+| 条件 | 说明 | confidence |
+|------|------|-----------|
+| `gaps_empty` | 所有缺口已填满 | 0.95 |
+| `confidence_threshold` | R1D3 信心达到阈值 | 0.9 |
+| `max_iterations` | 探索轮次达到上限（防死循环） | - |
+| `time_budget_exceeded` | 时间预算耗尽 | 0.7 |
+| `diminishing_returns` | 连续 N 轮 marginal_return 下降 | 0.6 |
+
+### 9.7 接口定义：R1D3 ↔ Curious Agent
+
+```
+┌──────────────────────────────────────────────────────┐
+│                      R1D3 主意识                      │
+│  ┌────────────┐    ┌────────────┐    ┌──────────┐  │
+│  │  审视模块   │◄──►│  决策模块   │◄──►│  指令生成 │  │
+│  │  REVIEW    │    │  DECIDE    │    │  DIRECT  │  │
+│  └────────────┘    └────────────┘    └──────────┘  │
+└──────────────────────┬───────────────────────────────┘
+                       │ 协议层
+         ┌─────────────┴─────────────┐
+         │    ExplorationDirective   │
+         │    Findings              │
+         │    ReviewReport          │
+         └─────────────┬─────────────┘
+                       │
+┌──────────────────────▼───────────────────────────────┐
+│              Curious Agent (外挂功能区)                │
+│  ┌────────────┐    ┌────────────┐    ┌──────────┐  │
+│  │  探索执行   │───►│  输出 findings │──►│  归档    │  │
+│  │  EXPLORE   │    │             │    │  ARCHIVE │  │
+│  └────────────┘    └────────────┘    └──────────┘  │
+└──────────────────────────────────────────────────────┘
+```
+
+**协议消息格式**：
+
+```
+R1D3 → Curious Agent:
+  {"type": "directive", "payload": ExplorationDirective}
+
+Curious Agent → R1D3:
+  {"type": "findings", "payload": Findings}
+```
+
+### 9.8 实现优先级
+
+| 优先级 | 组件 | 说明 |
+|-------|------|------|
+| P0 | 状态机框架 | IDLE→EXPLORING→REVIEWING→DIRECTING 循环 |
+| P0 | R1D3 审视报告结构 | ExplorationReview 数据模型 |
+| P0 | R1D3 决策函数 | r1d3_review_and_decide() 核心逻辑 |
+| P1 | 缺口识别器 | 四类缺口的识别算法 |
+| P1 | 指令生成器 | ExplorationDirective 生成 |
+| P2 | 方向偏差检测 | is_direction_misaligned() |
+| P2 | 关联缺口检测 | has_connection() |
+| P3 | 信心度校准 | confidence 分数的自我校准 |
+
+### 9.9 与 v0.2.3 的接口关系
+
+v0.2.3 是基础，v0.2.4 在其上叠加自主闭环：
+
+```
+v0.2.3 基础层
+├── curiosity_queue 管理
+├── 探索执行（EXPLORING 状态）
+├── findings 输出
+└── 探索历史存储
+
+v0.2.4 闭环层（叠加在 v0.2.3 之上）
+├── 状态机（REVIEWING / DIRECTING / COMPLETED）
+├── R1D3 审视报告（ExplorationReview）
+├── R1D3 决策函数（r1d3_review_and_decide）
+├── R1D3 → Curious Agent 指令协议
+└── 循环终止条件判断
+```
+
+**关键**：v0.2.3 输出 findings，v0.2.4 在 findings 基础上叠加 R1D3 的审视和决策。v0.2.3 的接口（findings 结构）需要提前定义清楚，方便 v0.2.4 调用。
