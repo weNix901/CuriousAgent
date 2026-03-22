@@ -1,207 +1,286 @@
-# Curious Agent v0.2 实现方案
+# Curious Agent v0.2.3 — 核心改进：好奇心分解与树状生长
 
-> 本文档定义 v0.2 的两个核心改进：主动触发 + 分层探索。
-> 实现者：weNix（基于 OpenCode） | 验收者：weNix
+> 核心洞察（weNix, 2026-03-22）：好奇心应该是树状生长的，不是平铺随机搜索
+> 状态：规划中
 
 ---
 
-## 改进一：时间感知 + 事件驱动触发
+## 问题：当前探索是「平铺式」，不是「树状生长式」
 
-### 问题现状
-- 纯 cron 驱动（每 30 分钟一次）
-- 没有"今天想了解 X"的时间感
-- 探索队列依赖初始化注入，不够自主
-
-### 解决思路
-
-#### 触发信号体系
+### 当我给你一个词「agent」时，当前系统的行为：
 
 ```
-触发信号
-  ├── ⏰ 定时节律（被动基准）
-  │     ├── 早安探索（每天 09:00）：浅层快扫
-  │     └── 晚安探索（每天 21:00）：深度总结
-  │
-  ├── 🔗 知识缺口触发（主动核心）
-  │     ├── 探索结果发现新关键词 → 自动入队
-  │     └── 图谱中某话题无关联节点 → 主动填补
-  │
-  └── 💬 对话触发（用户交互）
-        └── 用户说"让我好奇一下 X" → 立即执行
+输入：agent
+↓
+搜索：agent（孤零零一个词）
+↓
+结果：建筑公司 / 词典定义 / 噪音
+↓
+结论：质量低，存进知识库，结束
 ```
 
-#### 实现目标
+**问题**：不知道「agent」由什么组成，搜出来的全是噪音。
 
-| 目标 | 描述 | 验收方式 |
-|------|------|---------|
-| G1.1 | 每天固定时间自动执行浅层/深层探索 | cron 配置存在且生效 |
-| G1.2 | 探索结果中的新关键词自动入队 | 观察 state.json 中 curiosity_queue 自动增长 |
-| G1.3 | 用户输入"让我好奇一下 X"可立即触发 | API 或 CLI 接收并执行 |
-| G1.4 | 探索深度可配置（浅/中/深） | `--depth shallow\|medium\|deep` 参数生效 |
+### 正确的模式：树状分解
 
-#### 验收测试
-
-```bash
-# G1.1: 定时触发
-# 在 cron 中配置两个时间点，观察 state.json 的 timestamp 变化
-crontab -e
-# 0 9 * * * cd /root/dev/curious-agent && python3 curious_agent.py --run --depth shallow
-# 0 21 * * * cd /root/dev/curious-agent && python3 curious_agent.py --run --depth deep
-
-# G1.2: 新关键词自动入队
-# 运行一轮探索后，检查 curiosity_queue 是否自动增加了探索中发现的新话题
-python3 curious_agent.py --run --depth medium
-# 然后检查: grep -c "auto:" knowledge/state.json 中的 auto-queued 条目
-
-# G1.3: 对话触发
-curl -X POST http://10.1.0.13:4849/api/curious/trigger \
-  -H "Content-Type: application/json" \
-  -d '{"topic":"your curiosity here","depth":"shallow"}'
-# 预期: 立即开始探索，不等待 cron
-
-# G1.4: 深度参数
-python3 curious_agent.py --run --depth deep
-# 预期: 探索时间明显变长（>2分钟），输出包含"deep exploration"
+```
+输入：agent
+↓
+好奇心分解器识别核心组成部分：
+  agent
+  ├── 记忆（memory）
+  ├── 上下文窗口（context window）
+  ├── 规划（planning）
+  ├── 工具使用（tool use）
+  └── harness ⭐（最近火热）
+       ↓
+对 harness 继续分解：
+  harness
+  ├── agent runtime
+  ├── MCP（Model Context Protocol）
+  └── ACP（Agent Communication Protocol）
+       ↓
+对每个叶子节点探索，完成后写回父节点
 ```
 
 ---
 
-## 改进二：分层探索机制
+## 核心概念：好奇心的「有根生长」
 
-### 问题现状
-- 一次探索 = 一次 web search
-- 只拿表层摘要，无法深入论文/PDF
-- 知识深度上限低，无法形成洞察
+### 三种生长模式
 
-### 解决思路
+| 模式 | 描述 | 示例 |
+|------|------|------|
+| **向下分解** | 识别 topic 的组成部分，向下钻 | agent → memory + planning + harness |
+| **横向扩展** | 同一层级的相邻概念 | memory → episodic + semantic + working |
+| **向上抽象** | 从具体例子归纳共性 | smolagents → lightweight agent framework |
+
+### 生长终止条件
 
 ```
-探索深度分级
-
-Layer 1 — 快（30秒）
-  └── Web Search（现状）
-       → 快速获取概览 + 发现值得深入的论文
-
-Layer 2 — 中（5分钟）
-  ├── Layer 1 结果
-  └── 如果发现 arXiv 链接 → 下载 PDF 摘要（只读前2页）
-       → 提取：方法论、核心贡献、局限性
-
-Layer 3 — 深（15分钟）
-  ├── Layer 1+2 结果
-  └── 多篇相关论文对比阅读（最多3篇）
-       → 生成对比分析表
-       → 提炼跨论文洞察
-       → 判断是否值得通知用户
-```
-
-#### 实现目标
-
-| 目标 | 描述 | 验收方式 |
-|------|------|---------|
-| G2.1 | `--depth shallow` = 现状（web search） | 耗时 < 30 秒 |
-| G2.2 | `--depth medium` = web search + PDF 摘要提取 | 耗时 1-3 分钟 |
-| G2.3 | `--depth deep` = 多论文对比 + 洞察生成 | 耗时 5-15 分钟 |
-| G2.4 | 探索结果包含"洞察层"（不是简单摘要） | findings 字段包含推理过程 |
-
-#### 验收测试
-
-```bash
-# G2.1: 浅层（基准）
-time python3 curious_agent.py --run --depth shallow
-# 预期: <30s 完成，state.json 的 findings 为搜索摘要
-
-# G2.2: 中层（PDF）
-time python3 curious_agent.py --run --depth medium
-# 预期: 1-3分钟，检查 findings 是否包含 "【论文分析】" 段落
-
-# G2.3: 深层（多论文对比）
-time python3 curious_agent.py --run --depth deep
-# 预期: 5-15分钟，检查 findings 是否包含对比分析表
-
-# G2.4: 洞察格式验证
-python3 -c "
-import json
-with open('/root/dev/curious-agent/knowledge/state.json') as f:
-    d = json.load(f)
-last = d['exploration_log'][-1]
-print('depth:', last.get('exploration_depth'))
-print('has_insight:', '洞察' in last.get('findings','') or 'insight' in last.get('findings','').lower())
-print('findings[:500]:', last.get('findings','')[:500])
-"
+遇到以下条件时停止生长：
+- 叶子节点已是被充分探索的已知概念（quality 足够高）
+- 边际收益递减（多次探索后 marginal_return < 0.2）
+- 到达预设深度上限（防止组合爆炸）
 ```
 
 ---
 
-## 核心改动文件
+## 架构改动：新增 CuriosityDecomposer
+
+### 位置
 
 ```
-curious_agent.py
-  ├── 新增: --depth {shallow,medium,deep} 参数
-  ├── 新增: trigger_from_user(topic) 函数
-  ├── 新增: auto_queue_from_findings() 函数
-  └── 修改: run_exploration(depth) 函数分派不同策略
-
-core/explorer.py
-  ├── Layer 1: search_web() — 保持现状
-  ├── Layer 2: extract_pdf_summary(url) — 新增
-  └── Layer 3: compare_papers(urls[]) — 新增
-
-core/curiosity_engine.py
-  ├── 新增: add_auto_queued(topic, reason="auto:found in ...") — 新增
-  └── 修改: score_topic() 考虑 auto-queue 的话题
+curious_agent/
+└── core/
+    ├── knowledge_graph.py      # 现有
+    ├── curiosity_engine.py    # 现有
+    ├── explorer.py            # 现有
+    └── curiosity_decomposer.py  # 新增
 ```
+
+### Decomposer 接口
+
+```python
+class CuriosityDecomposer:
+    """
+    好奇心分解器
+    输入：一个 topic
+    输出：一组子 topic + 关系描述
+    """
+    
+    def decompose(self, topic: str) -> list[dict]:
+        """
+        Returns:
+            [
+                {
+                    "sub_topic": "memory",
+                    "relation": "component",       # component | sibling | abstract
+                    "depth": 1,
+                    "reason": "agent 的核心组成部分"
+                },
+                ...
+            ]
+        """
+```
+
+### 分解策略（三种）
+
+**1. 知识图谱推理**
+- 从已有 knowledge graph 里查找 topic 的连接关系
+- 如果 graph 中已有 agent → memory 的边，直接用
+
+**2. LLM 推理**
+- 给定领域，常见分解方式是什么
+- 例：「agent」常见组件：memory, planning, tool use, context
+- 例：「harness」在 AI Agent 领域指：runtime, MCP, ACP
+
+**3. 搜索趋势推断**
+- 哪些子 topic 最近搜索量在涨
+- 利用探索队列中已有的结构（如果队列里已有 agent 相关词，可能形成树）
 
 ---
 
-## 数据格式扩展
+## 集成到探索流程
 
-### curiosity_queue 新增字段
+### 新探索流程
 
-```json
-{
-  "topic": "metacognition in LLM",
-  "score": 8.0,
-  "depth": "medium",
-  "source": "auto:found in swe-agent exploration",  // 新增
-  "status": "pending"
+```
+用户输入/队列触发：agent
+    ↓
+CuriosityDecomposer.decompose("agent")
+    ↓
+生成子 topic 列表：["agent memory", "agent planning", "agent harness", ...]
+    ↓
+高质量子 topic 入队（不是全部入队，做质量预筛）
+    ↓
+取 Top 子 topic 开始探索
+    ↓
+探索结果写回父节点（agent 的知识图谱节点更新）
+    ↓
+探索完成后 → 再次 decompose（继续生长）
+```
+
+### 关键改动点
+
+**curious_agent.py**
+- `run_one_cycle()` 探索前调用 `decomposer.decompose()`
+- 分解结果写入 knowledge graph（建立父子关系边）
+
+**curiosity_engine.py**
+- 新增：`decompose_and_queue()` 函数
+- 修改：`select_next()` 优先选有未探索子节点的父节点
+
+**knowledge_graph.py**
+- 新增：边类型 `parent_of`, `child_of`, `component_of`
+- 新增：`get_children()`, `get_parent()` 查询
+
+---
+
+## 质量门控：入队前预筛
+
+### 当前问题
+
+太泛的词（"Agent"、"Cognitive"）能进队列。
+
+### 解决方案：入队质量门
+
+```python
+def should_queue(topic: str) -> tuple[bool, str]:
+    """
+    判断 topic 是否应该入队
+    Returns: (should_queue, reason)
+    """
+    # 1. 长度太短 → 拒绝
+    if len(topic.split()) < 2:
+        return False, "too short, needs domain限定"
+    
+    # 2. 泛词黑名单 → 拒绝或改写
+    if topic.lower() in BLACKLIST:
+        return False, f"in blacklist: {topic}"
+    
+    # 3. 已在队列相似项 → 合并
+    if is_similar_to_existing(topic):
+        return False, "duplicate/similar in queue"
+    
+    # 4. 通过
+    return True, "ok"
+```
+
+### 泛词黑名单（初始集）
+
+```python
+BLACKLIST = {
+    "agent", "agents", "cognit", "cognition",  # 太泛
+    "architecture", "architectures",              # 多义词
+    "system", "systems",                        # 太泛
+    "overview", "introduction", "what is",      # 非实质
 }
 ```
 
-### exploration_log 新增字段
+---
+
+## 与知识图谱的深度集成
+
+### 树状结构在 KG 中的表示
 
 ```json
 {
-  "topic": "metacognition in LLM",
-  "exploration_depth": "deep",        // 新增
-  "layers_explored": [1, 2, 3],     // 新增
-  "papers_analyzed": ["url1", "url2"], // 新增（Layer 2/3）
-  "findings": {
-    "layer1": "...",  // 搜索摘要
-    "layer2": "...",  // 论文分析
-    "layer3": "..."   // 深度洞察
-  },
-  "notified_user": true,
-  "timestamp": "..."
+  "topics": {
+    "agent": {
+      "status": "partial",
+      "components": ["agent_memory", "agent_planning", "agent_harness"],
+      "explored_components": ["agent_memory"]
+    },
+    "agent_harness": {
+      "status": "partial", 
+      "components": ["harness_mcp", "harness_acp"],
+      "explored_components": []
+    },
+    "agent_memory": {
+      "status": "complete",
+      "findings": "..."
+    }
+  }
 }
+```
+
+### 探索优先级
+
+```
+优先选：status=partial 且有未探索组件的节点
+其次：全新节点（从未探索过）
+最后：已完成节点（检查边际收益）
 ```
 
 ---
 
-## 验收检查清单
+## 实施计划
 
-实现完成后，运行以下检查：
+### Phase 1：最小可运行（v0.2.3-alpha）
 
-- [ ] `curious_agent.py --run --depth shallow` 正常完成 < 30s
-- [ ] `curious_agent.py --run --depth medium` 正常完成 1-3 分钟
-- [ ] `curious_agent.py --run --depth deep` 正常完成 5-15 分钟
-- [ ] 深层探索 findings 包含多论文对比内容
-- [ ] 探索结果中的新关键词出现在下一轮 curiosity_queue
-- [ ] API `/api/curious/trigger` 可立即触发探索
-- [ ] `state.json` 中新增字段（exploration_depth, source）正确写入
-- [ ] Web UI 刷新后显示正确的探索深度标签
+- [ ] 实现 `curiosity_decomposer.py`（仅 LLM 推理策略）
+- [ ] 入队质量门（黑名单 + 长度检查）
+- [ ] 修改 `curious_agent.py` 在探索前调用 decompose
+- [ ] 修改 `knowledge_graph.py` 支持父子关系
+
+### Phase 2：知识图谱集成（v0.2.3-beta）
+
+- [ ] 分解结果写入 KG（建立 component_of 边）
+- [ ] `select_next()` 优先选有未探索子节点的父节点
+- [ ] 探索结果写回父节点
+
+### Phase 3：多策略分解（v0.2.3）
+
+- [ ] 添加 KG 推理策略
+- [ ] 添加搜索趋势推断策略
+- [ ] 实现生长终止条件判断
 
 ---
 
-_文档版本: v0.2 设计方案_
-_创建时间: 2026-03-19_
+## 验收标准
+
+```
+输入：agent
+输出：["agent memory", "agent planning", "agent context", "agent tool use", "agent harness"]
+      （5个左右具体子 topic，不是50个噪音词）
+
+质量：
+- 子 topic 覆盖率 > 80%（主流组件都被识别）
+- 噪音率 < 20%（子 topic 不是建筑公司之类）
+- 分解速度 < 2秒
+```
+
+---
+
+## 副作用：解决「通知淹没」问题
+
+当好奇心是树状生长时：
+- 系统知道哪些分支已经探索完、哪些还没
+- 通知用户时，只报告「agent 的 harness 分支发现了 X」，不是「agent 这个词发现了噪音」
+- 用户看到的是**有结构的知识**，不是随机词列表
+
+---
+
+_文档版本: v0.2.3 规划_
+_创建时间: 2026-03-22_
