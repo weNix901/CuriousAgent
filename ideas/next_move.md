@@ -5,13 +5,13 @@
 
 ---
 
-## 📋 Phase 索引
+## 📋 Phase 索引（按开发顺序）
 
-| Phase | 主题 | 文件 |
-|-------|------|------|
-| Phase 1 | 行为闭环（Agent-Behavior-Writer） | `next_move_v0.2.3-phase1.md` |
-| Phase 2 | 质量评估升级（Quality v2 / CompetenceTracker） | `next_move_v0.2.3-phase2.md` |
-| **Phase 3（本文）** | **好奇心分解引擎（四级级联 + 多 Provider 验证）** | `next_move_v0.2.3-phase3.md` |
+| 开发优先级 | Phase | 主题 | 文件 |
+|-----------|-------|------|------|
+| 🥇 **1st** | Phase 1 | 好奇心分解引擎（四级级联 + 多 Provider 验证） | `next_move_v0.2.3-phase1_development.md` |
+| 🥈 **2nd** | Phase 2 | 质量评估升级（Quality v2 / CompetenceTracker） | `next_move_v0.2.3-phase2_development.md` |
+| 🥉 **3rd** | Phase 3 | 行为闭环（Agent-Behavior-Writer） | `next_move_v0.2.3-phase3_development.md` |
 
 ---
 
