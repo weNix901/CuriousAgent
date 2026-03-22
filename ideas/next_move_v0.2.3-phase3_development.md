@@ -790,3 +790,34 @@ grep -l "behavior-rule" /root/.openclaw/workspace-researcher/memory/curious/*.md
 - [arXiv:2510.16374](https://arxiv.org/abs/2510.16374) — Monitor-Generate-Verify in LLMs
 - [arXiv:2509.09675](https://arxiv.org/abs/2509.09675) — CDE: Curiosity-Driven Exploration for LLM RL
 - `next_move_v0.2.3-phase2.md` — Phase 2 任务说明
+
+---
+
+## 16. 已知 Bug（来自 buglist_v0.2.2.md，需在 Phase 3 开发时一并修复）
+
+**Bug #1 — 双重记录（Double Recording）**
+- 严重程度：🔴 中
+- 问题：`curious_agent.py` 中 `run_one_cycle()` 对每个话题调用了两次 `record_exploration()`
+- 表现：`explore_counts` 显示值 = 实际探索次数 × 2，循环阻止阈值提前触发
+- 修复：在 `run_one_cycle()` 末尾只记录一次，移除首次调用
+- 验证：`explore_counts["某话题"]` 应等于实际探索次数
+
+**Bug #3 — 话题名称数字被 URL 解析丢失**
+- 严重程度：🟡 低
+- 问题：话题名含数字（如 "Curious Agent Architecture 2026"）被截断为 "26"
+- 根因：API 端点 URL query parameter 解析问题
+- 修复：API 端点对 topic 参数做 URL decode + 规范化
+
+**Bug #4 — 关键词数字被过滤**
+- 严重程度：🟡 低
+- 问题：`_extract_keywords()` 用正则 `\b[a-z]{4,}\b` 过滤，单词中的数字被丢弃
+- 修复：保留含数字的术语（如 "LLM"、"AI"、"V2"）
+
+**F3 — 关键词过滤失效（来自 next_move_v0.2.1.md）**
+- 问题：`_extract_keywords()` 无停用词表、无换行符预处理、无长度过滤
+- 表现：队列曾有 184条 pending，其中135条有问题（噪音率 73%）
+- 修复：STOPWORDS 表 + `text.replace('\n', ' ')` 预处理 + `len(kw) >= 4` 过滤
+
+**F5 — ArXiv Analyzer 容错不足**
+- 问题：Layer 2 的 ArXiv 论文解析经常返回空，导致 Layer 3 无法触发
+- 修复：PDF 下载失败时用 search snippet 构造 fallback paper 对象

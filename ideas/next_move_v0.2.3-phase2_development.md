@@ -784,6 +784,18 @@ class ThreePhaseExplorer:
 - [ ] 实现 `_verify_knowledge_gaps`
 - [ ] 在 `curious_agent.py` 中集成（可选，作为 Phase 2 的高级特性）
 
+### Task 6: 队列管理增强（F1 from buglist）
+
+**来源**：`buglist_v0.2.2.md` — v0.2.2 真实 bug 分析
+
+当前问题：队列中历史条目无法删除，导致队列臃肿（曾有 184条 pending，其中135条有问题）。
+
+**功能**：
+- [ ] CLI 删除：`python3 curious_agent.py --delete "过时话题"`
+- [ ] 批量删除：`--delete "topic1" "topic2" --force`
+- [ ] 列表确认：`--list-pending` 显示所有待探索项
+- [ ] Web UI 删除：每行增加 🗑️ 删除按钮
+
 ---
 
 ## 9. 技术指标
