@@ -268,6 +268,66 @@ _测试者: R1D3-researcher_
 
 ---
 
+## 🔴 Bug #19: Decomposer 候选全部验证失败 → 探索链断裂
+
+**严重程度**: 🔴 高 — 几乎所有 topic 都在 Provider 验证阶段失败，探索链无法推进
+
+**复现**:
+```
+[Decomposer] 'Enhancing LLM Reasoning' -> no candidates passed provider validation
+[Decomposer] 'Streamlined Framework' -> no candidates passed provider validation
+[Decomposer] 'Extending Classical Planning' -> no candidates passed provider validation
+```
+
+**根因**: LLM 生成的候选 sub-topics 太窄/太抽象（如"Streamlined Framework"），没有任何 Provider 收录相关结果，导致 `provider_count = 0`，不满足验证门槛（`provider_count >= 2` 且 `total_count >= 10`）。
+
+**澄清路由**：Curious Agent 不直接通知用户，只告诉 R1D3，由 R1D3 在对话中找你（weNix）澄清。
+
+**期望行为**: 当候选验证失败时，不立刻要求澄清，而是自动走三层降级，只有三层都失败才抛 ClarificationNeeded。
+
+**修复方向**:
+
+1. `curious_decomposer.py` 新增 `_cascade_fallback()` 三层降级：
+
+```
+Level 1: 用"扩大模式"重新生成候选（常见术语，非学术概念）
+Level 2: 降低门槛（1个Provider 或 total>=5）重新验证
+Level 3: 从 KG children 取候选，不验证直接返回
+Level 3保底: 返回最详细的候选（不验证），不让探索链断裂
+```
+
+2. `curious_decomposer.py` `_llm_generate_candidates()` 新增 `style="broad"` 参数，生成更常见、更易被搜索引擎收录的候选词。
+
+3. `curious_agent.py` 的 `except ClarificationNeeded` 分支返回状态字典（含 `topic` 和 `reason`），让 R1D3 能感知到需要澄清，由 R1D3 在对话中找你沟通。
+
+**验收标准**:
+```bash
+# 测试1: Level 1 降级后应有候选通过
+python3 -c "
+import sys; sys.path.insert(0, '.')
+import asyncio
+from core.curiosity_decomposer import CuriosityDecomposer
+from core.provider_registry import init_default_providers
+from core.llm_manager import LLMManager
+
+registry = init_default_providers()
+llm = LLMManager.get_instance()
+decomposer = CuriosityDecomposer(llm_client=llm, provider_registry=registry, kg={})
+
+result = asyncio.run(decomposer.decompose('Enhancing LLM Reasoning'))
+print(f'Subtopics returned: {len(result)}')
+for r in result[:5]:
+    print(f'  {r[\"sub_topic\"]} [{r.get(\"signal_strength\",\"?\")}]')
+assert len(result) > 0, 'FAIL: no results after cascade'
+print('PASS: cascade fallback returned results')
+"
+
+# 测试2: 三层都失败时 R1D3 收到 clarification_needed 状态
+# 运行 --run，检查返回的 status
+```
+
+---
+
 ## 🔴 Bug #17: 澄清需求未标记父 topic 完成 → 无限澄清循环
 
 **严重程度**: 🔴 高 — 当 topic 需要澄清时，每次运行都会重复要求澄清，无限循环
@@ -388,6 +448,7 @@ print('PASS: new topic quality >= 7.0')
 |--------|-----|------|
 | P0 | #17 | 无限循环，每次都选同一个需要澄清的 topic，无法继续探索 |
 | P0 | #18 | 新鲜探索结果无法触发 BehaviorWriter，Phase 1 闭环失效 |
+| P0 | #19 | 候选验证全部失败，探索链断裂，无法推进任何探索 |
 
 ---
 
