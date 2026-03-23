@@ -63,11 +63,14 @@ def api_run():
                 relevance=final_score,
                 depth=7.0
             )
-            items = get_top_curiosities(k=1)
-            if items and items[0]["topic"] == topic:
-                next_item = items[0]
-            else:
-                return jsonify({"status": "error", "message": f"无法注入主题: {topic}"}), 500
+            next_item = {
+                "topic": topic,
+                "reason": "API run injection",
+                "score": final_score,
+                "relevance": final_score,
+                "depth": 7.0,
+                "status": "pending"
+            }
         else:
             engine.generate_initial_curiosities()
             engine.rescore_all()
@@ -276,7 +279,7 @@ def api_metacognitive_check():
     from core import knowledge_graph as kg
     from core.meta_cognitive_monitor import MetaCognitiveMonitor
     from core.meta_cognitive_controller import MetaCognitiveController
-    topic = normalize_topic(request.args.get("topic", ""))
+    topic = normalize_topic(request.values.get("topic", ""))
     if not topic:
         return jsonify({"error": "topic parameter required"}), 400
     monitor = MetaCognitiveMonitor()
