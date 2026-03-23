@@ -18,10 +18,15 @@ from datetime import datetime, timezone
 # Add core to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import asyncio
+
 from core import knowledge_graph as kg
 from core.curiosity_engine import CuriosityEngine
 from core.explorer import Explorer
 from core.reasoning_compressor import ReasoningCompressor, CompressionLevel
+from core.curiosity_decomposer import CuriosityDecomposer
+from core.provider_registry import init_default_providers
+from core.exceptions import ClarificationNeeded
 
 
 VALID_DEPTHS = {"shallow", "medium", "deep"}
@@ -66,6 +71,40 @@ def run_one_cycle(depth: str = "medium") -> dict:
     topic = next_curiosity["topic"]
     
     llm_manager = LLMManager.get_instance(llm_config)
+    
+    registry = init_default_providers()
+    state = kg.get_state()
+    decomposer = CuriosityDecomposer(
+        llm_client=llm_manager,
+        provider_registry=registry,
+        kg=state
+    )
+    
+    try:
+        subtopics = asyncio.run(decomposer.decompose(topic))
+        
+        if subtopics:
+            best = max(subtopics, key=lambda x: x.get("total_count", 0))
+            explore_topic = best["sub_topic"]
+            
+            print(f"[Decomposer] '{topic}' -> '{explore_topic}' ({best.get('signal_strength', 'unknown')})")
+            
+            next_curiosity["original_topic"] = topic
+            next_curiosity["topic"] = explore_topic
+            next_curiosity["decomposition"] = best
+        else:
+            explore_topic = topic
+            
+    except ClarificationNeeded as e:
+        print(f"[Decomposer] Clarification needed for '{e.topic}': {e.reason}")
+        EventBus.emit("decomposer.clarification_needed", {
+            "topic": e.topic,
+            "alternatives": e.alternatives,
+            "reason": e.reason
+        })
+        return {"status": "clarification_needed", "topic": e.topic, "reason": e.reason}
+    
+    topic = next_curiosity["topic"]
     monitor = MetaCognitiveMonitor(llm_client=llm_manager)
     controller = MetaCognitiveController(monitor)
     
@@ -133,6 +172,10 @@ def run_one_cycle(depth: str = "medium") -> dict:
         pass
     
     monitor.record_exploration(topic, quality, marginal, notified=notified)
+    
+    # Record parent-child relationship if topic was decomposed
+    if "original_topic" in next_curiosity:
+        kg.add_child(next_curiosity["original_topic"], topic)
     
     continue_allowed, continue_reason = controller.should_continue(topic)
     
