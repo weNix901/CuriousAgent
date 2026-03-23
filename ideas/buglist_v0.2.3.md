@@ -328,6 +328,86 @@ print('PASS: cascade fallback returned results')
 
 ---
 
+## 🔴 Bug #20: Decomposer 分解变"单选"，其余候选全部丢弃
+
+**严重程度**: 🟡 中 — 不是崩溃，但违背了树状生长的设计初衷
+
+**问题描述**:
+
+设计文档（next_move.md）的核心洞察：
+> 好奇心应该是**树状生长**的，不是平铺随机搜索
+> 分解：1 个泛 topic → 多个具体子 topic
+
+但实际行为是 **1 → 1**：
+
+```python
+# curious_agent.py 第 88 行附近
+if subtopics:
+    best = max(subtopics, key=lambda x: x.get("total_count", 0))
+    explore_topic = best["sub_topic"]   # ← 只选 1 个
+    ...
+    kg.mark_topic_done(topic, ...)      # ← 父 topic 直接完成，其他候选全丢
+```
+
+**实际观察**：18 次分解全部是 1→1：
+- LLM self-reflection mechanisms → 反思 prompting 设计（其余候选丢弃）
+- ReAct Reflexion agent frameworks → ReAct prompting 基础框架（其余候选丢弃）
+- 等等...
+
+**期望行为**：Decomposer 生成多个候选时，其余候选应全部入队待探索，实现真正的 **1 → 多**树状生长。
+
+**修复方向**:
+
+```python
+# curious_agent.py 第 88 行附近，替换当前逻辑
+if subtopics:
+    best = subtopics[0]  # 已按 signal_strength 排序
+    explore_topic = best["sub_topic"]
+
+    # 其余候选全部入队
+    for other in subtopics[1:]:
+        kg.add_curiosity(
+            other["sub_topic"],
+            reason=f"Decomposer sibling of: {topic}",
+            relevance=5.0,
+            depth=5.0
+        )
+
+    # 父 topic 不标记完成（还有子 topic 待探索）
+    next_curiosity["original_topic"] = topic
+    next_curiosity["topic"] = explore_topic
+    next_curiosity["decomposition"] = best
+    # 注意：这里不调用 kg.mark_topic_done()
+```
+
+**验收标准**:
+```bash
+# 注入一个会分解出多个候选的 topic
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core.curiosity_decomposer import CuriosityDecomposer
+from core.provider_registry import init_default_providers
+from core.llm_manager import LLMManager
+import asyncio
+
+registry = init_default_providers()
+llm = LLMManager.get_instance()
+decomposer = CuriosityDecomposer(llm_client=llm, provider_registry=registry, kg={})
+
+# 测试分解出的候选数量
+candidates = asyncio.run(decomposer._llm_generate_candidates('AI Agent'))
+print(f'LLM generated {len(candidates)} candidates')
+print('All candidates:', candidates)
+assert len(candidates) >= 3, f'FAIL: expected >= 3, got {len(candidates)}'
+print('PASS')
+"
+
+# 验证其余候选是否入队
+# 运行一轮后检查队列中新加入的 sibling topics
+```
+
+---
+
 ## 🔴 Bug #17: 澄清需求未标记父 topic 完成 → 无限澄清循环
 
 **严重程度**: 🔴 高 — 当 topic 需要澄清时，每次运行都会重复要求澄清，无限循环
@@ -449,6 +529,7 @@ print('PASS: new topic quality >= 7.0')
 | P0 | #17 | 无限循环，每次都选同一个需要澄清的 topic，无法继续探索 |
 | P0 | #18 | 新鲜探索结果无法触发 BehaviorWriter，Phase 1 闭环失效 |
 | P0 | #19 | 候选验证全部失败，探索链断裂，无法推进任何探索 |
+| P2 | #20 | 分解变单选，违背树状生长设计，候选浪费 |
 
 ---
 
