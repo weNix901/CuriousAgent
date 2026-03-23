@@ -42,17 +42,45 @@ def api_run():
     try:
         from core.curiosity_engine import CuriosityEngine
         from core.explorer import Explorer
+        from core.knowledge_graph import add_curiosity, get_top_curiosities
+
+        data = request.get_json() or {}
+        topic = data.get("topic", "").strip()
+        depth = data.get("depth", "medium")
+
+        if depth not in ["shallow", "medium", "deep"]:
+            return jsonify({"error": f"invalid depth: {depth}"}), 400
 
         engine = CuriosityEngine()
-        explorer = Explorer(exploration_depth="medium")
-        engine.generate_initial_curiosities()
-        engine.rescore_all()
-        next_item = engine.select_next()
+        explorer = Explorer(exploration_depth=depth)
+
+        if topic:
+            result = engine.score_topic(topic, alpha=0.5)
+            final_score = result['final_score']
+            add_curiosity(
+                topic=topic,
+                reason="API run injection",
+                relevance=final_score,
+                depth=7.0
+            )
+            items = get_top_curiosities(k=1)
+            if items and items[0]["topic"] == topic:
+                next_item = items[0]
+            else:
+                return jsonify({"status": "error", "message": f"无法注入主题: {topic}"}), 500
+        else:
+            engine.generate_initial_curiosities()
+            engine.rescore_all()
+            next_item = engine.select_next()
 
         if not next_item:
             return jsonify({"status": "idle", "message": "好奇心队列为空"})
 
         result = explorer.explore(next_item)
+
+        from core.knowledge_graph import mark_topic_done
+        mark_topic_done(result["topic"], "API exploration completed")
+
         return jsonify({
             "status": "success",
             "topic": result["topic"],
@@ -91,11 +119,18 @@ def api_inject():
             result = engine.score_topic(topic, alpha=alpha)
             final_score = result['final_score']
 
+        depth = data.get("depth", 6.0)
+        if isinstance(depth, str):
+            depth_map = {"shallow": 3.0, "medium": 6.0, "deep": 9.0}
+            depth = depth_map.get(depth, 6.0)
+        else:
+            depth = float(depth)
+
         add_curiosity(
             topic=topic,
             reason=str(data.get("reason", "Web UI 注入")),
             relevance=final_score,
-            depth=float(data.get("depth", 6.0))
+            depth=depth
         )
 
         return jsonify({
@@ -187,8 +222,10 @@ def normalize_topic(topic: str) -> str:
 @app.route("/api/curious/queue", methods=["DELETE"])
 def api_delete_queue_item():
     try:
-        topic = normalize_topic(request.args.get("topic", ""))
-        force = request.args.get("force", "false").lower() == "true"
+        data = request.get_json() or {}
+        topic = data.get("topic", "") or request.args.get("topic", "")
+        topic = normalize_topic(topic)
+        force = data.get("force", False) or request.args.get("force", "false").lower() == "true"
 
         if not topic:
             return jsonify({"error": "topic is required"}), 400
@@ -255,6 +292,7 @@ def api_metacognitive_check():
 @app.route("/api/metacognitive/history/<topic>")
 def api_metacognitive_history(topic):
     from core import knowledge_graph as kg
+    topic = normalize_topic(topic)
     state = kg.get_state()
     mc = state.get("meta_cognitive", {})
     logs = [log for log in mc.get("exploration_log", []) if log.get("topic") == topic]

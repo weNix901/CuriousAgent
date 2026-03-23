@@ -57,13 +57,15 @@ def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: list =
             topics[topic]["summary"] = summary
         if sources:
             topics[topic]["sources"] = list(set(topics[topic].get("sources", []) + sources))
+        topics[topic]["status"] = "complete"
     else:
         topics[topic] = {
             "known": True,
             "depth": depth,
             "last_updated": now,
             "summary": summary,
-            "sources": sources or []
+            "sources": sources or [],
+            "status": "complete"
         }
     
     # 限制节点数：保留深度最高的
@@ -86,7 +88,7 @@ def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float 
         if item["topic"].lower() == topic.lower() and item["status"] != "done":
             return
     
-    score = relevance * depth
+    score = min(10.0, relevance * 0.35 + depth * 0.25 + 5.0 * 0.4)
     state["curiosity_queue"].append({
         "topic": topic,
         "reason": reason,
