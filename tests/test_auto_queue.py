@@ -81,8 +81,8 @@ class TestAutoQueueTopics:
             }
             mock_kg.add_curiosity = MagicMock()
             
-            topics = ["neural networks", "deep learning"]
-            count = engine.auto_queue_topics(topics, parent_topic="machine learning")
+            topics = ["transformer attention", "llm reasoning"]
+            count = engine.auto_queue_topics(topics, parent_topic="agent framework")
             
             assert count == 2
             assert mock_kg.add_curiosity.call_count == 2
@@ -94,16 +94,15 @@ class TestAutoQueueTopics:
         with patch('core.curiosity_engine.kg') as mock_kg:
             mock_kg.get_state.return_value = {
                 "curiosity_queue": [
-                    {"topic": "neural networks", "status": "pending"}
+                    {"topic": "transformer attention", "status": "pending"}
                 ],
                 "knowledge": {"topics": {}}
             }
             mock_kg.add_curiosity = MagicMock()
-            
-            topics = ["neural networks", "deep learning"]
-            count = engine.auto_queue_topics(topics, parent_topic="machine learning")
-            
-            # Only "deep learning" should be added
+
+            topics = ["transformer attention", "llm reasoning"]
+            count = engine.auto_queue_topics(topics, parent_topic="agent framework")
+
             assert count == 1
             mock_kg.add_curiosity.assert_called_once()
 
@@ -114,16 +113,15 @@ class TestAutoQueueTopics:
         with patch('core.curiosity_engine.kg') as mock_kg:
             mock_kg.get_state.return_value = {
                 "curiosity_queue": [
-                    {"topic": "Neural Networks", "status": "pending"}
+                    {"topic": "Transformer Attention", "status": "pending"}
                 ],
                 "knowledge": {"topics": {}}
             }
             mock_kg.add_curiosity = MagicMock()
-            
-            topics = ["neural networks", "deep learning"]
-            count = engine.auto_queue_topics(topics, parent_topic="machine learning")
-            
-            # Only "deep learning" should be added
+
+            topics = ["transformer attention", "llm reasoning"]
+            count = engine.auto_queue_topics(topics, parent_topic="agent framework")
+
             assert count == 1
 
     def test_auto_queue_topics_avoids_done_items(self):
@@ -133,16 +131,15 @@ class TestAutoQueueTopics:
         with patch('core.curiosity_engine.kg') as mock_kg:
             mock_kg.get_state.return_value = {
                 "curiosity_queue": [
-                    {"topic": "neural networks", "status": "done"}
+                    {"topic": "transformer attention", "status": "done"}
                 ],
                 "knowledge": {"topics": {}}
             }
             mock_kg.add_curiosity = MagicMock()
-            
-            topics = ["neural networks", "deep learning"]
-            count = engine.auto_queue_topics(topics, parent_topic="machine learning")
-            
-            # Both should be added since "neural networks" is done
+
+            topics = ["transformer attention", "llm reasoning"]
+            count = engine.auto_queue_topics(topics, parent_topic="agent framework")
+
             assert count == 2
 
     def test_auto_queue_topics_sets_correct_reason(self):
@@ -189,10 +186,9 @@ class TestAutoQueueTopics:
             }
             mock_kg.add_curiosity = MagicMock()
             
-            topics = ["valid topic", "", "  ", "another topic"]
-            count = engine.auto_queue_topics(topics, parent_topic="test")
+            topics = ["transformer attention", "", "  ", "llm reasoning"]
+            count = engine.auto_queue_topics(topics, parent_topic="agent framework")
             
-            # Only non-empty topics should be added
             assert count == 2
 
 
