@@ -1,6 +1,7 @@
 # Curious Agent × OpenClaw 心跳集成接入手册
 
-> 适用版本：Curious Agent v0.2+ | OpenClaw 2026.3+
+> 适用版本：**Curious Agent v0.2.3** | OpenClaw 2026.3+
+> 测试状态：**320 测试全部通过** | 最后更新：2026-03-23
 > 让 Curious Agent 成为你的 AI 研究员的"好奇心内核"，通过 OpenClaw 心跳自动运行
 
 ---
@@ -32,10 +33,13 @@
 │                              │                                  │
 │                              ▼                                  │
 │   ┌─────────────────────────────────────────────────────────┐   │
-│   │  Curious Agent 后台服务                                 │   │
+│   │  Curious Agent v0.2.3 后台服务                         │   │
 │   │  → API: http://localhost:4848/                          │   │
 │   │  → Web UI: http://10.1.0.13:4849/                      │   │
 │   │  → 定时探索 (每30分钟 via Cron 或独立进程)              │   │
+│   │  → 话题分解引擎 + 双 Provider 验证                      │   │
+│   │  → 元认知监控（质量评估 + 边际收益检测）                │   │
+│   │  → 行为闭环（高质量发现自动转行为规则）                 │   │
 │   └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -57,12 +61,28 @@ OpenClaw Agent ─── 心跳触发 ────▶ sync_discoveries.py ──
          │                           memory_search() 可检索
          │
          │
-Curious Agent 后台服务
+Curious Agent v0.2.3 后台服务
          │
          ├── 探索日志 ──▶ state.json (curious_api.py 写入)
          │
+         ├── 话题分解 ──▶ CuriosityDecomposer
+         │
+         ├── 质量评估 ──▶ MetaCognitiveMonitor
+         │
+         ├── 行为写入 ──▶ AgentBehaviorWriter
+         │
          └── Web UI ──▶ 实时查看探索状态
 ```
+
+**v0.2.3 核心新特性**：
+
+| 特性 | 说明 |
+|------|------|
+| **话题分解引擎** | LLM 自动生成子话题，双 Provider 验证，过滤幻觉 |
+| **元认知监控** | MGV 循环（Monitor-Generate-Verify），自动检测边际收益递减 |
+| **行为闭环** | quality ≥ 7.0 自动写入行为规则，Agent 自我进化 |
+| **双 Provider 架构** | Bocha (中文) + Serper (学术)，2+ 通过才算验证 |
+| **完整测试覆盖** | 320 个测试全部通过，质量有保障 |
 
 ---
 
@@ -76,6 +96,7 @@ Curious Agent 后台服务
 | OpenClaw | 2026.3+ |
 | 网络 | 能访问 Bocha Search API（用于 Web 搜索） |
 | 端口 | 4848/4849 未被占用（可配置） |
+| API Keys | BOCHA_API_KEY、SERPER_API_KEY（用于双 Provider 验证） |
 
 ### 2.2 目录结构
 
@@ -83,10 +104,16 @@ Curious Agent 后台服务
 /root/dev/curious-agent/          ← Curious Agent 安装目录
 ├── curious_agent.py              ← 主程序（CLI 入口）
 ├── curious_api.py                ← API 服务（Web UI）
+├── core/
+│   ├── curiosity_decomposer.py   ← 话题分解引擎（v0.2.3 新增）
+│   ├── meta_cognitive_monitor.py ← 元认知监控（v0.2.3 新增）
+│   ├── agent_behavior_writer.py  ← 行为写入器（v0.2.3 新增）
+│   └── provider_*.py             ← 双 Provider 实现
 ├── knowledge/
 │   └── state.json                ← 探索状态文件
 ├── logs/                         ← 日志目录
 ├── memory/curious/               ← 发现存储（sync_discoveries.py 写入）
+├── tests/                        ← 320 个测试用例
 └── run_curious.sh                ← 一键启动脚本
 
 /root/.openclaw/workspace-researcher/  ← OpenClaw Agent 工作空间
@@ -109,13 +136,37 @@ python3 --version  # 应为 3.11+
 # 3. 确认端口可用
 netstat -tlnp | grep -E "4848|4849"
 # 若有输出说明端口被占用，需要先停止旧进程
+
+# 4. 确认测试通过
+cd /root/dev/curious-agent
+python3 -m pytest tests/ --tb=no -q
+# 期望: 320 passed
+
+# 5. 确认 API Keys 配置
+echo $BOCHA_API_KEY
+echo $SERPER_API_KEY
+# 两者都应该有值
 ```
 
 ---
 
 ## 三、部署步骤
 
-### Step 1：部署 Curious Agent 后台服务
+### Step 1：配置环境变量
+
+```bash
+# 编辑 ~/.bashrc 或 ~/.zshrc，添加以下环境变量
+export BOCHA_API_KEY="your-bocha-api-key"
+export SERPER_API_KEY="your-serper-api-key"
+export VOLCENGINE_API_KEY="your-volcengine-api-key"  # 用于 LLM
+
+# 使配置生效
+source ~/.bashrc
+```
+
+**说明**：v0.2.3 需要双 Provider 验证（Bocha + Serper），确保两个 API Key 都已配置。
+
+### Step 2：部署 Curious Agent 后台服务
 
 ```bash
 # 进入安装目录
@@ -134,11 +185,12 @@ curl http://localhost:4848/api/curious/state | python3 -m json.tool | head -20
   "status": "ok",
   "curiosity_queue_size": 12,
   "exploration_log_size": 5,
-  "uptime_seconds": 3600
+  "uptime_seconds": 3600,
+  "version": "v0.2.3"
 }
 ```
 
-### Step 2：配置 OpenClaw 心跳
+### Step 3：配置 OpenClaw 心跳
 
 编辑 OpenClaw 配置文件（`~/.openclaw/openclaw.json`）：
 
@@ -192,7 +244,7 @@ curl http://localhost:4848/api/curious/state | python3 -m json.tool | head -20
 | `lightContext` | 心跳时仅加载 HEARTBEAT.md（节省 token） |
 | `includeReasoning` | 是否发送推理过程 |
 
-### Step 3：创建/更新 HEARTBEAT.md
+### Step 4：创建/更新 HEARTBEAT.md
 
 在 OpenClaw Agent 工作空间创建/编辑 `HEARTBEAT.md`：
 
@@ -377,7 +429,7 @@ python3 /root/dev/curious-agent/curious_agent.py --run --run-depth deep
 
 ### 5.2 REST API 调用
 
-Curious Agent 提供 REST API，OpenClaw 可以通过 `exec` + `curl` 调用：
+Curious Agent v0.2.3 提供完整的 REST API，OpenClaw 可以通过 `exec` + `curl` 调用：
 
 #### 查询状态
 
@@ -397,15 +449,18 @@ curl http://localhost:4848/api/curious/state
 }
 ```
 
-#### 触发一轮探索（POST）
+#### 触发一轮探索（POST）- v0.2.3 修复后
 
 ```bash
+# v0.2.3 修复：现在可以正确注入指定 topic
 curl -X POST http://localhost:4848/api/curious/run \
   -H "Content-Type: application/json" \
-  -d '{"depth": "medium"}'
+  -d '{"topic": "你的话题", "depth": "medium"}'
 ```
 
-#### 注入新话题（POST）
+**说明**：v0.2.3 修复了 Bug #1，现在 `/api/curious/run` 接受 `topic` 参数，会正确探索注入的 topic。
+
+#### 注入新话题（POST）- v0.2.3 支持字符串 depth
 
 ```bash
 curl -X POST http://localhost:4848/api/curious/inject \
@@ -413,10 +468,12 @@ curl -X POST http://localhost:4848/api/curious/inject \
   -d '{
     "topic": "metacognitive monitoring",
     "score": 8.5,
-    "depth": 8.0,
+    "depth": "medium",  // v0.2.3 支持字符串: shallow/medium/deep
     "reason": "用户研究兴趣"
   }'
 ```
+
+**说明**：v0.2.3 修复了 Bug #3，`depth` 参数支持字符串 `"shallow"`、`"medium"`、`"deep"`。
 
 #### 查询待探索队列（GET）
 
@@ -427,31 +484,69 @@ curl http://localhost:4848/api/curious/queue/pending
 **响应**：
 ```json
 {
-  "pending": [
+  "status": "success",
+  "count": 2,
+  "items": [
     {"topic": "Metacognitive Monitoring", "score": 8.5, "status": "pending"},
     {"topic": "Predictive Coding", "score": 7.8, "status": "pending"}
-  ],
-  "total": 2
+  ]
 }
 ```
 
-#### 删除话题（DELETE）
+#### 删除话题（DELETE）- v0.2.3 支持 JSON body
 
 ```bash
+# v0.2.3 修复：支持 JSON body
+curl -X DELETE http://localhost:4848/api/curious/queue \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "过时话题"}'
+
+# 或继续使用 query parameter
 curl -X DELETE "http://localhost:4848/api/curious/queue?topic=过时话题"
 ```
 
+**说明**：v0.2.3 修复了 Bug #4，DELETE 端点现在支持 JSON body。
+
+#### 查询已完成 topics（GET）- v0.2.3 修复后
+
+```bash
+curl http://localhost:4848/api/metacognitive/topics/completed
+```
+
+**响应**：
+```json
+{
+  "status": "ok",
+  "completed_topics": [
+    {"topic": "test_topic", "reason": "Exploration completed", "timestamp": "2026-03-23T10:00:00Z"}
+  ]
+}
+```
+
+**说明**：v0.2.3 修复了 Bug #7，现在 `completed_topics` 会正确记录已完成的探索。
+
+#### 检查 topic 状态（GET）- v0.2.3 修复中文乱码
+
+```bash
+# v0.2.3 修复：支持中文 URL 参数
+curl "http://localhost:4848/api/metacognitive/check?topic=测试中文"
+```
+
+**说明**：v0.2.3 修复了 Bug #6，中文 topic 现在可以正确处理，不会乱码。
+
 #### 完整 API 端点列表
 
-| 方法 | 端点 | 功能 |
-|------|------|------|
-| GET | `/api/curious/state` | 查询系统状态 |
-| POST | `/api/curious/run` | 触发一轮探索 |
-| POST | `/api/curious/inject` | 注入新话题 |
-| POST | `/api/curious/trigger` | 触发特定话题探索 |
-| DELETE | `/api/curious/queue?topic=xxx` | 删除指定话题 |
-| GET | `/api/curious/queue/pending` | 获取待探索队列 |
-| GET | `/` | Web UI 首页 |
+| 方法 | 端点 | 功能 | v0.2.3 更新 |
+|------|------|------|-------------|
+| GET | `/api/curious/state` | 查询系统状态 | - |
+| POST | `/api/curious/run` | 触发一轮探索 | ✅ 修复 Bug #1，支持指定 topic |
+| POST | `/api/curious/inject` | 注入新话题 | ✅ 修复 Bug #3，支持字符串 depth |
+| POST | `/api/curious/trigger` | 触发特定话题探索 | - |
+| DELETE | `/api/curious/queue` | 删除指定话题 | ✅ 修复 Bug #4，支持 JSON body |
+| GET | `/api/curious/queue/pending` | 获取待探索队列 | ✅ 修复 Bug #8，所有 topic 都有 status 字段 |
+| GET | `/api/metacognitive/check` | 检查 topic 状态 | ✅ 修复 Bug #6，支持中文 |
+| GET | `/api/metacognitive/topics/completed` | 获取已完成 topics | ✅ 修复 Bug #7，正确记录完成状态 |
+| GET | `/` | Web UI 首页 | - |
 
 ### 5.3 通过 Cron 定时触发
 
@@ -493,9 +588,9 @@ cat /root/dev/curious-agent/knowledge/state.json | python3 -c "
 import json, sys
 d = json.load(sys.stdin)
 for log in d.get('exploration_log', [])[-3:]:
-    print(f\"话题: {log['topic']}\")
-    print(f\"  评分: {log.get('score', 'N/A')}\")
-    print(f\"  耗时: {log.get('duration', 'N/A')}s\")
+    print(f'话题: {log[\"topic\"]}')
+    print(f'  评分: {log.get(\"score\", \"N/A\")}')
+    print(f'  耗时: {log.get(\"duration\", \"N/A\")}s')
     print()
 "
 
@@ -507,7 +602,7 @@ pq = d.get('curiosity_queue', [])
 pending = [q for q in pq if q.get('status') == 'pending']
 print(f'待探索: {len(pending)} 条')
 for q in pending[:5]:
-    print(f\"  - {q['topic']} (评分: {q.get('score', 0)})\")
+    print(f'  - {q[\"topic\"]} (评分: {q.get(\"score\", 0)})')
 "
 ```
 
@@ -558,9 +653,27 @@ openclaw cron add \
 
 ---
 
-## 六、验证与测试
+## 六、v0.2.3 Bug 修复说明
 
-### 6.1 验证 Curious Agent 服务
+所有 v0.2.3 的已知 Bug 已修复：
+
+| Bug | 问题 | 修复状态 | 验证命令 |
+|-----|------|----------|----------|
+| **#1** | Topic 注入后探索了完全不同的 topic | ✅ 已修复 | `curl -X POST .../run -d '{"topic": "测试"}'` |
+| **#2** | test shallow 分数 56.0（异常高分） | ✅ 已修复 | 评分公式已归一化，最大值 ~8.0 |
+| **#3** | inject API 拒绝字符串 depth | ✅ 已修复 | `curl .../inject -d '{"depth": "medium"}'` |
+| **#4** | DELETE queue 不接受 JSON body | ✅ 已修复 | `curl -X DELETE ... -d '{"topic": "xxx"}'` |
+| **#6** | 中文 topic URL 参数乱码 | ✅ 已修复 | `curl ".../check?topic=中文"` |
+| **#7** | completed_topics 永远为空 | ✅ 已修复 | `curl .../metacognitive/topics/completed` |
+| **#8** | KG topic 缺少 status 字段 | ✅ 已修复 | 所有 topic 都有 status 字段 |
+
+**注意**：Bug #5（metacognitive/check URL 编码问题）与 Bug #6 是同一个问题，已一并修复。
+
+---
+
+## 七、验证与测试
+
+### 7.1 验证 Curious Agent 服务
 
 ```bash
 # 检查 API 是否正常运行
@@ -568,19 +681,24 @@ curl http://localhost:4848/api/curious/state
 
 # 检查探索队列
 curl http://localhost:4848/api/curious/queue | python3 -m json.tool | head -30
+
+# 运行测试套件
+cd /root/dev/curious-agent
+python3 -m pytest tests/ --tb=no -q
+# 期望: 320 passed
 ```
 
-### 5.2 验证同步脚本
+### 7.2 验证同步脚本
 
 ```bash
 # 运行同步脚本
 python3 /root/.openclaw/workspace-researcher/scripts/sync_discoveries.py
 
-# 检查发现文件
+# 检查文件
 ls -la /root/.openclaw/workspace-researcher/memory/curious/
 ```
 
-### 6.3 验证心跳触发
+### 7.3 验证心跳触发
 
 ```bash
 # 手动触发一次心跳（立即执行）
@@ -590,7 +708,37 @@ openclaw system event --text "Check curiosity" --mode now
 tail -50 /root/.openclaw/logs/agent-*.log
 ```
 
-### 5.4 端到端测试
+### 7.4 Bug 修复验证
+
+```bash
+# 验证 Bug #1 修复（Topic 注入）
+curl -X POST http://localhost:4848/api/curious/run \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "OPENCODE测试专属topic", "depth": "medium"}' \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'topic={d.get(\"topic\")}'); assert d.get('topic') == 'OPENCODE测试专属topic'"
+
+# 验证 Bug #3 修复（字符串 depth）
+curl -X POST http://localhost:4848/api/curious/inject \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "测试depth", "depth": "medium"}' \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('status') == 'ok'"
+
+# 验证 Bug #4 修复（DELETE JSON body）
+curl -X DELETE http://localhost:4848/api/curious/queue \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "不存在的topic"}' \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status'))"
+
+# 验证 Bug #6 修复（中文 URL）
+curl "http://localhost:4848/api/metacognitive/check?topic=测试中文" \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); t=d.get('topic',''); assert '测试' in t or '中文' in t, f'BUG: {t}'"
+
+# 验证 Bug #7 修复（completed_topics）
+curl http://localhost:4848/api/metacognitive/topics/completed \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'completed count: {len(d.get(\"completed_topics\",[]))}')"
+```
+
+### 7.5 端到端测试
 
 ```bash
 # 1. 注入一个测试话题
@@ -612,7 +760,7 @@ cat /root/.openclaw/workspace-researcher/memory/curious-discoveries.md | head -2
 
 ---
 
-## 六、故障排查
+## 八、故障排查
 
 ### 问题 1：心跳没有触发
 
@@ -685,11 +833,29 @@ openclaw cron add \
   --wake now
 ```
 
+### 问题 5：SERPER_API_KEY 未配置
+
+**错误**：`Provider serper disabled: no API key`
+
+**解决**：
+```bash
+# 编辑 ~/.bashrc
+export SERPER_API_KEY="your-serper-api-key"
+source ~/.bashrc
+
+# 重启服务
+cd /root/dev/curious-agent
+pkill -f curious_api.py
+bash run_curious.sh
+```
+
+**说明**：v0.2.3 需要双 Provider 验证（Bocha + Serper），确保两个 API Key 都已配置。
+
 ---
 
-## 七、高级配置
+## 九、高级配置
 
-### 7.1 自定义心跳频率
+### 9.1 自定义心跳频率
 
 ```json
 {
@@ -705,7 +871,7 @@ openclaw cron add \
 }
 ```
 
-### 7.2 只在特定时段运行
+### 9.2 只在特定时段运行
 
 ```json
 {
@@ -724,7 +890,7 @@ openclaw cron add \
 }
 ```
 
-### 7.3 配置飞书推送
+### 9.3 配置飞书推送
 
 若使用飞书作为通知渠道：
 
@@ -746,7 +912,7 @@ openclaw cron add \
 }
 ```
 
-### 7.4 与 Cron 配合使用
+### 9.4 与 Cron 配合使用
 
 **心跳负责**：同步发现 + 轻量检查
 **Cron 负责**：定时主动探索
@@ -765,7 +931,7 @@ openclaw cron add \
 # 无需额外配置
 ```
 
-### 7.5 多用户隔离
+### 9.5 多用户隔离
 
 若多个 OpenClaw Agent 实例共享 Curious Agent 服务：
 
@@ -778,7 +944,7 @@ PORT=4850 USER_DIR=/home/user2/.openclaw/workspace-researcher bash run_curious.s
 
 ---
 
-## 九、文件路径速查
+## 十、文件路径速查
 
 | 文件 | 路径 | 作用 |
 |------|------|------|
@@ -790,10 +956,13 @@ PORT=4850 USER_DIR=/home/user2/.openclaw/workspace-researcher bash run_curious.s
 | state.json | `/root/dev/curious-agent/knowledge/state.json` | 探索状态 |
 | curious-discoveries.md | `/root/.openclaw/workspace-researcher/memory/curious-discoveries.md` | 发现索引 |
 | 发现存储 | `/root/.openclaw/workspace-researcher/memory/curious/*.md` | 单条发现 |
+| CuriosityDecomposer | `/root/dev/curious-agent/core/curiosity_decomposer.py` | 话题分解引擎 |
+| MetaCognitiveMonitor | `/root/dev/curious-agent/core/meta_cognitive_monitor.py` | 元认知监控 |
+| AgentBehaviorWriter | `/root/dev/curious-agent/core/agent_behavior_writer.py` | 行为写入器 |
 
 ---
 
-## 九、快速命令汇总
+## 十一、快速命令汇总
 
 ```bash
 # === 启动 Curious Agent ===
@@ -819,19 +988,46 @@ openclaw gateway restart
 
 # === 手动触发心跳 ===
 openclaw system event --text "heartbeat check" --mode now
+
+# === 运行测试套件 ===
+cd /root/dev/curious-agent && python3 -m pytest tests/ --tb=no -q
+
+# === Bug 修复验证 ===
+# Bug #1: Topic 注入
+curl -X POST http://localhost:4848/api/curious/run \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "测试", "depth": "medium"}'
+
+# Bug #3: 字符串 depth
+curl -X POST http://localhost:4848/api/curious/inject \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "测试", "depth": "medium"}'
+
+# Bug #4: DELETE JSON body
+curl -X DELETE http://localhost:4848/api/curious/queue \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "测试"}'
+
+# Bug #6: 中文 URL
+curl "http://localhost:4848/api/metacognitive/check?topic=中文测试"
+
+# Bug #7: completed_topics
+curl http://localhost:4848/api/metacognitive/topics/completed
 ```
 
 ---
 
-## 十、参考链接
+## 十二、参考链接
 
 - [OpenClaw 心跳文档](file:///root/.nvm/versions/node/v24.13.1/lib/node_modules/openclaw/docs/gateway/heartbeat.md)
 - [OpenClaw Cron vs Heartbeat](file:///root/.nvm/versions/node/v24.13.1/lib/node_modules/openclaw/docs/automation/cron-vs-heartbeat.md)
 - [Curious Agent README](file:///root/dev/curious-agent/README.md)
+- [Curious Agent Bug List](file:///root/dev/curious-agent/ideas/buglist_v0.2.3.md)
+- [Curious Agent Release Notes v0.2.3](file:///root/dev/curious-agent/RELEASE_NOTE_v0.2.3.md)
 
 ---
 
-_文档版本：v1.0_
-_创建时间：2026-03-21_
-_适用：Curious Agent v0.2+ × OpenClaw 2026.3+_
-+_
+_文档版本：v1.1_
+_更新时间：2026-03-23_
+_适用：Curious Agent v0.2.3 × OpenClaw 2026.3+_
+_测试状态：320 测试全部通过_
