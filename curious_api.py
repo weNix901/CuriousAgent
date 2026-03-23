@@ -172,7 +172,7 @@ def api_trigger():
             try:
                 from core.curiosity_engine import CuriosityEngine
                 from core.explorer import Explorer
-                from core.knowledge_graph import add_curiosity, get_top_curiosities
+                from core.knowledge_graph import add_curiosity, mark_topic_done
                 import time as time_module
 
                 add_curiosity(
@@ -184,12 +184,19 @@ def api_trigger():
 
                 time_module.sleep(0.5)
 
-                items = get_top_curiosities(k=1)
-                if items and items[0]["topic"] == topic:
-                    engine = CuriosityEngine()
-                    explorer = Explorer(exploration_depth=depth)
-                    result = explorer.explore(items[0])
-                    print(f"[Async] Exploration completed: {topic}, notified: {result.get('notified', False)}")
+                engine = CuriosityEngine()
+                explorer = Explorer(exploration_depth=depth)
+                next_item = {
+                    "topic": topic,
+                    "reason": "API trigger",
+                    "score": 8.0,
+                    "relevance": 8.0,
+                    "depth": 7.0,
+                    "status": "pending"
+                }
+                result = explorer.explore(next_item)
+                mark_topic_done(topic, "API trigger exploration completed")
+                print(f"[Async] Exploration completed: {topic}, notified: {result.get('notified', False)}")
 
             except Exception as e:
                 print(f"[Async] Exploration failed: {e}")
