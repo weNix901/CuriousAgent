@@ -225,6 +225,10 @@ class CuriosityEngine:
         scored_candidates = []
         for item in candidates:
             topic = item["topic"]
+
+            if kg.is_topic_completed(topic):
+                continue
+
             competence = self.competence_tracker.assess_competence(topic)
 
             exploration_value = (
