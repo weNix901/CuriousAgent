@@ -137,6 +137,7 @@ class CuriosityDecomposer:
         if not enabled:
             # No providers enabled - accept all (fallback)
             return {
+                "sub_topic": candidate,
                 "candidate": candidate,
                 "provider_results": {},
                 "total_count": 0,

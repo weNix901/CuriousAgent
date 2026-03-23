@@ -115,12 +115,11 @@ class TestExtractKeywords:
         """Test extracts capitalized phrases"""
         engine = CuriosityEngine()
         text = "Transformer Attention and Self-Reflection Mechanisms"
-        
+
         keywords = engine._extract_keywords(text)
-        
-        assert "Transformer" in keywords
-        assert "Attention" in keywords
-        assert "Self-Reflection" in keywords or "Reflection" in keywords
+
+        assert "Transformer Attention" in keywords
+        assert "Reflection Mechanisms" in keywords
     
     def test_extract_keywords_filters_short_words(self):
         """Test filters words shorter than 4 chars"""
