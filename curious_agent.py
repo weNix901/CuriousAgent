@@ -84,15 +84,24 @@ def run_one_cycle(depth: str = "medium") -> dict:
         subtopics = asyncio.run(decomposer.decompose(topic))
         
         if subtopics:
-            best = max(subtopics, key=lambda x: x.get("total_count", 0))
+            subtopics_sorted = sorted(subtopics, key=lambda x: (x.get("signal_strength") != "strong", -x.get("total_count", 0)))
+            best = subtopics_sorted[0]
             explore_topic = best["sub_topic"]
             
             print(f"[Decomposer] '{topic}' -> '{explore_topic}' ({best.get('signal_strength', 'unknown')})")
+            print(f"[Decomposer] Enqueuing {len(subtopics)-1} sibling candidates")
+
+            for sibling in subtopics_sorted[1:]:
+                s_topic = sibling["sub_topic"]
+                s_strength = sibling.get("signal_strength", "unknown")
+                s_relevance = 7.0 if s_strength == "strong" else (6.0 if s_strength == "medium" else 5.0)
+                s_depth = 6.0 if s_strength == "strong" else (5.5 if s_strength == "medium" else 5.0)
+                kg.add_curiosity(topic=s_topic, reason=f"Sibling of: {topic}", relevance=float(s_relevance), depth=float(s_depth))
+                print(f"[Decomposer]   + Sibling: '{s_topic}' ({s_strength})")
 
             next_curiosity["original_topic"] = topic
             next_curiosity["topic"] = explore_topic
             next_curiosity["decomposition"] = best
-            kg.mark_topic_done(topic, f"Decomposed into: {explore_topic}")
         else:
             explore_topic = topic
             
