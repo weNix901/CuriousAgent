@@ -265,3 +265,131 @@ pending + 未完成: statistical data normalization, 自我意识 self-awareness
 
 _报告生成: 2026-03-23 19:35_
 _测试者: R1D3-researcher_
+
+---
+
+## 🔴 Bug #17: 澄清需求未标记父 topic 完成 → 无限澄清循环
+
+**严重程度**: 🔴 高 — 当 topic 需要澄清时，每次运行都会重复要求澄清，无限循环
+
+**复现**:
+```bash
+python3 curious_agent.py --run
+# [Decomposer] Clarification needed for 'knowledge graph completion AI': no candidates passed provider validation
+# 🤔 需要澄清: knowledge graph completion AI — no candidates passed provider validation
+
+# 下一轮运行又会问同样的问题，无限循环
+```
+
+**根因**: 当 `decomposer.decompose()` 抛出 `ClarificationNeeded`，函数直接返回 `{"status": "clarification_needed", ...}`，但**没有标记原始 topic 为 done**。所以下一轮 `select_next()` 会再次选中同一个 topic，再次要求澄清。
+
+**期望行为**: topic 需要澄清时，将其标记为 done（或 blocked），避免无限循环，等待用户重新注入澄清后的 topic。
+
+**修复方向**: 在 `catch ClarificationNeeded` 分支调用 `kg.mark_topic_done(e.topic, f"Needs clarification: {e.reason}")`：
+
+```python
+except ClarificationNeeded as e:
+    print(f"[Decomposer] Clarification needed for '{e.topic}': {e.reason}")
+    kg.mark_topic_done(e.topic, f"Needs clarification: {e.reason}")  # ← 新增这行
+    EventBus.emit("decomposer.clarification_needed", {
+        "topic": e.topic,
+        "alternatives": e.alternatives,
+        "reason": e.reason
+    })
+    return {"status": "clarification_needed", "topic": e.topic, "reason": e.reason}
+```
+
+**验收标准**:
+```bash
+# 第一次运行，topic 需要澄清
+python3 curious_agent.py --run
+# 期望：输出 "🤔 需要澄清: ..."
+# 检查：topic 是否已标记完成
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core import knowledge_graph as kg
+print(f'Topic completed: {kg.is_topic_completed(\"knowledge graph completion AI\")}')
+"
+# 期望：True
+# 第二次运行，select_next() 应选中下一个 topic，不是同一个 topic
+```
+
+---
+
+## 🔴 Bug #18: QualityV2 新鲜话题评分偏低，导致 BehaviorWriter 无法触发
+
+**严重程度**: 🔴 中 — 高质量探索结果无法写入行为规则，Phase 1 闭环失效
+
+**现象**:
+- 分解产生全新子 topic，探索成功后，`quality = monitor.assess_exploration_quality(topic, findings)` 总是返回 ~4.0
+- 质量门槛是 7.0 → 4.0 < 7.0 → BehaviorWriter 不触发 → 行为规则永不写入
+- 这种情况只发生在**全新** topic（没有 prior knowledge）
+
+**根因**: QualityV2 的三维评分公式：
+```python
+quality = (
+    semantic_novelty * 0.40 +  # 全新话题 = 1.0 → 贡献 0.4
+    confidence_delta * 0.30 +   # 全新话题 = 0 → 贡献 0.0
+    graph_delta * 0.30          # 全新话题 = 0 → 贡献 0.0
+) * 10
+# 最终 quality = 4.0，总是低于门槛 7.0
+```
+
+全新话题应该获得更高的评分，因为它带来最大的信息增益。当前公式严重惩罚新鲜话题。
+
+**期望行为**: 全新话题（无 prior）应默认评分 >= 7.0，因为任何探索都能带来较大信息增益。
+
+**修复方向**:
+```python
+# quality_v2.py assess_quality 修改
+if not prev_summary:
+    # 全新话题，语义新颖性满分，置信度默认 0.5，图变化默认 0.5
+    quality = (
+        1.0 * 0.40 +
+        0.5 * 0.30 +
+        0.5 * 0.30
+    ) * 10 = (0.4 + 0.15 + 0.15) * 10 = 7.0
+# 刚好达到质量门槛
+```
+
+具体代码修改：
+```python
+# quality_v2.py assess_quality
+if not prev_summary:
+    # 全新话题，默认 confidence_delta = 0.5，graph_delta = 0.5
+    confidence_delta = 0.5
+    graph_delta = 0.5
+```
+
+**验收标准**:
+```python
+# 验证全新话题评分 >= 7.0
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core.quality_v2 import QualityV2Assessor
+from core.llm_manager import LLMManager
+from core import knowledge_graph as kg
+
+llm = LLMManager.get_instance()
+assessor = QualityV2Assessor(llm)
+findings = {'summary': '探索发现内容', 'sources': []}
+q = assessor.assess_quality('new_topic_never_explored', findings, kg)
+print(f'quality = {q}')
+assert q >= 7.0, f'FAIL: q={q} < 7.0'
+print('PASS: new topic quality >= 7.0')
+"
+```
+
+---
+
+## 修复优先级建议 (2026-03-23)
+
+| 优先级 | Bug | 理由 |
+|--------|-----|------|
+| P0 | #17 | 无限循环，每次都选同一个需要澄清的 topic，无法继续探索 |
+| P0 | #18 | 新鲜探索结果无法触发 BehaviorWriter，Phase 1 闭环失效 |
+
+---
+
+_报告更新: 2026-03-23 20:50_
+_测试者: R1D3-researcher_

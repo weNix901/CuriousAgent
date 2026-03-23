@@ -113,9 +113,14 @@ Return JSON:
         if not plan:
             return {}
         
+        # Convert depth string to int for Explorer.explore() which calls int(depth)
+        depth_str = plan[0].get("depth", "medium")
+        depth_map = {"shallow": 3, "medium": 5, "deep": 8}
+        depth_int = depth_map.get(depth_str, 5)
+
         curiosity_item = {
             "topic": topic,
-            "depth": plan[0].get("depth", "medium"),
+            "depth": depth_int,
             "score": 5.0
         }
         
