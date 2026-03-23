@@ -518,8 +518,8 @@ class TestGetExplorationHistory:
 
 class TestRescoreAllFixed:
     """Fixed test suite for rescore_all"""
-    
-    @patch('core.curiosity_engine.CuriosityEngine.score_topic')
+
+    @patch('core.curiosity_engine.CuriosityEngine.compute_curiosity_score')
     @patch('core.knowledge_graph.get_state')
     @patch('core.knowledge_graph._save_state')
     def test_rescore_all_updates_pending_items(self, mock_save, mock_get_state, mock_score):
@@ -528,41 +528,44 @@ class TestRescoreAllFixed:
             "curiosity_queue": [
                 {"topic": "item1", "status": "pending", "score": 5.0},
                 {"topic": "item2", "status": "pending", "score": 6.0},
-                {"topic": "item3", "status": "done", "score": 7.0}  # Should skip
+                {"topic": "item3", "status": "done", "score": 7.0}
             ]
         }
-        mock_score.return_value = {"final_score": 9.0}
-        
+        mock_score.return_value = 9.0
+
         engine = CuriosityEngine()
         engine.rescore_all()
-        
-        # Should call score_topic for pending items only
+
         assert mock_score.call_count == 2
 
 
 class TestSelectNextFixed:
     """Fixed test suite for select_next with proper isolation"""
-    
+
+    @patch('core.curiosity_engine.CuriosityEngine.generate_initial_curiosities')
     @patch('core.knowledge_graph.get_state')
-    def test_select_next_returns_none_when_empty(self, mock_get_state):
-        """Test returns None when queue is empty"""
+    def test_select_next_returns_none_when_empty(self, mock_get_state, mock_generate):
+        """Test returns None when queue is empty and no initial curiosities generated"""
         mock_get_state.return_value = {"curiosity_queue": []}
-        
+        mock_generate.return_value = 0
+
         engine = CuriosityEngine()
         result = engine.select_next()
-        
+
         assert result is None
-    
+
+    @patch('core.curiosity_engine.CuriosityEngine.generate_initial_curiosities')
     @patch('core.knowledge_graph.get_state')
-    def test_select_next_skips_done_items(self, mock_get_state):
-        """Test skips done items and returns None if all done"""
+    def test_select_next_skips_done_items(self, mock_get_state, mock_generate):
+        """Test skips done items and generates new if all done"""
         mock_get_state.return_value = {
             "curiosity_queue": [
                 {"topic": "done_item", "status": "done", "score": 81.0}
             ]
         }
-        
+        mock_generate.return_value = 0
+
         engine = CuriosityEngine()
         result = engine.select_next()
-        
+
         assert result is None
