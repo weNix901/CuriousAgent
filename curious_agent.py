@@ -173,6 +173,13 @@ def run_one_cycle(depth: str = "medium") -> dict:
     
     monitor.record_exploration(topic, quality, marginal, notified=notified)
     
+    if quality >= 7.0:
+        from core.agent_behavior_writer import AgentBehaviorWriter
+        writer = AgentBehaviorWriter()
+        write_result = writer.process(topic, findings, quality, findings.get("sources", []))
+        if write_result["applied"]:
+            print(f"[BehaviorWriter] ✓ Written to {write_result['section']}: {topic}")
+    
     # Record parent-child relationship if topic was decomposed
     if "original_topic" in next_curiosity:
         kg.add_child(next_curiosity["original_topic"], topic)
