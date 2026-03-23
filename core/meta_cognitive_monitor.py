@@ -14,6 +14,8 @@ class MetaCognitiveMonitor:
     def __init__(self, llm_client=None):
         self.kg = kg
         self.llm = llm_client
+        from .quality_v2 import QualityV2Assessor
+        self.quality_v2 = QualityV2Assessor(llm_client)
 
     def get_explore_count(self, topic: str) -> int:
         """Get exploration count for topic"""
@@ -34,12 +36,13 @@ class MetaCognitiveMonitor:
         return kg.is_topic_completed(topic)
 
     def assess_exploration_quality(self, topic: str, findings: dict) -> float:
-        """
-        Three-dimensional quality scoring (0-10)
-        - new_discovery_rate × 0.35
-        - depth_improvement × 0.35
-        - user_relevance × 0.30
-        """
+        try:
+            v2_quality = self.quality_v2.assess_quality(topic, findings, kg)
+            if v2_quality > 0:
+                return v2_quality
+        except Exception as e:
+            print(f"[MetaCognitiveMonitor] QualityV2 failed, falling back: {e}")
+
         try:
             current_keywords = self._extract_keywords(findings.get("summary", ""))
             known_keywords = set(kg.get_topic_keywords(topic))
