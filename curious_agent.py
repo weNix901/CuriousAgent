@@ -88,10 +88,11 @@ def run_one_cycle(depth: str = "medium") -> dict:
             explore_topic = best["sub_topic"]
             
             print(f"[Decomposer] '{topic}' -> '{explore_topic}' ({best.get('signal_strength', 'unknown')})")
-            
+
             next_curiosity["original_topic"] = topic
             next_curiosity["topic"] = explore_topic
             next_curiosity["decomposition"] = best
+            kg.mark_topic_done(topic, f"Decomposed into: {explore_topic}")
         else:
             explore_topic = topic
             
@@ -379,8 +380,12 @@ def main():
         result = run_one_cycle(depth=args.run_depth)
         if result["status"] == "idle":
             print(f"💤 {result['message']}")
+        elif result["status"] == "blocked":
+            print(f"🚫 {result.get('topic', 'Unknown')} blocked: {result.get('reason', 'unknown')}")
+        elif result["status"] == "clarification_needed":
+            print(f"🤔 需要澄清: {result.get('topic', 'Unknown')} — {result.get('reason', '')}")
         else:
-            print(result["formatted"])
+            print(result.get("formatted", ""))
     else:
         result = run_one_cycle(depth=args.run_depth)
         print_status()
