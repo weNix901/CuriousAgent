@@ -232,6 +232,11 @@ def mark_topic_done(topic: str, reason: str) -> None:
         "reason": reason,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+
+    for item in state.get("curiosity_queue", []):
+        if item["topic"] == topic and item.get("status") != "done":
+            item["status"] = "done"
+
     _save_state(state)
 
 

@@ -84,6 +84,21 @@ def api_run():
         from core.knowledge_graph import mark_topic_done
         mark_topic_done(result["topic"], "API exploration completed")
 
+        from core.agent_behavior_writer import AgentBehaviorWriter
+        from core.meta_cognitive_monitor import MetaCognitiveMonitor
+
+        monitor = MetaCognitiveMonitor(llm_client=None)
+        findings = {
+            "summary": result.get("findings", ""),
+            "sources": result.get("sources", []),
+            "papers": result.get("papers", [])
+        }
+        quality = monitor.assess_exploration_quality(result["topic"], findings)
+
+        if quality >= 7.0:
+            writer = AgentBehaviorWriter()
+            writer.process(result["topic"], findings, quality, result.get("sources", []))
+
         return jsonify({
             "status": "success",
             "topic": result["topic"],

@@ -115,7 +115,8 @@ Return JSON:
         
         curiosity_item = {
             "topic": topic,
-            "depth": plan[0].get("depth", "medium")
+            "depth": plan[0].get("depth", "medium"),
+            "score": 5.0
         }
         
         return self.explorer.explore(curiosity_item)
