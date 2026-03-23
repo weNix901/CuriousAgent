@@ -331,3 +331,66 @@ def get_topic_marginal_returns(topic: str) -> list:
     state = _ensure_meta_cognitive(state)
     mc = state.get("meta_cognitive", {})
     return mc.get("marginal_returns", {}).get(topic, [])
+
+
+def add_child(parent: str, child: str) -> None:
+    """Add parent-child relationship between topics"""
+    state = _load_state()
+    topics = state["knowledge"]["topics"]
+    now = datetime.now(timezone.utc).isoformat()
+    
+    if parent not in topics:
+        topics[parent] = {
+            "known": False,
+            "depth": 0,
+            "children": [],
+            "explored_children": [],
+            "created_at": now
+        }
+    
+    if "children" not in topics[parent]:
+        topics[parent]["children"] = []
+    
+    if child not in topics[parent]["children"]:
+        topics[parent]["children"].append(child)
+    
+    topics[parent]["status"] = "partial"
+    
+    _save_state(state)
+
+
+def get_children(topic: str) -> list:
+    """Get child topics for a given topic"""
+    state = _load_state()
+    topic_data = state.get("knowledge", {}).get("topics", {}).get(topic, {})
+    return topic_data.get("children", [])
+
+
+def mark_child_explored(parent: str, child: str) -> None:
+    """Mark a child topic as explored"""
+    state = _load_state()
+    topics = state["knowledge"]["topics"]
+    
+    if parent not in topics:
+        return
+    
+    if "explored_children" not in topics[parent]:
+        topics[parent]["explored_children"] = []
+    
+    if child not in topics[parent]["explored_children"]:
+        topics[parent]["explored_children"].append(child)
+    
+    children = topics[parent].get("children", [])
+    explored = topics[parent].get("explored_children", [])
+    if children and len(explored) >= len(children):
+        topics[parent]["status"] = "complete"
+    
+    _save_state(state)
+
+
+def get_exploration_status(topic: str) -> str:
+    """Get exploration status: unexplored | partial | complete"""
+    state = _load_state()
+    topic_data = state.get("knowledge", {}).get("topics", {}).get(topic, {})
+    
+    return topic_data.get("status", "unexplored")
