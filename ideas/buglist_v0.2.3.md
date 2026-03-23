@@ -1,235 +1,234 @@
 # v0.2.3 Bug List
 
-> 测试时间：2026-03-23
-> 测试人：R1D3-researcher
+> 2026-03-23 | 供 OpenCode 修改使用
 
 ---
 
-## 🔴 严重 Bug
+## 🔴 Bug #1: Topic 注入后探索了完全不同的 topic
 
-### Bug #1: Topic 注入完全映射错误
-**描述**: 当通过 `/api/curious/run` 或 `/api/curious/inject` 注入主题时，引擎错误地将输入映射到完全无关的 topic。
-
-**复现步骤**:
+**现象**：
 ```bash
-# 注入"自我意识 self-awareness" → 实际搜索了 "item2"
 curl -X POST http://localhost:4848/api/curious/run \
-  -d '{"topic": "自我意识 self-awareness", "depth": "medium"}'
-# 结果: topic="item2", 搜索结果是 "item" 相关内容
-
-# 注入"元认知 MetaCognition" → 实际搜索了 "test deep"
-curl -X POST http://localhost:4848/api/curious/run \
-  -d '{"topic": "元认知 MetaCognition", "depth": "medium"}'
-# 结果: topic="test deep", 搜索结果是 "deep" 词典释义
-
-# 注入"计算机视觉" → 实际搜索了 "item1"
-curl -X POST http://localhost:4848/api/curious/run \
-  -d '{"topic": "计算机视觉", "depth": "deep"}'
-# 结果: topic="item1", 搜索结果是 "item" 词典释义
+  -d '{"topic": "OPENCODE测试xyz", "depth": "medium"}'
+# 返回: status=success, topic=test_normalization（不是注入的 topic）
 ```
 
-**影响**: Phase 1 好奇心分解引擎的核心功能失效，用户无法主动注入自定义主题。
+**根因**：`curious_api.py` 第 66-73 行，注入 topic 后用 `get_top_curiosities(k=1)` 取队列中评分最高的 pending 项，而非使用刚注入的 topic：
 
-**可能原因**: 引擎在队列中匹配相似 topic 时使用了错误的模糊匹配算法，把中文关键词匹配到了测试数据（item1/item2/test deep）。
-
----
-
-### Bug #2: test shallow 分数异常（56.0）
-**描述**: 队列中 `test shallow` 的 score=56.0，远超其他所有 topic（均 < 10）。
-
-**复现**: 查看 `/api/curious/state` 的 curiosity_queue，`test shallow` 的 score 字段为 56.0。
-
-**分析**: 当前评分公式最大值为 ~9.25（relevance*0.35 + recency*0.25 + depth*0.25 + surprise*0.15，depth=7），不可能达到 56.0。可能是 OpenCode 测试阶段遗留的硬编码值。
-
-**影响**: 评分系统不可信，可能干扰队列优先级排序。
-
----
-
-## 🟠 API 一致性问题
-
-### Bug #3: `/api/curious/inject` depth 参数类型不一致
-**描述**: `/api/curious/run` 接受字符串 depth (`"medium"`/`"deep"`/`"shallow"`)，但 `/api/curious/inject` 要求数值类型 (`3.0`)。
-
-**复现**:
-```bash
-# run 接受字符串
-curl -X POST http://localhost:4848/api/curious/run \
-  -d '{"topic": "测试", "depth": "medium"}'  # ✅ 正常
-
-# inject 要求数值
-curl -X POST http://localhost:4848/api/curious/inject \
-  -d '{"topic": "测试", "depth": "medium"}'  # ❌ error: could not convert string to float: 'medium'
-curl -X POST http://localhost:4848/api/curious/inject \
-  -d '{"topic": "测试", "depth": 3.0}'       # ✅ 正常
+```python
+add_curiosity(topic=topic, ...)
+items = get_top_curiosities(k=1)           # ← 返回队列最高分项，不是注入的项
+if items and items[0]["topic"] == topic:   # ← 几乎必然失败
+    next_item = items[0]
+else:
+    return jsonify({"error": ...}), 500    # ← 或返回错误的 topic
 ```
 
-**建议**: 统一 depth 参数处理逻辑。
+注入 topic 评分通常低于队列已有项，所以 `items[0]` 几乎必然不是注入的 topic。
+
+**修复方案**：删除 `get_top_curiosities` 逻辑，直接用注入 topic 构造 `next_item`：
+
+```python
+# 第 66-73 行替换为：
+next_item = {
+    "topic": topic,
+    "reason": "API run injection",
+    "score": final_score,
+    "relevance": final_score,
+    "depth": 7.0,
+    "status": "pending"
+}
+```
+
+**验证**：
+```bash
+curl -X POST http://localhost:4848/api/curious/run \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "OPENCODE测试专属topicXYZ", "depth": "medium"}' \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'topic={d.get(\"topic\")}'); assert d.get('topic') == 'OPENCODE测试专属topicXYZ'"
+# 期望：topic=OPENCODE测试专属topicXYZ
+```
 
 ---
 
-### Bug #4: DELETE `/api/curious/queue` JSON body 不接受
-**描述**: 清空队列的 DELETE 请求需要 URL query parameter，不接受 JSON body。
+## 🔴 Bug #7: `completed_topics` 永远为空
 
-**复现**:
+**现象**：`/api/metacognitive/topics/completed` 返回 `[]`，但 exploration_log 中已有多个已探索 topic。
+
+**根因**：`curious_agent.py` 第 192-197 行，`mark_topic_done()` 仅在 `continue_allowed=False` 时调用。但 `should_continue()` 在 marginal return >= 0.3 时几乎始终返回 True，导致 `mark_topic_done` 几乎永远不被触发。
+
+```python
+# curious_agent.py 第 192-197 行
+continue_allowed, continue_reason = controller.should_continue(topic)
+
+if continue_allowed:
+    kg.add_curiosity(topic, ...)   # ← 继续探索，不标记完成
+else:
+    kg.mark_topic_done(topic, continue_reason)  # ← 几乎不会执行
+```
+
+**修复方案**：在 `explorer.explore()` 成功后，无论 `should_continue` 结果如何，都立即调用 `mark_topic_done()`：
+
+```python
+# curious_agent.py，在 explorer.explore() 成功后添加：
+result = explorer.explore(next_curiosity)
+# ... quality/marginal 计算 ...
+kg.mark_topic_done(topic, f"Exploration done (Q={quality:.1f}, marginal={marginal:.2f})")
+```
+
+`curious_api.py` 第 81-82 行的调用已存在，确认未被删除。
+
+**验证**：
 ```bash
-# JSON body 方式 → 报错
+curl -X POST http://localhost:4848/api/curious/run \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "OPENCODE测试completed", "depth": "shallow"}'
+
+curl http://localhost:4848/api/metacognitive/topics/completed \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'count={len(d.get(\"completed_topics\",[]))}'); assert len(d.get('completed_topics',[])) > 0"
+# 期望：count >= 1
+```
+
+---
+
+## 🟠 Bug #2: test shallow 分数 56.0（根因未知）
+
+**现象**：历史队列中 `test shallow` 的 score=56.0，远超评分公式上限 ~8.0。
+
+**根因**：未知。56.0 不可能由 `add_curiosity()` 的评分公式产生，疑似硬编码或直接写入 state.json 的测试数据。
+
+**修复方案**：
+1. 搜索代码中是否存在 `56.0` 硬编码
+2. 检查 `knowledge/state.json` 中 `test shallow` 的来源记录
+3. 如确认是测试遗留数据，直接从 state.json 中删除该项
+
+**验证**：无明显分数异常的 topic 存在即可。
+
+---
+
+## 🟠 Bug #3: inject API 拒绝字符串 depth
+
+**现象**：
+```bash
+curl -X POST http://localhost:4848/api/curious/inject \
+  -d '{"topic": "测试", "depth": "medium"}'
+# 返回: {"error": "could not convert string to float: 'medium'"}
+```
+
+**根因**：`curious_api.py` 第 154-159 行，已有字符串映射逻辑，但**运行的服务未加载最新代码**。
+
+**修复方案**：确保 `curious_api.py` 第 154-159 行包含以下逻辑，并重启服务：
+
+```python
+depth = data.get("depth", 6.0)
+if isinstance(depth, str):
+    depth_map = {"shallow": 3.0, "medium": 6.0, "deep": 9.0}
+    depth = depth_map.get(depth, 6.0)
+else:
+    depth = float(depth)
+```
+
+重启：
+```bash
+pkill -f curious_api.py; cd /root/dev/curious-agent && python3 curious_api.py &
+```
+
+**验证**：
+```bash
+curl -X POST http://localhost:4848/api/curious/inject \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "OPENCODE测试depth", "depth": "medium"}' \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('status') == 'ok'"
+# 期望：status=ok
+```
+
+---
+
+## 🟠 Bug #4: DELETE queue 不接受 JSON body
+
+**现象**：
+```bash
 curl -X DELETE http://localhost:4848/api/curious/queue \
   -H "Content-Type: application/json" \
   -d '{"topic": "test medium"}'
-# 响应: {"error": "topic is required"}
-
-# URL query 方式 → 成功
-curl -X DELETE "http://localhost:4848/api/curious/queue?topic=test%20medium"
-# 响应: {"deleted": true, "status": "success", "topic": "test medium"}
+# 返回: {"error": "topic is required"}
 ```
 
----
+**根因**：`curious_api.py` 第 227 行，`request.get_json()` 对 DELETE 方法可能返回 `{}`，导致 `topic` 取值永远为空。
 
-## 🟡 行为/逻辑 Bug
-
-### Bug #5: `metacognitive/check` URL 编码问题
-**描述**: 带空格的 topic 作为 query parameter 传递时，服务器返回 500 错误（空响应体）。
-
-**复现**:
-```bash
-# 不 URL-encode 空格 → 500 错误
-curl "http://localhost:4848/api/metacognitive/check?topic=test shallow"
-# 响应: (空，HTTP 500)
-
-# 正确 URL-encode → 正常
-curl "http://localhost:4848/api/metacognitive/check?topic=test%20shallow"
-# 响应: {"status": "ok", "decision": {...}}
-```
-
-**建议**: 服务器端应对 query parameter 做 URL decoding，或在文档中明确要求客户端做 URL encoding。
-
----
-
-### Bug #6: 非 ASCII 字符 topic 在 metacognitive API 中乱码
-**描述**: 非 ASCII 字符的 topic 通过 URL 传递时，响应中 topic 字段显示为乱码。
-
-**复现**:
-```bash
-curl "http://localhost:4848/api/metacognitive/check?topic=不存在的主题"
-# 响应中 topic 字段: "ä¸�å­å¨çä¸»é¢" (乱码)
-```
-
-**根因**: URL encoding 问题，中文字符未做适当编码/解码。
-
----
-
-### Bug #7: `completed_topics` 永远为空
-**描述**: 通过 `/api/metacognitive/topics/completed` 查询已完成主题，响应总是 `{"completed_topics": [], "status": "ok"}`。
-
-**复现**: 多次探索不同 topic 后检查，completed_topics 仍为空。
-
-**分析**: 可能是探索完成后没有正确更新 `completed_topics` 状态，或状态存储位置不对。
-
----
-
-### Bug #8: 知识图谱 topic 状态字段不一致
-**描述**: 部分 topic 的 status 字段为 "partial"，部分为 `?`（字段不存在）。
-
-**复现**: 查看 `/api/curious/state` 的 knowledge.topics：
-```
-test shallow: 字段 status 不存在（显示 ?）
-test deep:    status=partial
-test topic:   status=partial, known=False, depth=0  ← depth=0 但 status=partial 矛盾
-```
-
-**分析**: 字段缺失和状态逻辑不一致。
-
----
-
-## 🔴 配置缺失（阻断 Phase 1 验证）
-
-### Config #1: SERPER_API_KEY 未设置 ⚠️ 关键 → ✅ 已修复
-**描述**: Phase 1 的 `verification_threshold: 2` 要求两个 Provider 同时验证，但当前只有 Bocha 启用，Serper 因缺少 API Key 被禁用。
-
-**修复方式**: 从 openclaw.json 中获取 SERPER_API_KEY，添加到 `/root/dev/curious-agent/.env`，重启服务。
-
-**验证结果**:
+**修复方案**：
 ```python
-# provider_registry.py 判定
-Enabled: ['bocha', 'serper']  # ✅ 双 Provider 已启用
-All: ['bocha', 'serper']
+# 第 227 行替换为：
+topic = request.args.get("topic", "") or (request.get_json() or {}).get("topic", "")
 ```
 
-**影响**: ~~Phase 1 的多 Provider 验证机制完全失效~~ → 现已修复，验证机制正常运作。
+**验证**：
+```bash
+curl -X DELETE http://localhost:4848/api/curious/queue \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "item1"}' \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('status') == 'success'"
+# 期望：status=success
+```
 
 ---
 
-## 🟠 配置不一致 / 未暴露
+## 🟠 Bug #6: 中文 topic URL 参数乱码
 
-### Config #2: CuriosityDecomposer 配置未暴露到 config.json
-**描述**: Phase 1 的 `CuriosityDecomposer` 有独立配置项，但在 config.json 中找不到对应项。
+**现象**：
+```bash
+curl "http://localhost:4848/api/metacognitive/check?topic=不存在的主题" \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('topic'))"
+# 返回: ä¸�å­å­£çä¸»é¢（乱码）
+```
 
-**当前配置**（硬编码在 `curiosity_decomposer.py`）:
+**根因**：`curious_api.py` 第 270 行，`request.args` 对 URL 参数使用 `latin-1` 解码，破坏 UTF-8 中文。
+
+**修复方案**：
 ```python
-DEFAULT_CONFIG = {
-    "max_candidates": 7,        # LLM 生成候选数量上限
-    "min_candidates": 5,        # LLM 生成候选数量下限
-    "max_depth": 2,             # 递归分解深度限制（0=无限）
-    "verification_threshold": 2,  # 需要 2 个 Provider 验证通过
-}
+# 第 270 行替换为：
+topic = normalize_topic(request.values.get("topic", ""))
 ```
 
-**建议**: 应在 config.json 中增加 `decomposer` 配置节：
-```json
-{
-  "decomposer": {
-    "max_candidates": 7,
-    "min_candidates": 5,
-    "max_depth": 2,
-    "verification_threshold": 2
-  }
-}
+**验证**：
+```bash
+curl "http://localhost:4848/api/metacognitive/check?topic=测试中文topic" \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); t=d.get('topic',''); assert '测试' in t or '中文' in t, f'BUG: {t}'"
+# 期望：正确显示中文
 ```
 
 ---
 
-### Config #3: 搜索 Provider 配置分散
-**描述**: Provider 的启用状态由环境变量决定，但 config.json 中的 `llm.providers` 只配置了 LLM provider（volcengine），没有搜索 Provider（Bocha/Serper）的配置项。
+## 🟡 Bug #8: KG topic 缺少 status 字段
 
-**当前**: Bocha/Serper 的 API Key 通过环境变量 `BOCHA_API_KEY` / `SERPER_API_KEY` 判断是否启用，但 config.json 没有对应的配置结构。
+**现象**：`/api/curious/state` 中部分 topic 的 `status` 字段不存在。
 
-**建议**: 在 config.json 中增加统一的 provider 配置：
-```json
-{
-  "search_providers": {
-    "bocha": { "enabled": true },
-    "serper": { "enabled": false }
-  }
-}
+**根因**：`knowledge_graph.py` 的 `add_knowledge()` 新增 topic 时未初始化 `status` 字段。
+
+**修复方案**：在 `add_knowledge()` 的 topic 初始化字典中添加 `"status": "partial"`。
+
+**验证**：
+```bash
+curl -s http://localhost:4848/api/curious/state \
+  | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+for t, v in d.get('knowledge',{}).get('topics',{}).items():
+    assert 'status' in v, f'BUG: {t} missing status'
+print('All topics have status field')
+"
 ```
 
 ---
 
-### Config #4: 通知机制无 Webhook 配置
-**描述**: `config.json` 中有 `notification` 节，但只有 `enabled` 和 `min_quality` 字段，没有 Webhook URL。Phase 3 的行为闭环依赖通知机制，但飞书通知的 Webhook URL 未配置。
+## 📊 修复优先级
 
-**当前 config.json**:
-```json
-"notification": {
-  "enabled": true,
-  "min_quality": 7.0
-}
-```
-
-**建议**: 增加 Feishu Webhook URL：
-```json
-"notification": {
-  "enabled": true,
-  "min_quality": 7.0,
-  "feishu_webhook": "https://open.feishu.cn/open-apis/bot/v2/hook/xxx"
-}
-```
-
----
-
-## 📝 备注
-
-- 所有 Bug 已在本地环境（localhost:4848）复现
-- 测试时间：2026-03-23 12:17-12:22 GMT+8
-- API 服务正常运行的 endpoint：`/api/curious/run`、`/api/curious/trigger`、`/api/curious/state`、`/api/metacognitive/state`
-- **最关键配置问题**: `SERPER_API_KEY` 缺失导致 Phase 1 的 2-provider 验证机制完全失效
+| 优先级 | Bug | 文件 | 验证断言 |
+|--------|-----|------|---------|
+| P0 | #1 Topic 注入错误 | `curious_api.py` | `topic == 'OPENCODE测试专属topicXYZ'` |
+| P0 | #7 completed 为空 | `curious_agent.py` | `len(completed_topics) >= 1` |
+| P1 | #2 分数 56.0 | 搜索代码 | 无异常分数 topic |
+| P1 | #3 inject depth | `curious_api.py` + 重启 | `status == 'ok'` |
+| P1 | #4 DELETE JSON body | `curious_api.py` | `status == 'success'` |
+| P1 | #6 中文乱码 | `curious_api.py` | 中文正常显示 |
+| P2 | #8 缺 status | `knowledge_graph.py` | 无 topic 缺字段 |

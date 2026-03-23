@@ -347,7 +347,8 @@ def add_child(parent: str, child: str) -> None:
             "depth": 0,
             "children": [],
             "explored_children": [],
-            "created_at": now
+            "created_at": now,
+            "status": "partial"
         }
     
     if "children" not in topics[parent]:

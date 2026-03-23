@@ -117,7 +117,7 @@ def run_one_cycle(depth: str = "medium") -> dict:
     
     explorer = Explorer(exploration_depth=depth)
     result = explorer.explore(next_curiosity)
-    
+
     findings = {
         "summary": result.get("findings", ""),
         "sources": result.get("sources", []),
@@ -127,7 +127,9 @@ def run_one_cycle(depth: str = "medium") -> dict:
     quality = monitor.assess_exploration_quality(topic, findings)
     marginal = monitor.compute_marginal_return(topic, quality)
     exploration_count = monitor.get_explore_count(topic)
-    
+
+    kg.mark_topic_done(topic, f"Exploration done (Q={quality:.1f}, marginal={marginal:.2f})")
+
     # 应用认知跳跃压缩（基于当前 quality）
     compressor = ReasoningCompressor()
     compression = compressor.compress(
