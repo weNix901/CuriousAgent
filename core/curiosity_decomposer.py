@@ -47,39 +47,78 @@ class CuriosityDecomposer:
         self.config = {**self.DEFAULT_CONFIG, **(config or {})}
     
     async def decompose(self, topic: str) -> list[dict]:
-        """
-        Main entry: decompose topic into sub-topics
-        
-        Returns:
-            List of verified sub-topics with metadata
-        """
-        # Step 1: Generate candidates
+        """Main entry: decompose topic into sub-topics with cascade fallback"""
         candidates = await self._llm_generate_candidates(topic)
         
         if not candidates:
             raise ClarificationNeeded(topic, reason="LLM generated no candidates")
         
-        # Step 2: Validate with providers
         verified = await self._verify_with_providers(candidates)
         
         if not verified:
-            # No verified candidates - need clarification
+            verified = await self._cascade_fallback(topic, candidates)
+        
+        if not verified:
             raise ClarificationNeeded(
                 topic=topic,
                 reason="no candidates passed provider validation"
             )
         
-        # Step 3: KG augmentation
         enriched = self._kg_augment(topic, verified)
-        
         return enriched
     
-    async def _llm_generate_candidates(self, topic: str) -> list[str]:
+    async def _cascade_fallback(self, topic: str, original_candidates: list[str]) -> list[dict]:
+        """3-level cascade fallback when all candidates fail validation"""
+        broad_candidates = await self._llm_generate_candidates(topic, style="broad")
+        if broad_candidates:
+            verified = await self._verify_with_providers(broad_candidates)
+            if verified:
+                return verified
+        
+        verified = await self._verify_with_providers_relaxed(original_candidates)
+        if verified:
+            return verified
+        
+        kg_candidates = self._get_kg_children(topic)
+        if kg_candidates:
+            return [{"sub_topic": c, "verified": True, "source": "kg_fallback"} for c in kg_candidates]
+        
+        if original_candidates:
+            best = max(original_candidates, key=len)
+            return [{
+                "sub_topic": best,
+                "verified": True,
+                "source": "unverified_fallback",
+                "signal_strength": "weak"
+            }]
+        
+        return []
+    
+    def _get_kg_children(self, topic: str) -> list[str]:
+        try:
+            return self.kg.get("topics", {}).get(topic, {}).get("children", [])
+        except (AttributeError, TypeError):
+            return []
+    
+    async def _llm_generate_candidates(self, topic: str, style: str = "default") -> list[str]:
         """Step 1: Use LLM to generate candidate sub-topics"""
         max_c = self.config.get("max_candidates", 7)
         min_c = self.config.get("min_candidates", 5)
         
-        prompt = f"""针对 "{topic}" 这个话题，识别它最常见的子领域或组成部分。
+        if style == "broad":
+            prompt = f"""针对 "{topic}" 这个话题，列出更宽泛、更常见的子领域或相关概念。
+
+要求：
+- 列出 {min_c}-{max_c} 个常见的、易于搜索的子话题
+- 使用通俗易懂的术语，避免过于学术化的表达
+- 每个格式：[子话题名称] - [一句话说明]
+
+输出格式（直接输出列表，不需要其他文字）：
+- topic1 - 说明1
+- topic2 - 说明2
+- topic3 - 说明3"""
+        else:
+            prompt = f"""针对 "{topic}" 这个话题，识别它最常见的子领域或组成部分。
 
 要求：
 - 列出 {min_c}-{max_c} 个子话题
@@ -129,6 +168,61 @@ class CuriosityDecomposer:
                 valid.append(r)
         
         return valid
+    
+    async def _verify_with_providers_relaxed(self, candidates: list[str]) -> list[dict]:
+        """Verify with relaxed threshold (1 provider or total >= 5)"""
+        if not candidates:
+            return []
+        
+        tasks = [self._verify_single_relaxed(c) for c in candidates]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        valid = []
+        for r in results:
+            if isinstance(r, Exception):
+                continue
+            if r and r.get("verified", False):
+                valid.append(r)
+        
+        return valid
+    
+    async def _verify_single_relaxed(self, candidate: str) -> Optional[dict]:
+        """Verify with relaxed threshold: 1 provider OR total >= 5"""
+        enabled = self.providers.get_enabled()
+        
+        if not enabled:
+            return {
+                "sub_topic": candidate,
+                "candidate": candidate,
+                "provider_results": {},
+                "total_count": 0,
+                "provider_count": 0,
+                "signal_strength": "unknown",
+                "verified": True
+            }
+        
+        tasks = [p.search(candidate) for p in enabled]
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        provider_results = {}
+        for provider, response in zip(enabled, responses):
+            if isinstance(response, Exception):
+                continue
+            if response and response.get("result_count", 0) > 0:
+                provider_results[provider.name] = response["result_count"]
+        
+        total = sum(provider_results.values())
+        count = len(provider_results)
+        
+        return {
+            "sub_topic": candidate,
+            "candidate": candidate,
+            "provider_results": provider_results,
+            "total_count": total,
+            "provider_count": count,
+            "signal_strength": self._classify_signal(count, total),
+            "verified": verified
+        }
     
     async def _verify_single(self, candidate: str) -> Optional[dict]:
         """Verify a single candidate with all enabled providers"""
