@@ -23,7 +23,7 @@
 传统 AI Agent:                    Curious Agent:
 用户提问 → 搜索 → 回答 → 遗忘    内在好奇 → 主动探索 → 评估价值 
                                       ↓
-                               高质量发现 → 生成行为规则
+                                高质量发现 → 生成行为规则
                                       ↓
                                成为 Agent 的默认能力
 ```
@@ -42,11 +42,11 @@
 
 ## 二、核心能力全景
 
-### 🧩 Phase 3: 好奇心分解引擎 (Curiosity Decomposer)
+### 🔍 能力一：智能话题分解与验证
 
 **问题：** 搜 "agent" 返回建筑公司、词典定义、招聘网站——**噪音率 80%**。
 
-**解决方案：** 
+**Curious Agent 的解决方案：**
 
 ```
 输入: "agent"
@@ -60,58 +60,58 @@ LLM 推理 → 生成候选子话题（agent_memory, agent_planning...）
 输出: ["agent memory systems", "agent planning algorithms", ...]
 ```
 
-**技术亮点：**
-- ✅ **四级级联验证**: LLM → 多 Provider 搜索 → KG 补充 → 澄清机制
-- ✅ **双 Provider 架构**: Bocha (中文) + Serper (学术)，2+ 通过才算验证
-- ✅ **幻觉自动过滤**: LLM 生成候选但 Provider 验证，准确率 >90%
-- ✅ **Provider 热力图**: 自动发现各搜索源的优势领域（emergent 特性）
+**技术实现：**
+- **四级级联验证**: LLM → 多 Provider 搜索 → 知识图谱补充 → 用户澄清机制
+- **双 Provider 架构**: Bocha (中文) + Serper (学术)，2+ 通过才算验证通过
+- **幻觉自动过滤**: LLM 生成候选但 Provider 验证，准确率 >90%
+- **Provider 热力图**: 自动发现各搜索源的优势领域（emergent 特性）
 
 ---
 
-### 🎯 Phase 2: 能力感知调度 (Competence-Aware Scheduling)
+### 🧠 能力二：元认知驱动的质量评估
 
 **问题：** 探索了 60 次，0 次通知用户，同一话题无意义重复探索 10+ 次。
 
-**解决方案 — MGV (Monitor-Generate-Verify) 循环：**
+**Curious Agent 的解决方案 — MGV (Monitor-Generate-Verify) 循环：**
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  Monitor（监控层）                                       │
-│  • QualityV2: 语义新鲜度 + 置信度变化 + 图谱结构变化      │
-│  • CompetenceTracker: 追踪"我对什么领域还不够好"         │
-│  • 能力缺口驱动探索，而非队列优先级                       │
+│  • 语义新鲜度评估: 探索前后理解差异                      │
+│  • 置信度变化追踪: 探索提升理解程度                      │
+│  • 能力缺口识别: 知道"我对什么领域还不够好"              │
+│  • 边际收益检测: 感知探索价值衰减，及时停止              │
 └─────────────────────────┬───────────────────────────────┘
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────┐
 │  Generate（生成层）                                      │
-│  • select_next_v2: 优先探索能力缺口大的领域              │
-│  • 动态 α: 低能力 → 高人工指导，高能力 → 高自主           │
-│  • ThreePhaseExplorer: 监控→生成→验证 三阶段循环         │
+│  • 能力缺口驱动: 优先探索能力缺口大的领域                │
+│  • 动态调度策略: 低能力→高人工指导，高能力→高自主       │
+│  • 三阶段探索: 监控理解状态→生成探索计划→验证缺口填补   │
 └─────────────────────────┬───────────────────────────────┘
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────┐
 │  Verify（验证层）                                        │
-│  • 边际收益指数衰减建模                                   │
-│  • quality ≥ 7.0 才触发行为写入                           │
-│  • 单话题最多 3 次，防无限循环                             │
+│  • 质量阈值: quality ≥ 7.0 才触发行为写入                │
+│  • 探索限制: 单话题最多 3 次，防无限循环                 │
+│  • 指数衰减: 边际收益建模，自动停止低价值探索            │
 └─────────────────────────────────────────────────────────┘
 ```
 
-**技术亮点：**
-- ✅ **QualityV2**: 信息增益评估替代关键词重叠（语义相似度 + 置信度 delta）
-- ✅ **CompetenceTracker**: 能力追踪器，EMA 更新，缺口驱动探索
-- ✅ **ThreePhaseExplorer**: 监控理解状态 → 生成探索计划 → 验证缺口填补
-- ✅ **指数衰减边际收益**: 自动检测探索价值衰减，及时停止
+**技术实现：**
+- **信息增益评估**: 替代关键词重叠率，使用语义相似度 + 置信度 delta + 图谱结构变化
+- **能力追踪器**: EMA 更新机制，追踪 Agent 在各领域的探索能力
+- **缺口驱动调度**: 优先探索能力置信度低的领域，而非简单队列优先级
 
 ---
 
-### 🔄 Phase 1: 行为闭环 (Behavior Closure)
+### 🔄 能力三：行为闭环与自我进化
 
-**问题：** 探索发现存到了"发现库"，但从未写入 R1D3-researcher 的**行为操作系统**。
+**问题：** 探索发现存到了"发现库"，但从未写入 Agent 的**行为操作系统**。
 
-**解决方案 — Agent-Behavior-Writer：**
+**Curious Agent 的解决方案 — 行为闭环：**
 
 ```
 探索完成 + quality ≥ 7.0
@@ -127,77 +127,18 @@ AgentBehaviorWriter 分析发现类型
 • curious-agent-behaviors.md（集中管理）
 • memory/curious/*.md（带 #behavior-rule 标签）
     ↓
-R1D3-researcher 通过 memory_search 自然检索 → 行为改变
+Agent 通过 memory_search 自然检索 → 行为改变
 ```
 
-**技术亮点：**
-- ✅ **质量门槛**: quality ≥ 7.0 才触发，防低质量规则污染
-- ✅ **安全设计**: 核心文件（SOUL.md/AGENTS.md）**零修改**，只写独立行为文件
-- ✅ **双写机制**: 行为文件 + memory 同步，利用现有检索机制
-- ✅ **分类映射**: 自动识别元认知/推理/工具等类型，写入对应分节
+**技术实现：**
+- **质量门槛**: quality ≥ 7.0 才触发，防低质量规则污染
+- **安全设计**: 核心文件（SOUL.md/AGENTS.md）**零修改**，只写独立行为文件
+- **双写机制**: 行为文件 + memory 同步，利用现有检索机制
+- **分类映射**: 自动识别元认知/推理/工具等类型，写入对应分节
 
 ---
 
-## 三、系统架构（v0.2.3 完整版）
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                          用户 / 飞书 / Discord                          │
-└──────────────────────────────┬───────────────────────────────────────┘
-                               │ 主动分享 / 被动查询
-                               ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                        OpenClaw 主 Agent (R1D3)                        │
-│  ┌──────────┐   ┌──────────────────┐   ┌─────────────────────────┐  │
-│  │  感知层   │──▶│   记忆层         │──▶│      行动层              │  │
-│  │ sync_disc│   │ curious-discoveries│  │  主动分享 + 行为规则     │  │
-│  └──────┬───┘   │ behavior-rules    │   │  （已内化发现为能力）     │  │
-│         │       └──────────────────┘   └─────────────────────────┘  │
-│         │                                                            │
-│         │ 心跳同步 (每30秒)                                           │
-│         ▼                                                            │
-│  ┌────────────────────────────────────────────────────────────────┐  │
-│  │                    Curious Agent v0.2.3                          │  │
-│  │                                                                │  │
-│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │  │
-│  │  │ Phase 3: 好奇心  │  │ Phase 2: 质量    │  │ Phase 1: 行为    │ │  │
-│  │  │    分解引擎      │  │    评估升级      │  │    闭环          │ │  │
-│  │  │ • CuriosityDecom│  │ • QualityV2     │  │ • AgentBehavior │ │  │
-│  │  │ • Multi-Provider│  │ • CompetenceTrk │  │ • Behavior Rules│ │  │
-│  │  │ • ProviderHeatmp│  │ • ThreePhaseExp │  │ • Dual Write    │ │  │
-│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘ │  │
-│  │                                                                │  │
-│  │  ┌─────────────────────────────────────────────────────────┐   │  │
-│  │  │              基础能力层 (v0.2.2+)                         │   │  │
-│  │  │  ICM评分 · MGV循环 · 分层探索 · 元认知监控 · 事件总线      │   │  │
-│  │  └─────────────────────────────────────────────────────────┘   │  │
-│  └────────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-**数据流：从发现到行为改变**
-
-```
-[探索发现]
-    ↓
-[Phase 3] CuriosityDecomposer → 分解为具体子话题
-    ↓
-[Phase 2] ThreePhaseExplorer → MGV循环 + QualityV2评估
-    ↓
-[Quality >= 7.0?] ──否──→ 存入知识库
-    ↓是
-[Phase 1] AgentBehaviorWriter → 生成行为规则
-    ↓
-[写入] curious-agent-behaviors.md + memory/curious/
-    ↓
-[R1D3-researcher] memory_search() → 检索 → 应用行为规则
-    ↓
-[用户感知] "我发现了一个新框架，让我试试用它解决你的问题..."
-```
-
----
-
-## 四、引人入胜的特性
+## 三、引人入胜的特性
 
 ### 🔥 特性 1: 它会"自己找事情做"
 
@@ -207,7 +148,7 @@ R1D3-researcher 通过 memory_search 自然检索 → 行为改变
 # 你看不到任何输入，但它正在后台运行
 $ tail -f logs/curious.log
 [14:32:01] 发现高价值话题: "metacognition in LLM agents" (score: 8.5)
-[14:32:15] CuriosityDecomposer: "metacognition" → "metacognitive monitoring"
+[14:32:15] 话题分解: "metacognition" → "metacognitive monitoring"
 [14:32:45] 双Provider验证通过: Bocha(12) + Serper(8)
 [14:33:02] 探索完成, quality: 8.2/10
 [14:33:05] ✓ 写入行为规则: ## 💡 元认知策略
@@ -219,14 +160,14 @@ $ tail -f logs/curious.log
 
 ```
 话题: "chain-of-thought reasoning"
-Competence Assessment:
+能力评估:
 ├── 置信度: 0.7 (competent)
 ├── 探索次数: 3
 ├── 质量趋势: +0.3 (在提升)
 └── 决策: 能力充足，暂不探索
 
 话题: "self-reflection mechanisms"
-Competence Assessment:
+能力评估:
 ├── 置信度: 0.3 (novice)
 ├── 探索次数: 0
 ├── 质量趋势: N/A
@@ -266,6 +207,65 @@ Competence Assessment:
 
 ---
 
+## 四、系统架构
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                          用户 / 飞书 / Discord                          │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               │ 主动分享 / 被动查询
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                        OpenClaw 主 Agent (R1D3)                        │
+│  ┌──────────┐   ┌──────────────────┐   ┌─────────────────────────┐  │
+│  │  感知层   │──▶│   记忆层         │──▶│      行动层              │  │
+│  │ sync_disc│   │ curious-discoveries│  │  主动分享 + 行为规则     │  │
+│  └──────┬───┘   │ behavior-rules    │   │  （已内化发现为能力）     │  │
+│         │       └──────────────────┘   └─────────────────────────┘  │
+│         │                                                            │
+│         │ 心跳同步 (每30秒)                                           │
+│         ▼                                                            │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │                    Curious Agent v0.2.3                          │  │
+│  │                                                                │  │
+│  │  ┌─────────────────────────────────────────────────────────┐   │  │
+│  │  │              核心能力层                                  │   │  │
+│  │  │  • 话题分解引擎: LLM推理 + 多Provider验证 + 幻觉过滤     │   │  │
+│  │  │  • 质量评估系统: 信息增益 + 置信度追踪 + 边际收益建模     │   │  │
+│  │  │  • 能力调度器: 缺口驱动 + 动态调度 + 三阶段探索          │   │  │
+│  │  │  • 行为写入器: 质量门槛 + 安全设计 + 双写机制            │   │  │
+│  │  └─────────────────────────────────────────────────────────┘   │  │
+│  │                                                                │  │
+│  │  ┌─────────────────────────────────────────────────────────┐   │  │
+│  │  │              基础能力层                                  │   │  │
+│  │  │  ICM评分 · 好奇心队列 · 知识图谱 · 分层探索 · 事件总线    │   │  │
+│  │  └─────────────────────────────────────────────────────────┘   │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+**数据流：从发现到行为改变**
+
+```
+[探索发现]
+    ↓
+[话题分解引擎] → 分解为具体子话题
+    ↓
+[三阶段探索循环] → 监控→生成→验证
+    ↓
+[质量评估] → quality ≥ 7.0 ?
+    ↓是
+[行为写入器] → 生成行为规则
+    ↓
+[双写] → 行为文件 + memory/curious/
+    ↓
+[Agent 检索] → memory_search() → 应用行为规则
+    ↓
+[用户感知] "我发现了一个新框架，让我试试用它解决你的问题..."
+```
+
+---
+
 ## 五、快速开始
 
 ### 5.1 启动服务
@@ -287,18 +287,18 @@ curl http://localhost:4848/api/curious/state
 ### 5.2 命令行使用
 
 ```bash
-# 注入新话题（触发 Phase 3 分解引擎）
+# 注入新话题（触发话题分解引擎）
 python3 curious_agent.py --inject "agent memory systems" \
   --score 8.5 --depth 8.0 --reason "用户研究兴趣"
 
-# 运行一轮探索（触发完整的 Phase 1/2/3 流程）
+# 运行一轮完整探索（话题分解→质量评估→行为写入）
 python3 curious_agent.py --run
 
 # 查看待探索队列（按能力缺口排序）
 python3 curious_agent.py --list-pending
 
 # 查看已生成的行为规则
-ls -la /root/.openclaw/workspace-researcher/curious-agent-behaviors.md
+cat /root/.openclaw/workspace-researcher/curious-agent-behaviors.md
 
 # 守护进程模式（每30分钟自动探索）
 python3 curious_agent.py --daemon --interval 30
@@ -307,7 +307,7 @@ python3 curious_agent.py --daemon --interval 30
 ### 5.3 API 接口
 
 ```bash
-# 查询状态（含 Phase 1/2/3 各模块状态）
+# 查询状态（含各模块状态）
 curl http://localhost:4848/api/curious/state
 
 # 触发一轮完整探索（含分解→评估→行为写入）
@@ -315,7 +315,7 @@ curl -X POST http://localhost:4848/api/curious/run \
   -H "Content-Type: application/json" \
   -d '{"depth": "deep"}'
 
-# 注入话题（会被 CuriosityDecomposer 自动分解）
+# 注入话题（会被自动分解）
 curl -X POST http://localhost:4848/api/curious/inject \
   -H "Content-Type: application/json" \
   -d '{"topic":"metacognition","score":8.5,"depth":8.0}'
@@ -327,9 +327,9 @@ curl -X POST http://localhost:4848/api/curious/inject \
 
 | 组件 | 技术 | 说明 |
 |------|------|------|
-| **Phase 3** | Python 3.11+ asyncio | CuriosityDecomposer, ProviderRegistry, ProviderHeatmap |
-| **Phase 2** | Python + LLM | QualityV2, CompetenceTracker, ThreePhaseExplorer |
-| **Phase 1** | Python + Markdown | AgentBehaviorWriter, 行为规则生成 |
+| **话题分解** | Python 3.11+ asyncio | CuriosityDecomposer, ProviderRegistry, ProviderHeatmap |
+| **质量评估** | Python + LLM | QualityV2, CompetenceTracker, ThreePhaseExplorer |
+| **行为闭环** | Python + Markdown | AgentBehaviorWriter, 行为规则生成 |
 | **基础层** | Flask 3.x | API + Web UI |
 | **搜索** | Bocha + Serper | 双 Provider 验证架构 |
 | **LLM** | minimax API | 语义评估、规则生成 |
@@ -340,7 +340,7 @@ curl -X POST http://localhost:4848/api/curious/inject \
 
 ## 七、核心概念详解
 
-### 7.1 ICM 融合评分 (v0.2.1+)
+### 7.1 ICM 融合评分
 
 ```
 FinalScore = HumanScore × α + IntrinsicScore × (1 - α)
@@ -388,17 +388,17 @@ FinalScore = HumanScore × α + IntrinsicScore × (1 - α)
 
 ```
 curious-agent/
-├── curious_agent.py              # CLI 入口（集成 Phase 1/2/3）
+├── curious_agent.py              # CLI 入口（集成所有能力）
 ├── curious_api.py                # Flask API + Web 服务器
 ├── run_curious.sh                # 一键启动脚本
 ├── core/
-│   ├── curiosity_decomposer.py   # Phase 3: 四级级联分解引擎
-│   ├── provider_registry.py      # Phase 3: Provider 注册中心
-│   ├── provider_heatmap.py       # Phase 3: 覆盖率热力图
-│   ├── quality_v2.py             # Phase 2: 信息增益评估
-│   ├── competence_tracker.py     # Phase 2: 能力追踪器
-│   ├── three_phase_explorer.py   # Phase 2: MGV 三阶段循环
-│   ├── agent_behavior_writer.py  # Phase 1: 行为规则生成
+│   ├── curiosity_decomposer.py   # 话题分解引擎（四级级联验证）
+│   ├── provider_registry.py      # Provider 注册中心
+│   ├── provider_heatmap.py       # 覆盖率热力图
+│   ├── quality_v2.py             # 信息增益质量评估
+│   ├── competence_tracker.py     # 能力追踪器
+│   ├── three_phase_explorer.py   # 三阶段探索循环
+│   ├── agent_behavior_writer.py  # 行为规则生成
 │   ├── knowledge_graph.py        # 知识图谱（含父子关系）
 │   ├── curiosity_engine.py       # ICM 评分引擎
 │   ├── explorer.py               # 分层探索器
@@ -418,23 +418,23 @@ curious-agent/
 
 ## 九、更新日志
 
-### v0.2.3 — 三大 Phase 完整落地 (2026-03-23)
+### v0.2.3 — 完整能力落地 (2026-03-23)
 
-**🧩 Phase 3: 好奇心分解引擎**
+**🧩 话题分解与验证**
 - ✅ **CuriosityDecomposer**: 四级级联分解（LLM→Provider验证→KG补充→澄清）
 - ✅ **双 Provider 架构**: Bocha + Serper，2+ 验证通过才保留，幻觉过滤 >90%
 - ✅ **ProviderRegistry**: 单例模式，支持动态注册
 - ✅ **ProviderHeatmap**: emergent 覆盖率热力图，自动发现各源优势领域
 - ✅ **QualityGate**: 入队前过滤（黑名单/太短/相似度去重）
 
-**🎯 Phase 2: 质量评估升级**
+**🎯 元认知质量评估**
 - ✅ **QualityV2**: 信息增益评估（语义新鲜度 + 置信度 delta + 图谱结构变化）
 - ✅ **CompetenceTracker**: 能力追踪器，EMA 更新，缺口驱动探索
 - ✅ **ThreePhaseExplorer**: MGV 循环（Monitor→Generate→Verify）
-- ✅ **select_next_v2**: 能力感知调度，动态 α 参数
-- ✅ **marginal_return_v2**: 指数衰减建模，自动停止低价值探索
+- ✅ **动态调度**: 能力缺口大的领域优先，动态 α 参数
+- ✅ **指数衰减边际收益**: 自动检测探索价值衰减，及时停止
 
-**🔄 Phase 1: 行为闭环**
+**🔄 行为闭环与自我进化**
 - ✅ **AgentBehaviorWriter**: quality ≥ 7.0 触发，生成行为规则
 - ✅ **安全设计**: 核心文件（SOUL.md/AGENTS.md）零修改
 - ✅ **双写机制**: curious-agent-behaviors.md + memory/curious/
@@ -483,7 +483,3 @@ _最后更新：2026-03-23 | v0.2.3_
 _设计理念：**好奇驱动，主动探索，元认知调控，自我进化，以我为名**_
 
 📄 **Release Notes**: [v0.2.3](./RELEASE_NOTE_v0.2.3.md) | [v0.2.2](./RELEASE_NOTE_v0.2.2.md) | [v0.2.1](./RELEASE_NOTE_v0.2.1.md) | [v0.2.0](./RELEASE_NOTE_v0.2.0.md)
-
-**架构文档**: 
-- [Phase 3 设计](./docs/plans/2026-03-23-v0.2.3-phase3-curiosity-decomposer-design.md)
-- [Phase 2 实施计划](./docs/plans/2026-03-23-phase2-quality-upgrade-implementation-plan.md)
