@@ -59,6 +59,8 @@ class CuriosityEngine:
             exploration_history=self._get_exploration_history(),
             config=config
         )
+        from .competence_tracker import CompetenceTracker
+        self.competence_tracker = CompetenceTracker()
     
     def _get_exploration_history(self) -> dict:
         """从知识图谱获取探索历史"""
@@ -212,16 +214,33 @@ class CuriosityEngine:
         return updated
     
     def select_next(self) -> Optional[dict]:
-        """选择下一个要探索的好奇心项"""
-        top = kg.get_top_curiosities(k=1)
-        if top:
-            return top[0]
-        
-        # 如果队列空了，生成新的
-        count = self.generate_initial_curiosities()
-        if count > 0:
-            return kg.get_top_curiosities(k=1)[0]
-        return None
+        candidates = kg.get_top_curiosities(k=10)
+        if not candidates:
+            count = self.generate_initial_curiosities()
+            if count > 0:
+                candidates = kg.get_top_curiosities(k=10)
+            else:
+                return None
+
+        scored_candidates = []
+        for item in candidates:
+            topic = item["topic"]
+            competence = self.competence_tracker.assess_competence(topic)
+
+            exploration_value = (
+                item.get("score", 5.0) *
+                (1 - competence["score"]) *
+                item.get("relevance", 5.0) / 10.0
+            )
+
+            scored_candidates.append({
+                **item,
+                "exploration_value": exploration_value,
+                "competence": competence
+            })
+
+        scored_candidates.sort(key=lambda x: x["exploration_value"], reverse=True)
+        return scored_candidates[0] if scored_candidates else None
     
     def add_contextual_curiosity(self, context: str) -> None:
         """

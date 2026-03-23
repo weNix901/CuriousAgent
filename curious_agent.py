@@ -117,7 +117,26 @@ def run_one_cycle(depth: str = "medium") -> dict:
         return {"status": "blocked", "topic": topic, "reason": reason}
     
     explorer = Explorer(exploration_depth=depth)
-    result = explorer.explore(next_curiosity)
+
+    from core.three_phase_explorer import ThreePhaseExplorer
+    three_phase = ThreePhaseExplorer(explorer, monitor, llm_manager)
+
+    if next_curiosity.get("score", 5.0) >= 5.0:
+        result = three_phase.explore(next_curiosity)
+        if result.get("status") == "already_known":
+            print(f"[ThreePhaseExplorer] Topic already known: {topic}")
+            return {"status": "blocked", "topic": topic, "reason": "Already known with high confidence"}
+        if "findings" in result:
+            result = {
+                "topic": topic,
+                "action": result.get("plan_used", [{}])[0].get("action", "explore") if result.get("plan_used") else "explore",
+                "findings": result["findings"].get("findings", result["findings"].get("summary", "")),
+                "sources": result["findings"].get("sources", []),
+                "papers": result["findings"].get("papers", []),
+                "score": next_curiosity.get("score", 5.0)
+            }
+    else:
+        result = explorer.explore(next_curiosity)
 
     findings = {
         "summary": result.get("findings", ""),
