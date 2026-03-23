@@ -24,10 +24,17 @@ BLACKLIST_KEYWORDS = ["news", "event", "price", "stock"]
 
 class AgentBehaviorWriter:
     """Convert high-quality discoveries to behavior rules"""
-    
+
     def __init__(self, quality_threshold: float = QUALITY_THRESHOLD):
         self.quality_threshold = quality_threshold
         self.write_log = []
+        self._llm_client = None
+
+    def _get_llm_client(self):
+        if self._llm_client is None:
+            from core.llm_client import LLMClient
+            self._llm_client = LLMClient()
+        return self._llm_client
     
     def process(self, topic: str, findings: dict, quality: float, sources: list) -> dict:
         """Process exploration results and generate behavior rules"""
@@ -67,35 +74,60 @@ class AgentBehaviorWriter:
             "sources": sources[:2]
         }
     
-    def _classify_discovery(self, topic: str, findings: dict) -> str:
-        """Classify discovery type based on topic and findings"""
+    def _classify_discovery(self, topic: str, findings: dict) -> str | None:
+        TYPES = [
+            "metacognition_strategy",
+            "reasoning_strategy",
+            "confidence_rule",
+            "self_check_rule",
+            "proactive_behavior",
+            "tool_discovery",
+        ]
+
+        try:
+            llm = self._get_llm_client()
+            prompt = f"""请判断以下探索发现属于哪种类型：
+
+Topic: {topic}
+Summary: {findings.get('summary', '')[:200]}
+
+可选类型：{', '.join(TYPES)}
+
+请直接输出最匹配的类型名称（只输出类型名，不要解释）。如果无法判断，输出 "unknown"。
+"""
+            response = llm.chat(prompt).strip()
+            if response in TYPES:
+                return response
+        except Exception as e:
+            print(f"[BehaviorWriter] LLM classification failed: {e}")
+
         topic_lower = topic.lower()
         summary_lower = findings.get("summary", "").lower()
-        
+
         if any(k in topic_lower for k in [
-            "metacognition", "self-monitoring", "self-reflection", 
+            "metacognition", "self-monitoring", "self-reflection",
             "self-assessment", "monitor-generate", "self-verification"
         ]):
             return "metacognition_strategy"
-        
+
         if any(k in topic_lower for k in [
             "reasoning", "planning", "chain-of-thought", "cot", "reflexion"
         ]):
             return "reasoning_strategy"
-        
+
         if "confidence" in topic_lower or "calibration" in topic_lower:
             return "confidence_rule"
-        
+
         if any(k in topic_lower for k in ["verification", "self-check", "validate"]):
             return "self_check_rule"
-        
+
         if any(k in topic_lower for k in ["curiosity", "exploration", "proactive"]):
             return "proactive_behavior"
-        
+
         if any(k in topic_lower for k in ["framework", "tool", "library", "sdk"]):
             if any(k in summary_lower for k in ["install", "pip", "import", "github"]):
                 return "tool_discovery"
-        
+
         return None
     
     def _generate_behavior_rule(self, topic: str, findings: dict, sources: list, discovery_type: str) -> str:
