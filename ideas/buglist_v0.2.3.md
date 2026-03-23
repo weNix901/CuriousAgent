@@ -200,6 +200,142 @@ for item in state.get('curiosity_queue', []):
 
 ---
 
+---
+
+## 🔴 Bug #11: Agent-Behavior-Writer._classify_discovery 只支持英文关键词，中文 topic 全部跳过写入
+
+**现象**：
+```python
+# 测试发现
+writer = AgentBehaviorWriter()
+findings = {'summary': '大语言模型具备自主规划和推理能力'}
+result = writer.process('大语言模型推理规划', findings, quality=8.0, sources=[])
+# 返回: {'applied': False, 'reason': 'discovery type not actionable'}
+```
+
+所有中文 topic 的探索结果都无法被写入 `curious-agent-behaviors.md`，Phase 1 行为闭环完全失效。
+
+**根因**：`agent_behavior_writer.py` 第 90-110 行，`_classify_discovery` 方法使用硬编码的英文关键词列表做匹配：
+
+```python
+# agent_behavior_writer.py 第 90-110 行（当前代码）
+def _classify_discovery(self, topic: str, findings: dict) -> str:
+    topic_lower = topic.lower()
+    if any(k in topic_lower for k in [
+        "metacognition", "self-monitoring", "self-reflection",
+        "self-assessment", "monitor-generate", "self-verification"
+    ]):
+        return "metacognition_strategy"
+    if any(k in topic_lower for k in [
+        "reasoning", "planning", "chain-of-thought", "cot", "reflexion"
+    ]):
+        return "reasoning_strategy"
+    # ... 其他分类全部是英文关键词
+    return None  # ← 中文 topic 全部返回 None
+```
+
+Curious Agent 的 topic 全是中文（如"大语言模型推理规划"、"自主意识型 Agent"），匹配不到任何英文关键词 → 返回 `None` → `process()` 返回 `"discovery type not actionable"` → behavior 文件永不写入。
+
+**✅ 期望的正确结果**：
+- 中文 topic 能被正确分类为对应类型
+- 分类应基于**语义**而非关键词匹配
+- 质量 ≥ 7.0 的探索结果应该被写入 behavior 文件（不只是英文 topic）
+
+**✅ 建议的修复方式**：
+
+**方案 A（推荐）：LLM Zero-Shot 分类**
+
+不依赖关键词，在 `_classify_discovery` 中调用 LLM 做 zero-shot 分类：
+
+```python
+def _classify_discovery(self, topic: str, findings: dict) -> str | None:
+    """
+    用 LLM 做 zero-shot 分类，基于 topic + summary 语义判断发现类型。
+    避免依赖特定语言或关键词。
+    """
+    # 候选类型
+    TYPES = [
+        "metacognition_strategy",   # 元认知：自我监控、反思、self-assessment
+        "reasoning_strategy",      # 推理策略：chain-of-thought、planning、reflexion
+        "confidence_rule",          # 置信度规则
+        "self_check_rule",         # 自我检查/验证规则
+        "proactive_behavior",      # 主动行为：好奇心驱动、探索
+        "tool_discovery",          # 工具发现：framework、library、sdk
+    ]
+
+    prompt = f"""请判断以下探索发现属于哪种类型：
+
+Topic: {topic}
+Summary: {findings.get('summary', '')[:200]}
+
+可选类型：{', '.join(TYPES)}
+
+请直接输出最匹配的类型名称（只输出类型名，不要解释）。如果无法判断，输出 "unknown"。
+"""
+
+    response = self._llm_client.chat(prompt).strip()
+    if response in TYPES:
+        return response
+    return None  # 无法分类时不写入，不阻塞探索
+```
+
+**方案 B：中文关键词补充**
+
+在现有英文关键词基础上增加中文映射表：
+
+```python
+TYPE_KEYWORDS = {
+    "metacognition_strategy": ["元认知", "自我监控", "自我反思", "self-reflection", "metacognition"],
+    "reasoning_strategy": ["推理", "规划", "思维链", "chain-of-thought", "reasoning"],
+    "tool_discovery": ["框架", "工具", "framework", "library", "sdk"],
+    "proactive_behavior": ["好奇心", "主动", "探索", "curiosity", "proactive"],
+}
+```
+
+**✅ 额外建议：评估信息完整性**
+
+在分类后，可增加一步 LLM 评估，确保 findings 信息完整无歧义再写入：
+
+```python
+def _evaluate_findings_quality(self, topic: str, findings: dict) -> tuple[bool, str]:
+    """
+    评估发现信息是否完整、无歧义。
+    返回 (can_write, reason)
+    """
+    prompt = f"""评估以下探索发现的信息质量：
+
+Topic: {topic}
+Summary: {findings.get('summary', '')}
+
+请判断：
+1. 信息是否完整（不是碎片）？
+2. 是否有歧义或模糊表述？
+3. 是否可以直接转化为行为规则？
+
+回答格式：PASS - 信息完整 / FAIL - 原因
+"""
+    response = self._llm_client.chat(prompt).strip()
+    if response.startswith("PASS"):
+        return True, "信息完整"
+    return False, response
+```
+
+**验证**：
+```python
+from core.agent_behavior_writer import AgentBehaviorWriter
+
+writer = AgentBehaviorWriter()
+findings = {'summary': '大语言模型具备自主规划和推理能力，可以作为Agent的核心认知引擎'}
+result = writer.process('大语言模型推理规划', findings, quality=8.0, sources=['https://example.com'])
+print(result)
+# 期望: {'applied': True, 'section': '## 🧠 推理策略', ...}
+# 检查 curious-agent-behaviors.md 是否有新内容写入
+```
+
+**移交 OpenCode**：✅ 可移交
+
+---
+
 ## 📊 Bug 状态总览
 
 | 状态 | Bug | 描述 | 文件 |
@@ -213,6 +349,7 @@ for item in state.get('curiosity_queue', []):
 | ✅ 已修复（OpenCode 2026-03-23） | #1 | Topic 注入后探索了完全不同的 topic | `curious_api.py` L189-197 |
 | ✅ 已修复（OpenCode 2026-03-23） | #9 | CLI `--run` blocked 状态 KeyError | `curious_agent.py` L383-388 |
 | ✅ 已修复（OpenCode 2026-03-23） | #10 | 分解后父 topic 重复被选导致死循环 | `curious_agent.py` L95 |
+| 🆕 待修复 | #11 | 中文 topic 无法写入 behavior 文件（分类器只认英文关键词） | `agent_behavior_writer.py` L90-110 |
 
 ---
 
