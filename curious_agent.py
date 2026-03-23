@@ -98,6 +98,7 @@ def run_one_cycle(depth: str = "medium") -> dict:
             
     except ClarificationNeeded as e:
         print(f"[Decomposer] Clarification needed for '{e.topic}': {e.reason}")
+        kg.mark_topic_done(e.topic, f"Needs clarification: {e.reason}")
         EventBus.emit("decomposer.clarification_needed", {
             "topic": e.topic,
             "alternatives": e.alternatives,

@@ -31,6 +31,10 @@ class QualityV2Assessor:
         prev_neighbors = self._get_neighbor_count(topic, knowledge_graph)
         graph_delta = 0.0
         
+        if not prev_summary:
+            confidence_delta = max(confidence_delta, 0.5)
+            graph_delta = 0.5
+        
         quality = (
             semantic_novelty * 0.40 +
             confidence_delta * 0.30 +
