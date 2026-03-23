@@ -210,9 +210,9 @@ for item in state.get('curiosity_queue', []):
 | ✅ 已修复（2026-03-23 核查） | #6 | 中文 topic URL 参数乱码 | `curious_api.py` L282 `normalize_topic` |
 | ✅ 已修复（2026-03-23 核查） | #7 | `completed_topics` 永远为空 | `curious_agent.py` L131 |
 | ✅ 已修复（2026-03-23 核查） | #8 | KG topic 缺少 status 字段 | `knowledge_graph.py` L351 |
-| ❌ 待修复 | #1 | Topic 注入后探索了完全不同的 topic | `curious_api.py` L175-193 |
-| ❌ 待修复 | #9 | CLI `--run` blocked 状态 KeyError | `curious_agent.py` L381-383 |
-| ❌ 待修复 | #10 | 分解后父 topic 重复被选导致死循环 | `curious_agent.py` L85-95 |
+| ✅ 已修复（OpenCode 2026-03-23） | #1 | Topic 注入后探索了完全不同的 topic | `curious_api.py` L189-197 |
+| ✅ 已修复（OpenCode 2026-03-23） | #9 | CLI `--run` blocked 状态 KeyError | `curious_agent.py` L383-388 |
+| ✅ 已修复（OpenCode 2026-03-23） | #10 | 分解后父 topic 重复被选导致死循环 | `curious_agent.py` L95 |
 
 ---
 
