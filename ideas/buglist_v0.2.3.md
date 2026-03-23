@@ -1,6 +1,6 @@
-# v0.2.3 Bug List
+# v0.2.3 Bug List（最终版）
 
-> 2026-03-23 | 供 OpenCode 修改使用
+> 2026-03-23 全面核查 | 验证时间：2026-03-23 17:44
 
 ---
 
@@ -9,35 +9,48 @@
 **现象**：
 ```bash
 curl -X POST http://localhost:4848/api/curious/run \
+  -H "Content-Type: application/json" \
   -d '{"topic": "OPENCODE测试xyz", "depth": "medium"}'
 # 返回: status=success, topic=test_normalization（不是注入的 topic）
 ```
 
-**根因**：`curious_api.py` 第 66-73 行，注入 topic 后用 `get_top_curiosities(k=1)` 取队列中评分最高的 pending 项，而非使用刚注入的 topic：
+**根因**：`curious_api.py` 第 175-193 行，注入 topic 后用 `get_top_curiosities(k=1)` 取队列中评分最高的 pending 项，而非使用刚注入的 topic：
 
 ```python
-add_curiosity(topic=topic, ...)
+# curious_api.py 第 175-193 行（当前代码）
+add_curiosity(topic=topic, reason="API trigger", relevance=8.0, depth=7.0)
+time_module.sleep(0.5)
 items = get_top_curiosities(k=1)           # ← 返回队列最高分项，不是注入的项
-if items and items[0]["topic"] == topic:   # ← 几乎必然失败
-    next_item = items[0]
-else:
-    return jsonify({"error": ...}), 500    # ← 或返回错误的 topic
+if items and items[0]["topic"] == topic:   # ← 注入 topic 评分通常低于队列已有项，几乎必然失败
+    engine = CuriosityEngine()
+    explorer = Explorer(exploration_depth=depth)
+    result = explorer.explore(items[0])
 ```
 
-注入 topic 评分通常低于队列已有项，所以 `items[0]` 几乎必然不是注入的 topic。
+注入 topic 的 relevance=8.0，但仍可能低于队列已有项，所以 `items[0]` 几乎必然不是注入的 topic，导致分支走向错误路径或返回错误的 topic。
 
-**修复方案**：删除 `get_top_curiosities` 逻辑，直接用注入 topic 构造 `next_item`：
+**✅ 期望的正确结果**：
+- 注入 topic="OPENCODE测试xyz" → 实际探索的 topic 必须等于 "OPENCODE测试xyz"
+- API 返回的 `topic` 字段与注入的 topic 完全一致
+- 不受队列中已有 topic 评分高低的影响
+
+**✅ 建议的修复方式**：
+删除 `get_top_curiosities` 逻辑，直接用注入 topic 构造探索项并执行：
 
 ```python
-# 第 66-73 行替换为：
+# 第 175-193 行替换为：
+engine = CuriosityEngine()
+explorer = Explorer(exploration_depth=depth)
 next_item = {
     "topic": topic,
     "reason": "API run injection",
-    "score": final_score,
-    "relevance": final_score,
+    "score": 8.0,
+    "relevance": 8.0,
     "depth": 7.0,
     "status": "pending"
 }
+result = explorer.explore(next_item)
+print(f"[Async] Exploration completed: {topic}, notified: {result.get('notified', False)}")
 ```
 
 **验证**：
@@ -49,186 +62,164 @@ curl -X POST http://localhost:4848/api/curious/run \
 # 期望：topic=OPENCODE测试专属topicXYZ
 ```
 
----
-
-## 🔴 Bug #7: `completed_topics` 永远为空
-
-**现象**：`/api/metacognitive/topics/completed` 返回 `[]`，但 exploration_log 中已有多个已探索 topic。
-
-**根因**：`curious_agent.py` 第 192-197 行，`mark_topic_done()` 仅在 `continue_allowed=False` 时调用。但 `should_continue()` 在 marginal return >= 0.3 时几乎始终返回 True，导致 `mark_topic_done` 几乎永远不被触发。
-
-```python
-# curious_agent.py 第 192-197 行
-continue_allowed, continue_reason = controller.should_continue(topic)
-
-if continue_allowed:
-    kg.add_curiosity(topic, ...)   # ← 继续探索，不标记完成
-else:
-    kg.mark_topic_done(topic, continue_reason)  # ← 几乎不会执行
-```
-
-**修复方案**：在 `explorer.explore()` 成功后，无论 `should_continue` 结果如何，都立即调用 `mark_topic_done()`：
-
-```python
-# curious_agent.py，在 explorer.explore() 成功后添加：
-result = explorer.explore(next_curiosity)
-# ... quality/marginal 计算 ...
-kg.mark_topic_done(topic, f"Exploration done (Q={quality:.1f}, marginal={marginal:.2f})")
-```
-
-`curious_api.py` 第 81-82 行的调用已存在，确认未被删除。
-
-**验证**：
-```bash
-curl -X POST http://localhost:4848/api/curious/run \
-  -H "Content-Type: application/json" \
-  -d '{"topic": "OPENCODE测试completed", "depth": "shallow"}'
-
-curl http://localhost:4848/api/metacognitive/topics/completed \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'count={len(d.get(\"completed_topics\",[]))}'); assert len(d.get('completed_topics',[])) > 0"
-# 期望：count >= 1
-```
+**移交 OpenCode**：✅ 可移交
 
 ---
 
-## 🟠 Bug #2: test shallow 分数 56.0（根因未知）
-
-**现象**：历史队列中 `test shallow` 的 score=56.0，远超评分公式上限 ~8.0。
-
-**根因**：未知。56.0 不可能由 `add_curiosity()` 的评分公式产生，疑似硬编码或直接写入 state.json 的测试数据。
-
-**修复方案**：
-1. 搜索代码中是否存在 `56.0` 硬编码
-2. 检查 `knowledge/state.json` 中 `test shallow` 的来源记录
-3. 如确认是测试遗留数据，直接从 state.json 中删除该项
-
-**验证**：无明显分数异常的 topic 存在即可。
-
----
-
-## 🟠 Bug #3: inject API 拒绝字符串 depth
+## 🔴 Bug #9: CLI `--run` 访问 blocked 状态的 `result["formatted"]` 键导致 KeyError
 
 **现象**：
 ```bash
-curl -X POST http://localhost:4848/api/curious/inject \
-  -d '{"topic": "测试", "depth": "medium"}'
-# 返回: {"error": "could not convert string to float: 'medium'"}
+python3 curious_agent.py --run --pure-curious
+# 输出: KeyError: 'formatted'（当队列中只有已 blocked 的 topic 时）
 ```
 
-**根因**：`curious_api.py` 第 154-159 行，已有字符串映射逻辑，但**运行的服务未加载最新代码**。
-
-**修复方案**：确保 `curious_api.py` 第 154-159 行包含以下逻辑，并重启服务：
+**根因**：`curious_agent.py` 第 381-383 行，CLI 处理 `--run` 时只处理了 `idle` 状态，其他状态无条件访问 `"formatted"` 键，但 `blocked` 状态的返回结果中没有此键：
 
 ```python
-depth = data.get("depth", 6.0)
-if isinstance(depth, str):
-    depth_map = {"shallow": 3.0, "medium": 6.0, "deep": 9.0}
-    depth = depth_map.get(depth, 6.0)
+# curious_agent.py 第 381-383 行（当前代码）
+if result["status"] == "idle":
+    print(f"💤 {result['message']}")
 else:
-    depth = float(depth)
+    print(result["formatted"])   # ← blocked 状态没有 "formatted" 键，KeyError
 ```
 
-重启：
-```bash
-pkill -f curious_api.py; cd /root/dev/curious-agent && python3 curious_api.py &
+**✅ 期望的正确结果**：
+- `status=idle` → 打印 `"💤 {message}"`（当前已支持）
+- `status=blocked` → 打印 `"🚫 {topic} blocked: {reason}"`（不崩溃）
+- `status=clarification_needed` → 打印 `"🤔 需要澄清: {topic} — {reason}"`
+- `status=success` → 打印探索结果 formatted 内容
+- **任何状态都不应该抛出 KeyError**
+
+**✅ 建议的修复方式**：
+在 CLI main 函数中完整处理各状态，对 `blocked` 和 `clarification_needed` 使用 `result.get()` 安全读取：
+
+```python
+# 第 381-383 行替换为：
+if result["status"] == "idle":
+    print(f"💤 {result['message']}")
+elif result["status"] == "blocked":
+    print(f"🚫 {result['topic']} blocked: {result.get('reason', 'unknown')}")
+elif result["status"] == "clarification_needed":
+    print(f"🤔 需要澄清: {result.get('topic')} — {result.get('reason', '')}")
+else:
+    print(result.get("formatted", ""))
 ```
 
 **验证**：
 ```bash
+# 手动将一个 topic 设为 blocked 状态后运行
 curl -X POST http://localhost:4848/api/curious/inject \
   -H "Content-Type: application/json" \
-  -d '{"topic": "OPENCODE测试depth", "depth": "medium"}' \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('status') == 'ok'"
-# 期望：status=ok
+  -d '{"topic": "test_blocked_topic", "depth": "shallow"}'
+
+# 将该 topic 在 state.json 中手动改为 blocked（模拟场景）
+# 然后运行
+python3 curious_agent.py --run --pure-curious 2>&1 | grep -i "keyerror\|blocked\|formatted"
+# 期望：无 KeyError，出现 blocked 提示或正常输出
 ```
+
+**移交 OpenCode**：✅ 可移交
 
 ---
 
-## 🟠 Bug #4: DELETE queue 不接受 JSON body
+## 🔴 Bug #10: 分解后父 topic 未标记完成导致下一轮重复被选（死循环）
 
-**现象**：
-```bash
-curl -X DELETE http://localhost:4848/api/curious/queue \
-  -H "Content-Type: application/json" \
-  -d '{"topic": "test medium"}'
-# 返回: {"error": "topic is required"}
+**现象**：`--pure-curious` 模式下，连续两轮选择相同的父 topic，产生相同的子 topic，已探索过的子 topic 被再次选中后 blocked，形成死循环：
+
+```
+[Decomposer] 'AI Agent' -> '大语言模型推理与规划' (medium)
+✅ 完成: 大语言模型推理与规划
+[Decomposer] 'AI Agent' -> '大语言模型推理与规划' (medium)   ← 再次选中同一个父 topic！
+✅ 完成: 大语言模型推理与规划
+[Decomposer] 'AI Agent' -> '大语言模型推理与规划' (medium)   ← 循环继续
 ```
 
-**根因**：`curious_api.py` 第 227 行，`request.get_json()` 对 DELETE 方法可能返回 `{}`，导致 `topic` 取值永远为空。
+**根因**：`curious_agent.py` 第 85-95 行，Decomposer 将父 topic 分解为子 topic 后：
 
-**修复方案**：
+1. 设置 `next_curiosity["original_topic"] = topic`（记录父 topic）
+2. 将子 topic 作为 `next_curiosity["topic"]` 进行探索
+3. **但从未调用 `kg.mark_topic_done(topic, ...)` 标记父 topic 为已完成**
+
+下一轮 `select_next()` 再次选择同一个父 topic，再次分解，产生相同子 topic，无限循环。
+
 ```python
-# 第 227 行替换为：
-topic = request.args.get("topic", "") or (request.get_json() or {}).get("topic", "")
+# curious_agent.py 第 85-95 行（当前代码）
+if subtopics:
+    best = max(subtopics, key=lambda x: x.get("total_count", 0))
+    explore_topic = best["sub_topic"]
+    print(f"[Decomposer] '{topic}' -> '{explore_topic}' ...")
+    next_curiosity["original_topic"] = topic   # ← 记录了父 topic
+    next_curiosity["topic"] = explore_topic   # ← 但没有标记父 topic 已完成
+    next_curiosity["decomposition"] = best
 ```
 
-**验证**：
-```bash
-curl -X DELETE http://localhost:4848/api/curious/queue \
-  -H "Content-Type: application/json" \
-  -d '{"topic": "item1"}' \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); assert d.get('status') == 'success'"
-# 期望：status=success
-```
+**✅ 期望的正确结果**：
+- 父 topic 被 Decomposer 分解后，该父 topic 立即被标记为 `status=done` 或 `status=exploring`
+- 父 topic 不再出现在 `get_top_curiosities(k=N)` 的返回结果中（即 `select_next()` 不会再次选中它）
+- 每轮探索产生的是**不同的**父 topic 或**不同的**子 topic，不会重复处理同一父 topic
 
----
+**✅ 建议的修复方式**：
+在分解成功且有子 topic 时，调用 `kg.mark_topic_done()` 将父 topic 标记为已完成，防止下一轮被再次选中：
 
-## 🟠 Bug #6: 中文 topic URL 参数乱码
-
-**现象**：
-```bash
-curl "http://localhost:4848/api/metacognitive/check?topic=不存在的主题" \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('topic'))"
-# 返回: ä¸�å­å­£çä¸»é¢（乱码）
-```
-
-**根因**：`curious_api.py` 第 270 行，`request.args` 对 URL 参数使用 `latin-1` 解码，破坏 UTF-8 中文。
-
-**修复方案**：
 ```python
-# 第 270 行替换为：
-topic = normalize_topic(request.values.get("topic", ""))
+# 第 85-95 行中，在设置 next_curiosity 后添加一行：
+if subtopics:
+    best = max(subtopics, key=lambda x: x.get("total_count", 0))
+    explore_topic = best["sub_topic"]
+    print(f"[Decomposer] '{topic}' -> '{explore_topic}' ...")
+    next_curiosity["original_topic"] = topic
+    next_curiosity["topic"] = explore_topic
+    next_curiosity["decomposition"] = best
+    # 👇 新增：标记父 topic 已完成，防止下一轮重复选择
+    kg.mark_topic_done(topic, f"Decomposed into: {explore_topic}")
 ```
 
 **验证**：
 ```bash
-curl "http://localhost:4848/api/metacognitive/check?topic=测试中文topic" \
-  | python3 -c "import sys,json; d=json.load(sys.stdin); t=d.get('topic',''); assert '测试' in t or '中文' in t, f'BUG: {t}'"
-# 期望：正确显示中文
+# 运行 --pure-curious 两轮，检查父 topic 是否只被选一次
+python3 curious_agent.py --run --pure-curious 2>&1 | grep "Decomposer"
+# 第一轮应该看到：[Decomposer] 'XXX' -> '子topic'
+# 第二轮应该看到不同的父 topic，或看到 Decomposer 针对不同父 topic
+
+# 或者直接检查 KG state
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core.knowledge_graph import KnowledgeGraph
+kg = KnowledgeGraph()
+state = kg.get_state()
+# 找所有带 original_topic 的项（子 topic）
+for item in state.get('curiosity_queue', []):
+    if item.get('original_topic'):
+        print(f'Child: {item[\"topic\"]}, Parent: {item[\"original_topic\"]}, status: {item.get(\"status\")}')
+# 期望：同一个父 topic 最多只产生一个带 original_topic 的子 topic
+" 2>/dev/null
 ```
+
+**移交 OpenCode**：✅ 可移交
 
 ---
 
-## 🟡 Bug #8: KG topic 缺少 status 字段
+## 📊 Bug 状态总览
 
-**现象**：`/api/curious/state` 中部分 topic 的 `status` 字段不存在。
-
-**根因**：`knowledge_graph.py` 的 `add_knowledge()` 新增 topic 时未初始化 `status` 字段。
-
-**修复方案**：在 `add_knowledge()` 的 topic 初始化字典中添加 `"status": "partial"`。
-
-**验证**：
-```bash
-curl -s http://localhost:4848/api/curious/state \
-  | python3 -c "
-import sys,json
-d=json.load(sys.stdin)
-for t, v in d.get('knowledge',{}).get('topics',{}).items():
-    assert 'status' in v, f'BUG: {t} missing status'
-print('All topics have status field')
-"
-```
+| 状态 | Bug | 描述 | 文件 |
+|------|-----|------|------|
+| ✅ 已修复（2026-03-23 核查） | #2 | test shallow 分数 56.0（脏数据已清理） | - |
+| ✅ 已修复（2026-03-23 核查） | #3 | inject API 拒绝字符串 depth | `curious_api.py` L126-128 |
+| ✅ 已修复（2026-03-23 核查） | #4 | DELETE queue 不接受 JSON body | `curious_api.py` L228-229 |
+| ✅ 已修复（2026-03-23 核查） | #6 | 中文 topic URL 参数乱码 | `curious_api.py` L282 `normalize_topic` |
+| ✅ 已修复（2026-03-23 核查） | #7 | `completed_topics` 永远为空 | `curious_agent.py` L131 |
+| ✅ 已修复（2026-03-23 核查） | #8 | KG topic 缺少 status 字段 | `knowledge_graph.py` L351 |
+| ❌ 待修复 | #1 | Topic 注入后探索了完全不同的 topic | `curious_api.py` L175-193 |
+| ❌ 待修复 | #9 | CLI `--run` blocked 状态 KeyError | `curious_agent.py` L381-383 |
+| ❌ 待修复 | #10 | 分解后父 topic 重复被选导致死循环 | `curious_agent.py` L85-95 |
 
 ---
 
-## 📊 修复优先级
+## 🆕 v0.2.4 计划修复（待确认）
 
-| 优先级 | Bug | 文件 | 验证断言 |
-|--------|-----|------|---------|
-| P0 | #1 Topic 注入错误 | `curious_api.py` | `topic == 'OPENCODE测试专属topicXYZ'` |
-| P0 | #7 completed 为空 | `curious_agent.py` | `len(completed_topics) >= 1` |
-| P1 | #2 分数 56.0 | 搜索代码 | 无异常分数 topic |
-| P1 | #3 inject depth | `curious_api.py` + 重启 | `status == 'ok'` |
-| P1 | #4 DELETE JSON body | `curious_api.py` | `status == 'success'` |
-| P1 | #6 中文乱码 | `curious_api.py` | 中文正常显示 |
-| P2 | #8 缺 status | `knowledge_graph.py` | 无 topic 缺字段 |
+| 优先级 | 方向 | 说明 |
+|--------|------|------|
+| P0 | Bug #1/#9/#10 | 本文档所列三个 Bug |
+| P1 | 队列清理机制 | 定期清理 old + blocked topic，防止队列污染 |
+| P2 | 并行探索 | 支持多 topic 同时探索 |
