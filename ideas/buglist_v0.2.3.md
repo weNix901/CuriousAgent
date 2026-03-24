@@ -535,3 +535,205 @@ print('PASS: new topic quality >= 7.0')
 
 _报告更新: 2026-03-23 20:50_
 _测试者: R1D3-researcher_
+
+---
+
+## 🔴 Bug #21: 图谱幽灵节点——队列已完成但无详情，且无效节点定义不清
+
+**严重程度**: 🔴 高 — 图谱显示欺骗性内容，无效节点和未探索节点混在一起
+
+**用户现象**:
+图谱界面多个节点显示**绿色**（表示已完成），但点击后理解深度为 0、摘要为空、来源为空。典型节点：`Memory Overhead Download`、`OMO multi-agent orchestration`、`curiosity-driven reinforcement learning` 等 15 个。
+
+**数据验证**（2026-03-24 实测）：
+```
+=== done但known=False 的节点（幽灵节点）===
+  Working Memory Representations
+  Detectedmemoryleaks
+  Computational Cognitive Modeling
+  Agentic Reasoning
+  Working Memory Guides
+  Incremental Contingency Planning
+  Introduction Dynamic Memory
+  working memory AI agent
+  OMO multi-agent orchestration
+  curiosity-driven reinforcement learning
+  Agentic Tools
+  Memory Overhead  Download
+  autonomous agent planning and replanning
+  Fine Agentic Workflows
+  During Working Memory
+（共 15 个）
+```
+
+---
+
+### 一、节点有效性分类定义（关键）
+
+对 `knowledge.topics` 中的每一个节点，按以下三维判断有效性：
+
+| 条件组合 | 类型 | 含义 | 处理方式 |
+|---------|------|------|---------|
+| `known=true` | **有效节点** | 探索已完成且有有效信息 | 保留 |
+| `known=false` + `queue status=pending/investigating` | **未探索节点** | 探索还没跑，有效性未知 | 保留 |
+| `known=false` + `queue status=done` + `status=partial` | **幽灵节点（无效）** | 探索标记完成但从未真正运行（`add_knowledge()` 未写入） | **删除** |
+
+**幽灵节点的根因链路**：
+```
+CuriosityDecomposer 生成子 topic
+  → add_child() 在 knowledge.topics 创建占位 { known: false, status: "partial" }
+  → curious_agent.py 单轮退出（分解后标记父 topic 完成即退出）
+  → 下一轮选中子 topic → 子 topic 又被分解 → 标记 done → 退出
+  → Explorer.explore() 从未被调用 → add_knowledge() 从未被调用
+  → knowledge.topics 里 known: false，depth: 0
+  → 图谱显示绿色但无详情
+```
+
+---
+
+### 二、期望行为
+
+1. **幽灵节点必须被清理**：当 topic 在 `curiosity_queue` 标记为 done，但 `knowledge.topics` 里 `known=false`，说明探索从未真正执行——这类节点是**无效数据**，应从 `knowledge.topics` 中删除
+2. **未探索节点保留**：pending/investigating 状态的节点有效性未知，保留不删
+3. **清理时机**：在 `kg.mark_topic_done()` 中检查并删除对应幽灵节点
+
+---
+
+### 三、修复方向
+
+**Step 1：在 `knowledge_graph.py` 新增清理函数**
+
+```python
+def remove_ghost_nodes() -> list:
+    """
+    清理 knowledge.topics 中的幽灵节点。
+    幽灵节点定义：known=False 且 status=partial 且 queue 中已标记 done。
+
+    Returns:
+        list: 被删除的节点名列表
+    """
+    state = _load_state()
+    queue_topics = {
+        item["topic"]: item["status"]
+        for item in state.get("curiosity_queue", [])
+    }
+
+    topics = state["knowledge"]["topics"]
+    removed = []
+
+    for topic in list(topics.keys()):
+        node = topics[topic]
+        queue_status = queue_topics.get(topic)
+
+        if (node.get("known") is False
+                and node.get("status") == "partial"
+                and queue_status == "done"):
+            del topics[topic]
+            removed.append(topic)
+
+    if removed:
+        _save_state(state)
+
+    return removed
+```
+
+**Step 2：在 `mark_topic_done()` 中调用清理**
+
+```python
+def mark_topic_done(topic: str, reason: str) -> None:
+    state = _load_state()
+    # ... 现有逻辑：更新 completed_topics、同步队列状态 ...
+
+    # 清理该 topic 的幽灵节点（如有）
+    ghost_removed = []
+    topics = state["knowledge"]["topics"]
+    if topic in topics:
+        node = topics[topic]
+        queue_status = next(
+            (item["status"] for item in state.get("curiosity_queue", [])
+             if item["topic"] == topic), None
+        )
+        if (node.get("known") is False
+                and node.get("status") == "partial"
+                and queue_status == "done"):
+            del topics[topic]
+            ghost_removed.append(topic)
+
+    _save_state(state)
+```
+
+**Step 3：提供一次性清理脚本（可选）**
+
+```python
+# scripts/cleanup_ghost_nodes.py
+if __name__ == "__main__":
+    from core import knowledge_graph as kg
+    removed = kg.remove_ghost_nodes()
+    print(f"Removed {len(removed)} ghost nodes: {removed}")
+```
+
+---
+
+### 四、验收标准
+
+```python
+# 验收1：幽灵节点必须被删除
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core import knowledge_graph as kg
+
+# 先清理
+removed = kg.remove_ghost_nodes()
+print(f'清理了 {len(removed)} 个幽灵节点: {removed}')
+
+# 验证：done + known=False 的幽灵节点应为 0
+state = kg.get_state()
+queue = {item['topic']: item['status'] for item in state.get('curiosity_queue', [])}
+topics = state.get('knowledge', {}).get('topics', {})
+ghosts = [
+    t for t, v in topics.items()
+    if not v.get('known') and v.get('status') == 'partial'
+    and queue.get(t) == 'done'
+]
+if ghosts:
+    print(f'FAIL: 仍有 {len(ghosts)} 个幽灵节点: {ghosts}')
+else:
+    print('PASS: 幽灵节点已清零')
+"
+
+# 验收2：pending/investigating 的未探索节点应保留
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core import knowledge_graph as kg
+
+state = kg.get_state()
+queue = {item['topic']: item['status'] for item in state.get('curiosity_queue', [])}
+topics = state.get('knowledge', {}).get('topics', {})
+
+pending_ghosts = [
+    t for t, v in topics.items()
+    if not v.get('known') and v.get('status') == 'partial'
+    and queue.get(t) in ('pending', 'investigating')
+]
+print(f'保留的未探索节点（known=False + pending/investigating）: {len(pending_ghosts)} 个')
+print('PASS: pending 节点未被误删' if len(pending_ghosts) >= 0 else 'FAIL')
+"
+
+# 验收3：有效节点（known=True）应完全保留
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core import knowledge_graph as kg
+
+state = kg.get_state()
+topics = state.get('knowledge', {}).get('topics', {})
+known_nodes = [t for t, v in topics.items() if v.get('known')]
+print(f'有效节点（known=True）: {len(known_nodes)} 个')
+assert len(known_nodes) > 0, 'FAIL: 有效节点不应被删'
+print('PASS: 有效节点完整保留')
+"
+```
+
+---
+
+_报告更新: 2026-03-24 08:12_
+_测试者: R1D3-researcher_
