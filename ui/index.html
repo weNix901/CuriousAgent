@@ -432,12 +432,12 @@
       <div class="panel-body" style="padding:8px;height:auto;max-height:none;overflow-y:visible;">
         <svg id="graph-svg"></svg>
 <div class="graph-legend">
-<div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>高质量 (Q≥7)</div>
-<div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>中质量 (Q 5-7)</div>
-<div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>低质量 (Q<5)</div>
-<div class="legend-item"><div class="legend-dot" style="background:#8b949e"></div>灰色 = 待探索</div>
-<div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>白边 = 待探索</div>
-<div class="legend-item"><div class="legend-dot" style="background:var(--border)"></div>连线 = 主题相关</div>
+<div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>绿色 = 高质量 (Q≥7)</div>
+<div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>黄色 = 中质量 (Q 5-7)</div>
+<div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>红色 = 低质量 (Q<5)</div>
+<div class="legend-item"><div class="legend-dot" style="background:#8b949e"></div>灰色 = 待探索（无质量）</div>
+<div class="legend-item"><div class="legend-dot" style="background:#58a6ff; width:14px; height:3px; border-radius:0;"></div>蓝实线 = 分解关系</div>
+<div class="legend-item"><div class="legend-dot" style="background:#8b949e; width:14px; height:2px; border-radius:0; border-top: 2px dashed #8b949e;"></div>灰虚线 = 语义相似</div>
 </div>
       </div>
     </div>
@@ -650,7 +650,7 @@ function renderGraph() {
       .on('drag',function(e,d){d.fx=e.x;d.fy=e.y;}).on('end',function(e,d){if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}))
     .on('click',function(e,d){e.stopPropagation();showDetail('knowledge',d.id);});
   nodeSel.append('circle').attr('r',function(d){return d.inQueue?Math.max(18,d.depth*2.4):Math.max(12,d.depth*1.8);})
-    .attr('fill',nodeColor).attr('fill-opacity',function(d){return d.inQueue?0.9:0.65;})
+    .attr('fill',nodeColor).attr('fill-opacity',function(d){return 1.0;})
     .attr('stroke',function(d){return d.inQueue?'#fff':'none';}).attr('stroke-width',function(d){return d.inQueue?2:0;});
   nodeSel.append('text').attr('dx',function(d){return Math.max(20,d.depth*2)+4;}).attr('dy',4)
     .text(function(d){return d.id.length>26?d.id.substring(0,23)+'...':d.id;});
