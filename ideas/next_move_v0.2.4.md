@@ -56,6 +56,7 @@
 | 主动分享机制 | 增强 | R1D3 | 复用已有记忆系统 |
 | R1D3 注入优先处理 | 增强 | Curious Agent 侧 | 新建（config 控制）|
 | 置信度主动暴露 | 新增行为规范 | R1D3 (SOUL.md) | 新建 |
+| 自发主动探索机制 | 新增能力 | Curious Agent + R1D3 | 新建（双模式） |
 
 ---
 
@@ -308,6 +309,8 @@ Curious Agent (改动: config.json + inject 端点)
 |-------|------|------|
 | P0 | config.json injection_priority | 新增配置项 |
 | P0 | inject 端点优先逻辑 | priority_sources + boost_score + trigger_immediate |
+| P1 | config.json exploration mode | hybrid/daemon/api_only 三模式 |
+| P1 | daemon 与 inject 联动 | trigger_immediate=true 时 inject 后立即异步探索 |
 
 ---
 
@@ -339,13 +342,186 @@ v0.2.4 新增
 │   ├── SOUL.md 置信度暴露规范
 │   └── 主动分享逻辑
 └── Curious Agent 侧
-    ├── config.json injection_priority
+    ├── config.json injection_priority + exploration mode
+├── curious_agent.py --daemon [已有, 复用]
+├── POST /api/curious/inject [增强]
     └── inject 端点优先逻辑
 ```
 
 ---
 
-## 11. 关键结论
+## 12. 特性五：自发主动探索机制
+
+### 12.1 两种探索触发模式
+
+Curious Agent 的探索触发分为**外部触发**和**自发主动**两类：
+
+| 模式 | 触发方式 | 适用场景 |
+|------|---------|---------|
+| **外部触发** | R1D3 调用 `trigger_explore.sh` → `POST /api/curious/inject` | 用户提问时注入话题 |
+| **定时自发** | `curious_agent.py --daemon --interval N` 守护进程 | 无人介入时持续探索 |
+| **混合模式** | 外部触发优先 + 定时兜底 | 平衡实时性和持续性 |
+
+### 12.2 定时自发探索（守护进程模式）
+
+**已有实现**：`curious_agent.py --daemon --interval N`
+
+```bash
+# 每 30 分钟探索一次
+python3 curious_agent.py --daemon --interval 30
+
+# 每 2 小时探索一次
+python3 curious_agent.py --daemon --interval 120
+```
+
+**daemon 模式逻辑**：
+
+```python
+def daemon_mode(interval_minutes: int = 30):
+    while True:
+        # 1. 从队列取 top curiosity
+        topic = select_next_v2()
+        # 2. 执行探索（generate_insights）
+        result = explorer.explore(topic)
+        # 3. 质量评估 + 写入 KG
+        quality = quality_assessor(result)
+        write_to_kg(topic, result, quality)
+        # 4. 计算边际收益，决定是否继续
+        if marginal_return_too_low():
+            break
+        # 5. 等待下一个 interval
+        time.sleep(interval_minutes * 60)
+```
+
+### 12.3 外部触发（外部注入）
+
+**已有实现**：`POST /api/curious/inject`
+
+```bash
+bash trigger_explore.sh "MCP协议工作原理" "用户问了我MCP协议"
+```
+
+**inject 端点行为**：
+
+```python
+# POST /api/curious/inject
+payload = {
+    "topic": "MCP协议工作原理",
+    "context": "用户问了我MCP协议",
+    "source": "r1d3",          # 来源标识
+    "priority": True           # 可选：优先处理
+}
+
+# 如果 priority=True + trigger_immediate=True
+# → 立即触发探索（异步），不等待 daemon
+# 否则 → 入队，等 daemon 下一次轮询
+```
+
+### 12.4 混合模式架构
+
+```
+                    ┌─────────────────────────────────────┐
+                    │       R1D3 (OpenClaw Agent)          │
+                    │                                      │
+  用户提问 ──→ memory_search ──→ 回答 ──→ inject(topic)      │
+                    │                        │              │
+                    │                   POST /api/curious/inject
+                    │                        │
+                    └────────────────────────┼──────────────┘
+                                             │
+                              ┌──────────────┴──────────────┐
+                              │   Curious Agent API Server     │
+                              │   (curious_api.py)            │
+                              │                               │
+                              │  ┌─────────────────────────┐ │
+                              │  │ injection_priority 配置  │ │
+                              │  │ priority_sources: [r1d3] │ │
+                              │  └──────────┬──────────────┘ │
+                              │             │                 │
+                              │      是否优先注入?            │
+                              │             │                 │
+                              │    ┌────────┴────────┐      │
+                              │    │                 │        │
+                              │   YES               NO       │
+                              │    │                 │        │
+                              │    ▼                 ▼        │
+                              │ 立即异步探索      入队等待     │
+                              │ (不阻塞R1D3)    daemon轮询    │
+                              │                               │
+                              │  ┌─────────────────────────┐ │
+                              │  │   Daemon 守护进程        │ │
+                              │  │   curious_agent.py       │ │
+                              │  │   --daemon --interval N  │ │
+                              │  └──────────┬──────────────┘ │
+                              │             │                 │
+                              │    每 N 分钟轮询队列          │
+                              │    执行 select_next_v2()      │
+                              │    → 探索 → 写 KG            │
+                              └─────────────────────────────────┘
+                                             │
+                              ┌──────────────┴──────────────┐
+                              │   探索结果同步到 R1D3         │
+                              │   sync_discoveries.py        │
+                              │   → curious-discoveries.md   │
+                              └──────────────────────────────┘
+```
+
+### 12.5 配置项
+
+```json
+// Curious Agent config.json
+{
+  "exploration": {
+    "mode": "daemon",           // "daemon" | "api_only" | "hybrid"
+    "daemon": {
+      "interval_minutes": 30,   // 守护进程探索间隔
+      "explore_per_round": 1    // 每次探索几个 topic
+    },
+    "injection_priority": {
+      "enabled": true,
+      "priority_sources": ["r1d3"],
+      "trigger_immediate": true,  // true=外部注入立即触发 false=入队等daemon
+      "boost_score": 2.0
+    }
+  }
+}
+```
+
+| 配置组合 | 行为 |
+|---------|------|
+| `mode: "api_only"` | 完全依赖外部触发，无定时探索 |
+| `mode: "daemon"` | 纯定时探索，忽略外部注入立即触发 |
+| `mode: "hybrid"` | 外部注入优先 + daemon 兜底（推荐） |
+
+### 12.6 推荐配置
+
+**v0.2.4 默认配置**：
+
+```json
+{
+  "exploration": {
+    "mode": "hybrid",
+    "daemon": {
+      "interval_minutes": 60,
+      "explore_per_round": 1
+    },
+    "injection_priority": {
+      "enabled": true,
+      "priority_sources": ["r1d3"],
+      "trigger_immediate": true,
+      "boost_score": 2.0
+    }
+  }
+}
+```
+
+- R1D3 提问 → 立即触发探索（异步）
+- daemon 每 60 分钟做一次兜底探索
+- 外部注入的 priority 话题 boost 2.0 分
+
+---
+
+## 13. 关键结论
 
 1. **inject_and_explore 不需要新 API**——`POST /api/curious/inject` + 已有定时探索机制完全够用
 2. **check_confidence 不需要新 API**——`GET /api/curious/state` 的 `competence_state` 完全够用
@@ -353,3 +529,4 @@ v0.2.4 新增
 4. **主动分享复用现有 sync_discoveries 机制**——只需要加"已分享"追踪逻辑
 5. **R1D3 注入优先处理**——config 配置 priority_sources + boost_score + trigger_immediate
 6. **置信度主动暴露**——novice 说"基于 LLM 知识我猜测"，expert 详细展开
+7. **自发探索 = hybrid 模式**——外部触发优先（trigger_immediate）+ daemon 定时兜底，推荐 interval=60min
