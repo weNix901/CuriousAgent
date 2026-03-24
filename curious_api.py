@@ -28,9 +28,18 @@ def api_state():
     state = kg.get_state()
     summary = kg.get_knowledge_summary()
     topics = state.get("knowledge", {}).get("topics", {})
+    
+    mc = state.get("meta_cognitive", {})
+    quality_map = mc.get("last_quality", {})
+    topics_with_quality = {}
+    for name, v in topics.items():
+        topic_copy = dict(v)
+        topic_copy["quality"] = quality_map.get(name, None)
+        topics_with_quality[name] = topic_copy
+    
     return jsonify({
         "status": "ok",
-        "knowledge": {**summary, "topics": topics},
+        "knowledge": {**summary, "topics": topics_with_quality},
         "curiosity_queue": state.get("curiosity_queue", []),
         "exploration_log": state.get("exploration_log", []),
         "last_update": state.get("last_update")

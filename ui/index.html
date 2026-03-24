@@ -431,13 +431,14 @@
       </div>
       <div class="panel-body" style="padding:8px;height:auto;max-height:none;overflow-y:visible;">
         <svg id="graph-svg"></svg>
-        <div class="graph-legend">
-          <div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>深度 8-10</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>深度 5-7</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>深度 1-4</div>
-          <div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>白边 = 待探索</div>
-          <div class="legend-item"><div class="legend-dot" style="background:var(--border)"></div>连线 = 主题相关</div>
-        </div>
+<div class="graph-legend">
+<div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>高质量 (Q≥7)</div>
+<div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>中质量 (Q 5-7)</div>
+<div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>低质量 (Q<5)</div>
+<div class="legend-item"><div class="legend-dot" style="background:#8b949e"></div>灰色 = 待探索</div>
+<div class="legend-item"><div class="legend-dot" style="background:#58a6ff"></div>白边 = 待探索</div>
+<div class="legend-item"><div class="legend-dot" style="background:var(--border)"></div>连线 = 主题相关</div>
+</div>
       </div>
     </div>
   </div><!-- end #graph-view -->
@@ -579,7 +580,7 @@ function buildGraphData() {
     var name=item[0],v=item[1],inQ=!!qMap[name.toLowerCase()];
     var score=0;
     if(inQ)for(var i=0;i<queue.length;i++)if(queue[i].topic===name){score=queue[i].score||0;break;}
-    return{id:name,depth:v.depth||0,score:score,summary:v.summary||'',sources:v.sources||[],inQueue:inQ};
+    return{id:name,depth:v.depth||0,quality:v.quality,score:score,summary:v.summary||'',sources:v.sources||[],inQueue:inQ};
   });
   nodes.forEach(function(n){n._t={};tokens(n.id).forEach(function(t){n._t[t]=true;});});
   var links=[],seen={};
@@ -590,7 +591,13 @@ function buildGraphData() {
   }
   return{nodes:nodes,links:links};
 }
-function nodeColor(d){return d.depth>=8?'#f85149':d.depth>=5?'#d29922':'#3fb950';}
+function nodeColor(d){
+  var q = d.quality;
+  if (q === undefined || q === null) return '#8b949e';
+  if (q >= 7) return '#3fb950';
+  if (q >= 5) return '#d29922';
+  return '#f85149';
+}
 function renderGraph() {
   if(typeof d3==='undefined'){console.log('D3 not loaded');return;}
   var svg=d3.select('#graph-svg');
@@ -613,7 +620,7 @@ function renderGraph() {
     .attr('stroke',function(d){return d.inQueue?'#fff':'none';}).attr('stroke-width',function(d){return d.inQueue?2:0;});
   nodeSel.append('text').attr('dx',function(d){return Math.max(20,d.depth*2)+4;}).attr('dy',4)
     .text(function(d){return d.id.length>26?d.id.substring(0,23)+'...':d.id;});
-  nodeSel.append('title').text(function(d){return d.id+'\n深度:'+d.depth+' | '+(d.inQueue?'待探索':'已探索');});
+  nodeSel.append('title').text(function(d){return d.id+'\n质量:'+(d.quality||'待探索')+' | '+(d.inQueue?'待探索':'已探索');});
   var sim=d3.forceSimulation(data.nodes)
     .force('link',d3.forceLink(data.links).id(function(d){return d.id;}).distance(130).strength(0.35))
     .force('charge',d3.forceManyBody().strength(-280))

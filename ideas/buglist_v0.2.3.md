@@ -737,3 +737,303 @@ print('PASS: 有效节点完整保留')
 
 _报告更新: 2026-03-24 08:12_
 _测试者: R1D3-researcher_
+
+---
+
+## 🔴 Bug #22: 图谱节点着色按"预设depth"而非"实际quality"——显示欺骗性内容
+
+**严重程度**: 🔴 高 — 图谱颜色反映的是"计划投入"，不是"实际掌握"
+
+**问题描述**：
+
+`knowledge.topics` 里的 `depth` 字段是**探索注入时预设的目标深度值**（shallow=3, medium=5, deep=8），不是探索后真实理解质量的反映。
+
+例如：一个 topic 预设 depth=8（deep 探索），但实际搜索结果稀少、质量低下，真正理解深度只有 3——`knowledge.topics` 里记录的仍是 8。
+
+图谱节点按这个预设值着色，用户看到的是"这个 topic 计划投入很深"，而不是"这个 topic 实际掌握得很好"。
+
+**真实理解质量字段存在但未使用**：
+
+`meta_cognitive.last_quality[topic]`（0-10 分）是探索后评估的真实质量分数，目前：
+- ✅ 在 `knowledge_graph.py` 的 `meta_cognitive` 中正确记录
+- ❌ 没有被 `curious_api.py` 的 `/api/curious/state` 端点返回
+- ❌ 没有在图谱节点上展示
+- ❌ 图谱着色完全不使用这个字段
+
+**期望行为**：
+
+1. API `/api/curious/state` 返回的每个 topic 条目附带 `last_quality` 字段
+2. 图谱节点着色按 `last_quality`（真实质量）而非 `depth`（预设投入）
+   - 🟢 绿色 = 高质量（Q ≥ 7）
+   - 🟡 黄色 = 中质量（5 ≤ Q < 7）
+   - 🔴 红色 = 低质量（Q < 5）
+   - ⬜ 灰色 = pending/investigating（尚未探索，无 quality）
+3. pending/investigating 的未探索节点（无 quality）着灰色，明显区别于有质量的节点
+
+**修复方向**：
+
+**Step 1：修改 `curious_api.py` `/api/curious/state` 端点**
+
+```python
+@app.route("/api/curious/state")
+def api_state():
+    from core import knowledge_graph as kg
+    state = kg.get_state()
+    summary = kg.get_knowledge_summary()
+    topics = state.get("knowledge", {}).get("topics", {})
+    mc = kg.get_meta_cognitive_state()
+    quality_map = mc.get("last_quality", {})
+
+    # 给每个 topic 附上 last_quality
+    for name, v in topics.items():
+        v["quality"] = quality_map.get(name, None)
+
+    return jsonify({
+        "status": "ok",
+        "knowledge": {**summary, "topics": topics},
+        "curiosity_queue": state.get("curiosity_queue", []),
+        "exploration_log": state.get("exploration_log", []),
+        "last_update": state.get("last_update")
+    })
+```
+
+**Step 2：修改 `ui/index.html` 的 `buildGraphData()` 着色逻辑**
+
+```javascript
+function nodeColor(d) {
+    // 按 last_quality 分级，不再按 depth
+    var q = d.quality;
+    if (q === undefined || q === null) return '#8b949e';  // pending/无质量 → 灰色
+    if (q >= 7) return '#3fb950';   // 高质量 → 绿色
+    if (q >= 5) return '#d29922';   // 中质量 → 黄色
+    return '#f85149';                // 低质量 → 红色
+}
+
+function renderGraph() {
+    // ...
+    // pending/investigating 节点（无 quality）用特殊样式
+    nodeSel.append('circle')
+        .attr('r', function(d) {
+            return d.inQueue ? Math.max(18, (d.quality || 0) * 2.4) : Math.max(12, (d.quality || 0) * 1.8);
+        })
+        .attr('fill', nodeColor)
+        .attr('fill-opacity', function(d) {
+            return 1.0;  // 全部不透明
+        })
+        .attr('stroke', function(d) {
+            return d.inQueue ? '#fff' : 'none';
+        });
+}
+```
+
+**Step 3：更新图例**
+
+```html
+<div class="graph-legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>绿色 = 高质量 (Q≥7)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>黄色 = 中质量 (Q 5-7)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>红色 = 低质量 (Q<5)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#8b949e"></div>灰色 = 待探索（无质量）</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#58a6ff; width:14px; height:3px; border-radius:0;"></div>蓝实线 = 分解关系</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#8b949e; width:14px; height:2px; border-radius:0; border-top: 2px dashed #8b949e;"></div>灰虚线 = 语义相似</div>
+</div>
+```
+
+**验收标准**：
+```python
+# 验证1：API 返回的 topic 条目包含 quality 字段
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core import knowledge_graph as kg
+import json
+
+state = kg.get_state()
+mc = kg.get_meta_cognitive_state()
+quality_map = mc.get('last_quality', {})
+
+topics = state.get('knowledge', {}).get('topics', {})
+nodes_with_quality = [t for t, v in topics.items() if 'quality' in v or t in quality_map]
+
+# 模拟 API 返回结构（附加 quality）
+for name, v in topics.items():
+    v['quality'] = quality_map.get(name, None)
+
+# 验证 quality 字段存在
+known_with_quality = [(t, v.get('quality')) for t, v in topics.items() if v.get('known') and v.get('quality') is not None]
+print(f'有效节点（known=True）中，有 quality 字段: {len(known_with_quality)}/{sum(1 for t,v in topics.items() if v.get(\"known\"))}')
+
+# 验证 pending 节点没有 quality
+pending_nodes = [(t, topics[t].get('quality')) for t in topics if not topics[t].get('known')]
+print(f'pending 节点: {len(pending_nodes)} 个，全部无 quality: {all(q is None for _, q in pending_nodes)}')
+"
+
+# 验证2：图谱着色使用 quality 而非 depth
+# 打开浏览器控制台，运行：
+var data = buildGraphData();
+var highQ = data.nodes.filter(function(n){ return n.quality >= 7; });
+var midQ = data.nodes.filter(function(n){ return n.quality >= 5 && n.quality < 7; });
+var lowQ = data.nodes.filter(function(n){ return (n.quality || 0) < 5; });
+console.log('Quality分布 - 高:', highQ.length, '中:', midQ.length, '低:', lowQ.length);
+var coloredByQ = data.nodes.filter(function(n){ return n.quality && n.depth !== n.quality; });
+console.log('节点中 quality≠depth（颜色会变化）:', coloredByQ.length);
+var pendingGray = data.nodes.filter(function(n){ return !n.quality && n.inQueue; });
+console.log('pending 节点（灰色）:', pendingGray.length);
+var knownNotPending = data.nodes.filter(function(n){ return n.quality !== undefined && n.inQueue; });
+console.log('已知但仍在队列中:', knownNotPending.length, '（应为 0）');
+```
+
+---
+
+### 附加问题：图谱连线按"名称语义重叠"而非"真实父子关系"
+
+**当前连线生成逻辑（错误）**：
+
+```javascript
+// buildGraphData() 中
+function tokens(s) {
+    return (s||'').toLowerCase().split(/[\s\-_:,]/)
+        .filter(function(t){ return t.length>2 && STOP.indexOf(t)<0; });
+}
+// 两个节点共享 >=1 个 token 就连线
+if (sh >= 1) {
+    links.push({source: a.id, target: b.id, strength: sh});
+}
+```
+
+**问题**：
+- 按名称共词连线会产生大量**误连**（两个无关 topic 恰好共享词汇就连线）
+- 真正的树状分解关系（父子关系）**完全被忽略**
+- `knowledge.topics[parent].children` 里的真实父子关系**从未被使用**
+
+**期望连线含义**：
+> 节点 A 和节点 B 之间的连线 = B 是从 A 分解出来的子 topic
+> 这是 CuriosityDecomposer 分解的真实结果，不是名称碰巧相似
+
+**修复方向（新增到 Step 2）**：
+
+```javascript
+function buildGraphData() {
+    // ... 现有节点构建（不变）...
+
+    // 用真实父子关系画线（新增）
+    var links = [], seen = {};
+    var topics = state.knowledge && state.knowledge.topics || {};
+
+    // 分解关系连线
+    for (var parent in topics) {
+        var children = (topics[parent] && topics[parent].children) || [];
+        for (var i = 0; i < children.length; i++) {
+            var child = children[i];
+            if (topics[child]) {
+                links.push({ source: parent, target: child, type: 'decomposition' });
+            }
+        }
+    }
+
+    // 语义相似连线（保留原有的 token 共现逻辑，加 type 标记）
+    var STOP = ['ai','agent','agents','in','for','the','and','of','to','learning','framework','self','a','based','systems'];
+    function tokens(s) {
+        return (s||'').toLowerCase().split(/[\s\-_:,]/).filter(function(t){ return t.length>2 && STOP.indexOf(t)<0; });
+    }
+
+    var qMap = {};
+    (state.curiosity_queue || []).forEach(function(q) {
+        if (q.status !== 'done') qMap[q.topic.toLowerCase()] = true;
+    });
+
+    for (var i = 0; i < nodes.length; i++) {
+        for (var j = i+1; j < nodes.length; j++) {
+            var a = nodes[i], b = nodes[j];
+            if (qMap[a.id.toLowerCase()] || qMap[b.id.toLowerCase()]) continue;  // pending 节点不连语义线
+            var sh = 0;
+            var tA = {}, tB = {};
+            tokens(a.id).forEach(function(t){ tA[t] = true; });
+            tokens(b.id).forEach(function(t){ tB[t] = true; });
+            for (var t in tA) if (tA[t] && tB[t]) sh++;
+            if (sh >= 1) {
+                var k = [a.id, b.id].sort().join('|');
+                // 排除已是分解关系的连线
+                var alreadyLinked = links.some(function(l) {
+                    var src = typeof l.source === 'object' ? l.source.id : l.source;
+                    var tgt = typeof l.target === 'object' ? l.target.id : l.target;
+                    return (src === a.id && tgt === b.id) || (src === b.id && tgt === a.id);
+                });
+                if (!alreadyLinked && !seen[k]) {
+                    seen[k] = true;
+                    links.push({ source: a.id, target: b.id, type: 'semantic', strength: sh });
+                }
+            }
+        }
+    }
+
+    return {nodes: nodes, links: links};
+}
+```
+
+**连线样式**（两种连线并存）：
+```javascript
+link
+    .attr('stroke', function(d) {
+        return d.type === 'decomposition' ? '#58a6ff' : '#8b949e';  // 蓝=分解，灰=语义
+    })
+    .attr('stroke-width', function(d) {
+        return d.type === 'decomposition' ? 5 : 2;  // 分解更粗
+    })
+    .attr('stroke-dasharray', function(d) {
+        return d.type === 'semantic' ? '5,5' : '0';  // 语义连线虚线
+    })
+    .attr('stroke-opacity', 0.7);
+```
+
+**图例**：
+```html
+<div class="legend-item"><div class="legend-dot" style="background:#58a6ff; width:14px; height:3px; border-radius:0;"></div>蓝实线 = 分解关系</div>
+<div class="legend-item"><div class="legend-dot" style="background:#8b949e; width:14px; height:2px; border-radius:0; border-top: 2px dashed #8b949e;"></div>灰虚线 = 语义相似</div>
+```
+
+**验收标准**：
+```javascript
+// 验证1：节点着色正确
+var data = buildGraphData();
+var green = data.nodes.filter(function(n){ return n.quality >= 7; });
+var yellow = data.nodes.filter(function(n){ return n.quality >= 5 && n.quality < 7; });
+var red = data.nodes.filter(function(n){ return n.quality !== undefined && n.quality < 5; });
+var gray = data.nodes.filter(function(n){ return n.quality === undefined || n.quality === null; });
+console.log('节点颜色分布 - 绿:', green.length, '黄:', yellow.length, '红:', red.length, '灰:', gray.length);
+assert green.length > 0 || yellow.length > 0 || red.length > 0 || gray.length > 0, 'FAIL: 无节点';
+console.log('PASS: 节点颜色分布正确');
+
+// 验证2：分解关系连线来自 children
+var topics = state.knowledge && state.knowledge.topics || {};
+var decompLinks = data.links.filter(function(l){ return l.type === 'decomposition'; });
+var invalidDecomp = decompLinks.filter(function(l) {
+    var parent = typeof l.source === 'object' ? l.source.id : l.source;
+    var child = typeof l.target === 'object' ? l.target.id : l.target;
+    var children = (topics[parent] && topics[parent].children) || [];
+    return children.indexOf(child) < 0;
+});
+assert invalidDecomp.length === 0, 'FAIL: 存在无效的分解连线';
+console.log('PASS: 分解关系连线全部来自 children');
+
+// 验证3：语义连线与分解连线不重叠
+var semLinks = data.links.filter(function(l){ return l.type === 'semantic'; });
+var overlap = data.links.filter(function(l) {
+    if (!l.type) return false;  // 旧数据没有 type，跳过
+    return decompLinks.some(function(d) {
+        var ds = typeof d.source === 'object' ? d.source.id : d.source;
+        var dt = typeof d.target === 'object' ? d.target.id : d.target;
+        var ls = typeof l.source === 'object' ? l.source.id : l.source;
+        var lt = typeof l.target === 'object' ? l.target.id : l.target;
+        return (ds === ls && dt === lt) || (ds === lt && dt === ls);
+    });
+});
+assert overlap.length === 0, 'FAIL: 分解连线和语义连线重叠';
+console.log('PASS: 分解和语义连线无重叠');
+console.log('分解连线:', decompLinks.length, '语义连线:', semLinks.length);
+```
+
+---
+
+_报告更新: 2026-03-24 08:49_
+_测试者: R1D3-researcher_
+_状态: ✅ Ready for OpenCode 移交_
