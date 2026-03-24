@@ -944,7 +944,81 @@ PORT=4850 USER_DIR=/home/user2/.openclaw/workspace-researcher bash run_curious.s
 
 ---
 
-## 十、文件路径速查
+## 十、OpenClaw Agent 标准配置（AGENTS.md）
+
+每个接入 Curious Agent 的 OpenClaw Agent 需要在 `AGENTS.md` 中配置以下规则，使其具备**回答前搜索记忆 + 主动触发探索**的能力。
+
+### 10.1 标准 AGENTS.md 配置模板
+
+以下规则应添加到目标 Agent 的 `AGENTS.md` 文件中（位置：在 "External vs Internal" 章节之后）：
+
+```markdown
+## Answering Questions
+
+When a user asks a question, **execute in order**:
+
+1. Extract the core topic/keywords from the question
+2. Call `memory_search(topic)` — search for relevant memories
+3. Wait for the memory_search result
+4. Answer based on the result:
+   - **Found relevant content** → Answer from memory, start with "From my memory/exploration results..."
+   - **No relevant content** → Answer using LLM knowledge, start with "I'm not certain about this (because I haven't memorized it), but based on my LLM knowledge..."
+5. **Regardless of result**, trigger Curious Agent to explore this topic
+```
+
+### 10.2 配置说明
+
+| 规则步骤 | 说明 |
+|---------|------|
+| Step 1 | 从用户问题中提取核心 topic/关键词 |
+| Step 2 | 调用 OpenClaw 内置 `memory_search` 工具搜索相关记忆 |
+| Step 3 | 等待搜索结果返回 |
+| Step 4 | 根据结果选择回答方式 |
+| Step 5 | 触发 Curious Agent 探索该 topic |
+
+### 10.3 触发探索命令
+
+在 Step 5 中，使用以下命令触发 Curious Agent 探索：
+
+```bash
+# 注入 topic 并触发探索（推荐）
+cd /root/dev/curious-agent && python3 curious_agent.py --inject "TOPIC_HERE" --score 7.0 --depth 6.0 --reason "用户提问触发"
+
+# 或使用 API 方式
+curl -X POST http://localhost:4848/api/curious/inject \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "TOPIC_HERE", "score": 7.0, "depth": "medium", "reason": "用户提问触发"}'
+```
+
+### 10.4 预期效果
+
+配置完成后，Agent 将具备以下行为：
+
+| 场景 | 行为 |
+|------|------|
+| 用户问已有记忆的问题 | 从记忆回答，标注"从我的探索结果来看..." |
+| 用户问新问题 | 诚实说"我不确定（因为我没记住），但..."，并触发探索 |
+| 探索完成后 | 下次心跳时同步到 memory_search，下次可搜到 |
+| 用户再次问同样问题 | 直接从记忆回答 |
+
+### 10.5 验证配置
+
+配置完成后，通过以下方式验证：
+
+```bash
+# 1. 确认 AGENTS.md 已更新
+grep -A 10 "Answering Questions" /root/.openclaw/workspace-researcher/AGENTS.md
+
+# 2. 测试 memory_search 工具可用
+# （在 Agent 会话中尝试调用 memory_search）
+
+# 3. 测试探索触发
+cd /root/dev/curious-agent && python3 curious_agent.py --inject "测试配置" --score 5.0 --depth 5.0
+```
+
+---
+
+## 十一、文件路径速查
 
 | 文件 | 路径 | 作用 |
 |------|------|------|
@@ -962,7 +1036,7 @@ PORT=4850 USER_DIR=/home/user2/.openclaw/workspace-researcher bash run_curious.s
 
 ---
 
-## 十一、快速命令汇总
+## 十二、快速命令汇总
 
 ```bash
 # === 启动 Curious Agent ===
@@ -1017,7 +1091,7 @@ curl http://localhost:4848/api/metacognitive/topics/completed
 
 ---
 
-## 十二、参考链接
+## 十三、参考链接
 
 - [OpenClaw 心跳文档](file:///root/.nvm/versions/node/v24.13.1/lib/node_modules/openclaw/docs/gateway/heartbeat.md)
 - [OpenClaw Cron vs Heartbeat](file:///root/.nvm/versions/node/v24.13.1/lib/node_modules/openclaw/docs/automation/cron-vs-heartbeat.md)
@@ -1027,7 +1101,8 @@ curl http://localhost:4848/api/metacognitive/topics/completed
 
 ---
 
-_文档版本：v1.1_
-_更新时间：2026-03-23_
+_文档版本：v1.2_
+_更新时间：2026-03-24_
+_新增：第十章 OpenClaw Agent 标准配置（AGENTS.md）_
 _适用：Curious Agent v0.2.3 × OpenClaw 2026.3+_
 _测试状态：320 测试全部通过_
