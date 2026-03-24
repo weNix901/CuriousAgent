@@ -245,6 +245,24 @@
 .graph-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
 .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)}
 .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+/* Graph Controls */
+.graph-controls{
+  display:flex;flex-wrap:wrap;align-items:center;gap:16px;
+  padding:12px 16px;background:var(--bg);border:1px solid var(--border);
+  border-radius:8px;margin-bottom:10px;
+}
+.graph-controls .ctrl-group{display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px}
+.graph-controls .ctrl-label{font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between}
+.graph-controls .ctrl-label span{font-weight:600;color:var(--accent)}
+.graph-controls input[type=range]{width:100%;height:4px;accent-color:var(--accent);cursor:pointer}
+.graph-controls .ctrl-check{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;flex:1;min-width:90px}
+.graph-controls input[type=checkbox]{accent-color:var(--accent);cursor:pointer;width:14px;height:14px}
+.graph-controls .btn-reset{
+  padding:6px 14px;border-radius:6px;border:1px solid var(--border);
+  background:var(--surface);color:var(--text);cursor:pointer;font-size:12px;flex-shrink:0;
+}
+.graph-controls .btn-reset:hover{border-color:var(--accent);color:var(--accent)}
 </style>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
@@ -431,6 +449,26 @@
       </div>
       <div class="panel-body" style="padding:8px;height:auto;max-height:none;overflow-y:visible;">
         <svg id="graph-svg"></svg>
+
+        <!-- Graph Controls -->
+        <div class="graph-controls" id="graph-controls" style="display:none">
+          <div class="ctrl-group">
+            <div class="ctrl-label">节点斥力 <span id="lbl-charge">-280</span></div>
+            <input type="range" id="ctrl-charge" min="-600" max="-50" value="-280" step="10">
+          </div>
+          <div class="ctrl-group">
+            <div class="ctrl-label">连线距离 <span id="lbl-distance">130</span></div>
+            <input type="range" id="ctrl-distance" min="50" max="300" value="130" step="10">
+          </div>
+          <div class="ctrl-group">
+            <div class="ctrl-label">连线强度 <span id="lbl-strength">0.35</span></div>
+            <input type="range" id="ctrl-strength" min="0" max="1" value="0.35" step="0.05">
+          </div>
+          <label class="ctrl-check"><input type="checkbox" id="ctrl-show-decomp" checked onchange="toggleLinkType()">分解关系</label>
+          <label class="ctrl-check"><input type="checkbox" id="ctrl-show-semantic" checked onchange="toggleLinkType()">语义相似</label>
+          <label class="ctrl-check"><input type="checkbox" id="ctrl-show-labels" checked onchange="toggleLabels()">节点标签</label>
+          <button class="btn-reset" onclick="resetGraphLayout()">⟳ 重置布局</button>
+        </div>
 <div class="graph-legend">
 <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>绿色 = 高质量 (Q≥7)</div>
 <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>黄色 = 中质量 (Q 5-7)</div>
@@ -628,15 +666,20 @@ function nodeColor(d){
   if (q >= 5) return '#d29922';
   return '#f85149';
 }
+// Graph state (exposed for controls)
+var _g = { sim: null, link: null, nodeSel: null, data: null, W: 900, H: 960 };
+
 function renderGraph() {
   if(typeof d3==='undefined'){console.log('D3 not loaded');return;}
   var svg=d3.select('#graph-svg');
   if(!svg.node())return;
   svg.selectAll('*').remove();
   var data=buildGraphData();
+  document.getElementById('graph-controls').style.display = data.nodes.length ? 'flex' : 'none';
   if(!data.nodes.length){svg.append('text').attr('x','50%').attr('y','50%').attr('text-anchor','middle').attr('dominant-baseline','middle').attr('fill','#8b949e').attr('font-size','14px').text('暂无知识节点，请先运行探索');return;}
   var W=(svg.node().parentElement&&svg.node().parentElement.clientWidth)||900;
   var H=960;
+  _g.W=W; _g.H=H;
   svg.attr('viewBox','0 0 '+W+' '+H);
   var g=svg.append('g');
   svg.call(d3.zoom().scaleExtent([0.2,4]).on('zoom',function(e){g.attr('transform',e.transform);}));
@@ -646,18 +689,24 @@ function renderGraph() {
     .attr('stroke-dasharray', function(d) { return d.type === 'semantic' ? '5,5' : '0'; })
     .attr('stroke-opacity', 0.7);
   var nodeSel=g.append('g').selectAll('.graph-node').data(data.nodes).enter().append('g').attr('class','graph-node')
-    .call(d3.drag().on('start',function(e,d){if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
-      .on('drag',function(e,d){d.fx=e.x;d.fy=e.y;}).on('end',function(e,d){if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}))
+    .call(d3.drag().on('start',function(e,d){if(!e.active)_g.sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on('drag',function(e,d){d.fx=e.x;d.fy=e.y;}).on('end',function(e,d){if(!e.active)_g.sim.alphaTarget(0);d.fx=null;d.fy=null;}))
     .on('click',function(e,d){e.stopPropagation();showDetail('knowledge',d.id);});
   nodeSel.append('circle').attr('r',function(d){return d.inQueue?Math.max(18,d.depth*2.4):Math.max(12,d.depth*1.8);})
     .attr('fill',nodeColor).attr('fill-opacity',function(d){return 1.0;})
     .attr('stroke',function(d){return d.inQueue?'#fff':'none';}).attr('stroke-width',function(d){return d.inQueue?2:0;});
-  nodeSel.append('text').attr('dx',function(d){return Math.max(20,d.depth*2)+4;}).attr('dy',4)
+  nodeSel.append('text').attr('class','node-label').attr('dx',function(d){return Math.max(20,d.depth*2)+4;}).attr('dy',4)
     .text(function(d){return d.id.length>26?d.id.substring(0,23)+'...':d.id;});
   nodeSel.append('title').text(function(d){return d.id+'\n质量:'+(d.quality||'待探索')+' | '+(d.inQueue?'待探索':'已探索');});
+
+  // Read current control values
+  var charge = parseInt(document.getElementById('ctrl-charge')?.value || '-280');
+  var dist   = parseInt(document.getElementById('ctrl-distance')?.value || '130');
+  var stren  = parseFloat(document.getElementById('ctrl-strength')?.value || '0.35');
+
   var sim=d3.forceSimulation(data.nodes)
-    .force('link',d3.forceLink(data.links).id(function(d){return d.id;}).distance(130).strength(0.35))
-    .force('charge',d3.forceManyBody().strength(-280))
+    .force('link',d3.forceLink(data.links).id(function(d){return d.id;}).distance(dist).strength(stren))
+    .force('charge',d3.forceManyBody().strength(charge))
     .force('center',d3.forceCenter(W/2,H/2))
     .force('collision',d3.forceCollide().radius(function(d){return Math.max(25,d.depth*2.5)+30;}))
     .on('tick',function(){
@@ -665,7 +714,64 @@ function renderGraph() {
           .attr('x2',function(d){return d.target.x;}).attr('y2',function(d){return d.target.y;});
       nodeSel.attr('transform',function(d){return'translate('+d.x+','+d.y+')';});
     });
+
+  // Store refs for controls
+  _g.sim=sim; _g.link=link; _g.nodeSel=nodeSel; _g.data=data;
+
+  // Apply current link visibility state
+  toggleLinkType();
+  toggleLabels();
 }
+
+// ── Graph Control Handlers ────────────────────────────────────
+
+function applyGraphParams() {
+  if(!_g.sim) return;
+  var charge = parseInt(document.getElementById('ctrl-charge').value);
+  var dist   = parseInt(document.getElementById('ctrl-distance').value);
+  var stren  = parseFloat(document.getElementById('ctrl-strength').value);
+  document.getElementById('lbl-charge').textContent = charge;
+  document.getElementById('lbl-distance').textContent = dist;
+  document.getElementById('lbl-strength').textContent = stren.toFixed(2);
+  _g.sim.force('charge', d3.forceManyBody().strength(charge));
+  _g.sim.force('link').distance(dist).strength(stren);
+  _g.sim.alpha(0.5).restart();
+}
+
+function resetGraphLayout() {
+  if(!_g.sim) return;
+  // Re-initialise positions to centre
+  _g.data.nodes.forEach(function(n){ n.x=_g.W/2; n.y=_g.H/2; n.vx=0; n.vy=0; });
+  _g.sim.alpha(1.0).restart();
+  log('🔄 图谱布局已重置', 'info');
+}
+
+function toggleLinkType() {
+  if(!_g.link) return;
+  var showDecomp = document.getElementById('ctrl-show-decomp').checked;
+  var showSem = document.getElementById('ctrl-show-semantic').checked;
+  _g.link.attr('display', function(d) {
+    if(d.type==='decomposition' && !showDecomp) return 'none';
+    if(d.type==='semantic' && !showSem) return 'none';
+    return null;
+  });
+}
+
+function toggleLabels() {
+  if(!_g.nodeSel) return;
+  var show = document.getElementById('ctrl-show-labels').checked;
+  _g.nodeSel.selectAll('text.node-label').attr('display', show ? null : 'none');
+}
+
+// Hook up range sliders
+document.addEventListener('DOMContentLoaded', function() {
+  var chargeCtrl = document.getElementById('ctrl-charge');
+  var distCtrl   = document.getElementById('ctrl-distance');
+  var strenCtrl  = document.getElementById('ctrl-strength');
+  if(chargeCtrl) chargeCtrl.addEventListener('input', applyGraphParams);
+  if(distCtrl)   distCtrl.addEventListener('input', applyGraphParams);
+  if(strenCtrl)  strenCtrl.addEventListener('input', applyGraphParams);
+});
 
 async function loadAll() {
   const data = await fetchState();
