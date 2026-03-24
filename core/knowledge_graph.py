@@ -219,6 +219,32 @@ def _ensure_meta_cognitive(state: dict) -> dict:
     return state
 
 
+def remove_ghost_nodes() -> list:
+    state = _load_state()
+    queue_topics = {
+        item["topic"]: item["status"]
+        for item in state.get("curiosity_queue", [])
+    }
+
+    topics = state["knowledge"]["topics"]
+    removed = []
+
+    for topic in list(topics.keys()):
+        node = topics[topic]
+        queue_status = queue_topics.get(topic)
+
+        if (node.get("known") is False
+                and node.get("status") == "partial"
+                and queue_status == "done"):
+            del topics[topic]
+            removed.append(topic)
+
+    if removed:
+        _save_state(state)
+
+    return removed
+
+
 def mark_topic_done(topic: str, reason: str) -> None:
     """Mark topic as completed, preventing further exploration"""
     state = _load_state()
@@ -236,6 +262,19 @@ def mark_topic_done(topic: str, reason: str) -> None:
     for item in state.get("curiosity_queue", []):
         if item["topic"] == topic and item.get("status") != "done":
             item["status"] = "done"
+
+
+    topics = state["knowledge"]["topics"]
+    if topic in topics:
+        node = topics[topic]
+        queue_status = next(
+            (item["status"] for item in state.get("curiosity_queue", [])
+             if item["topic"] == topic), None
+        )
+        if (node.get("known") is False
+                and node.get("status") == "partial"
+                and queue_status == "done"):
+            del topics[topic]
 
     _save_state(state)
 
