@@ -257,7 +257,10 @@ def normalize_topic(topic: str) -> str:
 @app.route("/api/curious/queue", methods=["DELETE"])
 def api_delete_queue_item():
     try:
-        data = request.get_json() or {}
+        # Try to get JSON body, but don't fail if there's none (DELETE often uses query params)
+        data = {}
+        if request.is_json:
+            data = request.get_json() or {}
         topic = data.get("topic", "") or request.args.get("topic", "")
         topic = normalize_topic(topic)
         force = data.get("force", False) or request.args.get("force", "false").lower() == "true"

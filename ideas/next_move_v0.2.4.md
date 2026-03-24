@@ -1,445 +1,355 @@
-# next_move_v0.2.4 - 主动探索能力 + 记忆优先回答框架
+# next_move_v0.2.4 - R1D3 记忆优先框架 + 主动分享机制
 
-> **版本关系**：v0.2.4 是 v0.2.3 的能力增强和演进，不是替换  
-> **核心目标**：R1D3 的回答与学习解耦——记忆优先回答，探索后主动分享
-
-> **战略定位（2026-03-24 确认）**：  
-> R1D3 回答问题时**先查记忆**，能找到就直接回答；找不到则诚实说明并触发探索，探索完成后**主动告诉用户**。
+> **版本关系**：v0.2.4 是 v0.2.3 的能力增强，叠加在 v0.2.3 之上，不替换已有能力  
+> **核心目标**：R1D3 回答与学习解耦——记忆优先回答，探索后主动分享  
+> **设计原则**：尽量复用现有模块，不重复造轮子  
+> **最后更新**：2026-03-24（问题讨论完毕，已全部确认）
 
 ---
 
 ## 0. v0.2.3 能力清单（已包含）
 
-| Phase | 能力 | 状态 |
-|-------|------|------|
-| Phase 1 | Agent-Behavior-Writer（行为闭环写入） | 已设计 |
-| Phase 1 | curious-agent-behaviors.md 行为文件 | 已设计 |
-| Phase 2 | CompetenceTracker（能力追踪） | 已设计 |
-| Phase 2 | select_next_v2（能力感知调度） | 已设计 |
-| Phase 2 | Quality v2（信息增益评估） | 已设计 |
-| Phase 2 | marginal_return_v2（指数衰减） | 已设计 |
-| Phase 3 | CuriosityDecomposer（分解引擎） | 已设计 |
-| Phase 3 | Provider 热力图 | 已设计 |
+| Phase | 能力 | 核心模块 |
+|-------|------|---------|
+| Phase 1 | Agent-Behavior-Writer | `AgentBehaviorWriter` |
+| Phase 1 | 行为文件写入 | `curious-agent-behaviors.md` |
+| Phase 2 | CompetenceTracker | `CompetenceTracker` |
+| Phase 2 | 能力感知调度 | `select_next_v2` |
+| Phase 2 | Quality v2 评估 | `QualityV2Assessor` |
+| Phase 2 | 边际收益计算 | `MetaCognitiveMonitor` |
+| Phase 3 | CuriosityDecomposer | `CuriosityDecomposer` |
+| Phase 3 | Provider 热力图 | `ProviderRegistry` |
+| 集成点3 | 话题注入 API | `POST /api/curious/inject` |
+| 集成点4 | 状态查询 API | `GET /api/curious/state` |
 
 ---
 
-## 1. 核心框架（2026-03-24 确认）
+## 1. 核心需求分析
 
-### 1.1 核心类比：考试
+### 1.1 R1D3 回答的现状问题
 
-| 阶段 | 人类 | R1D3 |
-|------|------|------|
-| 被问新问题 | 搜索记忆 | 搜索记忆 |
-| 记忆里有 | 直接回答，有把握 | 直接回答，有把握 |
-| 记忆里没有 | "我不确定，但根据我的理解可能是..." | "我不知道，但基于我的 LLM 知识可能是..." |
-| 回去学习 | 看书/研究 | 好奇心 agent 探索 |
-| 学完了 | 下次能答对 | 主动告诉用户 / 下次能直接答 |
-| 主动分享 | "你问的那题我想起来了，答案是..." | "你之前问的 XXX，我现在有答案了" |
+当前 R1D3 回答问题时：
+- **没有先查记忆**——直接用 LLM 知识回答，不知道自己"记过什么"
+- **探索是独立事件**—— Curious Agent 定时探索，但探索结果没有反馈到 R1D3 的回答中
+- **用户无法感知学习闭环**——探索完成后 R1D3 不会主动告诉用户"我学会了什么"
 
-### 1.2 回答与学习解耦
+### 1.2 v0.2.4 要解决的核心问题
 
-**关键洞察**：R1D3 的"不知道"有两层意思：
-1. **记忆里没有**——诚实地说明
-2. **LLM 内部知识里可能有**——基于训练数据的推测，不是从记忆来的
-
-正确的表达是："我不确定这个（因为我没记住），但根据我的理解可能是..."
-
-### 1.3 置信度框架（简化版）
-
-置信度 = **记忆匹配度**：
-
-| 情况 | R1D3 的行为 | 置信度 |
-|------|------------|--------|
-| 记住了（记忆里有）| 直接回答 | 高 |
-| 没记住（记忆里没有）| "我不知道，基于 LLM 知识可能是..." | 低（诚实）|
-
-**不需要在回答前检查置信度**——回答和探索是独立的。探索是回答的**附属动作**，不是前置条件。
+| 问题 | 解决方案 | 复用模块 |
+|------|---------|---------|
+| R1D3 不知道"记过什么" | 记忆优先回答流程 | `memory_search()` |
+| 触发探索需要新 API 吗？ | 复用 `/api/curious/inject` | `POST /api/curious/inject` |
+| 如何判断该不该先探索？ | 复用 `CompetenceTracker` | `CompetenceTracker.assess_competence()` |
+| 探索完成后如何主动分享？ | 复用 EventBus + 心跳同步 | `EventBus` + `CuriousHeartbeatClient` |
 
 ---
 
-## 2. 交互流程
+## 2. 新增/增强特性清单
 
-### 2.1 完整流程图
+### 2.1 特性总览
 
-```
-用户提问
-    ↓
-R1D3 从记忆查找
-    ↓
-┌─────────────────────────────────────┐
-│ 找到了 → 直接回答（有把握）           │
-└─────────────────────────────────────┘
-    ↓ 没找到
-┌─────────────────────────────────────────────────────┐
-│ R1D3: "我不确定这个（因为我没记住），                │
-│        但基于我的 LLM 知识可能是..."                 │
-│                                                     │
-│ 同时触发好奇心 agent 探索                            │
-└─────────────────────────────────────────────────────┘
-    ↓
-好奇心 agent 探索完成 → 结果写入 R1D3 记忆
-    ↓
-R1D3 主动找到用户：
-    "你之前问我的那个问题，我现在有答案了：XXXXX"
-
-或者等用户再次问同样问题 → R1D3 从记忆直接回答
-```
-
-### 2.2 两种回答模式
-
-**模式 A：记忆里有 → 直接回答**
-```
-用户: LangChain 的 .invoke() 是怎么工作的？
-R1D3: [从记忆中找到相关探索结果]
-      .invoke() 是...（直接给出记忆中的答案）
-      置信度：高（来自记忆）
-```
-
-**模式 B：记忆里没有 → LLM 推测 + 触发探索**
-```
-用户: LangChain 的 .invoke() 是怎么工作的？
-R1D3: 我不确定这个（因为我没记住），但基于我的 LLM 知识，.invoke() 可能是...
-      [同时触发好奇心 agent 探索]
-
-好奇心 agent: [探索完成，写入 R1D3 记忆]
-
-R1D3 主动告诉用户:
-      "你之前问我的 LangChain .invoke()，我现在有答案了：.invoke() 是..."
-```
-
-### 2.3 探索必然触发条件
-
-**不再是"置信度低时触发"**，而是：
-- 每次被问到**记忆里没有**的问题 → **必然触发**探索
-- 探索是回答的附属动作，不影响即时回答
+| 特性 | 类型 | 位置 | 复用/新建 |
+|------|------|------|----------|
+| 记忆优先回答流程 | 新增强制规则 | R1D3 (AGENTS.md) | 新建 |
+| R1D3 侧置信度检查 | 新增 Tool | R1D3 | 新建（封装已有模块）|
+| R1D3 侧定向触发探索 | 新增 Tool | R1D3 | 复用 `/api/curious/inject` |
+| 主动分享机制 | 增强 | R1D3 | 复用已有记忆系统 |
+| R1D3 注入优先处理 | 增强 | Curious Agent 侧 | 新建（config 控制）|
+| 置信度主动暴露 | 新增行为规范 | R1D3 (SOUL.md) | 新建 |
 
 ---
 
-## 3. 置信度框架
+## 3. 特性一：记忆优先回答流程
 
-### 3.1 信息来源层级
+### 3.1 AGENTS.md 规则
 
-| 答案来源 | 置信度基线 | 说明 |
-|---------|-----------|------|
-| R1D3 记忆（探索结果）| 高 | 有验证流程，可追溯，写入永久记忆 |
-| R1D3 记忆（session 上下文）| 中 | 当前会话有效 |
-| LLM 内部知识 | 低 | 训练时学到的，无法区分是记忆还是推理 |
-| 临时推理/瞎猜 | 最低 | 无依据 |
+**位置**：R1D3 的 `AGENTS.md`
 
-### 3.2 置信度分档
-
-| 置信度 | 含义 | 回答时的表现 |
-|--------|------|-------------|
-| 高 | 来自记忆 | "我记得..." / "从探索结果来看..." |
-| 低 | 来自 LLM 知识 | "我不确定，但基于我的理解..." |
-
-**不需要精确的数值**，只需要区分"来自记忆"和"不来自记忆"。
-
----
-
-## 4. 主动探索 API
-
-### 4.1 inject_and_explore
-
-```python
-def inject_and_explore(
-    topic: str,
-    context: str = "",
-    depth: str = "medium"
-) -> dict:
-    """
-    R1D3 主动触发的定向探索
-    触发时机：记忆中没有相关答案时
-    """
-```
-
-### 4.2 探索结果的存储
-
-探索完成后，结果写入 R1D3 的**永久记忆**（memory/ 目录），而不是只在 curiosity_queue 的 state 里。
-
----
-
-## 5. 主动分享机制
-
-### 5.1 问题
-
-探索完成后，R1D3 如何主动找到用户说"我有答案了"？
-
-### 5.2 可能的实现
-
-| 方案 | 说明 | 依赖 |
-|------|------|------|
-| 下次会话时分享 | 下次对话开始时主动说 | 无 |
-| 消息推送 | 如果有用户的联系渠道 | 需要消息渠道 |
-| 等待用户再问 | 用户再次问同样问题时直接回答 | 无 |
-
-**简化版 v0.2.4**：只用"下次会话时分享"和"等待用户再问"，不做主动推送。
-
----
-
-## 6. AGENTS.md 触发规则
+**新增规则**：
 
 ```markdown
 ## 回答前检查（v0.2.4）
 
 ### 回答流程
-1. 先从 R1D3 的 memory/ 目录搜索相关答案
-2. 如果找到 → 直接回答，标注"从记忆中..."
-3. 如果没找到 → 用 LLM 知识回答，标注"我不确定这个（因为我没记住），但..."
-4. 无论找到没找到，都触发好奇心 agent 探索（如果还没探索过这个 topic）
+1. **先搜索记忆**：使用 `memory_search(topic)` 搜索相关答案
+2. **找到 → 直接回答**：标注"从记忆中..."，置信度高
+3. **没找到 →诚实回答**：标注"基于 LLM 知识，我猜测..."，novice 档
+4. **必然触发探索**：无论找到与否，都触发 `curious_agent_inject(topic)` 注入话题
+```
 
-### 主动分享
-- 如果之前因为"不知道"而触发过探索，现在探索完了
-- 在下次对话开始时，主动说"你之前问我的 XXX，我现在有答案了..."
+### 3.2 curious_check_confidence Tool
+
+**封装已有模块**：调用 `GET /api/curious/state`（集成点4），解析 `competence_state`
+
+```python
+def curious_check_confidence(topic: str) -> dict:
+    """
+    R1D3 查询某个 topic 的置信度
+    
+    Returns:
+        {
+            "topic": str,
+            "confidence": float,       # 0-1, 来自 CompetenceTracker
+            "level": str,              # "novice" | "competent" | "proficient" | "expert"
+            "explore_count": int,      # 探索次数
+            "gaps": list               # 知识缺口（如果有）
+        }
+    """
+    # 调用 GET /api/curious/state
+    # 解析 competence_state[topic_name]
+```
+
+### 3.3 curious_agent_inject Tool
+
+**直接复用已有 API**：`POST /api/curious/inject`（集成点3）
+
+```python
+def curious_agent_inject(topic: str, context: str = "", depth: str = "medium") -> dict:
+    """
+    R1D3 主动触发定向探索
+    
+    Args:
+        topic: 话题名称
+        context: 用户问的原问题（用于评分）
+        depth: 探索深度 ("shallow" | "medium" | "deep")
+    
+    Returns:
+        {
+            "status": "success" | "error",
+            "topic_id": str,
+            "estimated_position": int,
+            "queue_length": int
+        }
+    """
+    # 复用 POST /api/curious/inject
+    # payload = { "topic": topic, "reason": context, "source": "r1d3" }
+    # 如果 config.injection_priority.enabled=True 且 source 在 priority_sources 里
+    # → 优先处理
+    # 如果 config.injection_priority.trigger_immediate=True
+    # → 立即触发探索，R1D3 不等待（异步）
 ```
 
 ---
 
-## 7. 实现优先级
+## 4. 特性二：置信度主动暴露 + 回答详细程度分级
 
-| 优先级 | 任务 | 说明 |
-|-------|------|------|
-| P0 | inject_and_explore API | 触发探索的入口 |
-| P0 | 探索结果写入 R1D3 记忆 | memory/ 目录 |
-| P0 | AGENTS.md 规则 | 记忆优先回答逻辑 |
-| P1 | 下次会话主动分享 | 探索完成后告知用户 |
-| P2 | 同一 topic 避免重复探索 | 用知识图谱追踪 |
+### 4.1 置信度 level 与回答策略
+
+| Level | Confidence | 回答策略 | 详细程度 |
+|-------|-----------|---------|---------|
+| **novice** | < 0.3 | 基于 LLM 知识，我猜测... | 简洁，不展开 |
+| **competent** | 0.3-0.6 | 我有一些了解但不深入... | 给大概方向 |
+| **proficient** | 0.6-0.85 | 详细展开，主动给例子和细节 | 较详细 |
+| **expert** | > 0.85 | 可以深入到实现细节、源码、论文 | 最详细 |
+
+### 4.2 novice 回答示例
+
+```
+用户: Attention 机制是怎么工作的？
+
+R1D3: 基于 LLM 的知识，我猜测你想问的是 Transformer 中的 Attention 机制...
+（不展开细节，简短回答，不假装很懂）
+```
+
+### 4.3 expert 回答示例
+
+```
+用户: Attention 机制是怎么工作的？
+
+R1D3: Attention 机制的核心是 Query-Key-Value 计算...
+
+从记忆中（这个方向我研究过多次）：
+1. Scaled Dot-Product Attention: QK^T / √d_k
+2. Multi-Head Attention: 多组 QKV 并行...
+3. 具体实现可以参考 transformer_modules.py...
+
+深入一点，FlashAttention 的实现原理是...
+（主动展开细节、例子、源码）
+```
+
+### 4.4 诚实是第一性原则
+
+**无论哪个 level，都要诚实**：
+- expert 不隐藏知识
+- novice 不假装不懂也不假装很懂
+- 置信度只是决定**详细程度**，不是决定**说不说**
 
 ---
 
-## 8. 不纳入 v0.2.4
+## 5. 特性三：主动分享机制
 
-- mission 验证机制（success_criteria）
-- OpenClaw Hook 实时注入
-- 置信度精确计算（只需要区分高/低）
-- 主动推送（简化版只用"下次会话分享"）
+### 5.1 分享粒度
 
----
+**结论**：先全部分享，根据实际打扰程度再迭代。
 
-## 9. Future: Curious Agent Cloud
+### 5.2 复用现有机制
 
----
+| 已有机制 | 复用方式 |
+|---------|---------|
+| `sync_discoveries.py` | 每次心跳同步最新发现到 `curious-discoveries.md` |
+| `memory/curious-discoveries.md` | 新发现自动追加，格式含时间戳 |
+| 新会话读取 | R1D3 启动时读取，与上一轮时间戳对比 |
 
-## 10. 待讨论问题
+### 5.3 追踪"已分享"
 
-### 问题 1：探索结果如何写入 R1D3 的永久记忆？
-- 具体存在哪里？memory/ 目录的哪个位置？
-- 格式是什么？
+在 `curious-discoveries.md` 中加字段：
 
-### 问题 2：如何追踪"哪些问题是之前触发过探索的"？
-- 需要记录"这个问题我回答过'不知道'，后来触发了探索"
-- 否则下次用户再问，我不知道要主动分享答案
-
-### 问题 3：主动分享的具体实现？
-- "下次会话分享"——R1D3 在哪里记录"要分享的答案"？
-- 如何避免每次会话都重复分享同一个答案？
-
-
----
-
-## 3. "知道自己不知道"的实现
-
-### 3.1 实现位置
-
-| 方案 | 可靠性 | 能在对话中实时 | 建议 |
-|------|--------|--------------|------|
-| SOUL.md 行为规范 | 低 | 能（但不保证遵守）| ❌ 不够 |
-| HEARTBEAT.md 定时检查 | 中 | 不能（只在心跳时）| ⚠️ 补充 |
-| AGENTS.md 规则 | 高 | 能 | ✅ 主力 |
-
-### 3.2 推荐方案：AGENTS.md 规则 + Curious Agent Tool
-
-**AGENTS.md 里加**：
 ```markdown
-## 回答前检查（v0.2.4 新增）
-
-在回答以下类型的问题前，先调用 `curious_agent.check_confidence(topic)`：
-- 技术实现细节（"XX 是怎么实现的"）
-- 源码级别的解释
-- 具体框架的使用方式
-- 我之前没明确表示熟悉的话题
-
-如果 confidence < 0.6，先说"让我去探索一下"，再回答。
+- **[8.2]** Agent Memory Systems
+  - 分享时间: 2026-03-24T16:50:00Z
+  - shared: true
 ```
 
-**Curious Agent 提供 Tool**：
-```python
-def check_confidence(topic: str) -> dict:
-    """R1D3 可以调用的 tool：查询置信度"""
-    # 内部调用 CompetenceTracker + 知识图谱
-    return {"topic": topic, "confidence": 0.4, "gaps": [...]}
-```
-
-### 3.3 SOUL.md vs AGENTS.md 的遵从度差异
-
-**原因分析**：
-- SOUL.md = 性格描述，需要两次转换（原则→判断→行动），可靠性低
-- AGENTS.md = 操作手册，只需一次转换（规则→行动），可靠性高
-
-**设计原则**：
-- SOUL.md：定义"我是谁"，解释 WHY
-- AGENTS.md：定义"我做什么"，执行 WHAT
+分享逻辑：
+1. R1D3 启动时读取 `curious-discoveries.md`
+2. 找出 `shared: false` 的发现
+3. 主动说："你之前问的 XXX，我现在有答案了..."
+4. 更新 `shared: true`
 
 ---
 
-## 4. 主动探索 API（v0.2.4 核心功能）
+## 6. 特性四：R1D3 注入优先处理（Curious Agent 侧）
 
-### 4.1 核心能力
+### 6.1 config 新增配置
 
-让 R1D3 可以主动触发定向探索，并获取结构化结果。
-
-```python
-def inject_and_explore(
-    topic: str,
-    context: str = "",           # 为什么会问这个（用于评分）
-    depth: str = "medium",      # shallow / medium / deep
-    async_mode: bool = False     # 是否异步（True=不阻塞对话）
-) -> dict:
-    """
-    R1D3 主动触发的定向探索唯一入口
-    """
-```
-
-### 4.2 返回值结构
-
-```python
+```json
+// curious-agent config.json
 {
-    "status": "completed" | "blocked" | "clarification_needed",
-    "topic": str,                    # 实际探索的 topic
-    "original_topic": str,           # 原始注入的 topic
-    "findings": [...],              # 探索发现的列表
-    "sources": [...],               # 信息源
-    "papers": [...],                # 相关论文
-    "confidence": float,            # 质量评分
-    "exploration_value": float      # 探索价值评分
+  "injection_priority": {
+    "enabled": true,
+    "priority_sources": ["r1d3"],
+    "boost_score": 2.0,
+    "trigger_immediate": true
+  }
 }
 ```
 
-### 4.3 场景示例
+| 配置项 | 说明 |
+|-------|------|
+| `enabled` | 是否启用优先处理 |
+| `priority_sources` | 优先名单，名单内的 source 注入的话题优先处理 |
+| `boost_score` | 优先话题的分数加成 |
+| `trigger_immediate` | True = 立即触发探索，R1D3 不等待（异步） |
 
-**同步模式（阻塞对话）**：
-```python
-result = curious_agent.inject_and_explore(
-    topic="LangChain .invoke() 调用链",
-    context="用户问了我这个问题，我不确定答案",
-    async_mode=False
-)
-# R1D3 等待结果后回答用户
-```
-
-**异步模式（不阻塞）**：
-```python
-result = curious_agent.inject_and_explore(
-    topic="LangChain .invoke() 调用链",
-    context="用户问了我这个问题，我不确定答案",
-    async_mode=True
-)
-# R1D3 立即返回"让我去探索一下"，后续再回答
-```
-
----
-
-## 5. 置信度查询 API
-
-### 5.1 check_confidence
+### 6.2 处理逻辑
 
 ```python
-def check_confidence(topic: str) -> dict:
-    """
-    R1D3 查询某个 topic 的置信度
-    """
-    # 1. 查询知识图谱：该 topic 是否已探索过？
-    kg_confidence = knowledge_graph.get_confidence(topic)
-    
-    # 2. 查询能力追踪：该 topic 的掌握程度？
-    competence = competence_tracker.assess_competence(topic)
-    
-    # 3. 综合评分
-    overall = kg_confidence * 0.6 + (1 - competence["score"]) * 0.4
-    
-    return {
-        "topic": topic,
-        "confidence": overall,
-        "kg_known": kg_confidence > 0.7,
-        "competence_gap": competence["gaps"],
-        "suggested_action": "explore" if overall < 0.6 else "answer"
-    }
+# curious_agent.py inject 端点
+def inject_topic(topic, source, score=None, ...):
+    if config.injection_priority.enabled and source in config.injection_priority.priority_sources:
+        # 优先处理
+        effective_score = (score or 5.0) + config.injection_priority.boost_score
+        
+        if config.injection_priority.trigger_immediate:
+            # 立即触发探索，异步，不阻塞
+            async_trigger_exploration(topic)
+        else:
+            # 入队，等 cron 定时处理
+            queue.add(topic, score=effective_score)
+    else:
+        # 普通处理
+        queue.add(topic, score=score)
 ```
 
 ---
 
-## 6. 实现优先级
+## 7. 架构接口图（v0.2.4 新增部分）
+
+```
+R1D3 (OpenClaw Agent)
+│
+├── AGENTS.md 规则（新建）
+│   └── 记忆优先回答流程
+│
+├── curious_check_confidence(topic) [Tool, 新建]
+│   └── 封装: GET /api/curious/state
+│
+├── curious_agent_inject(topic, context, depth) [Tool, 新建]
+│   └── 复用: POST /api/curious/inject
+│   └── priority_sources 名单内 → 优先处理 + 立即探索
+│
+├── SOUL.md 行为规范（增强）
+│   └── 置信度主动暴露 + 回答详细程度分级
+│
+└── 主动分享 [增强]
+    └── 复用: memory/curious-discoveries.md + sync_discoveries.py
+    └── shared 字段追踪已分享
+
+
+Curious Agent (改动: config.json + inject 端点)
+│
+├── config.json 新增 injection_priority 配置
+├── POST /api/curious/inject [增强]
+│   └── priority_sources 名单内 → boost_score + trigger_immediate
+├── GET /api/curious/state [已有, 复用]
+├── CompetenceTracker [已有, 复用]
+├── AgentBehaviorWriter [已有, 复用]
+└── EventBus [已有, 复用]
+```
+
+---
+
+## 8. 实现任务清单
+
+### 8.1 R1D3 侧（新增）
 
 | 优先级 | 任务 | 说明 |
 |-------|------|------|
-| P0 | inject_and_explore API | R1D3 主动探索的唯一入口 |
-| P0 | check_confidence API | 置信度查询 Tool |
-| P0 | AGENTS.md 规则 | 触发条件定义 |
-| P1 | 置信度计算公式实现 | source_coef × content_quality × freshness |
-| P1 | 置信度阈值校准 | 通过实验确定合理阈值 |
-| P2 | content_quality 判断逻辑 | 如何评估内容质量 |
-| P2 | freshness 判断逻辑 | 如何判断信息时效性 |
+| P0 | AGENTS.md 记忆优先规则 | 回答前先查 memory_search() |
+| P0 | curious_check_confidence Tool | 封装 /api/curious/state |
+| P0 | curious_agent_inject Tool | 封装 /api/curious/inject |
+| P0 | SOUL.md 置信度暴露规范 | novice~expert 四档回答策略 |
+| P1 | 主动分享逻辑 | 新会话时对比 shared 字段 |
+| P2 | shared 追踪写入 | 更新 curious-discoveries.md |
+
+### 8.2 Curious Agent 侧（新增）
+
+| 优先级 | 任务 | 说明 |
+|-------|------|------|
+| P0 | config.json injection_priority | 新增配置项 |
+| P0 | inject 端点优先逻辑 | priority_sources + boost_score + trigger_immediate |
 
 ---
 
-## 7. 不纳入 v0.2.4 的内容
+## 9. 不纳入 v0.2.4 的内容
 
-- mission 验证机制（success_criteria）- 移至 v0.2.5+
-- OpenClaw Hook 实时注入 - 依赖验证
-- 异步探索（async_mode 的完整实现）- v0.2.5 再做
-- 多任务并探索 - future
-
----
-
-## 8. Future: Curious Agent Cloud（独立项目）
-
-> **来自用户反馈（2026-03-24）**：多个用户希望 Curious Agent 支持多用户云服务和多 Agent 挂载
+- mission 验证机制（移至 v0.2.5+）
+- OpenClaw Hook 实时注入（依赖验证）
+- 置信度精确计算（当前 level 映射够用）
+- 分享粒度迭代（先全部分享，看打扰程度再调）
 
 ---
 
-## 9. 与 v0.2.3 的接口关系
+## 10. 与 v0.2.3 的接口关系
 
 ```
-v0.2.3 基础层
-├── curiosity_queue 管理
-├── 探索执行
-├── findings 输出
-└── 知识图谱
+v0.2.3 基础层（完全不变）
+├── /api/curious/inject ←── R1D3 inject Tool 复用
+│   └── 新增：priority_sources 名单判断
+├── /api/curious/state ←── R1D3 confidence Tool 复用
+├── CompetenceTracker ←── R1D3 confidence Tool 复用
+├── AgentBehaviorWriter ←── 被动复用（写入行为规则）
+└── EventBus ←── 被动复用（通知机制）
 
-v0.2.4 主动探索层（叠加）
-├── inject_and_explore API
-├── check_confidence API
-├── 置信度计算框架
-└── AGENTS.md 触发规则
+v0.2.4 新增
+├── R1D3 侧
+│   ├── AGENTS.md 记忆优先规则
+│   ├── curious_check_confidence Tool
+│   ├── curious_agent_inject Tool
+│   ├── SOUL.md 置信度暴露规范
+│   └── 主动分享逻辑
+└── Curious Agent 侧
+    ├── config.json injection_priority
+    └── inject 端点优先逻辑
 ```
 
 ---
 
-## 10. 待讨论问题清单
+## 11. 关键结论
 
-以下是本设计文档中尚未解决的细节问题，需要逐个讨论：
-
-### 问题 1
-**content_quality 如何判断？**
-- 谁来评判 R1D3 回答的内容质量？
-- 是 R1D3 自己评（不可靠）还是外部机制？
-
-### 问题 2
-**置信度阈值（0.6）如何校准？**
-- 不同 topic 需要不同阈值吗？
-- 如何通过实验迭代确定合理值？
-
-### 问题 3
-**freshness 如何判断？**
-- 探索结果有时效性吗？
-- 多久算"stale"需要重新探索？
-
-### 问题 4
-**异步模式的具体实现？**
-- async_mode=True 时，探索结果存哪里？
-- R1D3 如何知道探索完成了？
-
-### 问题 5
-**check_confidence 的触发条件是否完整？**
-- 还有哪些类型的问题应该触发检查？
-- 如何避免过度触发（每次回答都检查）？
+1. **inject_and_explore 不需要新 API**——`POST /api/curious/inject` + 已有定时探索机制完全够用
+2. **check_confidence 不需要新 API**——`GET /api/curious/state` 的 `competence_state` 完全够用
+3. **v0.2.4 的开发量分在 R1D3 侧和 Curious Agent 侧**
+4. **主动分享复用现有 sync_discoveries 机制**——只需要加"已分享"追踪逻辑
+5. **R1D3 注入优先处理**——config 配置 priority_sources + boost_score + trigger_immediate
+6. **置信度主动暴露**——novice 说"基于 LLM 知识我猜测"，expert 详细展开
