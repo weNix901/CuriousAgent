@@ -570,25 +570,55 @@ function switchView(view) {
 }
 function buildGraphData() {
   if(!state) return {nodes:[],links:[]};
-  var topics=Object.entries(state.knowledge&&state.knowledge.topics||{});
+  var topics=state.knowledge&&state.knowledge.topics||{};
+  var topicsEntries=Object.entries(topics);
   var queue=state.curiosity_queue||[];
-  var STOP=['ai','agent','agents','in','for','the','and','of','to','learning','framework','self','a','based','systems'];
-  function tokens(s){return(s||'').toLowerCase().split(/[\s\-_:,]/).filter(function(t){return t.length>2&&STOP.indexOf(t)<0;});}
   var qMap={};
   queue.forEach(function(q){if(q.status!=='done')qMap[q.topic.toLowerCase()]=true;});
-  var nodes=topics.map(function(item){
+  
+  var nodes=topicsEntries.map(function(item){
     var name=item[0],v=item[1],inQ=!!qMap[name.toLowerCase()];
     var score=0;
     if(inQ)for(var i=0;i<queue.length;i++)if(queue[i].topic===name){score=queue[i].score||0;break;}
     return{id:name,depth:v.depth||0,quality:v.quality,score:score,summary:v.summary||'',sources:v.sources||[],inQueue:inQ};
   });
-  nodes.forEach(function(n){n._t={};tokens(n.id).forEach(function(t){n._t[t]=true;});});
+  
   var links=[],seen={};
-  for(var i=0;i<nodes.length;i++)for(var j=i+1;j<nodes.length;j++){
-    var a=nodes[i],b=nodes[j],sh=0;
-    for(var t in a._t)if(b._t[t])sh++;
-    if(sh>=1){var k=[a.id,b.id].sort().join('|');if(!seen[k]){seen[k]=true;links.push({source:a.id,target:b.id,strength:sh});}}
+  
+  // Add real parent-child decomposition links from children field
+  for(var parent in topics){
+    var children=(topics[parent]&&topics[parent].children)||[];
+    for(var i=0;i<children.length;i++){
+      var child=children[i];
+      if(topics[child]){
+        links.push({source:parent,target:child,type:'decomposition'});
+        seen[[parent,child].sort().join('|')]=true;
+      }
+    }
   }
+  
+  // Add semantic similarity links (dashed, gray)
+  var STOP=['ai','agent','agents','in','for','the','and','of','to','learning','framework','self','a','based','systems'];
+  function tokens(s){return(s||'').toLowerCase().split(/[\s\-_:,]/).filter(function(t){return t.length>2&&STOP.indexOf(t)<0;});}
+  nodes.forEach(function(n){n._t={};tokens(n.id).forEach(function(t){n._t[t]=true;});});
+  
+  for(var i=0;i<nodes.length;i++){
+    for(var j=i+1;j<nodes.length;j++){
+      var a=nodes[i],b=nodes[j];
+      // Skip if either is pending (no semantic links for pending nodes)
+      if(qMap[a.id.toLowerCase()]||qMap[b.id.toLowerCase()])continue;
+      var sh=0;
+      for(var t in a._t)if(b._t[t])sh++;
+      if(sh>=1){
+        var k=[a.id,b.id].sort().join('|');
+        if(!seen[k]){
+          seen[k]=true;
+          links.push({source:a.id,target:b.id,type:'semantic',strength:sh});
+        }
+      }
+    }
+  }
+  
   return{nodes:nodes,links:links};
 }
 function nodeColor(d){
@@ -610,7 +640,11 @@ function renderGraph() {
   svg.attr('viewBox','0 0 '+W+' '+H);
   var g=svg.append('g');
   svg.call(d3.zoom().scaleExtent([0.2,4]).on('zoom',function(e){g.attr('transform',e.transform);}));
-  var link=g.append('g').selectAll('line').data(data.links).enter().append('line').attr('class','graph-link').attr('stroke-width', 5);
+  var link=g.append('g').selectAll('line').data(data.links).enter().append('line').attr('class','graph-link')
+    .attr('stroke', function(d) { return d.type === 'decomposition' ? '#58a6ff' : '#8b949e'; })
+    .attr('stroke-width', function(d) { return d.type === 'decomposition' ? 4 : 2; })
+    .attr('stroke-dasharray', function(d) { return d.type === 'semantic' ? '5,5' : '0'; })
+    .attr('stroke-opacity', 0.7);
   var nodeSel=g.append('g').selectAll('.graph-node').data(data.nodes).enter().append('g').attr('class','graph-node')
     .call(d3.drag().on('start',function(e,d){if(!e.active)sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
       .on('drag',function(e,d){d.fx=e.x;d.fy=e.y;}).on('end',function(e,d){if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;}))
