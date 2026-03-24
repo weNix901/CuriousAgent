@@ -103,6 +103,7 @@ def api_run():
             "papers": result.get("papers", [])
         }
         quality = monitor.assess_exploration_quality(result["topic"], findings)
+        monitor.record_exploration(result["topic"], quality, marginal_return=0.0, notified=False)
 
         if quality >= 7.0:
             writer = AgentBehaviorWriter()
