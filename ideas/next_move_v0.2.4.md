@@ -57,6 +57,7 @@
 | R1D3 注入优先处理 | 增强 | Curious Agent 侧 | 新建（config 控制）|
 | 置信度主动暴露 | 新增行为规范 | R1D3 (SOUL.md) | 新建 |
 | 自发主动探索机制 | 新增能力 | Curious Agent + R1D3 | 新建（双模式） |
+| **3层探索器原创分析** | **新增能力** | **Curious Agent** | **新建（核心能力）** |
 
 ---
 
@@ -311,6 +312,11 @@ Curious Agent (改动: config.json + inject 端点)
 | P0 | inject 端点优先逻辑 | priority_sources + boost_score + trigger_immediate |
 | P1 | config.json exploration mode | hybrid/daemon/api_only 三模式 |
 | P1 | daemon 与 inject 联动 | trigger_immediate=true 时 inject 后立即异步探索 |
+| **P0** | **InsightSynthesizer 类** | **Layer 3 核心，跨 sub-topic 原创分析合成** |
+| **P1** | **cross_topic_patterns()** | **识别跨子话题模式** |
+| **P1** | **generate_hypotheses()** | **基于模式生成原创假设** |
+| **P2** | **compute_confidence()** | **假设置信度评分** |
+| **P2** | **合成结果 KG 持久化** | **避免重复合成** |
 
 ---
 
@@ -320,6 +326,7 @@ Curious Agent (改动: config.json + inject 端点)
 - OpenClaw Hook 实时注入（依赖验证）
 - 置信度精确计算（当前 level 映射够用）
 - 分享粒度迭代（先全部分享，看打扰程度再调）
+- Layer 3 InsightSynthesizer 实时合成 R1D3 调用（Layer 3 探索能力先独立，R1D3 整合后续）
 
 ---
 
@@ -530,3 +537,261 @@ payload = {
 5. **R1D3 注入优先处理**——config 配置 priority_sources + boost_score + trigger_immediate
 6. **置信度主动暴露**——novice 说"基于 LLM 知识我猜测"，expert 详细展开
 7. **自发探索 = hybrid 模式**——外部触发优先（trigger_immediate）+ daemon 定时兜底，推荐 interval=60min
+
+---
+
+## 14. 特性六：3层探索器生成原创分析
+
+### 14.1 现状问题
+
+当前 CuriousDecomposer 的四级级联分解：
+- **Step 1**：LLM 推理生成候选 sub-topics
+- **Step 2**：多 Provider 搜索验证，过滤不存在的主题
+- **Step 3**：KG 补充，从已有结构推断父子关系
+- **Step 4**：澄清机制，无法判断时询问用户
+
+**缺失环节**：分解完成后，每个 sub-topic 被探索器搜索，但探索结果只是原始搜索内容的堆叠，没有**原创性分析合成**。
+
+```
+当前流程：
+  agent
+    ├── memory → 搜索结果1 + 搜索结果2 + 搜索结果3（原始堆叠）
+    ├── planning → 搜索结果4 + 搜索结果5（原始堆叠）
+    └── tool use → 搜索结果6 + 搜索结果7（原始堆叠）
+    
+缺失：没有"这8条结果综合起来，agent 的 memory 子领域有什么原创洞察"
+```
+
+### 14.2 三层探索分析架构
+
+```
+输入：topic（如 "agent"）
+    ↓
+【Layer 1 - 分解】CuriosityDecomposer
+    - 把泛 topic 分解为结构化 sub-topics 树
+    ↓
+【Layer 2 - 探索】Multi-Provider Explorer
+    - 对每个 sub-topic 并行多 Provider 搜索
+    - 收集原始信息片段（snippet + URL + source）
+    ↓
+【Layer 3 - 合成】InsightSynthesizer ⭐（新增核心能力）
+    - 对同层所有 sub-topic 探索结果进行跨维度分析
+    - 生成原创洞察、假设、推导
+    - 输出格式：Insight Object（含 confidence + reasoning）
+    ↓
+输出：
+  - 原始发现碎片（用于 KG 存储）
+  - 原创分析合成（用于 R1D3 直接使用）
+```
+
+### 14.3 Layer 3：InsightSynthesizer 核心逻辑
+
+```python
+class InsightSynthesizer:
+    """
+    第三层：跨 sub-topic 原始分析合成
+    
+    输入：exploration_results[sub_topic] = [SearchResult, ...]
+    输出：insights = [Insight, ...]
+    
+    核心方法：
+    1. cross_topic_patterns() — 跨子话题模式识别
+    2. generate_hypotheses() — 基于模式生成假设
+    3. compute_confidence() — 假设置信度评分
+    4. format_insight() — 格式化为 Insight Object
+    """
+    
+    def synthesize(self, topic: str, sub_topic_results: dict) -> list[dict]:
+        """
+        合成入口
+        """
+        # 1. 聚合所有子话题的搜索片段
+        all_snippets = []
+        for sub_topic, results in sub_topic_results.items():
+            all_snippets.extend(self._extract_snippets(results))
+        
+        # 2. 跨维度模式识别
+        patterns = self.cross_topic_patterns(topic, all_snippets)
+        
+        # 3. 基于模式生成原创假设
+        hypotheses = self.generate_hypotheses(patterns)
+        
+        # 4. 置信度评分 + 过滤
+        scored_hypotheses = []
+        for h in hypotheses:
+            confidence = self.compute_confidence(h, all_snippets)
+            if confidence >= 0.5:  # 只保留置信度 >= 0.5 的假设
+                scored_hypotheses.append({**h, "confidence": confidence})
+        
+        # 5. 格式化为 Insight
+        return [self.format_insight(h) for h in scored_hypotheses]
+    
+    def cross_topic_patterns(self, topic: str, snippets: list[str]) -> list[dict]:
+        """
+        跨子话题模式识别
+        
+        例如：agent 的 memory + planning + tool use 三个子话题
+        探索结果中共同出现的模式：
+        - "context window" 同时出现在 memory 和 planning 中
+        - "tool calling" 与 planning 的 "reasoning" 经常共同出现
+        → 生成假设：context window 是连接 memory 和 planning 的关键桥梁
+        
+        Returns:
+            [{"pattern": str, "supporting_snippets": [str], "related_sub_topics": [str]}]
+        """
+        # LLM 推理：从所有片段中识别跨子话题模式
+        prompt = f"""
+给定主题：{topic}
+收集到的信息片段：
+{self._format_snippets(snippets)}
+
+任务：从这些片段中识别跨维度的模式。
+输出 JSON 格式：
+{{
+  "patterns": [
+    {{
+      "pattern": "模式描述",
+      "supporting_snippets": ["支撑片段1", "支撑片段2"],
+      "related_sub_topics": ["相关的子话题列表"]
+    }}
+  ]
+}}
+"""
+        return self._llm_call(prompt)["patterns"]
+    
+    def generate_hypotheses(self, patterns: list[dict]) -> list[dict]:
+        """
+        基于识别的模式生成原创假设
+        
+        假设类型：
+        - 因果假设：A → B（因为A，所以B）
+        - 相关假设：A ⟷ B（A和B相关，但因果不明）
+        - 对比假设：A vs B（A和B有本质差异）
+        - 推演假设：A → B → C（链式推演）
+        
+        Returns:
+            [{"hypothesis": str, "type": str, "reasoning": str}]
+        """
+        prompt = f"""
+基于以下跨维度模式，生成原创假设：
+
+{self._format_patterns(patterns)}
+
+要求：
+1. 每个假设必须有推理过程（reasoning）
+2. 假设应该超出原始信息的简单总结
+3. 允许有一定推测性，但必须有片段支撑
+4. 生成 3-5 个最具洞察力的假设
+
+输出 JSON 格式：
+{{
+  "hypotheses": [
+    {{
+      "hypothesis": "假设内容",
+      "type": "causal|correlation|contrast|deduction",
+      "reasoning": "推理过程"
+    }}
+  ]
+}}
+"""
+        return self._llm_call(prompt)["hypotheses"]
+    
+    def compute_confidence(self, hypothesis: dict, snippets: list[str]) -> float:
+        """
+        计算假设置信度
+        
+        评分维度：
+        - 支持片段数量（越多越可信）
+        - 片段来源多样性（来源越多越可信）
+        - 假设逻辑一致性（推理链是否自洽）
+        - 与已知 KG 的一致性（KG 中已有知识是否矛盾）
+        """
+        support_count = len(hypothesis.get("supporting_snippets", []))
+        diversity = self._compute_source_diversity(hypothesis.get("supporting_snippets", []))
+        consistency = self._check_kg_consistency(hypothesis)
+        
+        confidence = (
+            min(support_count / 5, 1.0) * 0.4 +   # 片段数量
+            diversity * 0.3 +                       # 来源多样性
+            consistency * 0.3                       # KG 一致性
+        )
+        return round(confidence, 2)
+    
+    def format_insight(self, hypothesis: dict) -> dict:
+        """
+        格式化为标准 Insight Object
+        """
+        return {
+            "id": generate_uuid(),
+            "topic": hypothesis["topic"],
+            "hypothesis": hypothesis["hypothesis"],
+            "type": hypothesis["type"],
+            "reasoning": hypothesis["reasoning"],
+            "confidence": hypothesis["confidence"],
+            "supporting_snippets": hypothesis.get("supporting_snippets", []),
+            "generated_by": "InsightSynthesizer",
+            "timestamp": datetime.now().isoformat()
+        }
+```
+
+### 14.4 输出结构示例
+
+```json
+{
+  "id": "ins_20260325_001",
+  "topic": "agent",
+  "sub_topic": "memory",
+  "hypothesis": "Agent 的短期记忆容量受限于 context window，但可以通过优先级过滤实现'有效记忆压缩'",
+  "type": "causal",
+  "reasoning": "从 memory 相关片段中发现：(1) context window 有固定上限；(2) 多个框架提到 importance scoring；(3) 优先级过滤在多个方案中反复出现。推断：受限窗口下，优先级过滤是实现有效记忆的核心手段。",
+  "confidence": 0.78,
+  "supporting_snippets": [
+    "GPT-4 Turbo: 128k context window (OpenAI)",
+    "Importance-weighted memory retrieval (Reflexion paper)",
+    "Priority-based context compression (HiporedReader)"
+  ],
+  "level": "proficient",
+  "generated_by": "InsightSynthesizer",
+  "timestamp": "2026-03-25T07:00:00Z"
+}
+```
+
+### 14.5 与 R1D3 回答流程的整合
+
+```
+R1D3 收到用户提问
+    ↓
+memory_search(topic) → 查 KG
+    ↓
+如果 KG 有 Insight → 直接用（level=expert，详细展开）
+    ↓
+如果 KG 没有但有探索碎片 → 
+    ↓
+    用 InsightSynthesizer 实时合成（Layer 3）← 新增能力
+    ↓
+基于合成结果回答，置信度 = Insight.confidence
+    ↓
+必然触发 curious_agent_inject(topic) 补充探索
+```
+
+### 14.6 与现有模块的关系
+
+| 模块 | 复用/新建 | 关系 |
+|------|---------|------|
+| CuriosityDecomposer | 复用 | Layer 1，提供 sub-topic 树 |
+| Multi-Provider Search | 复用 | Layer 2，提供原始搜索结果 |
+| **InsightSynthesizer** | **新建** | **Layer 3，核心新增能力** |
+| CompetenceTracker | 复用 | 置信度校准 |
+| QualityAssessor | 复用 | 探索结果质量评估 |
+
+### 14.7 实现任务
+
+| 优先级 | 任务 | 说明 |
+|-------|------|------|
+| P0 | InsightSynthesizer 类 | 核心合成逻辑 |
+| P0 | cross_topic_patterns() | 跨维度模式识别 |
+| P0 | generate_hypotheses() | 原创假设生成 |
+| P1 | compute_confidence() | 假设置信度评分 |
+| P1 | R1D3 实时合成调用 | memory_search 失败时触发 Layer 3 |
+| P2 | 合成结果缓存 | 避免重复合成，KG 持久化 |
+| P2 | 合成质量评估 | 人工标注 + 自动评估 |
