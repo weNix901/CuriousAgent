@@ -7,8 +7,8 @@ class QualityV2Assessor:
     """
     Three-dimensional quality assessment:
     1. Semantic Novelty (40%)
-    2. Confidence Delta (30%)
-    3. Graph Topology Change (30%)
+    2. Information Gain (40%)
+    3. Graph Topology Change (20%)
     """
     
     def __init__(self, llm_client):
@@ -21,26 +21,20 @@ class QualityV2Assessor:
         """
         prev_summary = self._get_previous_summary(topic, knowledge_graph)
         new_summary = findings.get("summary", "")
-        
+
         semantic_novelty = self._calculate_semantic_novelty(prev_summary, new_summary)
-        
-        prev_confidence = self._get_previous_confidence(topic, knowledge_graph)
-        post_confidence = self._assess_confidence(new_summary)
-        confidence_delta = max(0, post_confidence - prev_confidence)
-        
-        prev_neighbors = self._get_neighbor_count(topic, knowledge_graph)
+        information_gain = self._assess_information_gain(topic, new_summary)
+
         graph_delta = 0.0
-        
         if not prev_summary:
-            confidence_delta = max(confidence_delta, 0.5)
             graph_delta = 0.5
-        
+
         quality = (
             semantic_novelty * 0.40 +
-            confidence_delta * 0.30 +
-            graph_delta * 0.30
+            information_gain * 0.40 +
+            graph_delta * 0.20
         ) * 10
-        
+
         return round(quality, 1)
     
     def _calculate_semantic_novelty(self, prev_summary: str, new_summary: str) -> float:
@@ -71,7 +65,7 @@ Return only a number between 0.0-1.0."""
         """Use LLM to assess confidence in understanding (0-1)"""
         if not text:
             return 0.5
-        
+
         prompt = f"""Assess understanding confidence (0.0-1.0):
 
 {text[:500]}
@@ -79,11 +73,52 @@ Return only a number between 0.0-1.0."""
 Consider: Can you explain core concepts? Give examples? Identify limitations?
 
 Return only a number between 0.0-1.0."""
-        
+
         try:
             response = self.llm.chat(prompt)
             numbers = re.findall(r'0?\.\d+', response)
             return float(numbers[0]) if numbers else 0.5
+        except Exception:
+            return 0.5
+
+    def _assess_information_gain(self, topic: str, new_summary: str) -> float:
+        """
+        评估信息增益：相比只知 topic 名称，探索获得了多少新知识。
+
+        评分标准（0.0-1.0）：
+        - 0.0: 总结 = topic 名称的同义改写，无任何新知识
+        - 0.3: 知道基本定义，但无法解释如何运作/适用场景/局限性
+        - 0.6: 有概念理解，能举出 1-2 个具体例子或方法名称
+        - 0.8: 有较深理解，知道多种方法/框架/对比/局限性
+        - 1.0: 获得可操作的详细知识，能解释具体原理/算法步骤/应用方式
+        """
+        if not new_summary or not new_summary.strip():
+            return 0.0
+
+        prompt = f"""你是知识质量评估专家。
+
+Task: 评估这次探索相比"只知道 topic 名称"的信息增益。
+
+Topic: {topic}
+
+探索发现:
+{new_summary[:800]}
+
+评估问题：这次探索让你对"{topic}"的理解增加了多少？
+- 0.0: 总结只是 topic 名称的重复或极度泛泛的描述（如"这是一个关于{topic}的领域"），没有提供任何具体知识
+- 0.3: 知道是关于什么的，但无法解释如何运作、有什么方法、适用于什么场景
+- 0.6: 有基本概念理解，能举出 1-2 个具体例子或方法名称
+- 0.8: 有较深理解，知道多种方法/框架/对比/局限性
+- 1.0: 获得可操作的详细知识，能解释具体原理、算法步骤或实际应用方式
+
+Return only a number between 0.0-1.0."""
+
+        try:
+            response = self.llm.chat(prompt)
+            numbers = re.findall(r'0?\.\d+', response)
+            if numbers:
+                return max(0.0, min(1.0, float(numbers[0])))
+            return 0.5
         except Exception:
             return 0.5
     
