@@ -100,13 +100,13 @@ Return ONLY JSON, no other text."""
                 return result
             return result.get("gaps", [])
         except Exception:
-            return [{"type": "general", "description": "Need more information", "priority": 0.5}]
-    
+            return [{"gap_type": "general", "description": "Need more information", "priority": 0.5}]
+
     def _phase2_generate(self, topic: str, gaps: list, depth: str) -> list:
         """Generate exploration plan based on gaps"""
         plans = []
         for gap in gaps:
-            gap_type = gap.get("type", "general")
+            gap_type = gap.get("gap_type", "general")
             priority = gap.get("priority", 0.5)
             
             action_map = {
