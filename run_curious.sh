@@ -24,15 +24,23 @@ pkill -f "curious_agent.py" 2>/dev/null && echo "   ✓ 已终止 curious_agent.
 echo "[3/5] 等待端口释放 ..."
 sleep 2
 
-# 4. 启动服务
-echo "[4/5] 启动 Curious Agent API ..."
+# 4. 启动 API 服务
+echo "[4/6] 启动 Curious Agent API ..."
 cd "$APP_DIR"
 nohup python3 curious_api.py > "$LOG_FILE" 2>&1 &
 PID=$!
-echo "   ✓ 服务 PID: $PID"
+echo "   ✓ API PID: $PID"
 
-# 5. 等待启动并验证
-echo "[5/5] 验证服务启动 ..."
+# 5. 启动探索 Daemon
+echo "[5/6] 启动探索 Daemon (间隔 30 分钟) ..."
+nohup python3 -u curious_agent.py --daemon --interval 30 >> logs/daemon.log 2>&1 &
+PID_D=$!
+echo "   ✓ Daemon PID: $PID_D"
+
+# 6. 等待启动并验证
+
+# 6. 等待启动并验证
+echo "[6/6] 验证服务启动 ..."
 for i in {1..10}; do
     sleep 1
     if curl -s "http://localhost:$PORT/api/curious/state" > /dev/null 2>&1; then

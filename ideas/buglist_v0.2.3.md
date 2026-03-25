@@ -1306,3 +1306,175 @@ grep -n "fill-opacity" /root/dev/curious-agent/ui/index.html
 grep -c "Q≥7\|Q 5-7\|Q<5\|蓝实线\|灰虚线" /root/dev/curious-agent/ui/index.html
 # 期望：5（图例 6 行中至少 5 个关键词存在）
 ```
+
+---
+
+## 🔴 Bug #14: `add_child` 参数写错导致分解关系 100% 丢失（图谱实线消失）
+
+**发现时间**: 2026-03-25 09:35
+
+**严重程度**: 🔴 最高 — 图谱实线链接全部消失
+
+**复现**:
+```bash
+python3 -c "
+import json
+with open('knowledge/state.json') as f:
+    d = json.load(f)
+t = d['knowledge']['topics'].get('openclaw agent framework capabilities', {})
+print('children:', t.get('children'))
+"
+# 期望：应该有多个子节点
+# 实际：只有 1 个（HAL），其他全部丢失
+```
+
+**根因**: `curious_agent.py` 第 217 行，`add_child` 的第二个参数写错了变量名：
+
+```python
+# curious_agent.py 第 70-103 行
+topic = next_curiosity["topic"]          # ← 原始 topic（父节点）
+
+# 分解后
+next_curiosity["topic"] = explore_topic  # ← 子节点，覆盖了 topic 变量
+# 但 topic 变量本身没有更新！！
+
+# ... 省略 ...
+
+# 第 217 行
+kg.add_child(next_curiosity["original_topic"], topic)
+#                              ↑ 父节点            ↑ topic（还是父节点！）
+#                                         应该是 next_curiosity["topic"]
+```
+
+每次循环都是 `add_child(父节点, 父节点)`（自连接），只有最后一次 `topic` 被新值覆盖时碰巧写对了。中间积累的所有 child 记录被后续写入覆盖。
+
+**解决方案**:
+```python
+# 方案1（推荐）：直接用 next_curiosity["topic"]
+kg.add_child(next_curiosity["original_topic"], next_curiosity["topic"])
+```
+
+**验收标准**:
+```bash
+# 运行 daemon 3 个循环周期后检查 KG
+python3 -c "
+import json
+with open('knowledge/state.json') as f:
+    d = json.load(f)
+parent = 'openclaw agent framework capabilities'
+children = d['knowledge']['topics'].get(parent, {}).get('children', [])
+print(f'children count: {len(children)}')
+print(f'children: {children}')
+"
+# 期望：children 数量 >= 分解产生的子节点数（如 4-5 个）
+# 之前只有 1 个，修复后应该 >= 4
+```
+
+---
+
+## 🔴 Bug #15: daemon 和 API 并发写 state.json 无文件锁
+
+**发现时间**: 2026-03-25 09:35
+
+**严重程度**: 🔴 最高 — 多个进程同时写入互相覆盖
+
+**复现**:
+```bash
+# 终端1：启动 daemon
+python3 curious_agent.py --daemon --interval 2
+
+# 终端2：快速连续触发多个 API 探索
+curl localhost:4848/api/curious/inject -X POST -d '{"topic":"test1","depth":"medium"}'
+curl localhost:4848/api/curious/inject -X POST -d '{"topic":"test2","depth":"medium"}'
+curl localhost:4848/api/curious/inject -X POST -d '{"topic":"test3","depth":"medium"}'
+
+# 观察 state.json — 期望所有 topic 都在，实际只有最后一个
+```
+
+**根因**: `_save_state()` 直接覆盖写文件，无任何锁机制：
+
+```python
+# core/knowledge_graph.py 第 35-41 行
+def _save_state(state: dict) -> None:
+    state["last_update"] = datetime.now(timezone.utc).isoformat()
+    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)  # ← 直接覆盖，无锁
+```
+
+当前 daemon (`--daemon`) 和 API server (`curious_api.py`) 是两个独立进程，共享同一个 `state.json`，写操作互相覆盖。
+
+**解决方案**:
+```python
+# 方案1（推荐）：文件锁
+import fcntl
+
+def _save_state(state: dict) -> None:
+    state["last_update"] = datetime.now(timezone.utc).isoformat()
+    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+    lock_file = STATE_FILE + ".lock"
+    
+    with open(lock_file, "w") as lockf:
+        fcntl.flock(lockf.fileno(), fcntl.LOCK_EX)
+        try:
+            with open(STATE_FILE, "w", encoding="utf-8") as f:
+                json.dump(state, f, ensure_ascii=False, indent=2)
+        finally:
+            fcntl.flock(lockf.fileno(), fcntl.LOCK_UN)
+
+# 方案2：原子写入（写临时文件再 rename）
+def _save_state(state: dict) -> None:
+    state["last_update"] = datetime.now(timezone.utc).isoformat()
+    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+    tmp_file = STATE_FILE + ".tmp"
+    with open(tmp_file, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
+    os.replace(tmp_file, STATE_FILE)  # 原子操作
+```
+
+**验收标准**:
+```bash
+# 同时触发 daemon 探索 + API 注入后检查
+python3 -c "
+import json
+with open('knowledge/state.json') as f:
+    d = json.load(f)
+queue = d.get('curiosity_queue', [])
+topics = d.get('knowledge', {}).get('topics', {})
+topics_with_children = [t for t, v in topics.items() if v.get('children')]
+print(f'queue count: {len(queue)}')
+print(f'topics with children: {len(topics_with_children)}')
+"
+# 期望：queue 条目完整，topics.children 完整
+```
+
+---
+
+## 验证记录（2026-03-25 09:49）
+
+### Bug #14 验证结果：❌ 修复未生效
+
+**验证时间**: 2026-03-25 09:43
+
+**验证方法**:
+```bash
+# 重启 daemon 和 API
+# 运行 3 个探索周期后检查 KG
+python3 -c "
+import json
+with open('knowledge/state.json') as f:
+    d = json.load(f)
+topics = d['knowledge']['topics']
+parents = [n for n,v in topics.items() if v.get('children')]
+print(f'有 children 的 topic 数: {len(parents)}')
+"
+```
+
+**结果**:
+- 有 children 的 topic 数：**0**（应为 >= 1）
+- `curious_agent.py` 第 217 行仍是：
+  ```python
+  kg.add_child(next_curiosity["original_topic"], topic)  # ← 错：topic 仍是父节点
+  ```
+
+**结论**: OpenCode 的修复**未实际写入文件**，或 weNix 尚未部署。Bug #14 状态仍为**未修复**。
