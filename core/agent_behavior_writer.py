@@ -86,15 +86,20 @@ class AgentBehaviorWriter:
 
         try:
             llm = self._get_llm_client()
-            prompt = f"""请判断以下探索发现属于哪种类型：
+            prompt = f"""Classify this exploration finding into exactly ONE type.
 
 Topic: {topic}
-Summary: {findings.get('summary', '')[:200]}
+Summary: {findings.get('summary', '')[:300]}
 
-可选类型：{', '.join(TYPES)}
+Type definitions (choose the BEST match):
+- reasoning_strategy: Focus on reasoning steps, chain-of-thought, deliberation, planning algorithms, decision-making processes
+- metacognition_strategy: Self-monitoring, self-assessment, confidence calibration, reflection on own thinking, Monitor-Generate-Verify loops
+- proactive_behavior: Curiosity-driven exploration, self-initiated actions, anticipatory behavior, novel situation handling
+- tool_discovery: New framework, library, SDK, or tool introduction with installation/usage details
+- self_check_rule: Verification steps, validation logic, error detection/correction mechanisms
+- confidence_rule: Confidence assessment methods, uncertainty quantification, calibration techniques
 
-请直接输出最匹配的类型名称（只输出类型名，不要解释）。如果无法判断，输出 "unknown"。
-"""
+Output: ONLY the type name, nothing else. Default to "reasoning_strategy" if uncertain."""
             response = llm.chat(prompt).strip()
             if response in TYPES:
                 return response

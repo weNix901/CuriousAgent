@@ -63,21 +63,41 @@ class ThreePhaseExplorer:
         }
     
     def _identify_knowledge_gaps(self, topic: str) -> list:
-        """Use LLM to identify knowledge gaps"""
-        prompt = f"""Analyze "{topic}" and identify knowledge gaps:
+        """Use LLM to identify knowledge gaps with flexible typing and priority standards"""
+        prompt = f"""Analyze "{topic}" and identify knowledge gaps in this exploration result.
 
-1. Technical definition clear? (no_technical_definition)
-2. Empirical results/benchmarks? (no_empirical_results)
-3. Practical applications? (no_applications)
-4. Relations to other concepts? (no_relations)
-5. Limitations clear? (no_limitations)
+Return a JSON array of gaps (if none found, return []):
+[
+  {{
+    "gap_type": "practical_implementation" | "theoretical_foundation" |
+                 "empirical_evidence" | "industry_applications" |
+                 "comparison_analysis" | "limitations_ethics" | "general",
+    "description": "specific description of what's missing",
+    "priority": 0.0-1.0
+  }}
+]
 
-Return JSON:
-{{"gaps": [{{"type": "no_empirical_results", "description": "...", "priority": 0.8}}]}}"""
-        
+gap_type definitions:
+- practical_implementation: missing code, algorithm details, engineering practice guidelines
+- theoretical_foundation: core principles, formal definitions, theoretical guarantees unclear
+- empirical_evidence: missing experimental data, benchmarks, performance comparisons
+- industry_applications: missing real-world application cases, production deployment experience
+- comparison_analysis: missing comparison with other methods, pros/cons analysis
+- limitations_ethics: missing limitations, safety, ethical considerations
+- general: other types of gaps
+
+priority reference:
+- 0.7-1.0: critical gap - essential for understanding the topic but missing from exploration
+- 0.5-0.7: minor gap - helpful but not core to understanding
+- 0.3-0.5: nice-to-have gap - would be good to have but not essential
+
+Return ONLY JSON, no other text."""
+
         try:
             response = self.llm.chat(prompt)
             result = json.loads(response)
+            if isinstance(result, list):
+                return result
             return result.get("gaps", [])
         except Exception:
             return [{"type": "general", "description": "Need more information", "priority": 0.5}]

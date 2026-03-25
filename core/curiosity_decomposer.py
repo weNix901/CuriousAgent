@@ -108,24 +108,32 @@ class CuriosityDecomposer:
         if style == "broad":
             prompt = f"""针对 "{topic}" 这个话题，列出更宽泛、更常见的子领域或相关概念。
 
+粒度要求：每个子 topic 应该是该领域的经典分类或主流分支。
+- ✅ 好例子："强化学习基础"、"神经网络架构设计"、"Agent 记忆系统"
+- ❌ 坏例子："AlphaFold"（太具体，不是一个分类）、"优化算法进展"（太窄偏研究细项）
+
 要求：
 - 列出 {min_c}-{max_c} 个常见的、易于搜索的子话题
 - 使用通俗易懂的术语，避免过于学术化的表达
 - 每个格式：[子话题名称] - [一句话说明]
 
-输出格式（直接输出列表，不需要其他文字）：
+输出格式（直接输出列表）：
 - topic1 - 说明1
 - topic2 - 说明2
 - topic3 - 说明3"""
         else:
             prompt = f"""针对 "{topic}" 这个话题，识别它最常见的子领域或组成部分。
 
+粒度要求：每个子 topic 应该是可独立探索的窄问题。
+- ✅ 好例子："ReAct prompting techniques"、"Experience replay buffer implementation"、"Self-reflection in LLM agents"
+- ❌ 坏例子："Machine Learning"（太宽，是领域不是子问题）、"Q-learning vs DQN对比"（这是对比研究不是子 topic）
+
 要求：
 - 列出 {min_c}-{max_c} 个子话题
 - 每个格式：[子话题名称] - [一句话说明]
 - 优先技术领域相关的子话题
 
-输出格式（直接输出列表，不需要其他文字）：
+输出格式（直接输出列表）：
 - topic1 - 说明1
 - topic2 - 说明2
 - topic3 - 说明3"""

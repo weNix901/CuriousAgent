@@ -134,15 +134,21 @@ Return only keywords, nothing else."""
             user_interests = []
 
         if not user_interests:
-            return 0.5
+            return 0.7
 
         if self.llm:
-            prompt = f"""Evaluate relevance of topic to user interests (0.0-1.0):
+            prompt = f"""Evaluate how relevant this topic is to the user's interests (0.0-1.0).
 
 User interests: {', '.join(user_interests)}
-Topic to evaluate: {topic}
+Topic: {topic}
 
-Return only a number between 0.0 and 1.0, nothing else."""
+Scoring guide:
+- 0.0-0.2: Topic is in a completely different domain from user interests
+- 0.3-0.5: Topic shares a few keywords but is not central to user interests
+- 0.6-0.8: Topic is directly related to one or more user interests
+- 0.9-1.0: Topic is a core component of the user's main research focus
+
+Return only a number."""
             try:
                 response = self.llm.chat(prompt)
                 numbers = re.findall(r'\d+\.?\d*', response)
@@ -155,9 +161,9 @@ Return only a number between 0.0 and 1.0, nothing else."""
         topic_words = set(topic.lower().split())
         interest_words = set(' '.join(user_interests).lower().split())
         if not topic_words:
-            return 0.5
+            return 0.7
         overlap = len(topic_words & interest_words) / len(topic_words)
-        return min(1.0, overlap)
+        return min(1.0, overlap + 0.3)
 
     def _fallback_quality(self, topic: str, findings: dict) -> float:
         """Fallback evaluation when main assessment fails"""
