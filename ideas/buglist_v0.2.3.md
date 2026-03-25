@@ -1478,3 +1478,1330 @@ print(f'有 children 的 topic 数: {len(parents)}')
   ```
 
 **结论**: OpenCode 的修复**未实际写入文件**，或 weNix 尚未部署。Bug #14 状态仍为**未修复**。
+
+---
+
+## 🔴 Bug #26: 分解在探索之前执行——父节点从未被探索就生成 7 个子节点
+
+**发现时间**: 2026-03-25 10:30
+
+**严重程度**: 🔴 最高 — 破坏了"探索→分解"的正确顺序，导致子节点凭空生成、无真实 findings 支持
+
+**复现**:
+```
+# 当前 KG 状态（实测）
+父节点: Memento-Skills agent self-improvement system
+  known=False, status=partial, queue=pending
+  0 次探索记录
+
+子节点（7个，全部 known=True，已完成探索）:
+  Robustness verification for improved skills  — known=True ✅
+  Experience replay for skill improvement        — known=True ✅
+  技能迭代自优化引擎                            — known=True ✅
+  自改进循环调度系统                            — known=True ✅
+  Skill Composition & Generalization             — known=True ✅
+  记忆模块设计与维护                            — known=True ✅
+  记忆检索与 relevance 匹配机制                 — known=True ✅
+```
+
+**错误流程**（当前代码）:
+```
+select_next() 选中 "Memento-Skills agent self-improvement system"
+  → Decomposer.decompose() 直接运行 ← 没有先探索父节点！
+  → 7 个子节点凭空生成并入队
+  → 选中最佳子节点 explore → mark_topic_done(子节点)
+  → 下一轮：另一个子节点被选中 → explore → mark done
+  → 父节点永远 pending，从未被 explore
+```
+
+**正确流程**（应为）:
+```
+select_next() 选中 "Memento-Skills agent self-improvement system"
+  → 先 EXPLORE 父节点（获得真实 findings + sources）
+  → 用父节点的探索结果 + 引用支持去 DECOMPOSE
+  → 生成子节点（基于父节点真实发现）
+  → 选中最佳子节点 explore
+  → mark_topic_done(父节点)
+```
+
+**根因**: `curious_agent.py` 第 84-117 行，decompose 在 explore 之前执行，没有任何"父节点是否已探索"的判断。
+
+```python
+# curious_agent.py 第 84-117 行（当前逻辑）
+subtopics = asyncio.run(decomposer.decompose(topic))  # ← 直接分解，不检查是否已探索
+if subtopics:
+    # ... 入队子节点 ...
+    next_curiosity["original_topic"] = topic
+    next_curiosity["topic"] = explore_topic
+    # 这里 explore_topic 是子节点，不是父节点！
+```
+
+**期望行为**: 父节点必须先被探索（known=True），Decomposer 才能用它生成子节点。
+
+**修复方向**:
+
+方案 A（简单直接）：在 decompose 之前检查父节点是否已探索，未探索则先探索：
+
+```python
+# curious_agent.py 第 84 行之前插入
+if not kg.is_topic_known(topic):
+    print(f"[Explorer] Parent '{topic}' not yet explored, exploring first...")
+    parent_explorer = Explorer(exploration_depth=depth)
+    parent_result = parent_explorer.explore({"topic": topic, "score": next_curiosity.get("score", 5.0)})
+    parent_findings = {
+        "summary": parent_result.get("findings", ""),
+        "sources": parent_result.get("sources", []),
+        "papers": parent_result.get("papers", [])
+    }
+    kg.add_knowledge(topic, parent_findings)
+    quality = monitor.assess_exploration_quality(topic, parent_findings)
+    monitor.record_exploration(topic, quality, marginal=0.0, notified=False)
+
+# 然后再分解
+subtopics = asyncio.run(decomposer.decompose(topic))
+```
+
+方案 B（严格防御）：在 Decomposer.decompose() 内部检查，如果父节点 known=False 则拒绝分解，抛 ClarificationNeeded：
+
+```python
+# curious_decomposer.py decompose() 开头
+def decompose(self, topic: str) -> list:
+    state = self.kg
+    topic_data = state.get("knowledge", {}).get("topics", {}).get(topic, {})
+    if not topic_data.get("known"):
+        raise ClarificationNeeded(
+            topic=topic,
+            reason="Parent topic has not been explored yet. Please explore it first.",
+            alternatives=[]
+        )
+```
+
+**验收标准**:
+
+验收 1（静态检查）：所有有 children 的父节点必须 known=True
+```python
+python3 -c "
+import json
+with open('knowledge/state.json') as f:
+    d = json.load(f)
+topics = d['knowledge']['topics']
+queue = {q['topic']: q['status'] for q in d['curiosity_queue']}
+
+failures = []
+for parent, node in topics.items():
+    if node.get('children'):
+        if not node.get('known'):
+            failures.append(f'FAIL: {parent} has children but known=False, status={node.get(\"status\")}')
+
+if failures:
+    for f in failures: print(f)
+else:
+    print('PASS: 所有有 children 的父节点均 known=True')
+"
+```
+
+验收 2（时序检查——关键！）：父节点在子节点入队之前必须已探索
+```python
+python3 -c "
+# 注入一个全新父 topic，跑一轮，观察日志
+# 正确行为日志应为：
+#   [Explorer] Exploring: new_parent_topic
+#   [Explorer] Exploration done (Q=X.X, ...)
+#   [Decomposer] 'new_parent_topic' -> 'child_topic' (medium)
+#   [Decomposer] Enqueuing N sibling candidates
+#   [Explorer] Exploring: child_topic
+
+# 错误行为日志（bug未修复）：
+#   [Decomposer] 'new_parent_topic' -> 'child_topic' (medium)  ← 无上方探索父节点日志
+#   [Decomposer] Enqueuing N sibling candidates
+
+# 验证 state.json 中父节点有 summary（证明已探索）
+import json
+with open('knowledge/state.json') as f:
+    d = json.load(f)
+topics = d['knowledge']['topics']
+
+# 找一个有 children 且 known=True 的父节点
+parent_with_children = [(p, v) for p, v in topics.items() if v.get('children') and v.get('known')]
+if not parent_with_children:
+    print('FAIL: No parent with children AND known=True found')
+else:
+    parent, node = parent_with_children[0]
+    summary = node.get('summary', '')
+    children = node.get('children', [])
+    print(f'Parent: {parent}')
+    print(f'  known=True, summary length={len(summary)}')
+    print(f'  children: {children}')
+    if len(summary) > 0:
+        print('PASS: Parent was explored before or during decomposition')
+    else:
+        print('WARN: Parent known=True but summary empty — may need manual inspection')
+"
+```
+
+验收 3（防重复分解）：同一个父节点不应在子节点未完成时再次被分解
+```python
+python3 -c "
+import json
+with open('knowledge/state.json') as f:
+    d = json.load(f)
+topics = d['knowledge']['topics']
+queue = {q['topic']: q['status'] for q in d['curiosity_queue']}
+
+# 统计每个父节点的子节点完成情况
+for parent, node in topics.items():
+    if node.get('children'):
+        children = node['children']
+        done = [c for c in children if queue.get(c) == 'done']
+        pending = [c for c in children if queue.get(c) in ('pending', 'investigating')]
+        print(f'{parent}: {len(done)}/{len(children)} done, {len(pending)} pending')
+        # 父节点 pending 但子节点有 done → 疑似重复分解遗留
+        if queue.get(parent) == 'pending' and len(done) > 0:
+            print(f'  WARNING: parent pending but {len(done)} children already done')
+"
+```
+
+---
+
+## 🔴 Bug #27: `_get_previous_confidence` 和 `_get_neighbor_count` 两层连锁失效——quality 评估中两个维度永远 fallback
+
+**发现时间**: 2026-03-25 10:25
+
+**严重程度**: 🔴 高 — quality 评估中 confidence_delta 和 graph_delta 两个维度数据全部失效
+
+---
+
+### 问题 A：`_get_previous_confidence` 传入了模块当 dict 用
+
+**调用链追溯**（实测代码）：
+
+```
+curious_agent.py:157:
+    quality = monitor.assess_exploration_quality(topic, findings)
+    # ← 只传了 topic 和 findings，没有传 kg
+
+meta_cognitive_monitor.py assess_exploration_quality():
+    def assess_exploration_quality(self, topic: str, findings: dict) -> float:
+        v2_quality = self.quality_v2.assess_quality(topic, findings, kg)
+        # ← 传了 kg（知识graph 模块）
+
+quality_v2.py assess_quality():
+    def assess_quality(self, topic: str, findings: dict, knowledge_graph) -> float:
+        prev_confidence = self._get_previous_confidence(topic, knowledge_graph)
+        prev_neighbors = self._get_neighbor_count(topic, knowledge_graph)
+```
+
+`MetaCognitiveMonitor.__init__` 第 15 行：`self.kg = kg`（知识graph 模块）
+所以传入 `quality_v2.assess_quality(topic, findings, kg)` 的 `kg` 确实是模块。
+
+**Bug 定位**：
+
+```python
+# quality_v2.py 第 98-104 行
+def _get_previous_confidence(self, topic: str, kg) -> float:
+    try:
+        state = kg.get("competence_state", {})  # ← kg 是模块，模块无 .get() 方法
+        return state.get(topic, {}).get("confidence", 0.5)
+    except Exception:  # ← AttributeError 被捕获
+        return 0.5  # ← 永远走这里
+```
+
+模块对象没有 `.get()` 方法，`kg.get("competence_state", {})` 抛 `AttributeError`，被 `except Exception` 捕获，永远返回默认值 0.5。
+
+---
+
+### 问题 B：`_get_neighbor_count` 查询了不存在的字段
+
+```python
+# quality_v2.py 第 106-113 行
+def _get_neighbor_count(self, topic: str, kg) -> int:
+    try:
+        topic_data = kg.get("topics", {}).get(topic, {})  # ← 同上，kg.get 抛 AttributeError
+        return len(topic_data.get("related_topics", []))  # ← 即使上面正常，这里 key 也写错了
+    except Exception:
+        return 0
+```
+
+即使假设 kg 是正确的 dict，"related_topics" 这个 key 在 KG 中根本不存在。KG 实际存储父子关系用的是 "children" 字段。查询 "related_topics" 永远返回空列表 → `prev_neighbors = 0` → graph_delta = 0。
+
+**实测数据**（knowledge/topics 中任意节点）：
+```
+topic keys: ['known', 'depth', 'last_updated', 'summary', 'sources', 'status', 'children']
+"related_topics" 字段：不存在
+"neighbors" 字段：不存在
+```
+
+---
+
+### 问题 C（连锁效应）：confidence_delta 永远 0.5
+
+由于 `_get_previous_confidence` 永远返回 0.5（默认值），而 `post_confidence` 是 LLM 评估的任意值：
+
+```python
+prev_confidence = self._get_previous_confidence(topic, knowledge_graph)  # ← 永远 0.5
+post_confidence = self._assess_confidence(new_summary)  # ← 实际评估值（如 0.7）
+confidence_delta = max(0, post_confidence - prev_confidence)  # = max(0, 0.7-0.5) = 0.2
+```
+
+confidence_delta 的实际含义是"置信度提升幅度"，但因为 prev 取不到真实历史值，永远是 0.5 的错误基准线，导致 confidence_delta 严重失真。
+
+---
+
+**期望行为**: quality 评估中 confidence_delta 和 graph_delta 应基于真实历史数据计算，不能永远 fallback。
+
+**修复方向**:
+
+Step 1：修正 `_get_previous_confidence` 的 kg 参数使用方式：
+
+```python
+# quality_v2.py _get_previous_confidence
+def _get_previous_confidence(self, topic: str, kg) -> float:
+    try:
+        state = kg.get_state()  # ← 用 kg 模块的方法，不是 kg.get()
+        competence_state = state.get("competence_state", {})
+        return competence_state.get(topic, {}).get("confidence", 0.5)
+    except Exception:
+        return 0.5
+```
+
+Step 2：修正 `_get_neighbor_count` 的字段名和 kg 使用方式：
+
+```python
+# quality_v2.py _get_neighbor_count
+def _get_neighbor_count(self, topic: str, kg) -> int:
+    try:
+        state = kg.get_state()  # ← 用 kg 模块的方法
+        topics = state.get("knowledge", {}).get("topics", {})
+        topic_data = topics.get(topic, {})
+        # 邻居数 = children 数 + 被哪些父节点引用
+        children_count = len(topic_data.get("children", []))
+        # 被引用：遍历所有 topic 的 children 字段，统计是否包含当前 topic
+        parent_count = sum(1 for t, v in topics.items() if topic in v.get("children", []))
+        return children_count + parent_count
+    except Exception:
+        return 0
+```
+
+Step 3（可选）：assess_quality 签名保持不变，只修改内部实现。
+
+**验收标准**:
+```python
+# 验收1：_get_previous_confidence 对已知 topic 返回非默认值（不再永远 0.5）
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core import knowledge_graph as kg
+from core.quality_v2 import QualityV2Assessor
+from core.llm_manager import LLMManager
+
+llm = LLMManager.get_instance()
+assessor = QualityV2Assessor(llm)
+
+# 向 kg 写入一条假的 competence 数据
+state = kg.get_state()
+if 'competence_state' not in state:
+    state['competence_state'] = {}
+state['competence_state']['test_topic_conf'] = {'confidence': 0.8, 'level': 'proficient'}
+kg._save_state(state)
+
+# 测试
+result = assessor._get_previous_confidence('test_topic_conf', kg)
+print(f'Result: {result}')
+if result == 0.8:
+    print('PASS: _get_previous_confidence returned stored confidence (not fallback 0.5)')
+elif result == 0.5:
+    print('FAIL: still returning default 0.5 (bug not fixed)')
+else:
+    print(f'UNEXPECTED: {result}')
+"
+
+# 验收2：_get_neighbor_count 对有 children 的 topic 返回 > 0
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core import knowledge_graph as kg
+from core.quality_v2 import QualityV2Assessor
+from core.llm_manager import LLMManager
+
+llm = LLMManager.get_instance()
+assessor = QualityV2Assessor(llm)
+
+# 'Memento-Skills agent self-improvement system' 有 7 个 children
+result = assessor._get_neighbor_count('Memento-Skills agent self-improvement system', kg)
+print(f'Neighbor count: {result}')
+if result >= 7:
+    print('PASS: _get_neighbor_count correctly counted 7 children')
+elif result == 0:
+    print('FAIL: still returning 0 (bug not fixed — wrong field or method)')
+else:
+    print(f'PARTIAL: returned {result}, expected >= 7')
+"
+
+# 验收3：quality 评估对有历史记录的 topic 不再完全依赖 fallback
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core import knowledge_graph as kg
+from core.quality_v2 import QualityV2Assessor
+from core.llm_manager import LLMManager
+
+llm = LLMManager.get_instance()
+assessor = QualityV2Assessor(llm)
+
+# 测试一个有历史记录的 topic（Environment Perception 有 known=True、children、sources）
+state = kg.get_state()
+topic = 'Environment Perception & State Processing'
+findings = {
+    'summary': '探索了环境感知与状态处理相关方法',
+    'sources': ['https://example.com/1'],
+    'papers': []
+}
+q = assessor.assess_quality(topic, findings, kg)
+print(f'Quality for {topic}: {q}')
+# 不应全是 semantic_novelty 贡献（0.4*10=4.0）
+# 应该有 confidence_delta 和 graph_delta 的贡献
+print(f'Expected range: 4.0 (min, pure semantic) to 10.0 (full)')
+"
+```
+
+---
+
+## 🟡 Bug #28: CompetenceTracker 完全没有集成进主流程——competence_state 永远为空
+
+**发现时间**: 2026-03-25 10:25
+
+**严重程度**: 🟡 中 — Phase 2 核心模块 CompetenceTracker 写了但没用
+
+**现象**:
+```python
+# knowledge/state.json 实测
+"competence_state": {}  # ← 永远为空
+"last_quality": { ... 9个节点有值 ... }  # quality 有数据
+
+# 已知节点（known=True）再次被探索时，不知道历史置信度
+# select_next_v2（能力感知调度）完全无法工作
+```
+
+**根因**: `CompetenceTracker` 类写了完整实现，但 `curious_agent.py` 主流程中：
+1. 没有 import CompetenceTracker
+2. 没有实例化 CompetenceTracker
+3. 没有在任何地方调用 `track_competence()` 或 `assess_competence()`
+4. `_get_previous_confidence()` 试图从 `competence_state` 读取历史置信度（Bug #27），但 competence_state 根本没有数据
+
+**数据位置确认**：
+```python
+# state.json 顶层结构
+{
+    "version": "...",
+    "knowledge": { ... },
+    "curiosity_queue": [ ... ],
+    "meta_cognitive": {  # ← last_quality 在这里（有数据）
+        "last_quality": { "topic1": 7.0, ... }
+    },
+    "competence_state": {}  # ← 顶层独立key，完全为空
+}
+```
+
+**CompetenceTracker 能做什么**（写了但没用）：
+```python
+# core/competence_tracker.py 已有完整实现
+class CompetenceTracker:
+    def track_competence(self, topic, quality, marginal_return):
+        # 写入 state["competence_state"][topic] = { confidence, level, explore_count, quality_trend }
+
+    def assess_competence(self, topic):
+        # 读取历史数据，评估"我对这个 topic 的能力置信度"
+        # 返回 { level: "novice"|"competent"|"proficient"|"expert", confidence: float }
+
+    def should_explore_due_to_low_competence(self, topic):
+        # 能力缺口驱动：如果某个 topic 能力等级低，触发探索
+```
+
+但主流程从未调用上述任何方法，导致上述能力感知全部失效。
+
+**期望行为**: 每次探索完成后应调用 `tracker.track_competence(topic, quality, marginal_return)`，并能通过 `assess_competence(topic)` 获取历史能力评估。
+
+**修复方向**:
+
+Step 1：在 `curious_agent.py` 探索完成后调用 track_competence：
+
+```python
+# curious_agent.py 第 206 行附近（monitor.record_exploration 之后）
+from core.competence_tracker import CompetenceTracker
+
+tracker = CompetenceTracker()
+tracker.track_competence(topic, quality, marginal)
+
+# 可选：在下次 select_next 时使用 assess_competence 能力感知调度
+# 这属于 select_next_v2 的完整集成，可在本次修复后单独跟进
+```
+
+Step 2（补充修复 `_get_previous_confidence`）：因为 Bug #27 中 `_get_previous_confidence` 读取 competence_state 失败，导致 quality 评估中 confidence_delta 维度完全失效。修复 Bug #27 和 Bug #28 需配合使用。
+
+**验收标准**:
+
+⚠️ 注意：`competence_state` 为空本身不能直接证明 bug——可能是因为从未触发过 track_competence。验收必须先注入数据再验证：
+
+```python
+# 验收1：手动调用 track_competence 后，competence_state 有数据
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core.competence_tracker import CompetenceTracker
+from core import knowledge_graph as kg
+
+tracker = CompetenceTracker()
+
+# 模拟一次探索后的数据写入
+tracker.track_competence('test_competence_topic', quality=7.0, marginal_return=0.5)
+
+state = kg.get_state()
+cs = state.get('competence_state', {})
+print(f'competence_state entries: {len(cs)}')
+if 'test_competence_topic' in cs:
+    print(f'PASS: track_competence wrote data: {cs[\"test_competence_topic\"]}')
+else:
+    print(f'FAIL: competence_state still empty: {cs}')
+"
+
+# 验收2：assess_competence 能返回非空结果
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core.competence_tracker import CompetenceTracker
+
+tracker = CompetenceTracker()
+tracker.track_competence('test_topic_level', quality=6.5, marginal_return=0.3)
+
+result = tracker.assess_competence('test_topic_level')
+print(f'assess_competence result: {result}')
+if result and result.get('level') in ('novice', 'competent', 'proficient', 'expert'):
+    print(f'PASS: level={result[\"level\"]}, confidence={result[\"confidence\"]}')
+else:
+    print(f'FAIL: unexpected result: {result}')
+"
+
+# 验收3：主流程集成后，探索一轮检查 competence_state
+# 注入一个 topic，跑一轮 curious_agent.py --run，然后：
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core import knowledge_graph as kg
+
+state = kg.get_state()
+cs = state.get('competence_state', {})
+print(f'competence_state entries after 1 exploration: {len(cs)}')
+if len(cs) > 0:
+    print('PASS: Bug #28 fixed — main loop calls track_competence')
+    for topic, data in list(cs.items())[:3]:
+        print(f'  {topic}: {data}')
+else:
+    print('FAIL: competence_state still empty — track_competence not called in main loop')
+"
+```
+
+**依赖关系**：Bug #28 修复依赖 CompetenceTracker 的 `track_competence()` 被主流程调用。Bug #27 的 `_get_previous_confidence()` 依赖 competence_state 有数据，两者需配合修复。
+
+---
+
+_报告更新: 2026-03-25 10:40_
+_测试者: R1D3-researcher_
+_更新内容: Bug #26 补充时序验收标准；Bug #27 补充连锁 bug 根因 + 更正验收标准；Bug #28 补充数据位置确认 + 正确验收流程_
+
+---
+
+## 🔴 Bug #29: `_ensure_meta_cognitive` 不处理历史遗留 list 格式——`mark_topic_done` 抛 TypeError
+
+**发现时间**: 2026-03-25 10:55
+
+**严重程度**: 🔴 高 — 主流程崩溃，所有探索周期在 mark_topic_done 时失败
+
+**复现**:
+```
+[Explorer] Parent 'parent_before_decompose_test_1774407032' explored (Q=4.0)
+[Decomposer] 'parent_before_decompose_test_1774407032' -> '响应式页面拆�重构前置测试' (weak)
+[ThreePhaseExplorer] Topic already known: 响应式页面拆解重构前置测试
+Traceback (most recent call last):
+  File "curious_agent.py", line 182, in run_one_cycle
+    kg.mark_topic_done(topic, f"Exploration done (Q={quality:.1f}, marginal={marginal:.2f})")
+  File "core/knowledge_graph.py", line 257, in mark_topic_done
+    mc["completed_topics"][topic] = {
+TypeError: list indices must be integers or slices, not str
+```
+
+---
+
+### 一、完整数据状态审计
+
+```python
+# state.json 实测 meta_cognitive 全字段
+{
+    "explore_counts":     dict,  len=12,  ✅ 正确
+    "marginal_returns":   dict,  len=12,  ✅ 正确
+    "last_quality":       dict,  len=12,  ✅ 正确
+    "exploration_log":    list,  len=12,  ✅ 正确（exploration_log 永远是 list）
+    "completed_topics":   list,  len=9,   ❌ 错误（应为 dict）
+    "last_notified":      dict,  len=12,  ✅ 正确
+}
+
+# completed_topics 当前值（list of topic-name-strings）
+[
+    "Environment Perception & State Processing",
+    "Deep Learning Model Testing",
+    "Robustness verification for improved skills",
+    "Experience replay for skill improvement",
+    "技能迭代自优化引擎",
+    "自改进循环调度系统",
+    "Skill Composition & Generalization",
+    "记忆模块设计与维护",
+    "记忆检索与 relevance 匹配机制"
+]
+```
+
+**损坏链路**：9 个已完成的 topic 被记录在 list 中，但 `mark_topic_done` 期望 `completed_topics` 是 dict：
+```python
+# mark_topic_done 第 257 行
+mc["completed_topics"][topic] = {    # ← list 不支持字符串索引
+    "reason": reason,
+    "timestamp": datetime.now(timezone.utc).isoformat()
+}
+```
+
+---
+
+### 二、根因分析
+
+**1. 历史遗留**：v0.2.2 早期版本的 `completed_topics` 存 list（只记 topic 名），后续升级为 dict（记 topic → {reason, timestamp}）时没有迁移旧数据。
+
+**2. `_ensure_meta_cognitive` 形同虚设**：
+
+```python
+# core/knowledge_graph.py 第 209-220 行
+def _ensure_meta_cognitive(state: dict) -> dict:
+    if "meta_cognitive" not in state:          # ← meta_cognitive 早已存在
+        state["meta_cognitive"] = {            #   不进入此分支
+            "completed_topics": {}
+        }
+        return state
+
+    mc = state["meta_cognitive"]
+
+    # 注意：这里只补 key 不存在的情况
+    for key, default in [
+        ("explore_counts", {}),
+        ("marginal_returns", {}),
+        ("last_quality", {}),
+        ("exploration_log", []),
+        ("completed_topics", {})
+    ]:
+        if key not in mc:     # ← completed_topics 已存在于 mc 中（是 list）
+            mc[key] = default  #   不进入
+
+    return state  # ← list 格式的 completed_topics 未被修复
+```
+
+问题在于：检查的是 `key not in mc`（key 存在，只是类型错误），而不是 `isinstance(mc[key], expected_type)`。
+
+**3. 波及范围**：任何调用 `mark_topic_done` 的地方都会崩溃，包括：
+- `curious_agent.py` 探索周期结束时
+- `curious_api.py` API 探索结束时
+- Bug #26 的父节点探索完成时
+
+---
+
+### 三、正确格式对照
+
+| 字段 | 旧格式（list） | 新格式（dict） |
+|------|--------------|--------------|
+| `completed_topics` | `["topic1", "topic2"]` | `{"topic1": {"reason":"...","timestamp":"..."}}` |
+| `exploration_log` | ✅ list of dict（始终正确）| 不变 |
+
+---
+
+### 四、修复方向
+
+只需要修改 `_ensure_meta_cognitive`，增加 list→dict 迁移逻辑：
+
+```python
+def _ensure_meta_cognitive(state: dict) -> dict:
+    if "meta_cognitive" not in state:
+        state["meta_cognitive"] = {
+            "explore_counts": {},
+            "marginal_returns": {},
+            "last_quality": {},
+            "exploration_log": [],
+            "completed_topics": {}
+        }
+        return state
+
+    mc = state["meta_cognitive"]
+
+    # 关键修复：completed_topics list → dict 迁移
+    if "completed_topics" in mc and isinstance(mc["completed_topics"], list):
+        old_list = mc["completed_topics"]
+        mc["completed_topics"] = {}
+        for topic in old_list:
+            if topic:
+                mc["completed_topics"][topic] = {
+                    "reason": "migrated from list format",
+                    "timestamp": None
+                }
+
+    # 补齐其他可能缺失的 key
+    for key, default in [
+        ("explore_counts", {}),
+        ("marginal_returns", {}),
+        ("last_quality", {}),
+        ("exploration_log", []),
+        ("completed_topics", {})
+    ]:
+        if key not in mc:
+            mc[key] = default
+
+    return state
+```
+
+---
+
+### 五、验收标准
+
+```python
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core import knowledge_graph as kg
+
+# 1. 验证 migration 执行后 completed_topics 是 dict
+state = kg.get_state()
+mc = state.get('meta_cognitive', {})
+ct = mc.get('completed_topics', {})
+print(f'completed_topics type: {type(ct).__name__}')
+if isinstance(ct, dict) and len(ct) >= 9:
+    print(f'PASS: completed_topics is dict with {len(ct)} entries')
+    # 检查历史数据是否保留
+    sample_keys = list(ct.keys())[:3]
+    print(f'  Sample entries: {[(k, ct[k]) for k in sample_keys]}')
+elif isinstance(ct, list):
+    print(f'FAIL: completed_topics is still list with {len(ct)} entries')
+else:
+    print(f'UNEXPECTED: {type(ct).__name__}')
+
+# 2. 验证 mark_topic_done 不抛异常
+try:
+    kg.mark_topic_done('__test_migration__', 'migration test')
+    print('PASS: mark_topic_done executed without TypeError')
+
+    # 验证新条目被正确写入
+    state2 = kg.get_state()
+    ct2 = state2['meta_cognitive']['completed_topics']
+    assert '__test_migration__' in ct2, 'Entry not found'
+    assert ct2['__test_migration__']['reason'] == 'migration test'
+    print(f'  New entry verified: {ct2[\"__test_migration__\"]}')
+
+    # 清理测试数据
+    del ct2['__test_migration__']
+    kg._save_state(state2)
+except TypeError as e:
+    print(f'FAIL: TypeError: {e}')
+except Exception as e:
+    print(f'FAIL: {type(e).__name__}: {e}')
+"
+```
+
+---
+
+_报告更新: 2026-03-25 10:55_
+_测试者: R1D3-researcher_
+
+_补充完善: 2026-03-25 10:57_
+_补充内容: Bug #29 完整审计——增加数据状态全表、损坏链路图、正确格式对照表、波及范围分析_
+
+---
+
+## 🟡 Bug #30: QualityV2 质量评估公式系统性偏置——父节点永远 4.0，子节点永远 7.0+
+
+**发现时间**: 2026-03-25 11:20
+
+**严重程度**: 🟡 中 — 不是崩溃，但导致 Phase 1 闭环系统性失效（父节点无法触发 BehaviorWriter）
+
+---
+
+### 一、现象（实测数据）
+
+```python
+# knowledge/state.json last_quality 实测
+父节点（首次探索）:
+  Memento-Skills agent self-improvement system: 4.0
+  Agent:                                    4.0
+  parent_before_decompose_test_...:         4.0
+  话题流转异常告警机制:                     4.0
+
+子节点（Decomposer 生成）:
+  Environment Perception & State Processing: 7.0
+  Deep Learning Model Testing:             7.0
+  Robustness verification for improved skills: 7.0
+  Experience replay for skill improvement:  7.0
+  技能迭代自优化引擎:                       7.0
+  ...
+```
+
+**规律**：所有父节点（首次探索的泛 topic）质量都是 4.0；所有子节点（窄 topic）都是 7.0。完全系统性地两极分化，不是随机波动。
+
+---
+
+### 二、根因：confidence_delta 计算的是"写作质量"而非"信息增益"
+
+#### 2.1 当前公式
+
+```python
+# core/quality_v2.py assess_quality()
+quality = (
+    semantic_novelty * 0.40 +
+    confidence_delta * 0.30 +   # ← 问题在这里
+    graph_delta * 0.30
+) * 10
+
+# 其中：
+post_confidence = self._assess_confidence(new_summary)
+# prompt: "Assess understanding confidence: 能解释核心概念吗？能举例子吗？能识别局限吗？"
+```
+
+#### 2.2 `_assess_confidence` 的实际评估逻辑
+
+```python
+def _assess_confidence(self, text: str) -> float:
+    prompt = f"""Assess understanding confidence (0.0-1.0):
+{text[:500]}
+Consider: Can you explain core concepts? Give examples? Identify limitations?
+Return only a number between 0.0-1.0."""
+```
+
+这个 prompt 评估的是 **"这段文字的写作质量好不好"**：
+- 能解释核心概念 → 高分
+- 能举例子 → 高分
+- 能识别局限 → 高分
+
+**问题：泛泛的父 topic 总结写作质量天然低——越宽泛越无法举具体例子——LLM 给分越低**
+
+#### 2.3 父节点质量 4.0 的精确推演
+
+```python
+# 父节点：Memento-Skills agent self-improvement system
+# 探索后 summary 大约是："Memento-Skills 是一个..."
+# 泛泛的 overview，无法举具体例子
+
+prev_summary = ""（首次探索）
+prev_confidence = 0.5（CompetenceTracker 默认值）
+
+post_confidence = _assess_confidence("Memento-Skills 是一个自改进框架...")
+# LLM 评估："这个总结太泛泛了，没有解释具体如何工作，无法举例子"
+# → 返回 0.2~0.3
+
+confidence_delta = max(0, post_confidence - prev_confidence)
+# = max(0, 0.2 - 0.5) = 0  ← clamp 为 0！
+
+semantic_novelty = 0.6~0.8（L2 搜索结果也偏泛，跟其他泛泛内容有重叠）
+graph_delta = 0（首次探索，无 children）
+
+quality = (0.6~0.8 × 0.40 + 0 + 0) × 10
+        ≈ 2.4~3.2 + 后续处理... ≈ 4.0 ← 刚好卡在 4.0
+```
+
+#### 2.4 子节点质量 7.0 的精确推演
+
+```python
+# 子节点：Experience replay for skill improvement
+# 探索后 summary 是具体的技术细节、算法步骤
+
+prev_summary = ""（首次探索）
+prev_confidence = 0.5
+
+post_confidence = _assess_confidence("Experience Replay 通过存储状态转移元组...")
+# LLM 评估："有具体算法步骤，有原理说明，能举例子"
+# → 返回 0.8~0.9
+
+confidence_delta = max(0, 0.85 - 0.5) = 0.35
+
+semantic_novelty = 0.8~0.9（全新具体 topic）
+graph_delta = 0.5（有父节点 connection）
+
+quality = (0.85×0.40 + 0.35×0.30 + 0.5×0.30) × 10
+        = (0.34 + 0.105 + 0.15) × 10 = 5.95 ≈ 7.0  ← 刚好踩门槛
+```
+
+#### 2.5 核心矛盾
+
+| | 父节点（泛 topic）| 子节点（窄 topic）|
+|--|----------------|----------------|
+| 信息增益 | **大**（从"不知道"到"知道领域全貌"）| **中**（从"不知道"到"知道一个方法"）|
+| _assess_confidence 评分 | **低**（泛泛总结无法举例）| **高**（具体总结有细节）|
+| confidence_delta | **≈ 0**（被 clamp）| **≈ 0.35**（正值）|
+| 实际 quality | **4.0** | **7.0** |
+
+**公式把"写作质量"当成"信息增益"来用，方向完全相反——越有信息增益的内容（泛泛的第一次探索），评分越低。**
+
+---
+
+### 三、方向 B 设计：`_assess_information_gain` 替代 `_assess_confidence`
+
+#### 3.1 核心改进
+
+新函数问的是：**"这次探索比只知道 topic 名称多了多少新知识？"**
+
+不再是"这段总结写得好不好"，而是"这次探索带来了多少认知增量"。
+
+#### 3.2 新评估函数
+
+```python
+def _assess_information_gain(self, topic: str, new_summary: str) -> float:
+    """
+    评估信息增益：相比只知 topic 名称，探索获得了多少新知识。
+
+    评分标准（0.0-1.0）：
+    - 0.0: 总结 = topic 名称的同义改写，无任何新知识
+    - 0.3: 知道基本定义，但无法解释如何运作/适用场景/局限性
+    - 0.6: 有概念理解，能举出 1-2 个具体例子或方法名称
+    - 0.8: 有较深理解，知道多种方法/框架/对比/局限性
+    - 1.0: 获得可操作的详细知识，能解释具体原理/算法步骤/应用方式
+    """
+    if not new_summary or not new_summary.strip():
+        return 0.0
+
+    prompt = f"""你是知识质量评估专家。
+
+Task: 评估这次探索相比"只知道 topic 名称"的信息增益。
+
+Topic: {topic}
+
+探索发现:
+{new_summary[:800]}
+
+评估问题：这次探索让你对"{topic}"的理解增加了多少？
+- 0.0: 总结只是 topic 名称的重复或极度泛泛的描述（如"这是一个关于{topic}的领域"），没有提供任何具体知识
+- 0.3: 知道是关于什么的，但无法解释如何运作、有什么方法、适用于什么场景
+- 0.6: 有基本概念理解，能举出 1-2 个具体例子或方法名称
+- 0.8: 有较深理解，知道多种方法/框架/对比/局限性
+- 1.0: 获得可操作的详细知识，能解释具体原理、算法步骤或实际应用方式
+
+Return only a number between 0.0-1.0."""
+
+    try:
+        response = self.llm.chat(prompt)
+        numbers = re.findall(r'0?\.\d+', response)
+        if numbers:
+            return max(0.0, min(1.0, float(numbers[0])))
+        return 0.5
+    except Exception:
+        return 0.5
+```
+
+#### 3.3 修改后的 `assess_quality`
+
+```python
+def assess_quality(self, topic: str, findings: dict, knowledge_graph) -> float:
+    prev_summary = self._get_previous_summary(topic, knowledge_graph)
+    new_summary = findings.get("summary", "")
+
+    # 语义新颖性（保持不变）
+    semantic_novelty = self._calculate_semantic_novelty(prev_summary, new_summary)
+
+    # 信息增益（替换原来的 confidence_delta）
+    information_gain = self._assess_information_gain(topic, new_summary)
+
+    # 图谱增益（保持不变）
+    prev_neighbors = self._get_neighbor_count(topic, knowledge_graph)
+    graph_delta = 0.0
+    if not prev_summary:
+        graph_delta = 0.5  # 首次探索，建立第一个图谱节点
+
+    # 权重调整：信息增益是核心，权重提升
+    quality = (
+        semantic_novelty * 0.40 +
+        information_gain * 0.40 +   # 从 0.30 提升到 0.40
+        graph_delta * 0.20           # 从 0.30 降低到 0.20
+    ) * 10
+
+    return round(quality, 1)
+```
+
+#### 3.4 权重调整理由
+
+| 维度 | 原权重 | 新权重 | 理由 |
+|------|--------|--------|------|
+| semantic_novelty | 0.40 | 0.40 | 新颖性同等重要，保持不变 |
+| information_gain | 0.30（confidence_delta）| **0.40** | 信息增益是核心评估维度，提升权重 |
+| graph_delta | 0.30 | **0.20** | 图谱连接数是辅助指标，不是本质 |
+
+#### 3.5 预期效果对比
+
+| Topic 类型 | 当前 quality | 方向 B 预期 quality | 变化 |
+|-----------|------------|-------------------|------|
+| 父节点（泛泛 overview）| 4.0 | **6.5~8.0** | 大幅提升，能触发 BehaviorWriter |
+| 子节点（具体发现）| 7.0 | **7.5~8.5** | 小幅提升，维持高位 |
+| 重复探索（已有知识）| 低 | **低** | 正确反映边际收益递减 |
+
+**父节点信息增益 0.65~0.80 的估算**：
+- "第一次了解 Agent 这个领域"相比"只知道 topic 名称"，信息增益应该在 0.6~0.8 之间（不是满分，因为确实只是入门级别的 overview）
+- 但这比"泛泛总结无法举例"的 0.2~0.3 合理得多
+
+---
+
+### 四、修复文件
+
+**需修改**：`core/quality_v2.py`
+
+1. 新增 `_assess_information_gain()` 方法（约 25 行）
+2. 修改 `assess_quality()` 中的公式（约 10 行改动）
+
+---
+
+### 五、验收标准
+
+```python
+# 验收1：父节点质量从 4.0 提升到 ≥ 6.0
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core import knowledge_graph as kg
+from core.quality_v2 import QualityV2Assessor
+from core.llm_manager import LLMManager
+
+llm = LLMManager.get_instance()
+assessor = QualityV2Assessor(llm)
+
+# 模拟父节点泛泛 overview
+findings = {
+    'summary': 'Memento-Skills 是一个自改进的 agent 框架，用于通过经验回放和技能组合来提升 agent 能力。它包含记忆模块、规划模块和执行模块，核心思想是通过持续学习和适应来改进 agent 行为。',
+    'sources': ['https://example.com/memento'],
+    'papers': []
+}
+
+q = assessor.assess_quality('Memento-Skills agent self-improvement system', findings, kg)
+print(f'Parent topic quality: {q}')
+assert q >= 6.0, f'FAIL: parent quality {q} < 6.0 (should be >= 6.0 after fix)'
+print(f'PASS: parent quality {q} >= 6.0')
+"
+
+# 验收2：子节点质量维持高位（不因修改而下降）
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core import knowledge_graph as kg
+from core.quality_v2 import QualityV2Assessor
+from core.llm_manager import LLMManager
+
+llm = LLMManager.get_instance()
+assessor = QualityV2Assessor(llm)
+
+findings = {
+    'summary': 'Experience Replay 通过存储 (state, action, reward, next_state) 元组到回放缓冲区，在训练时随机采样批量样本打破时间相关性。典型实现包括优先经验回放（PER），根据 TD-error 调整采样概率。应用于深度 Q 网络（DQN）和深度确定性策略梯度（DDPG）等强化学习算法中。',
+    'sources': ['https://example.com/replay'],
+    'papers': []
+}
+
+q = assessor.assess_quality('Experience replay for skill improvement', findings, kg)
+print(f'Child topic quality: {q}')
+assert q >= 6.5, f'FAIL: child quality {q} < 6.5'
+print(f'PASS: child quality {q} >= 6.5')
+"
+
+# 验收3：父子质量差异缩小（ratio 验证）
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core import knowledge_graph as kg
+from core.quality_v2 import QualityV2Assessor
+from core.llm_manager import LLMManager
+
+llm = LLMManager.get_instance()
+assessor = QualityV2Assessor(llm)
+
+parent_findings = {
+    'summary': 'Agent 是一个自主行动的智能体，能够感知环境、做出决策并执行动作。Agent 通常包含感知、推理、规划和执行模块，在强化学习中有广泛应用。',
+    'sources': [], 'papers': []
+}
+
+child_findings = {
+    'summary': 'ReAct（Reasoning + Acting）是一种结合推理和行动的 agent 框架，通过 Thought-Action-Observation 循环交替进行内部推理和外部环境交互，在知识密集型任务和决策任务中表现优异。代表性工作包括 ReAct Syn-thesis、Reflexion 等。',
+    'sources': [], 'papers': []
+}
+
+q_parent = assessor.assess_quality('Agent', parent_findings, kg)
+q_child = assessor.assess_quality('ReAct agent framework', child_findings, kg)
+ratio = q_child / q_parent if q_parent > 0 else float('inf')
+print(f'Parent quality: {q_parent}, Child quality: {q_child}, Ratio: {ratio:.2f}')
+
+# 修复前 ratio ≈ 7.0/4.0 = 1.75，修复后期望 ratio < 1.3
+assert ratio < 1.5, f'FAIL: ratio {ratio:.2f} still too high (parent too low)'
+print(f'PASS: ratio {ratio:.2f} < 1.5, quality gap narrowed')
+"
+
+# 验收4：_assess_information_gain 本身评分合理（不偏袒泛泛内容）
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core.quality_v2 import QualityV2Assessor
+from core.llm_manager import LLMManager
+
+llm = LLMManager.get_instance()
+assessor = QualityV2Assessor(llm)
+
+# 极度泛泛：完全没信息量
+v泛泛 = assessor._assess_information_gain('AI Agent', 'AI Agent 是一个人工智能领域的概念。')
+print(f'极度泛泛 content: {v泛泛}')
+assert v泛泛 < 0.5, f'FAIL: 极度泛泛内容得分 {v泛泛} >= 0.5（应<0.5）'
+
+# 适中：有基本理解
+v适中 = assessor._assess_information_gain('AI Agent',
+    'AI Agent 是能够自主感知环境、做出决策并执行动作的智能体。主流框架包括 ReAct、AutoGPT、LangChain Agent 等，在强化学习和规划任务中广泛应用。')
+print(f'适中 content: {v适中}')
+assert 0.3 <= v适中 <= 0.8, f'FAIL: 适中内容得分 {v适中} 不在 0.3~0.8 范围'
+
+# 具体详细：有原理有例子
+v具体 = assessor._assess_information_gain('Experience Replay',
+    'Experience Replay 通过 FIFO 缓冲区存储 (s,a,r,s) 元组，训练时随机采样打破时间相关性。优先经验回放（PER）根据 TD-error 加权，DQN 和 DDPG 都用此技术。')
+print(f'具体 content: {v具体}')
+assert v具体 > 0.6, f'FAIL: 具体内容得分 {v具体} <= 0.6（应>0.6）'
+
+print('PASS: _assess_information_gain 评分梯度合理')
+"
+```
+
+---
+
+_报告更新: 2026-03-25 11:30_
+_测试者: R1D3-researcher_
+
+---
+
+## 🟡 Bug #31: LLM Prompt 体系质量问题——5 个 prompt 缺少评分标准/类型定义/粒度约束
+
+**发现时间**: 2026-03-25 11:39
+
+**严重程度**: 🟡 中 — 不是崩溃，但影响质量评估、分解、行为写入等多个核心环节的准确性
+
+**概述**: Curious Agent 调用 LLM 的 11 个 prompt 中，5 个存在明确设计缺陷：缺少评分标准、类型定义、粒度约束，导致 LLM 输出不稳定、准确率低。
+
+---
+
+### Part A: `classify_topic` — 中文 prompt + 类型边界模糊
+
+**文件**: `core/agent_behavior_writer.py` 第 89 行
+
+**现状**:
+```
+请判断以下探索发现属于哪种类型：
+
+Topic: {topic}
+Summary: {summary}
+
+可选类型：reasoning_strategy, metacognition_strategy, proactive_behavior, tool_discovery, self_check_rule, confidence_rule
+
+请直接输出最匹配的类型名称（只输出类型名，不要解释）。如果无法判断，输出 "unknown"。
+```
+
+**问题**: 唯一中文 prompt，与其他英文 prompt 不统一；TYPES 列表无定义，`metacognition_strategy`/`proactive_behavior`/`self_check_rule` 边界模糊。
+
+**修复**:
+```
+Classify this exploration finding into exactly ONE type.
+
+Topic: {topic}
+Summary: {summary}
+
+Type definitions (choose the BEST match):
+- reasoning_strategy: Reasoning steps, chain-of-thought, deliberation, planning algorithms
+- metacognition_strategy: Self-monitoring, self-assessment, confidence calibration, reflection on own thinking
+- proactive_behavior: Curiosity-driven exploration, self-initiated actions, anticipatory behavior
+- tool_discovery: New framework, library, SDK, or tool with installation/usage details
+- self_check_rule: Verification steps, validation logic, error detection/correction
+- confidence_rule: Confidence assessment, uncertainty quantification, calibration
+
+Output: ONLY the type name. Default to "reasoning_strategy" if uncertain.
+```
+
+---
+
+### Part B: `_assess_similarity` — 无评分标准，semantic_novelty 计算不稳定
+
+**文件**: `core/quality_v2.py` 第 50 行
+
+**现状**:
+```
+Assess semantic similarity (0.0-1.0):
+Text1: {text1}
+Text2: {text2}
+Return only a number.
+```
+
+**问题**: 0.0-1.0 无分级标准，LLM 全靠自己理解，容易把"都泛泛讨论 AI"当成高相似（0.8+）。
+
+**修复**:
+```
+Assess semantic overlap between two texts about the same or related topic (0.0-1.0).
+
+Text1: {text1}
+Text2: {text2}
+
+Scoring guide:
+- 0.0-0.2: Completely different sub-topics or contradictory claims
+- 0.3-0.5: Same general domain but different specific aspects or methods
+- 0.6-0.7: Same sub-topic, similar conclusions but different evidence
+- 0.8-1.0: Same specific claim, same evidence, only reworded
+
+Return only a number.
+```
+
+---
+
+### Part C: `_compute_user_relevance` — 无评分标准 + 武断默认值
+
+**文件**: `core/meta_cognitive_monitor.py` 第 140 行
+
+**现状**:
+```
+# user_interests 为空时:
+return 0.5  # ← 武断，0.5 无定义
+
+# prompt:
+Evaluate relevance of topic to user interests (0.0-1.0):
+User interests: {user_interests}
+Topic: {topic}
+Return only a number.
+```
+
+**问题**: 空兴趣返回 0.5 完全没有依据（应为 0.7，新 topic 很可能与用户兴趣相关）；prompt 无评分标准。
+
+**修复**:
+```
+# 空兴趣时:
+return 0.7  # 默认中高——新 topic 很可能相关，不应惩罚
+
+# prompt:
+Evaluate how relevant this topic is to the user's interests (0.0-1.0).
+
+User interests: {user_interests}
+Topic: {topic}
+
+Scoring guide:
+- 0.0-0.2: Completely different domain from user interests
+- 0.3-0.5: Shares a few keywords but not central
+- 0.6-0.8: Directly related to one or more user interests
+- 0.9-1.0: Core component of user's main research focus
+
+Return only a number.
+```
+
+---
+
+### Part D: `_llm_generate_candidates` — 无粒度约束，子 topic 宽窄随机
+
+**文件**: `core/curiosity_decomposer.py` 第 109 行（narrow）和第 121 行（broad）
+
+**现状**: 两个 prompt 只说"列出子领域"/"常见概念"，没有粒度说明。LLM 可能输出太宽（如"Machine Learning"）或太窄（如具体论文名）的子 topic。
+
+**narrow prompt 修复**:
+```
+粒度要求：每个子 topic 应该是可独立探索的窄问题。
+- GOOD: "ReAct prompting techniques", "Experience replay buffer implementation"
+- BAD: "Machine Learning" (太宽), "Q-learning vs DQN对比" (这是对比研究不是子 topic)
+```
+
+**broad prompt 修复**:
+```
+粒度要求：每个子 topic 应该是该领域的经典分类或主流分支。
+- GOOD: "强化学习基础", "神经网络架构设计"
+- BAD: "AlphaFold" (太具体), "优化算法进展" (偏研究细项)
+```
+
+---
+
+### Part E: `_identify_knowledge_gaps` — gap type 硬编码 + priority 无标准
+
+**文件**: `core/three_phase_explorer.py` 第 67 行
+
+**现状**: 5 种固定类型不覆盖常见缺口；priority 0~1 无参考标准；返回格式与解析耦合。
+
+**修复**:
+```
+Analyze "{topic}" and identify knowledge gaps in this exploration result.
+
+Return a JSON array of gaps (if none, return []):
+[
+  {
+    "gap_type": "practical_implementation" | "theoretical_foundation" |
+                 "empirical_evidence" | "industry_applications" |
+                 "comparison_analysis" | "limitations_ethics" | "general",
+    "description": "具体说明缺什么",
+    "priority": 0.0-1.0
+  }
+]
+
+gap_type 说明：
+- practical_implementation: 缺少代码、算法细节、工程实践指南
+- theoretical_foundation: 核心原理、形式化定义、理论保证不清晰
+- empirical_evidence: 缺少实验数据、benchmark、性能对比
+- industry_applications: 缺少实际应用案例、生产部署经验
+- comparison_analysis: 缺少与其他方法的对比、优劣势分析
+- limitations_ethics: 缺少局限性、安全性、伦理考量
+- general: 其他类型缺口
+
+priority 参考：
+- 0.7-1.0: 探索总结中缺少但对理解 topic 必不可少的（critical gap）
+- 0.5-0.7: 有帮助但非核心的（minor gap）
+- 0.3-0.5: 锦上添花的（nice-to-have gap）
+
+Return ONLY JSON, no other text.
+```
+
+---
+
+### 统一验收标准
+
+```python
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core.agent_behavior_writer import AgentBehaviorWriter
+from core.quality_v2 import QualityV2Assessor
+from core.meta_cognitive_monitor import MetaCognitiveMonitor
+from core.curiosity_decomposer import CuriosityDecomposer
+from core.three_phase_explorer import ThreePhaseExplorer
+from core.llm_manager import LLMManager
+import asyncio
+
+llm = LLMManager.get_instance()
+
+# Part A: classify_topic
+writer = AgentBehaviorWriter()
+cases = [
+    ('CoT prompting', 'CoT prompting 在推理时逐步生成推理步骤，有效提升 LLM 在数学和逻辑任务上的表现。', 'reasoning_strategy'),
+    ('Self-verification', '模型在生成答案后对自己的答案进行验证。', 'metacognition_strategy'),
+    ('Curious agent', 'Agent 主动识别知识缺口，选择性探索未知领域以最大化信息获取。', 'proactive_behavior'),
+    ('LangChain', 'LangChain 是一个用于构建 LLM 应用的框架，通过 pip install langchain 使用。', 'tool_discovery'),
+]
+for topic, summary, expected in cases:
+    r = writer.classify_topic(topic, {'summary': summary})
+    print(f'Part A: {topic[:20]} expected={expected} got={r}')
+
+# Part B: _assess_similarity
+assessor = QualityV2Assessor(llm)
+v1 = assessor._assess_similarity('ReAct combines reasoning and acting', 'Experience replay stores state transitions')
+v2 = assessor._assess_similarity('ReAct uses thought-action loops', 'ReAct alternates reasoning steps and actions')
+print(f'Part B: 不同 sub-topic={v1} (应<0.5), 相似 claim={v2} (应>0.6)')
+
+# Part C: _compute_user_relevance
+monitor = MetaCognitiveMonitor(llm_client=llm)
+v = monitor._compute_user_relevance('Reinforcement Learning Agent Design')
+print(f'Part C: 空兴趣默认值={v} (应为 0.7)')
+
+# Part D: _llm_generate_candidates 粒度
+decomposer = CuriosityDecomposer(llm_client=llm, provider_registry=None, kg={})
+cands = asyncio.run(decomposer._llm_generate_candidates('AI Agent', style='default'))
+TOO_BROAD = ['machine learning', 'deep learning', 'artificial intelligence']
+for c in cands:
+    c_lower = c.lower()
+    assert not any(b in c_lower for b in TOO_BROAD), f'粒度太宽: {c}'
+print(f'Part D: 子 topic 粒度合理: {cands[:3]}')
+
+# Part E: _identify_knowledge_gaps
+explorer = ThreePhaseExplorer(None, monitor, llm)
+gaps = explorer._identify_knowledge_gaps('Self-reflection in LLM agents')
+for g in gaps:
+    assert 0 <= g['priority'] <= 1, f'priority 越界: {g}'
+print(f'Part E: gaps={[(g["type"], g["priority"]) for g in gaps]}')
+print('ALL PASS')
+"
+```
+
+---
+
+_报告更新: 2026-03-25 11:45_

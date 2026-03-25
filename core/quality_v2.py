@@ -47,13 +47,21 @@ class QualityV2Assessor:
     
     def _assess_similarity(self, text1: str, text2: str) -> float:
         """Use LLM to assess semantic similarity (0-1)"""
-        prompt = f"""Assess semantic similarity (0.0-1.0):
+        prompt = f"""Assess semantic overlap between two texts about the same or related topic (0.0-1.0).
 
 Text1: {text1[:300]}
 Text2: {text2[:300]}
 
+Scoring guide:
+- 0.0-0.2: Completely different sub-topics or contradictory claims
+  (e.g., Text1 about RL, Text2 about NLP, or Text1 agrees Text2 disagrees)
+- 0.3-0.5: Same general domain but different specific aspects or methods
+  (e.g., both about AI Agents but one about planning, one about memory)
+- 0.6-0.7: Same sub-topic, similar conclusions but different evidence or examples
+- 0.8-1.0: Same specific claim, same evidence, only reworded
+
 Return only a number between 0.0-1.0."""
-        
+
         try:
             response = self.llm.chat(prompt)
             numbers = re.findall(r'0?\.\d+', response)
