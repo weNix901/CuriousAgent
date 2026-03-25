@@ -53,7 +53,7 @@ def api_run():
         from core.explorer import Explorer
         from core.knowledge_graph import add_curiosity, get_top_curiosities
 
-        data = request.get_json() or {}
+        data = request.get_json() if request.is_json else {}
         topic = data.get("topic", "").strip()
         depth = data.get("depth", "medium")
 

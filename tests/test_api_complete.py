@@ -453,8 +453,169 @@ class TestAPIContract:
     def test_error_response_format(self, client):
         """Test error responses have consistent format"""
         response = client.post('/api/curious/inject',
-                              json={})  # Missing topic
+                               json={})  # Missing topic
         data = response.get_json()
-        
+
         assert 'error' in data
         assert isinstance(data['error'], str)
+
+
+class TestAPIAgentBehaviorWriterIntegration:
+    """Regression tests for Bug #15: API AgentBehaviorWriter integration"""
+
+    @patch('core.agent_behavior_writer.AgentBehaviorWriter')
+    @patch('core.meta_cognitive_monitor.MetaCognitiveMonitor')
+    @patch('core.explorer.Explorer')
+    @patch('core.curiosity_engine.CuriosityEngine')
+    def test_api_run_triggers_behavior_writer_on_high_quality(
+        self, mock_engine_class, mock_explorer_class, mock_monitor_class, mock_writer_class, client
+    ):
+        """Regression test: API /run should trigger AgentBehaviorWriter when quality >= 7.0"""
+        mock_engine = Mock()
+        mock_engine.score_topic.return_value = {'final_score': 8.5}
+        mock_engine_class.return_value = mock_engine
+
+        mock_explorer = Mock()
+        mock_explorer.explore.return_value = {
+            'topic': 'test-topic',
+            'action': 'exploration',
+            'score': 8.5,
+            'findings': 'Test findings',
+            'notified': False,
+            'sources': ['http://example.com']
+        }
+        mock_explorer_class.return_value = mock_explorer
+
+        mock_monitor = Mock()
+        mock_monitor.assess_exploration_quality.return_value = 8.5
+        mock_monitor_class.return_value = mock_monitor
+
+        mock_writer = Mock()
+        mock_writer.process.return_value = {'applied': True}
+        mock_writer_class.return_value = mock_writer
+
+        response = client.post('/api/curious/run',
+                               json={'topic': 'test-topic', 'depth': 'medium'})
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['status'] == 'success'
+        mock_writer_class.assert_called_once()
+        mock_writer.process.assert_called_once()
+        call_args = mock_writer.process.call_args
+        assert call_args[0][0] == 'test-topic'
+        assert call_args[0][2] == 8.5
+
+    @patch('core.agent_behavior_writer.AgentBehaviorWriter')
+    @patch('core.meta_cognitive_monitor.MetaCognitiveMonitor')
+    @patch('core.explorer.Explorer')
+    @patch('core.curiosity_engine.CuriosityEngine')
+    def test_api_run_skips_behavior_writer_on_low_quality(
+        self, mock_engine_class, mock_explorer_class, mock_monitor_class, mock_writer_class, client
+    ):
+        """Regression test: API /run should NOT trigger AgentBehaviorWriter when quality < 7.0"""
+        mock_engine = Mock()
+        mock_engine.score_topic.return_value = {'final_score': 5.0}
+        mock_engine_class.return_value = mock_engine
+
+        mock_explorer = Mock()
+        mock_explorer.explore.return_value = {
+            'topic': 'test-topic',
+            'action': 'exploration',
+            'score': 5.0,
+            'findings': 'Test findings',
+            'notified': False,
+            'sources': []
+        }
+        mock_explorer_class.return_value = mock_explorer
+
+        mock_monitor = Mock()
+        mock_monitor.assess_exploration_quality.return_value = 5.5
+        mock_monitor_class.return_value = mock_monitor
+
+        mock_writer = Mock()
+        mock_writer_class.return_value = mock_writer
+
+        response = client.post('/api/curious/run',
+                               json={'topic': 'test-topic', 'depth': 'medium'})
+
+        assert response.status_code == 200
+        mock_writer.process.assert_not_called()
+
+    @patch('core.meta_cognitive_monitor.MetaCognitiveMonitor')
+    @patch('core.explorer.Explorer')
+    @patch('core.curiosity_engine.CuriosityEngine')
+    def test_api_run_records_exploration_quality(
+        self, mock_engine_class, mock_explorer_class, mock_monitor_class, client
+    ):
+        """Regression test: API /run should record exploration quality via monitor.record_exploration"""
+        mock_engine = Mock()
+        mock_engine.score_topic.return_value = {'final_score': 8.0}
+        mock_engine_class.return_value = mock_engine
+
+        mock_explorer = Mock()
+        mock_explorer.explore.return_value = {
+            'topic': 'test-topic',
+            'action': 'exploration',
+            'score': 8.0,
+            'findings': 'Test findings',
+            'notified': False,
+            'sources': []
+        }
+        mock_explorer_class.return_value = mock_explorer
+
+        mock_monitor = Mock()
+        mock_monitor.assess_exploration_quality.return_value = 7.5
+        mock_monitor_class.return_value = mock_monitor
+
+        response = client.post('/api/curious/run',
+                               json={'topic': 'test-topic', 'depth': 'medium'})
+
+        mock_monitor.record_exploration.assert_called_once()
+        call_args = mock_monitor.record_exploration.call_args
+        assert call_args[0][0] == 'test-topic'
+        assert call_args[0][1] == 7.5
+
+    @patch('core.agent_behavior_writer.AgentBehaviorWriter')
+    @patch('core.meta_cognitive_monitor.MetaCognitiveMonitor')
+    @patch('core.explorer.Explorer')
+    @patch('core.curiosity_engine.CuriosityEngine')
+    def test_api_run_quality_assessment_called_with_correct_findings(
+        self, mock_engine_class, mock_explorer_class, mock_monitor_class, mock_writer_class, client
+    ):
+        """Regression test: API /run should assess quality with proper findings structure"""
+        mock_engine = Mock()
+        mock_engine.score_topic.return_value = {'final_score': 8.0}
+        mock_engine_class.return_value = mock_engine
+
+        mock_explorer = Mock()
+        mock_explorer.explore.return_value = {
+            'topic': 'test-topic',
+            'action': 'exploration',
+            'score': 8.0,
+            'findings': 'Detailed findings text',
+            'notified': False,
+            'sources': ['http://source1.com', 'http://source2.com'],
+            'papers': [{'title': 'Paper 1'}]
+        }
+        mock_explorer_class.return_value = mock_explorer
+
+        mock_monitor = Mock()
+        mock_monitor.assess_exploration_quality.return_value = 7.8
+        mock_monitor_class.return_value = mock_monitor
+
+        mock_writer = Mock()
+        mock_writer_class.return_value = mock_writer
+
+        response = client.post('/api/curious/run',
+                               json={'topic': 'test-topic', 'depth': 'medium'})
+
+        mock_monitor.assess_exploration_quality.assert_called_once()
+        call_args = mock_monitor.assess_exploration_quality.call_args
+        assert call_args[0][0] == 'test-topic'
+        findings = call_args[0][1]
+        assert 'summary' in findings
+        assert 'sources' in findings
+        assert 'papers' in findings
+        assert findings['summary'] == 'Detailed findings text'
+        assert len(findings['sources']) == 2

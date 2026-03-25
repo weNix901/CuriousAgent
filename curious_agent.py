@@ -214,7 +214,7 @@ def run_one_cycle(depth: str = "medium") -> dict:
     
     # Record parent-child relationship if topic was decomposed
     if "original_topic" in next_curiosity:
-        kg.add_child(next_curiosity["original_topic"], topic)
+        kg.add_child(next_curiosity["original_topic"], next_curiosity["topic"])
     
     continue_allowed, continue_reason = controller.should_continue(topic)
     
@@ -308,14 +308,17 @@ def daemon_mode(interval_minutes: int = 30):
         
         if outcome["status"] == "idle":
             print(f"💤 {outcome['message']}")
-        else:
+        elif outcome["status"] in ("clarification_needed", "blocked"):
+            topic_or_reason = outcome.get("topic") or outcome.get("reason", "")
+            print(f"⚠️  {outcome['status']}: {topic_or_reason}")
+        elif outcome["status"] == "success":
             result = outcome["result"]
             print(f"✅ 完成: {result['topic']}")
             print(f"   方式: {result['action']}")
             print(f"   分数: {result['score']}")
-            print(f"   通知用户: {'是' if result['notified'] else '否'}")
+            print(f"   通知用户: {'是' if outcome['notified'] else '否'}")
             
-            if result["notified"]:
+            if outcome["notified"]:
                 print(f"\n📬 飞书通知已触发（见下方内容）:")
                 print("-" * 40)
                 print(outcome["formatted"][:300])
