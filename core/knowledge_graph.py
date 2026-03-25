@@ -207,7 +207,7 @@ def list_pending() -> list:
 # === Meta-cognitive tracking functions ===
 
 def _ensure_meta_cognitive(state: dict) -> dict:
-    """Ensure state.json contains meta_cognitive field"""
+    """Ensure state.json contains meta_cognitive field with correct types"""
     if "meta_cognitive" not in state:
         state["meta_cognitive"] = {
             "explore_counts": {},
@@ -216,6 +216,32 @@ def _ensure_meta_cognitive(state: dict) -> dict:
             "exploration_log": [],
             "completed_topics": {}
         }
+        return state
+
+    mc = state["meta_cognitive"]
+
+    # Bug #29 fix: Migrate completed_topics from list to dict format
+    if "completed_topics" in mc and isinstance(mc["completed_topics"], list):
+        old_list = mc["completed_topics"]
+        mc["completed_topics"] = {}
+        for topic in old_list:
+            if topic:
+                mc["completed_topics"][topic] = {
+                    "reason": "migrated from list format",
+                    "timestamp": None
+                }
+
+    # Ensure all required keys exist
+    for key, default in [
+        ("explore_counts", {}),
+        ("marginal_returns", {}),
+        ("last_quality", {}),
+        ("exploration_log", []),
+        ("completed_topics", {})
+    ]:
+        if key not in mc:
+            mc[key] = default
+
     return state
 
 
