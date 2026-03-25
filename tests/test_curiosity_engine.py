@@ -558,3 +558,61 @@ class TestSelectNextFixed:
         result = engine.select_next()
 
         assert result is None
+
+
+class TestSelectNextRegression:
+    """Regression tests for Bug #14: select_next filtering completed topics"""
+
+    @patch('core.curiosity_engine.kg.is_topic_completed')
+    @patch('core.curiosity_engine.kg.get_top_curiosities')
+    def test_select_next_skips_first_completed_topic(self, mock_get_top, mock_is_completed):
+        """Regression test: When first candidate is completed, skip to next"""
+        mock_get_top.return_value = [
+            {"topic": "completed-topic", "status": "pending", "score": 9.0},
+            {"topic": "pending-topic", "status": "pending", "score": 7.0}
+        ]
+        # First topic is completed, second is not
+        mock_is_completed.side_effect = lambda t: t == "completed-topic"
+
+        engine = CuriosityEngine()
+        result = engine.select_next()
+
+        assert result is not None
+        assert result["topic"] == "pending-topic"
+        assert result["topic"] != "completed-topic"
+
+    @patch('core.curiosity_engine.kg.is_topic_completed')
+    @patch('core.curiosity_engine.kg.get_top_curiosities')
+    def test_select_next_returns_none_when_all_completed(self, mock_get_top, mock_is_completed):
+        """Regression test: When all candidates are completed, return None"""
+        mock_get_top.return_value = [
+            {"topic": "topic-1", "status": "pending", "score": 8.0},
+            {"topic": "topic-2", "status": "pending", "score": 7.0}
+        ]
+        # All topics are completed
+        mock_is_completed.return_value = True
+
+        engine = CuriosityEngine()
+        result = engine.select_next()
+
+        assert result is None
+
+    @patch('core.curiosity_engine.kg.is_topic_completed')
+    @patch('core.curiosity_engine.kg.get_top_curiosities')
+    def test_select_next_checks_completion_before_scoring(self, mock_get_top, mock_is_completed):
+        """Regression test: is_topic_completed must be checked before scoring"""
+        mock_get_top.return_value = [
+            {"topic": "high-score-completed", "status": "pending", "score": 9.5},
+            {"topic": "low-score-pending", "status": "pending", "score": 6.0}
+        ]
+        # High score topic is completed, low score is not
+        mock_is_completed.side_effect = lambda t: t == "high-score-completed"
+
+        engine = CuriosityEngine()
+        result = engine.select_next()
+
+        # Should select the lower score pending topic, not the higher score completed one
+        assert result is not None
+        assert result["topic"] == "low-score-pending"
+        # Verify is_topic_completed was called for the first topic
+        mock_is_completed.assert_any_call("high-score-completed")
