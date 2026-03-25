@@ -80,6 +80,28 @@ def run_one_cycle(depth: str = "medium") -> dict:
         kg=state
     )
     
+    # Initialize monitor early for potential parent exploration (Bug #26)
+    monitor = MetaCognitiveMonitor(llm_client=llm_manager)
+
+    # Bug #26 fix: Explore parent topic first before decomposition
+    parent_state = state.get("knowledge", {}).get("topics", {}).get(topic, {})
+    if not parent_state.get("known"):
+        print(f"[Explorer] Parent '{topic}' not yet explored, exploring first...")
+        parent_explorer = Explorer(exploration_depth=depth)
+        parent_result = parent_explorer.explore({"topic": topic, "score": next_curiosity.get("score", 5.0)})
+
+        parent_findings = {
+            "summary": parent_result.get("findings", ""),
+            "sources": parent_result.get("sources", []),
+            "papers": parent_result.get("papers", [])
+        }
+        kg.add_knowledge(topic, depth=5, summary=parent_findings["summary"], sources=parent_findings["sources"])
+
+        parent_quality = monitor.assess_exploration_quality(topic, parent_findings)
+        monitor.record_exploration(topic, parent_quality, marginal_return=0.0, notified=False)
+
+        print(f"[Explorer] Parent '{topic}' explored (Q={parent_quality:.1f})")
+
     try:
         subtopics = asyncio.run(decomposer.decompose(topic))
         
@@ -116,7 +138,6 @@ def run_one_cycle(depth: str = "medium") -> dict:
         return {"status": "clarification_needed", "topic": e.topic, "reason": e.reason}
     
     topic = next_curiosity["topic"]
-    monitor = MetaCognitiveMonitor(llm_client=llm_manager)
     controller = MetaCognitiveController(monitor)
     
     allowed, reason = controller.should_explore(topic)
@@ -204,7 +225,12 @@ def run_one_cycle(depth: str = "medium") -> dict:
         pass
     
     monitor.record_exploration(topic, quality, marginal, notified=notified)
-    
+
+    # Track competence for gap-driven exploration (Bug #28 fix)
+    from core.competence_tracker import CompetenceTracker
+    tracker = CompetenceTracker()
+    tracker.update_competence(topic, quality)
+
     if quality >= 7.0:
         from core.agent_behavior_writer import AgentBehaviorWriter
         writer = AgentBehaviorWriter()

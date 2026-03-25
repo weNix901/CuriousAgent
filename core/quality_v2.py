@@ -90,24 +90,31 @@ Return only a number between 0.0-1.0."""
     def _get_previous_summary(self, topic: str, kg) -> str:
         """Get previous summary from knowledge graph"""
         try:
-            topic_data = kg.get("topics", {}).get(topic, {})
+            state = kg.get_state()
+            topic_data = state.get("knowledge", {}).get("topics", {}).get(topic, {})
             return topic_data.get("summary", "")
         except Exception:
             return ""
-    
+
     def _get_previous_confidence(self, topic: str, kg) -> float:
         """Get previous confidence from competence state"""
         try:
-            state = kg.get("competence_state", {})
-            return state.get(topic, {}).get("confidence", 0.5)
+            state = kg.get_state()
+            competence_state = state.get("competence_state", {})
+            return competence_state.get(topic, {}).get("confidence", 0.5)
         except Exception:
             return 0.5
-    
+
     def _get_neighbor_count(self, topic: str, kg) -> int:
-        """Get number of neighbors in knowledge graph"""
+        """Get number of neighbors in knowledge graph (children + parents)"""
         try:
-            topic_data = kg.get("topics", {}).get(topic, {})
-            return len(topic_data.get("related_topics", []))
+            state = kg.get_state()
+            topics = state.get("knowledge", {}).get("topics", {})
+            topic_data = topics.get(topic, {})
+            # 邻居数 = children 数 + 被哪些父节点引用
+            children_count = len(topic_data.get("children", []))
+            parent_count = sum(1 for t, v in topics.items() if topic in v.get("children", []))
+            return children_count + parent_count
         except Exception:
             return 0
     
