@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from unittest.mock import Mock
 from core.meta_cognitive_controller import MetaCognitiveController
 from core.meta_cognitive_monitor import MetaCognitiveMonitor
-from core import knowledge_graph as kg
+from tests.test_utils import isolated_knowledge_graph, create_test_topic
 
 
 class TestMetaCognitiveControllerInit:
@@ -26,134 +26,128 @@ class TestMetaCognitiveControllerInit:
 
 
 class TestShouldExplore:
-    def setup_method(self):
-        self.monitor = MetaCognitiveMonitor()
-        self.controller = MetaCognitiveController(self.monitor)
-        state = kg.get_state()
-        state["meta_cognitive"] = {
-            "explore_counts": {},
-            "marginal_returns": {},
-            "last_quality": {},
-            "exploration_log": [],
-            "completed_topics": {}
-        }
-        kg._save_state(state)
-
     def test_should_explore_new_topic(self):
-        allowed, reason = self.controller.should_explore("new-topic")
-        assert allowed is True
-        assert "Explore allowed" in reason
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            controller = MetaCognitiveController(monitor)
+            allowed, reason = controller.should_explore(create_test_topic("new-topic"))
+            assert allowed is True
+            assert "Explore allowed" in reason
 
     def test_should_explore_blocked(self):
-        kg.mark_topic_done("blocked-topic", "max_count_reached")
-        allowed, reason = self.controller.should_explore("blocked-topic")
-        assert allowed is False
-        assert "blocked" in reason.lower()
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            controller = MetaCognitiveController(monitor)
+            test_topic = create_test_topic("blocked-topic")
+            kg_module.mark_topic_done(test_topic, "max_count_reached")
+            allowed, reason = controller.should_explore(test_topic)
+            assert allowed is False
+            assert "blocked" in reason.lower()
 
     def test_should_explore_max_count(self):
-        for i in range(3):
-            kg.update_meta_exploration("test-topic", 7.0, 0.5, False)
-        allowed, reason = self.controller.should_explore("test-topic")
-        assert allowed is False
-        assert "Max explore count" in reason
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            controller = MetaCognitiveController(monitor)
+            test_topic = create_test_topic("count-test")
+            for i in range(3):
+                kg_module.update_meta_exploration(test_topic, 7.0, 0.5, False)
+            allowed, reason = controller.should_explore(test_topic)
+            assert allowed is False
+            assert "Max explore count" in reason
 
     def test_should_explore_under_limit(self):
-        kg.update_meta_exploration("test-topic", 7.0, 0.5, False)
-        allowed, reason = self.controller.should_explore("test-topic")
-        assert allowed is True
-        assert "1/3" in reason
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            controller = MetaCognitiveController(monitor)
+            test_topic = create_test_topic("limit-test")
+            kg_module.update_meta_exploration(test_topic, 7.0, 0.5, False)
+            allowed, reason = controller.should_explore(test_topic)
+            assert allowed is True
+            assert "1/3" in reason
 
 
 class TestShouldContinue:
-    def setup_method(self):
-        self.monitor = MetaCognitiveMonitor()
-        self.controller = MetaCognitiveController(self.monitor)
-        state = kg.get_state()
-        state["meta_cognitive"] = {
-            "explore_counts": {},
-            "marginal_returns": {},
-            "last_quality": {},
-            "exploration_log": [],
-            "completed_topics": {}
-        }
-        kg._save_state(state)
-
     def test_should_continue_first(self):
-        allowed, reason = self.controller.should_continue("new-topic")
-        assert allowed is True
-        assert "First exploration" in reason
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            controller = MetaCognitiveController(monitor)
+            allowed, reason = controller.should_continue(create_test_topic("continue-test"))
+            assert allowed is True
+            assert "First exploration" in reason
 
     def test_should_continue_high_return(self):
-        kg.update_meta_exploration("test", 8.0, 0.8, False)
-        allowed, reason = self.controller.should_continue("test")
-        assert allowed is True
-        assert "healthy" in reason.lower()
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            controller = MetaCognitiveController(monitor)
+            test_topic = create_test_topic("high-return")
+            kg_module.update_meta_exploration(test_topic, 8.0, 0.8, False)
+            allowed, reason = controller.should_continue(test_topic)
+            assert allowed is True
+            assert "healthy" in reason.lower()
 
     def test_should_continue_low_return(self):
-        kg.update_meta_exploration("test", 5.0, 0.1, False)
-        allowed, reason = self.controller.should_continue("test")
-        assert allowed is False
-        assert "below threshold" in reason.lower()
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            controller = MetaCognitiveController(monitor)
+            test_topic = create_test_topic("low-return")
+            kg_module.update_meta_exploration(test_topic, 5.0, 0.1, False)
+            allowed, reason = controller.should_continue(test_topic)
+            assert allowed is False
+            assert "below threshold" in reason.lower()
 
     def test_should_continue_declining(self):
-        kg.update_meta_exploration("test", 6.0, 0.4, False)
-        kg.update_meta_exploration("test", 5.0, 0.25, False)
-        allowed, reason = self.controller.should_continue("test")
-        assert allowed is False
-        assert "below threshold" in reason.lower()
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            controller = MetaCognitiveController(monitor)
+            test_topic = create_test_topic("declining")
+            kg_module.update_meta_exploration(test_topic, 6.0, 0.4, False)
+            kg_module.update_meta_exploration(test_topic, 5.0, 0.25, False)
+            allowed, reason = controller.should_continue(test_topic)
+            assert allowed is False
+            assert "below threshold" in reason.lower()
 
 
 class TestShouldNotify:
-    def setup_method(self):
-        self.monitor = MetaCognitiveMonitor()
-        self.controller = MetaCognitiveController(self.monitor)
-        state = kg.get_state()
-        state["meta_cognitive"] = {
-            "explore_counts": {},
-            "marginal_returns": {},
-            "last_quality": {},
-            "exploration_log": [],
-            "completed_topics": {}
-        }
-        kg._save_state(state)
-
     def test_should_notify_high_quality(self):
-        kg.update_meta_exploration("test", 8.0, 0.5, False)
-        should, reason = self.controller.should_notify("test")
-        assert should is True
-        assert "High quality" in reason
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            controller = MetaCognitiveController(monitor)
+            test_topic = create_test_topic("high-quality")
+            kg_module.update_meta_exploration(test_topic, 8.0, 0.5, False)
+            should, reason = controller.should_notify(test_topic)
+            assert should is True
+            assert "High quality" in reason
 
     def test_should_notify_low_quality(self):
-        kg.update_meta_exploration("test", 5.0, 0.5, False)
-        should, reason = self.controller.should_notify("test")
-        assert should is False
-        assert "below" in reason.lower()
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            controller = MetaCognitiveController(monitor)
+            test_topic = create_test_topic("low-quality")
+            kg_module.update_meta_exploration(test_topic, 5.0, 0.5, False)
+            should, reason = controller.should_notify(test_topic)
+            assert should is False
+            assert "below" in reason.lower()
 
     def test_should_notify_at_threshold(self):
-        kg.update_meta_exploration("test", 7.0, 0.5, False)
-        should, reason = self.controller.should_notify("test")
-        assert should is True
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            controller = MetaCognitiveController(monitor)
+            test_topic = create_test_topic("at-threshold")
+            kg_module.update_meta_exploration(test_topic, 7.0, 0.5, False)
+            should, reason = controller.should_notify(test_topic)
+            assert should is True
 
 
 class TestGetDecisionSummary:
-    def setup_method(self):
-        self.monitor = MetaCognitiveMonitor()
-        self.controller = MetaCognitiveController(self.monitor)
-        state = kg.get_state()
-        state["meta_cognitive"] = {
-            "explore_counts": {},
-            "marginal_returns": {},
-            "last_quality": {},
-            "exploration_log": [],
-            "completed_topics": {}
-        }
-        kg._save_state(state)
-
     def test_decision_summary_complete(self):
-        kg.update_meta_exploration("test", 8.0, 0.5, False)
-        summary = self.controller.get_decision_summary("test")
-        assert "topic" in summary
-        assert "should_explore" in summary
-        assert "should_continue" in summary
-        assert "should_notify" in summary
-        assert summary["topic"] == "test"
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            controller = MetaCognitiveController(monitor)
+            test_topic = create_test_topic("summary-test")
+            kg_module.update_meta_exploration(test_topic, 8.0, 0.5, False)
+            summary = controller.get_decision_summary(test_topic)
+            assert "topic" in summary
+            assert "should_explore" in summary
+            assert "should_continue" in summary
+            assert "should_notify" in summary
+            assert summary["topic"] == test_topic

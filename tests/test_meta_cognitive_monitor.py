@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from unittest.mock import Mock, patch
 from core.meta_cognitive_monitor import MetaCognitiveMonitor
 from core import knowledge_graph as kg
+from tests.test_utils import isolated_knowledge_graph, create_test_topic
 
 
 class TestMetaCognitiveMonitorInit:
@@ -21,115 +22,113 @@ class TestMetaCognitiveMonitorInit:
 
 
 class TestMetaCognitiveMonitorQueries:
-    def setup_method(self):
-        self.monitor = MetaCognitiveMonitor()
-        state = kg.get_state()
-        state["meta_cognitive"] = {
-            "explore_counts": {},
-            "marginal_returns": {},
-            "last_quality": {},
-            "exploration_log": [],
-            "completed_topics": {}
-        }
-        kg._save_state(state)
-
     def test_get_explore_count_new_topic(self):
-        assert self.monitor.get_explore_count("new-topic") == 0
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            assert monitor.get_explore_count(create_test_topic("new-topic")) == 0
 
     def test_get_explore_count_existing(self):
-        kg.update_meta_exploration("test-topic", 7.0, 0.5, False)
-        assert self.monitor.get_explore_count("test-topic") == 1
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            test_topic = create_test_topic("count-topic")
+            kg_module.update_meta_exploration(test_topic, 7.0, 0.5, False)
+            assert monitor.get_explore_count(test_topic) == 1
 
     def test_get_marginal_returns_empty(self):
-        assert self.monitor.get_marginal_returns("new-topic") == []
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            assert monitor.get_marginal_returns(create_test_topic("new-topic")) == []
 
     def test_get_marginal_returns_with_data(self):
-        kg.update_meta_exploration("test-topic", 7.0, 0.5, False)
-        kg.update_meta_exploration("test-topic", 8.0, 0.3, False)
-        returns = self.monitor.get_marginal_returns("test-topic")
-        assert len(returns) == 2
-        assert returns == [0.5, 0.3]
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            test_topic = create_test_topic("returns-topic")
+            kg_module.update_meta_exploration(test_topic, 7.0, 0.5, False)
+            kg_module.update_meta_exploration(test_topic, 8.0, 0.3, False)
+            returns = monitor.get_marginal_returns(test_topic)
+            assert len(returns) == 2
+            assert returns == [0.5, 0.3]
 
     def test_get_last_quality_no_history(self):
-        assert self.monitor.get_last_quality("new-topic") == 0.0
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            assert monitor.get_last_quality(create_test_topic("new-topic")) == 0.0
 
     def test_get_last_quality_with_history(self):
-        kg.update_meta_exploration("test-topic", 7.5, 0.5, False)
-        assert self.monitor.get_last_quality("test-topic") == 7.5
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            test_topic = create_test_topic("quality-topic")
+            kg_module.update_meta_exploration(test_topic, 7.5, 0.5, False)
+            assert monitor.get_last_quality(test_topic) == 7.5
 
     def test_is_topic_blocked_false(self):
-        assert self.monitor.is_topic_blocked("active-topic") is False
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            assert monitor.is_topic_blocked(create_test_topic("active-topic")) is False
 
     def test_is_topic_blocked_true(self):
-        kg.mark_topic_done("blocked-topic", "max_count_reached")
-        assert self.monitor.is_topic_blocked("blocked-topic") is True
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            test_topic = create_test_topic("blocked-topic")
+            kg_module.mark_topic_done(test_topic, "max_count_reached")
+            assert monitor.is_topic_blocked(test_topic) is True
 
 
 class TestAssessExplorationQuality:
-    def setup_method(self):
-        self.monitor = MetaCognitiveMonitor()
-        state = kg.get_state()
-        state["meta_cognitive"] = {
-            "explore_counts": {},
-            "marginal_returns": {},
-            "last_quality": {},
-            "exploration_log": [],
-            "completed_topics": {}
-        }
-        state["knowledge"]["topics"] = {}
-        kg._save_state(state)
-
     def test_assess_quality_new_discovery(self):
-        findings = {
-            "summary": "Machine learning artificial intelligence deep learning neural networks",
-            "sources": ["http://a.com"],
-            "papers": []
-        }
-        quality = self.monitor.assess_exploration_quality("test", findings)
-        assert 0 <= quality <= 10
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            findings = {
+                "summary": "Machine learning artificial intelligence deep learning neural networks",
+                "sources": ["http://a.com"],
+                "papers": []
+            }
+            quality = monitor.assess_exploration_quality(create_test_topic("discovery"), findings)
+            assert 0 <= quality <= 10
 
     def test_assess_quality_depth_improvement(self):
-        kg.add_knowledge("test", depth=3, summary="Basic info")
-        findings = {
-            "summary": "A" * 1500,
-            "sources": ["http://a.com", "http://b.com", "http://c.com", "http://d.com", "http://e.com"],
-            "papers": [{}, {}, {}]
-        }
-        quality = self.monitor.assess_exploration_quality("test", findings)
-        assert quality > 0
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            test_topic = create_test_topic("depth-topic")
+            kg_module.add_knowledge(test_topic, depth=3, summary="Basic info")
+            findings = {
+                "summary": "A" * 1500,
+                "sources": ["http://a.com", "http://b.com", "http://c.com", "http://d.com", "http://e.com"],
+                "papers": [{}, {}, {}]
+            }
+            quality = monitor.assess_exploration_quality(test_topic, findings)
+            assert quality > 0
 
     def test_assess_quality_exception_fallback(self):
-        findings = {}
-        quality = self.monitor.assess_exploration_quality("test", findings)
-        assert 0 <= quality <= 10
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            findings = {}
+            quality = monitor.assess_exploration_quality(create_test_topic("fallback"), findings)
+            assert 0 <= quality <= 10
 
 
 class TestComputeMarginalReturn:
-    def setup_method(self):
-        self.monitor = MetaCognitiveMonitor()
-        state = kg.get_state()
-        state["meta_cognitive"] = {
-            "explore_counts": {},
-            "marginal_returns": {},
-            "last_quality": {},
-            "exploration_log": [],
-            "completed_topics": {}
-        }
-        kg._save_state(state)
-
     def test_marginal_return_first_exploration(self):
-        marginal = self.monitor.compute_marginal_return("new-topic", 8.0)
-        assert marginal == 1.0
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            marginal = monitor.compute_marginal_return(create_test_topic("first-explore"), 8.0)
+            assert marginal == 1.0
 
     def test_marginal_return_improvement(self):
-        kg.update_meta_exploration("test", 5.0, 0.0, False)
-        marginal = self.monitor.compute_marginal_return("test", 8.0)
-        assert marginal > 0
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            test_topic = create_test_topic("improvement-topic")
+            kg_module.update_meta_exploration(test_topic, 5.0, 0.0, False)
+            marginal = monitor.compute_marginal_return(test_topic, 8.0)
+            assert marginal > 0
 
     def test_marginal_return_decline(self):
-        kg.update_meta_exploration("test", 8.0, 0.8, False)
-        marginal = self.monitor.compute_marginal_return("test", 5.0)
-        assert marginal < 0.8
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            test_topic = create_test_topic("decline-topic")
+            kg_module.update_meta_exploration(test_topic, 8.0, 0.8, False)
+            marginal = monitor.compute_marginal_return(test_topic, 5.0)
+            assert marginal < 0.8
 
 
 class TestExtractKeywords:
@@ -170,21 +169,12 @@ class TestDepthScore:
 
 
 class TestRecordExploration:
-    def setup_method(self):
-        self.monitor = MetaCognitiveMonitor()
-        state = kg.get_state()
-        state["meta_cognitive"] = {
-            "explore_counts": {},
-            "marginal_returns": {},
-            "last_quality": {},
-            "exploration_log": [],
-            "completed_topics": {}
-        }
-        kg._save_state(state)
-
     def test_record_exploration(self):
-        self.monitor.record_exploration("test-topic", 7.5, 0.5, True)
-        assert kg.get_topic_explore_count("test-topic") == 1
-        assert self.monitor.get_last_quality("test-topic") == 7.5
-        returns = kg.get_topic_marginal_returns("test-topic")
-        assert returns == [0.5]
+        with isolated_knowledge_graph() as kg_module:
+            monitor = MetaCognitiveMonitor()
+            test_topic = create_test_topic("record-topic")
+            monitor.record_exploration(test_topic, 7.5, 0.5, True)
+            assert kg_module.get_topic_explore_count(test_topic) == 1
+            assert monitor.get_last_quality(test_topic) == 7.5
+            returns = kg_module.get_topic_marginal_returns(test_topic)
+            assert returns == [0.5]

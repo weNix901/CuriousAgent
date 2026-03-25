@@ -17,6 +17,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from tests.test_utils import create_test_topic, isolated_knowledge_graph
+
 
 @pytest.fixture
 def mock_state_file(tmp_path):
@@ -182,7 +184,7 @@ class TestE2EFullWorkflow:
             from core.knowledge_graph import add_curiosity
             from core.explorer import Explorer
             
-            add_curiosity(topic="test shallow", reason="test", relevance=7.0, depth=5.0)
+            add_curiosity(topic=create_test_topic("shallow"), reason="test", relevance=7.0, depth=5.0)
             
             # Create explorer with shallow depth and verify layer dispatch
             explorer = Explorer(exploration_depth="shallow")
@@ -217,7 +219,7 @@ class TestE2EFullWorkflow:
             from core.knowledge_graph import add_curiosity
             from curious_agent import run_one_cycle
             
-            add_curiosity(topic="test medium", reason="test", relevance=7.0, depth=5.0)
+            add_curiosity(topic=create_test_topic("medium"), reason="test", relevance=7.0, depth=5.0)
             
             result = run_one_cycle(depth="medium")
             
@@ -245,7 +247,7 @@ class TestE2EAutoQueue:
             from curious_agent import run_one_cycle
             
             # Add initial curiosity
-            add_curiosity(topic="test auto queue", reason="test", relevance=8.0, depth=7.0)
+            add_curiosity(topic=create_test_topic("auto queue"), reason="test", relevance=8.0, depth=7.0)
             
             # Run exploration
             result = run_one_cycle(depth="deep")
@@ -271,7 +273,7 @@ class TestE2EAutoQueue:
             from core.knowledge_graph import add_curiosity, get_state
             
             # Add existing curiosity
-            add_curiosity(topic="existing topic", reason="test", relevance=7.0, depth=5.0)
+            add_curiosity(topic=create_test_topic("existing topic"), reason="test", relevance=7.0, depth=5.0)
             
             engine = CuriosityEngine()
             
@@ -303,7 +305,7 @@ class TestE2EStateUpdates:
             from core.knowledge_graph import add_curiosity, get_state
             from core.explorer import Explorer
             
-            topic = "test knowledge update"
+            topic = create_test_topic("knowledge update")
             add_curiosity(topic=topic, reason="test", relevance=7.0, depth=5.0)
             
             explorer = Explorer(exploration_depth="shallow")
@@ -347,7 +349,7 @@ class TestE2EStateUpdates:
             from core.knowledge_graph import add_curiosity, get_state
             from curious_agent import run_one_cycle
             
-            add_curiosity(topic="test log fields", reason="test", relevance=7.0, depth=5.0)
+            add_curiosity(topic=create_test_topic("log fields"), reason="test", relevance=7.0, depth=5.0)
             
             result = run_one_cycle(depth="medium")
             
