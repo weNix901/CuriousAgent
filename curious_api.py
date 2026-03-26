@@ -354,6 +354,153 @@ def api_metacognitive_completed():
     })
 
 
+@app.route("/api/r1d3/confidence", methods=["GET"])
+def api_r1d3_confidence():
+    """R1D3 queries confidence level for a topic"""
+    try:
+        from core.api.r1d3_tools import R1D3ToolHandler
+        
+        topic = request.args.get("topic", "").strip()
+        if not topic:
+            return jsonify({"error": "topic parameter is required"}), 400
+        
+        handler = R1D3ToolHandler()
+        result = handler.curious_check_confidence(topic)
+        
+        return jsonify({
+            "status": "ok",
+            "result": result
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/r1d3/inject", methods=["POST"])
+def api_r1d3_inject():
+    """R1D3 triggers directed exploration"""
+    try:
+        from core.api.r1d3_tools import R1D3ToolHandler
+        
+        data = request.get_json() or {}
+        topic = data.get("topic", "").strip()
+        
+        if not topic:
+            return jsonify({"error": "topic is required"}), 400
+        
+        context = data.get("context", "")
+        depth = data.get("depth", "medium")
+        source = data.get("source", "r1d3")
+        
+        if depth not in ["shallow", "medium", "deep"]:
+            return jsonify({"error": f"invalid depth: {depth}"}), 400
+        
+        handler = R1D3ToolHandler()
+        result = handler.curious_agent_inject(topic, context, depth, source)
+        
+        return jsonify({
+            "status": "ok",
+            "result": result
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/r1d3/synthesize", methods=["POST"])
+def api_r1d3_synthesize():
+    """R1D3 triggers Layer 3 insight synthesis"""
+    try:
+        from core.insight_synthesizer import InsightSynthesizer
+        
+        data = request.get_json() or {}
+        topic = data.get("topic", "").strip()
+        sub_topic_results = data.get("sub_topic_results", {})
+        
+        if not topic:
+            return jsonify({"error": "topic is required"}), 400
+        
+        if not sub_topic_results:
+            return jsonify({"error": "sub_topic_results is required"}), 400
+        
+        synthesizer = InsightSynthesizer()
+        insights = synthesizer.synthesize(topic, sub_topic_results)
+        
+        return jsonify({
+            "status": "ok",
+            "topic": topic,
+            "insights_count": len(insights),
+            "insights": [
+                {
+                    "id": i.id,
+                    "hypothesis": i.hypothesis,
+                    "type": i.type,
+                    "reasoning": i.reasoning,
+                    "confidence": i.confidence,
+                    "supporting_snippets": i.supporting_snippets
+                }
+                for i in insights
+            ]
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/r1d3/discoveries/unshared", methods=["GET"])
+def api_r1d3_unshared_discoveries():
+    """Get unshared discoveries for R1D3 to consume"""
+    try:
+        from core.sync.r1d3_sync import R1D3Sync
+        
+        sync = R1D3Sync()
+        discoveries = sync.get_unshared_discoveries()
+        
+        return jsonify({
+            "status": "ok",
+            "count": len(discoveries),
+            "discoveries": discoveries
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/r1d3/discoveries/mark_shared", methods=["POST"])
+def api_r1d3_mark_shared():
+    """Mark a discovery as shared"""
+    try:
+        from core.sync.r1d3_sync import R1D3Sync
+        
+        data = request.get_json() or {}
+        filename = data.get("filename", "").strip()
+        
+        if not filename:
+            return jsonify({"error": "filename is required"}), 400
+        
+        sync = R1D3Sync()
+        success = sync.mark_discovery_shared(filename)
+        
+        if success:
+            return jsonify({
+                "status": "ok",
+                "message": f"Discovery {filename} marked as shared"
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "error": f"Failed to mark {filename} as shared"
+            }), 400
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
 def main():
     parser = argparse.ArgumentParser(description="Curious Agent API Server")
     parser.add_argument("--port", type=int, default=4848)
