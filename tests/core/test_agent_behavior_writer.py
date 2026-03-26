@@ -44,8 +44,13 @@ def test_classify_tool():
 def test_classify_none():
     writer = AgentBehaviorWriter()
     
-    result = writer._classify_discovery("random topic", {"summary": ""})
-    assert result is None
+    with patch.object(writer, '_get_llm_client') as mock_get_llm:
+        mock_llm = Mock()
+        mock_llm.chat.return_value = "unknown_type"
+        mock_get_llm.return_value = mock_llm
+        
+        result = writer._classify_discovery("random topic", {"summary": ""})
+        assert result is None
 
 
 def test_generate_rule():
