@@ -7,6 +7,7 @@ import subprocess
 from . import knowledge_graph as kg
 from .arxiv_analyzer import ArxivAnalyzer
 from .llm_client import LLMClient
+from .insight_synthesizer import InsightSynthesizer
 
 
 VALID_EXPLORATION_DEPTHS = {"shallow", "medium", "deep"}
@@ -93,6 +94,28 @@ class Explorer:
         )
         kg.update_curiosity_status(topic, "done")
         kg.log_exploration(topic, action, findings, should_notify)
+
+        # ===== T-12 集成点 开始 =====
+        # 【集成点 7】Explorer 集成 Layer 3 — InsightSynthesizer
+        sub_topics = curiosity_item.get("sub_topics")
+        if sub_topics and self.exploration_depth in ("medium", "deep"):
+            try:
+                synthesizer = InsightSynthesizer(llm_client=self.llm_client)
+                # Build sub_topic_results from layer_results
+                sub_topic_results = {}
+                for st in sub_topics:
+                    st_name = st.get("sub_topic", st.get("topic", "unknown"))
+                    layer1_data = layer_result.get(st_name, [])
+                    if layer1_data:
+                        sub_topic_results[st_name] = layer1_data
+
+                if sub_topic_results:
+                    insights = synthesizer.synthesize(topic, sub_topic_results)
+                    layer_result["insights"] = insights
+                    print(f"[T-12] Layer 3 generated {len(insights)} insights for {topic}")
+            except Exception as e:
+                print(f"[T-12] InsightSynthesizer failed: {e}")
+        # ===== T-12 集成点 结束 =====
 
         return {
             "topic": topic,

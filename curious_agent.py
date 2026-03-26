@@ -25,6 +25,7 @@ from core.curiosity_engine import CuriosityEngine
 from core.explorer import Explorer
 from core.reasoning_compressor import ReasoningCompressor, CompressionLevel
 from core.curiosity_decomposer import CuriosityDecomposer
+from core.quality_v2 import QualityV2Assessor
 from core.provider_registry import init_default_providers
 from core.exceptions import ClarificationNeeded
 
@@ -175,7 +176,15 @@ def run_one_cycle(depth: str = "medium") -> dict:
         "papers": result.get("papers", [])
     }
     
-    quality = monitor.assess_exploration_quality(topic, findings)
+    # ===== T-2 集成点 开始 =====
+    # 【集成点 2】QualityV2Assessor 替代简单评分
+    quality_assessor = QualityV2Assessor()
+    try:
+        quality = quality_assessor.assess_quality(topic, findings, kg)
+    except Exception as e:
+        print(f"[T-2] QualityV2 failed: {e}, falling back to monitor")
+        quality = monitor.assess_exploration_quality(topic, findings)
+    # ===== T-2 集成点 结束 =====
     marginal = monitor.compute_marginal_return(topic, quality)
     exploration_count = monitor.get_explore_count(topic)
 

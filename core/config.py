@@ -37,6 +37,23 @@ class LLMProvider:
         return self.models[0] if self.models else ModelEntry(model="")
 
 
+# ===== T-8: 新增配置结构 =====
+@dataclass
+class InjectionPriorityConfig:
+    enabled: bool = True
+    priority_sources: list = field(default_factory=list)
+    boost_score: float = 2.0
+    trigger_immediate: bool = True
+
+
+@dataclass
+class ExplorationConfig:
+    mode: str = "daemon"  # daemon | api_only | hybrid
+    daemon_interval_minutes: int = 60
+    daemon_explore_per_round: int = 1
+    injection_priority: InjectionPriorityConfig = field(default_factory=InjectionPriorityConfig)
+
+
 @dataclass
 class Config:
     thresholds: MetaCognitiveThresholds
@@ -44,6 +61,7 @@ class Config:
     notification: dict = field(default_factory=dict)
     llm_providers: list = field(default_factory=list)
     default_llm_provider: str = "volcengine"
+    exploration: ExplorationConfig = field(default_factory=ExplorationConfig)
 
 
 def load_config() -> Config:
@@ -98,12 +116,30 @@ def load_config() -> Config:
             enabled=cfg.get("enabled", True)
         ))
 
+    # T-8: Parse exploration config
+    exp_raw = raw.get("exploration", {})
+    inj_raw = exp_raw.get("injection_priority", {})
+    inj_cfg = InjectionPriorityConfig(
+        enabled=inj_raw.get("enabled", True),
+        priority_sources=inj_raw.get("priority_sources", ["r1d3"]),
+        boost_score=inj_raw.get("boost_score", 2.0),
+        trigger_immediate=inj_raw.get("trigger_immediate", True)
+    )
+    daemon_raw = exp_raw.get("daemon", {})
+    exploration = ExplorationConfig(
+        mode=exp_raw.get("mode", "daemon"),
+        daemon_interval_minutes=daemon_raw.get("interval_minutes", 60),
+        daemon_explore_per_round=daemon_raw.get("explore_per_round", 1),
+        injection_priority=inj_cfg
+    )
+
     return Config(
         thresholds=thresholds,
         user_interests=raw.get("user_interests", []),
         notification=raw.get("notification", {}),
         llm_providers=llm_providers,
-        default_llm_provider=llm_config.get("default_provider", "volcengine")
+        default_llm_provider=llm_config.get("default_provider", "volcengine"),
+        exploration=exploration
     )
 
 

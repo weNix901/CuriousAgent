@@ -8,6 +8,11 @@ BEHAVIOR_FILE = "/root/.openclaw/workspace-researcher/curious-agent-behaviors.md
 MEMORY_CURIOUS_DIR = "/root/.openclaw/workspace-researcher/memory/curious"
 QUALITY_THRESHOLD = 7.0
 
+# T-4: shared_knowledge paths (authority directory)
+SHARED_KNOWLEDGE_DIR = "/root/.openclaw/workspace-researcher/shared_knowledge"
+CURIOUS_KNOWLEDGE_DIR = f"{SHARED_KNOWLEDGE_DIR}/curious"  # T-4 权威目录
+LEGACY_MEMORY_DIR = "/root/.openclaw/workspace-researcher/memory/curious"  # 兼容降级
+
 TYPE_TO_SECTION = {
     "metacognition_strategy": "## 💡 元认知策略",
     "reasoning_strategy": "## 🧠 推理策略",
@@ -212,17 +217,56 @@ Output: ONLY the type name, nothing else. Default to "reasoning_strategy" if unc
             return False
     
     def _sync_to_memory(self, topic: str, findings: dict, quality: float, sources: list, discovery_type: str):
-        """Sync to memory/curious/ with behavior-rule tag"""
+        """T-4: 双重写入 — shared_knowledge/curious/ (主) + memory/curious/ (兼容)"""
         try:
-            Path(MEMORY_CURIOUS_DIR).mkdir(parents=True, exist_ok=True)
-            
             date = datetime.now().strftime("%Y-%m-%d")
             slug = re.sub(r'[^\w\s-]', '', topic)[:60].strip().replace(' ', '-')
-            filename = f"{MEMORY_CURIOUS_DIR}/{date}-{slug}.md"
-            
             tags = ["#behavior-rule", f"#{discovery_type}", "#curious-discovery"]
-            
-            content = f"""# [behavior] {topic}
+
+            # ===== T-4 集成点: 写入 shared_knowledge/curious/ =====
+            shared_path = Path(CURIOUS_KNOWLEDGE_DIR)
+            shared_path.mkdir(parents=True, exist_ok=True)
+            shared_filename = shared_path / f"{date}-{slug}.md"
+
+            section = TYPE_TO_SECTION.get(discovery_type, "## 📌 其他规则")
+            shared_content = f"""# [finding] {topic}
+
+<!-- shared_knowledge_metadata
+{{
+  "schema_version": "1.0",
+  "type": "curious_finding",
+  "source": "curious_agent",
+  "topic": "{topic}",
+  "quality": {quality},
+  "confidence": {quality / 10.0},
+  "created_at": "{datetime.now().isoformat()}",
+  "shared": false,
+  "behavior_applied": true,
+  "behavior_section": "{section}",
+  "cross_validation": {{"status": "pending", "r1d3_understanding_summary": null}}
+}}
+-->
+
+**好奇心指数**: {quality}
+**置信度**: {quality / 10.0}
+**探索时间**: {date}
+**发现类型**: {discovery_type}
+**shared**: false
+
+---
+
+{section}
+
+{findings.get('summary', '')}
+"""
+            shared_filename.write_text(shared_content, encoding="utf-8")
+            self._update_curious_index(topic, quality)
+
+            # 兼容写入 legacy memory/curious/
+            legacy_path = Path(LEGACY_MEMORY_DIR)
+            legacy_path.mkdir(parents=True, exist_ok=True)
+            legacy_filename = legacy_path / f"{date}-{slug}.md"
+            legacy_content = f"""# [behavior] {topic}
 
 <!-- memory_search_tags: {','.join(tags)} -->
 
@@ -237,6 +281,24 @@ Output: ONLY the type name, nothing else. Default to "reasoning_strategy" if unc
 
 {findings.get('summary', '')}
 """
-            Path(filename).write_text(content, encoding="utf-8")
+            legacy_filename.write_text(legacy_content, encoding="utf-8")
+
         except Exception as e:
             print(f"[AgentBehaviorWriter] Memory sync failed: {e}")
+
+    def _update_curious_index(self, topic: str, quality: float):
+        """T-4: 维护 shared_knowledge/curious/index.md"""
+        try:
+            index_path = Path(CURIOUS_KNOWLEDGE_DIR) / "index.md"
+            entry = f"- **[{quality}]** {topic}\n"
+
+            if index_path.exists():
+                content = index_path.read_text()
+                if topic not in content:
+                    content = content.replace("## 最近发现\n", f"## 最近发现\n{entry}")
+                    index_path.write_text(content)
+            else:
+                header = "# Curious Agent 探索结果\n\n> 统一索引 | shared_knowledge/curious/\n\n---\n\n## 最近发现\n\n"
+                index_path.write_text(header + entry)
+        except Exception as e:
+            print(f"[AgentBehaviorWriter] Index update failed: {e}")

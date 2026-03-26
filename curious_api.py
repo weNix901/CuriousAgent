@@ -161,13 +161,38 @@ def api_inject():
             depth=depth
         )
 
-        return jsonify({
+        # ===== T-9 集成点 开始 =====
+        # 【集成点 6】inject_priority: source=r1d3 时优先处理
+        from core.config import get_config
+        from core.knowledge_graph import update_curiosity_score
+        source = data.get("source", "default")
+        priority_cfg = get_config().exploration.injection_priority
+
+        priority_triggered = False
+        if priority_cfg.enabled and source in priority_cfg.priority_sources:
+            effective_score = final_score + priority_cfg.boost_score
+            update_curiosity_score(topic, effective_score)
+
+            if priority_cfg.trigger_immediate:
+                from core.async_explorer import trigger_async_exploration
+                trigger_async_exploration(topic, score=effective_score)
+                priority_triggered = True
+                print(f"[T-9] Priority injection for {topic}, async triggered")
+
+        # 修改返回值
+        result_data = {
             "status": "ok",
             "topic": topic,
             "score": final_score,
             "alpha": alpha,
             "mode": mode
-        })
+        }
+        if priority_triggered:
+            result_data["priority"] = True
+            result_data["async_triggered"] = True
+        # ===== T-9 集成点 结束 =====
+
+        return jsonify(result_data)
     except Exception as e:
         import traceback
         traceback.print_exc()
