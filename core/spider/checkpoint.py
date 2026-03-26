@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 from datetime import datetime
 from core.spider.state import SpiderRuntimeState
 
@@ -7,17 +8,19 @@ from core.spider.state import SpiderRuntimeState
 class SpiderCheckpoint:
     def __init__(self, path="state/spider_state.json"):
         self.path = path
+        self._lock = threading.Lock()
     
     def save(self, state, kg_path):
-        data = {
-            "runtime_state": state.to_dict(),
-            "kg_path": kg_path,
-            "timestamp": datetime.now().isoformat(),
-        }
-        
-        os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        with open(self.path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        with self._lock:
+            data = {
+                "runtime_state": state.to_dict(),
+                "kg_path": kg_path,
+                "timestamp": datetime.now().isoformat(),
+            }
+            
+            os.makedirs(os.path.dirname(self.path), exist_ok=True)
+            with open(self.path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
     
     def load(self):
         if not os.path.exists(self.path):
