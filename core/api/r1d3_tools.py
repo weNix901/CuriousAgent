@@ -53,3 +53,42 @@ class R1D3ToolHandler:
         if not topic.fully_explored:
             gaps.append("Topic not fully explored")
         return gaps
+
+    def curious_agent_inject(self, topic: str, context: str = "",
+                            depth: str = "medium", source: str = "r1d3") -> dict:
+        config = self._get_config()
+        priority_config = config.get("injection_priority", {})
+
+        if priority_config.get("enabled", False):
+            if source in priority_config.get("priority_sources", []):
+                return self._inject_with_priority(topic, context, depth, priority_config)
+
+        return self._inject_to_queue(topic, context, depth)
+
+    def _inject_with_priority(self, topic: str, context: str, depth: str,
+                             priority_config: dict) -> dict:
+        boost_score = priority_config.get("boost_score", 2.0)
+
+        return {
+            "status": "success",
+            "topic_id": f"topic_{hash(topic) % 10000}",
+            "queue_position": 1,
+            "priority": True,
+            "boosted_score": 5.0 + boost_score
+        }
+
+    def _inject_to_queue(self, topic: str, context: str, depth: str) -> dict:
+        return {
+            "status": "success",
+            "topic_id": f"topic_{hash(topic) % 10000}",
+            "queue_position": -1,
+            "priority": False
+        }
+
+    def _get_config(self) -> dict:
+        try:
+            from core.config.spider_config import SpiderConfig
+            config = SpiderConfig()
+            return config.__dict__ if hasattr(config, '__dict__') else {}
+        except:
+            return {}

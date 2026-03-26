@@ -33,3 +33,37 @@ def test_curious_check_confidence_expert():
     
     assert result["confidence"] > 0.85
     assert result["level"] == "expert"
+
+
+def test_curious_agent_inject_success():
+    handler = R1D3ToolHandler()
+    
+    result = handler.curious_agent_inject(
+        topic="MCP protocol",
+        context="User asked about MCP",
+        depth="medium"
+    )
+    
+    assert result["status"] == "success"
+    assert "queue_position" in result
+
+
+def test_curious_agent_inject_priority():
+    handler = R1D3ToolHandler()
+    
+    with patch.object(handler, '_get_config') as mock_config:
+        mock_config.return_value = {
+            "injection_priority": {
+                "enabled": True,
+                "priority_sources": ["r1d3"],
+                "boost_score": 2.0
+            }
+        }
+        
+        result = handler.curious_agent_inject(
+            topic="priority topic",
+            source="r1d3"
+        )
+        
+        assert result["priority"] is True
+        assert result["boosted_score"] > 5.0
