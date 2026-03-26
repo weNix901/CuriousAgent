@@ -10,6 +10,7 @@ import time
 import webbrowser
 
 from flask import Flask, jsonify, request, send_from_directory
+from core.config import get_config
 
 app = Flask(__name__)
 
@@ -163,7 +164,7 @@ def api_inject():
 
         # ===== T-9 集成点 开始 =====
         # 【集成点 6】inject_priority: source=r1d3 时优先处理
-        from core.config import get_config
+        config = get_config()
         from core.knowledge_graph import update_curiosity_score
         source = data.get("source", "default")
         priority_cfg = get_config().exploration.injection_priority

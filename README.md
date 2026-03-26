@@ -2,10 +2,10 @@
 
 > 一个具有**内在好奇心**、**元认知能力**和**自我进化**能力的自主 Agent。不是等待用户提问，而是主动发现知识缺口、智能评估探索价值、将发现转化为自身行为规则、持续进化。
 
-[![Status](https://img.shields.io/badge/status-v0.2.3-blue)](#)
+[![Status](https://img.shields.io/badge/status-v0.2.4-blue)](#)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](#)
 [![OpenClaw](https://img.shields.io/badge/openclaw-2026.3+-green)](#)
-[![Tests](https://img.shields.io/badge/tests-44%20passed-brightgreen)](#)
+[![Tests](https://img.shields.io/badge/tests-45%20modules-brightgreen)](#)
 
 ---
 
@@ -264,7 +264,7 @@ Curious Agent：
 │         │ 心跳同步 (每30秒)                                           │
 │         ▼                                                            │
 │  ┌────────────────────────────────────────────────────────────────┐  │
-│  │                    Curious Agent v0.2.3                          │  │
+│  │                    Curious Agent v0.2.4                          │  │
 │  │                                                                │  │
 │  │  ┌─────────────────────────────────────────────────────────┐   │  │
 │  │  │              核心能力层                                  │   │  │
@@ -272,22 +272,33 @@ Curious Agent：
 │  │  │  • 质量评估系统: 信息增益 + 置信度追踪 + 边际收益建模     │   │  │
 │  │  │  • 能力调度器: 缺口驱动 + 动态调度 + 三阶段探索          │   │  │
 │  │  │  • 行为写入器: 质量门槛 + 安全设计 + 双写机制            │   │  │
+│  │  │  • InsightSynthesizer: 跨话题洞察合成 + 假设生成         │   │  │
 │  │  └─────────────────────────────────────────────────────────┘   │  │
 │  │                                                                │  │
 │  │  ┌─────────────────────────────────────────────────────────┐   │  │
 │  │  │              基础能力层                                  │   │  │
 │  │  │  ICM评分 · 好奇心队列 · 知识图谱 · 分层探索 · 事件总线    │   │  │
+│  │  │  SpiderEngine · KGGraph · R1D3Watcher · 检查点机制       │   │  │
+│  │  └─────────────────────────────────────────────────────────┘   │  │
+│  │                                                                │  │
+│  │  ┌─────────────────────────────────────────────────────────┐   │  │
+│  │  │              R1D3集成层 (v0.2.4新增)                      │   │  │
+│  │  │  • R1D3ToolHandler: 置信度查询 + 话题注入 + 优先级队列   │   │  │
+│  │  │  • R1D3Sync: 发现双向同步 + 共享状态管理                 │   │  │
+│  │  │  • R1D3Watcher: 学习需求监听 + 命题扫描                  │   │  │
 │  │  └─────────────────────────────────────────────────────────┘   │  │
 │  └────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-**数据流：从发现到行为改变**
+**数据流：从发现到行为改变 (v0.2.4)**
 
 ```
-[探索发现]
+[探索发现] / [R1D3注入话题]
     ↓
 [话题分解引擎] → 分解为具体子话题
+    ↓
+[SpiderEngine] → 状态管理 + 检查点恢复
     ↓
 [三阶段探索循环] → 监控→生成→验证
     ↓
@@ -295,7 +306,11 @@ Curious Agent：
     ↓是
 [行为写入器] → 生成行为规则
     ↓
-[双写] → 行为文件 + memory/curious/
+[InsightSynthesizer] → 跨话题洞察合成 (Layer 3)
+    ↓
+[双写] → 行为文件 + memory/curious/ + shared_knowledge/
+    ↓
+[R1D3Sync] → 双向同步发现到外部Agent
     ↓
 [Agent 检索] → memory_search() → 应用行为规则
     ↓
@@ -357,6 +372,23 @@ curl -X POST http://localhost:4848/api/curious/run \
 curl -X POST http://localhost:4848/api/curious/inject \
   -H "Content-Type: application/json" \
   -d '{"topic":"metacognition","score":8.5,"depth":8.0}'
+
+# v0.2.4 新增: R1D3 置信度查询
+curl "http://localhost:4848/api/r1d3/confidence?topic=agent+memory"
+
+# v0.2.4 新增: 查询已完成话题
+curl http://localhost:4848/api/metacognitive/topics/completed
+
+# v0.2.4 新增: 检查话题状态
+curl "http://localhost:4848/api/metacognitive/check?topic=your_topic"
+
+# v0.2.4 新增: 查询待探索队列
+curl http://localhost:4848/api/curious/queue/pending
+
+# v0.2.4 新增: 删除话题
+curl -X DELETE http://localhost:4848/api/curious/queue \
+  -H "Content-Type: application/json" \
+  -d '{"topic":"过时话题"}'
 ```
 
 ---
@@ -368,11 +400,16 @@ curl -X POST http://localhost:4848/api/curious/inject \
 | **话题分解** | Python 3.11+ asyncio | CuriosityDecomposer, ProviderRegistry, ProviderHeatmap |
 | **质量评估** | Python + LLM | QualityV2, CompetenceTracker, ThreePhaseExplorer |
 | **行为闭环** | Python + Markdown | AgentBehaviorWriter, 行为规则生成 |
+| **Spider引擎** | Python + 检查点机制 | SpiderEngine, SpiderRuntimeState, SpiderCheckpoint (v0.2.4) |
+| **洞察合成** | Python + LLM | InsightSynthesizer, 跨话题模式发现, 假设生成 (v0.2.4) |
+| **R1D3集成** | Python + REST API | R1D3ToolHandler, R1D3Sync, R1D3Watcher (v0.2.4) |
+| **知识图谱** | Python | KGGraph, 多父节点支持, 高优先级未探索节点发现 (v0.2.4) |
+| **存储层** | Repository模式 | JSONKnowledgeRepository, Topic模型, 迁移机制 (v0.2.4) |
 | **基础层** | Flask 3.x | API + Web UI |
 | **搜索** | Bocha + Serper | 双 Provider 验证架构 |
 | **LLM** | minimax API | 语义评估、规则生成 |
 | **前端** | Vanilla JS + D3.js | 知识图谱可视化 |
-| **存储** | JSON + Markdown | state.json + 行为规则文件 |
+| **存储** | JSON + Markdown | state.json + 行为规则文件 + shared_knowledge/ (v0.2.4) |
 
 ---
 
@@ -428,6 +465,7 @@ FinalScore = HumanScore × α + IntrinsicScore × (1 - α)
 curious-agent/
 ├── curious_agent.py              # CLI 入口（集成所有能力）
 ├── curious_api.py                # Flask API + Web 服务器
+├── spider_engine.py              # Spider Engine 主引擎 (v0.2.4)
 ├── run_curious.sh                # 一键启动脚本
 ├── core/
 │   ├── curiosity_decomposer.py   # 话题分解引擎（四级级联验证）
@@ -440,6 +478,21 @@ curious-agent/
 │   ├── knowledge_graph.py        # 知识图谱（含父子关系）
 │   ├── curiosity_engine.py       # ICM 评分引擎
 │   ├── explorer.py               # 分层探索器
+│   ├── insight_synthesizer.py    # 洞察合成器 Layer 3 (v0.2.4)
+│   ├── kg_graph.py               # KG Graph 结构管理 (v0.2.4)
+│   ├── r1d3_watcher.py           # R1D3 学习需求监听 (v0.2.4)
+│   ├── api/
+│   │   └── r1d3_tools.py         # R1D3 Tool Handler (v0.2.4)
+│   ├── sync/
+│   │   └── r1d3_sync.py          # R1D3 双向同步 (v0.2.4)
+│   ├── spider/
+│   │   ├── state.py              # Spider 运行时状态 (v0.2.4)
+│   │   └── checkpoint.py         # Spider 检查点机制 (v0.2.4)
+│   ├── repository/
+│   │   ├── base.py               # Repository 抽象基类 (v0.2.4)
+│   │   └── json_repository.py    # JSON Repository 实现 (v0.2.4)
+│   ├── models/
+│   │   └── topic.py              # Topic 数据模型 (v0.2.4)
 │   └── providers/                # Provider 插件目录
 │       ├── bocha_provider.py
 │       └── serper_provider.py
@@ -447,7 +500,16 @@ curious-agent/
 │   └── index.html                # Web UI（D3.js 力导向图）
 ├── knowledge/
 │   └── state.json                # 持久化状态（含 competence_state）
-├── tests/                        # 44+ 测试用例
+├── shared_knowledge/             # 共享知识层 (v0.2.4)
+│   ├── r1d3/learning_needs/      # R1D3 学习需求
+│   ├── curious/                  # Curious Agent 发现
+│   └── cross_validation/         # 交叉校验记录
+├── tests/                        # 45+ 测试模块
+│   ├── api/                      # API 测试
+│   ├── core/                     # 核心模块测试
+│   ├── spider/                   # Spider Engine 测试 (v0.2.4)
+│   ├── repository/               # Repository 测试 (v0.2.4)
+│   └── models/                   # 模型测试 (v0.2.4)
 └── docs/
     └── plans/                    # 详细设计文档
 ```
@@ -455,6 +517,42 @@ curious-agent/
 ---
 
 ## 九、更新日志
+
+### v0.2.4 — R1D3集成与架构升级 (2026-03-26)
+
+**🔗 R1D3双向集成**
+- ✅ **R1D3ToolHandler**: Tool Call API支持，置信度查询(`curious_check_confidence`)，话题注入(`curious_agent_inject`)
+- ✅ **R1D3Sync**: 发现双向同步机制，共享状态管理，`shared_knowledge/`统一存储层
+- ✅ **R1D3Watcher**: 学习需求监听，命题扫描，自动触发探索
+- ✅ **三大读写契约**: Learning Needs(输入)、Findings(输出)、Cross Validation(校验)
+
+**🧠 InsightSynthesizer Layer 3**
+- ✅ **跨话题洞察合成**: 自动发现子话题间的模式和关联
+- ✅ **假设生成引擎**: 基于证据生成可验证的假设
+- ✅ **置信度评估**: 多维置信度计算(0-1)，支持证据强度评估
+- ✅ **结构化洞察输出**: Insight/Pattern/Hypothesis数据类定义
+
+**🕸️ Spider Engine与状态管理**
+- ✅ **SpiderEngine**: 自主探索主引擎，支持异步执行
+- ✅ **SpiderRuntimeState**: 运行时状态管理
+- ✅ **SpiderCheckpoint**: 检查点机制，支持崩溃恢复
+- ✅ **SpiderConfig**: 统一配置管理
+
+**💾 Repository模式重构**
+- ✅ **JSONKnowledgeRepository**: Repository模式实现，支持Topic模型
+- ✅ **Topic数据模型**: 规范化Topic结构，支持多父节点
+- ✅ **迁移机制**: 旧state.json平滑迁移到新模型
+- ✅ **KGGraph**: 知识图谱结构管理，支持`should_explore`四态返回
+
+**🔄 架构改进**
+- ✅ **shared_knowledge/统一层**: R1D3与Curious Agent共享知识目录结构
+- ✅ **事件总线持久化**: EventBus持久化支持
+- ✅ **惊喜检测**: SurpriseDetector，识别意外发现
+- ✅ **推理压缩**: ReasoningCompressor，优化长推理链
+
+**测试覆盖**: 45+ 测试模块，覆盖核心模块、API、Spider Engine、Repository层
+
+---
 
 ### v0.2.3 — 完整能力落地 (2026-03-23)
 
@@ -517,7 +615,7 @@ curious-agent/
 
 ---
 
-_最后更新：2026-03-23 | v0.2.3_
+_最后更新：2026-03-26 | v0.2.4_
 _设计理念：**好奇驱动，主动探索，元认知调控，自我进化，以我为名**_
 
-📄 **Release Notes**: [v0.2.3](./RELEASE_NOTE_v0.2.3.md) | [v0.2.2](./RELEASE_NOTE_v0.2.2.md) | [v0.2.1](./RELEASE_NOTE_v0.2.1.md) | [v0.2.0](./RELEASE_NOTE_v0.2.0.md)
+📄 **Release Notes**: [v0.2.4](./RELEASE_NOTE_v0.2.4.md) | [v0.2.3](./RELEASE_NOTE_v0.2.3.md) | [v0.2.2](./RELEASE_NOTE_v0.2.2.md) | [v0.2.1](./RELEASE_NOTE_v0.2.1.md) | [v0.2.0](./RELEASE_NOTE_v0.2.0.md)
