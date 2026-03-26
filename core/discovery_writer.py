@@ -29,6 +29,7 @@ class DiscoveryWriter:
             "is_surprise": surprise.get("is_surprise", False) if surprise else False,
             "surprise_level": surprise.get("surprise_level", 0.0) if surprise else 0.0,
             "timestamp": datetime.now().isoformat(),
+            "shared": False,
         }
         
         with open(filepath, "w", encoding="utf-8") as f:
