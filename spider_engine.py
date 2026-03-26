@@ -5,12 +5,21 @@ This module provides the main SpiderEngine class for autonomous exploration.
 """
 
 import asyncio
+import importlib.util
 from typing import Optional, Protocol
-from core.config.spider_config import SpiderConfig
 from core.spider.state import SpiderRuntimeState
 from core.spider.checkpoint import SpiderCheckpoint
 from core.repository.base import KnowledgeRepository
 from core.models.topic import Topic
+
+
+# Dynamically load SpiderConfig to avoid core.config package/file shadow conflict
+_spec = importlib.util.spec_from_file_location(
+    "spider_config", "core/config/spider_config.py"
+)
+_spider_cfg = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_spider_cfg)
+SpiderConfig = _spider_cfg.SpiderConfig
 
 
 class TopicExplorer(Protocol):

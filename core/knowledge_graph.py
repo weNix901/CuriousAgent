@@ -467,3 +467,42 @@ def get_exploration_status(topic: str) -> str:
     topic_data = state.get("knowledge", {}).get("topics", {}).get(topic, {})
     
     return topic_data.get("status", "unexplored")
+
+
+# ===== T-6/T-9/T-10 补充函数 =====
+
+def update_topic_quality(topic: str, quality: float) -> None:
+    """Update quality score for a topic (T-2/T-10)"""
+    state = _load_state()
+    topics = state.get("knowledge", {}).setdefault("topics", {})
+    if topic not in topics:
+        topics[topic] = {}
+    topics[topic]["quality"] = quality
+    _save_state(state)
+
+
+def update_curiosity_score(topic: str, score: float) -> None:
+    """Update curiosity score for a topic (T-9 priority boost)"""
+    state = _load_state()
+    curiosity_queue = state.get("curiosity_queue", [])
+    for item in curiosity_queue:
+        if item.get("topic") == topic:
+            item["score"] = score
+            break
+    _save_state(state)
+
+
+def add_exploration_result(topic: str, result: dict, quality: float) -> None:
+    """Record exploration result with quality score (T-10)"""
+    state = _load_state()
+    topics = state.get("knowledge", {}).setdefault("topics", {})
+    if topic not in topics:
+        topics[topic] = {}
+    topics[topic].update({
+        "quality": quality,
+        "summary": result.get("summary", ""),
+        "sources": result.get("sources", []),
+        "findings": result.get("findings", {}),
+        "status": "explored"
+    })
+    _save_state(state)
