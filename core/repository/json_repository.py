@@ -28,7 +28,12 @@ class JSONKnowledgeRepository(KnowledgeRepository):
         
         self._cache = {}
         for name, data in self._state.get("knowledge", {}).get("topics", {}).items():
-            self._cache[name] = Topic.from_dict(data)
+            try:
+                data["name"] = name
+                self._cache[name] = Topic.from_dict(data)
+            except (KeyError, ValueError) as e:
+                print(f"[Repository] Skipping corrupt topic '{name}': {e}")
+                continue
     
     def _save(self):
         for name, topic in self._cache.items():
