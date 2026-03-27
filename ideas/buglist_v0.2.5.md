@@ -123,29 +123,27 @@ print(f'Topics with explains: {has_explains}/{len(topics)}')
 
 **验证**:
 ```bash
-grep -n "add_child" /root/dev/curious-agent/core/async_explorer.py
+grep -n "add_child\|_update_parent_relation" /root/dev/curious-agent/core/async_explorer.py
 # 期望: 有调用
 # 实际: 无匹配
 ```
 
 **修复要求**:
 
-在 `core/async_explorer.py` 的 `_explore_in_thread()` 函数末尾（`add_exploration_result()` 调用之后）追加：
+在 `core/async_explorer.py` 的 `_explore_in_thread()` 函数中，找到 `add_exploration_result()` 调用之后追加：
 
 ```python
-def _explore_in_thread(topic: str, score: float, depth: float):
-    # ... 现有代码 ...
-    
+    add_exploration_result(topic, result, quality)
+    update_curiosity_status(topic, "done")
+
     # === v0.2.5 追加: 建立父子关系 ===
-    # 异步探索的 parent 是当前正在探索的 topic
-    # 注意: 异步探索通常是自己被注入，不需要建立父子关系
-    # 但如果是从某个 parent decomposed 出来的，需要记录
-    # 此处暂时跳过，依赖 mark_topic_done() 中的逻辑处理
-    pass
+    # 异步探索：如果注入了 parent_topic 参数，需要建立关系
+    # 由于异步探索通常是被外部注入，parent 关系由调用方保证
+    # 此处暂时跳过，依赖 curious_agent 主流程保证
     # === v0.2.5 追加结束 ===
 ```
 
-**说明**: 异步探索通常是外部注入，不一定有明确的 parent，暂时跳过。parent 关系主要通过 `mark_topic_done()` 从 `curiosity_queue` 中查找。
+**说明**: 异步探索通常是外部注入（如 R1D3），parent 关系由 R1D3 注入时附带。如果有明确的 parent，需要在 `_explore_in_thread` 中记录。
 
 ---
 
@@ -244,13 +242,110 @@ curl -s "http://localhost:4848/api/kg/roots" | python3 -c "import json,sys; d=js
 
 ## 修复顺序
 
-1. **Bug #1** — 修复 `_update_parent_relation()` 在 `add_child()` 和 `mark_topic_done()` 中的集成（P0）
-2. **Bug #2** — 验证 `add_child()` 在 `curious_agent.py` 中是否被调用（P0）
-3. **Bug #6** — 兼容 `children = None` 的情况（P1）
-4. **Bug #3** — Bug #1 修复后自动解决
-5. **Bug #4** — 确认异步路径是否需要 parent 写入（P1）
-6. **Bug #5** — Bug #1 修复后重新验证
+1. **Bug #7（P0）** — 在 `curious_agent.py` 第 155 行附近，`update_curiosity_status(topic, "exploring")` 之后立即调用 `_update_parent_relation(parent, topic)`（仅当 `original_topic` 存在时）
+2. **Bug #6（P1）** — 兼容 `children = None` 的情况
+3. **Bug #4（P1）** — 异步路径确认是否需要 parent 写入
+4. **Bug #1-5** — 已修复或随 Bug #7 自动解决
+
+---
+
+## Bug #7: `mark_topic_done` 的 parent 查找逻辑根本性缺陷（P0）
+
+**严重程度**: P0
+**发现时间**: 2026-03-27 by R1D3
+**状态**: 未修复
+
+**问题描述**:
+
+`mark_topic_done(topic)` 中的 parent 查找逻辑是：
+```python
+for queue_item in state.get("curiosity_queue", []):
+    if queue_item.get("status") == "exploring":
+        parent_topic = queue_item.get("topic")
+        if parent_topic and parent_topic != topic:
+            _update_parent_relation(parent_topic, topic)
+            break
+```
+
+但当前队列中**没有任何 `status=exploring` 的条目**——所有条目都是 `done` 或 `pending`。
+
+验证：
+```bash
+curl -s http://localhost:4848/api/curious/state | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+for item in d['curiosity_queue']:
+    print(item['topic'], item['status'])
+"
+# 结果：全部是 done 或 pending，没有 exploring
+```
+
+**根因分析**：
+
+curious_agent 的执行流程：
+1. `next_curiosity = engine.select_next()` — 选出一个 topic 作为 child
+2. `kg.update_curiosity_status(child, "exploring")` — child 标记为 exploring
+3. 探索 child
+4. `kg.mark_topic_done(child)` — 在这里查找时，child 已变成 done
+
+问题在于：curious_agent 的 `select_next()` 选出的 topic 可能根本没有 parent 在队列里。如果有 parent，parent 已经在队列里以 `pending` 状态存在，从未被标记为 `exploring`。
+
+**修复方案**：
+
+在 `curious_agent.py` 中，当 child topic 被选出来之后、开始探索之前，**把 parent_topic 写入 child 的 queue item 里**：
+
+在 `curious_agent.py` 的 `run_one_cycle()` 函数中，找到以下位置：
+
+```python
+# 大约在第 88 行
+# Bug #26 fix: Explore parent topic first before decomposition
+parent_state = state.get("knowledge", {}).get("topics", {}).get(topic, {})
+if not parent_state.get("known"):
+    ...
+```
+
+在这个逻辑之后，当 decomposition 发生时，child topic 被选中时，应该把 parent 信息写入队列。
+
+**最简单的修复**：在 `curious_agent.py` 第 155 行附近添加 parent 追踪：
+
+```python
+# v0.2.5: 设置 exploring 状态以便 parent 追踪
+kg.update_curiosity_status(topic, "exploring")
+
+# === v0.2.5 追加: 如果有 original_topic（decomposed 出的 child），立即写入父子关系 ===
+if "original_topic" in next_curiosity:
+    parent = next_curiosity["original_topic"]
+    if parent != topic:
+        kg._update_parent_relation(parent, topic)
+        print(f"[v0.2.5] Parent tracked: {parent} -> {topic}")
+# === v0.2.5 追加结束 ===
+```
+
+这样，在 `mark_topic_done` 被调用之前，父子关系就已经写入了，`mark_topic_done` 里的查找逻辑即使失败也没关系。
+
+**验证命令**：
+```bash
+curl -X POST "http://localhost:4848/api/curious/inject" \
+  -H "Content-Type: application/json" \
+  -d '{"topic":"test parent relation fix","score":7.0,"depth":6.0}'
+sleep 2
+curl -s -X POST "http://localhost:4848/api/curious/run" -H "Content-Type: application/json" -d '{"depth":"medium"}' > /dev/null
+sleep 10
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core.knowledge_graph import get_state
+s = get_state()
+topics = s['knowledge']['topics']
+has_parents = sum(1 for t in topics.values() if t.get('parents'))
+has_explains = sum(1 for t in topics.values() if t.get('explains'))
+print(f'Topics with parents: {has_parents}/{len(topics)}')
+print(f'Topics with explains: {has_explains}/{len(topics)}')
+for name, t in topics.items():
+    if t.get('parents'):
+        print(f'  {name} -> parents: {t[\"parents\"]}')
+"
+```
 
 ---
 
 _Last updated: 2026-03-27 by R1D3_
+_v0.2.5 additional bug found during verification_
