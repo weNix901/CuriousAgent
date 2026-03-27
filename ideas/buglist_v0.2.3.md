@@ -2805,3 +2805,86 @@ print('ALL PASS')
 ---
 
 _报告更新: 2026-03-25 11:45_
+
+_验证: 2026-03-25 11:57_
+_结果: Part A/B/C/D PASS; Part E 小问题：fallback 用 "type" 但 LLM 返回 "gap_type"，需修正 except 块 key 一致性（minor，不影响功能）_
+
+---
+
+## 🟡 Bug #32: `_identify_knowledge_gaps` fallback 字典 key 与 prompt 规定不一致
+
+**发现时间**: 2026-03-25 12:01
+
+**严重程度**: 🟡 低 — 不影响正常流程，但 fallback 返回的 key 与 LLM 成功时不一致
+
+**现象**：
+```python
+# LLM 成功时返回（prompt 规定的格式）：
+[
+    {"gap_type": "theoretical_foundation", "description": "...", "priority": 0.9},
+    ...
+]
+
+# fallback 时返回（except 块）：
+[{"type": "general", "description": "Need more information", "priority": 0.5}]
+#                                                          ↑
+#                                               key 是 "type" 不是 "gap_type"
+```
+
+验收测试中 gap 列表有 `type=None`，因为：
+```python
+for g in gaps:
+    g.get('type')  # LLM 返回的 key 是 "gap_type"，取 "type" 得到 None
+```
+
+**根因**：`core/three_phase_explorer.py` 第 103 行 fallback 字典用了 `"type"` key，但 prompt 规定返回 `"gap_type"`：
+
+```python
+# 第 103 行（现状，错误）
+return [{"type": "general", "description": "Need more information", "priority": 0.5}]
+
+# 应改为
+return [{"gap_type": "general", "description": "Need more information", "priority": 0.5}]
+```
+
+**修复方向**：统一 fallback 字典的 key 为 `"gap_type"`：
+
+```python
+# three_phase_explorer.py 第 103 行
+return [{"gap_type": "general", "description": "Need more information", "priority": 0.5}]
+```
+
+**验收标准**：
+```python
+python3 -c "
+import sys; sys.path.insert(0, '.')
+from core.three_phase_explorer import ThreePhaseExplorer
+from core.meta_cognitive_monitor import MetaCognitiveMonitor
+from core.llm_manager import LLMManager
+from core.config import get_config
+
+config = get_config()
+llm_config = {'providers': {}, 'selection_strategy': 'capability'}
+for p in config.llm_providers:
+    llm_config['providers'][p.name] = {
+        'api_url': p.api_url, 'api_key': p.api_key, 'timeout': 60, 'enabled': True,
+        'models': [{'model': m.model, 'weight': m.weight, 'capabilities': m.capabilities, 'max_tokens': m.max_tokens, 'temperature': m.temperature} for m in p.models]
+    }
+LLMManager.reset_instance()
+llm = LLMManager.get_instance(llm_config)
+monitor = MetaCognitiveMonitor(llm_client=llm)
+explorer = ThreePhaseExplorer(None, monitor, llm)
+
+# 正常情况验证 key 一致性
+gaps = explorer._identify_knowledge_gaps('Self-reflection in LLM agents')
+for g in gaps:
+    assert 'gap_type' in g, f'FAIL: missing gap_type key: {g}'
+    assert g.get('gap_type') is not None, f'FAIL: gap_type is None: {g}'
+print(f'PASS: {len(gaps)} gaps all have gap_type key, none are None')
+"
+```
+
+---
+
+_报告更新: 2026-03-25 12:01_
+_测试者: R1D3-researcher_
