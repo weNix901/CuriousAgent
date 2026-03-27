@@ -176,7 +176,7 @@ def api_inject():
 
             if priority_cfg.trigger_immediate:
                 from core.async_explorer import trigger_async_exploration
-                trigger_async_exploration(topic, score=effective_score)
+                trigger_async_exploration(topic, score=effective_score, depth=depth)
                 priority_triggered = True
                 print(f"[T-9] Priority injection for {topic}, async triggered")
 
