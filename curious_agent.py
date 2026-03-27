@@ -411,10 +411,39 @@ def list_pending():
         print(f"   {i}. [{item.get('score', 'N/A'):.1f}] {item['topic']}")
 
 
+def _get_config_mode() -> str:
+    """T-13: Read exploration mode from config.json"""
+    try:
+        from core.config import get_config
+        cfg = get_config()
+        return cfg.exploration.mode
+    except Exception:
+        return "hybrid"
+
+
+def _get_config_interval() -> int:
+    """T-13: Read daemon interval from config.json"""
+    try:
+        from core.config import get_config
+        cfg = get_config()
+        return cfg.exploration.daemon_interval_minutes
+    except Exception:
+        return 60
+
+
+def _run_api_only():
+    """T-13: Start API server only, no daemon loop"""
+    from curious_api import app
+    print("Starting Curious Agent API server (api_only mode)...")
+    app.run(host="0.0.0.0", port=4848, debug=False)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Curious Agent MVP")
-    parser.add_argument("--daemon", action="store_true", help="守护进程模式")
-    parser.add_argument("--interval", type=int, default=30, help="守护进程探索间隔(分钟)")
+    parser.add_argument("--daemon", action="store_true", help="守护进程模式（覆盖 config.mode）")
+    parser.add_argument("--api-only", action="store_true", help="仅启动 API 服务，不运行 daemon（覆盖 config.mode）")
+    parser.add_argument("--mode", choices=["daemon", "api_only", "hybrid"], default=None, help="运行模式（覆盖 config.exploration.mode）")
+    parser.add_argument("--interval", type=int, default=None, help="守护进程探索间隔(分钟，默认读 config）")
     parser.add_argument("--status", action="store_true", help="查看状态")
     parser.add_argument("--inject", type=str, help="注入新好奇心 topic")
     parser.add_argument("--score", type=float, default=7.0, help="注入时的 relevance 分数")
@@ -442,7 +471,10 @@ def main():
     elif args.inject:
         inject_curiosity(args.inject, args.score, args.depth, args.reason, alpha=alpha)
     elif args.daemon:
-        daemon_mode(args.interval)
+        daemon_interval = args.interval or _get_config_interval()
+        daemon_mode(daemon_interval)
+    elif args.api_only:
+        _run_api_only()
     elif args.run:
         result = run_one_cycle(depth=args.run_depth)
         if result["status"] == "idle":
@@ -454,11 +486,20 @@ def main():
         else:
             print(result.get("formatted", ""))
     else:
-        result = run_one_cycle(depth=args.run_depth)
-        print_status()
-        if result["status"] == "success":
-            print("\n📋 本轮探索结果:")
-            print(result["formatted"])
+        # T-13: Default — read mode from config
+        mode = args.mode or _get_config_mode()
+        if mode in ("daemon", "hybrid"):
+            daemon_interval = args.interval or _get_config_interval()
+            print(f"[T-13] Default mode={mode}, running daemon (interval={daemon_interval}min)")
+            daemon_mode(daemon_interval)
+        else:
+            # api_only: just print status and exit
+            print(f"[T-13] Default mode=api_only, showing status")
+            print_status()
+            result = run_one_cycle(depth=args.run_depth)
+            if result["status"] == "success":
+                print("\n📋 本轮探索结果:")
+                print(result["formatted"])
 
 
 if __name__ == "__main__":
