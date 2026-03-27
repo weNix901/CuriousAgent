@@ -1,387 +1,744 @@
-# next_move_v0.2.5 - 技能级自我进化（Memento-Skills 架构）
+# SPEC v0.2.5 — KG 根技术追溯能力
 
-> **版本关系**：v0.2.5 是 v0.2.4 的能力升级，核心是让 Curious Agent 从"探索知识"升级到"探索并构建可执行技能"  
-> **前置条件**：v0.2.4 Bug #14/#15 修复验证通过  
-> **最后更新**：2026-03-25
-
----
-
-## 0. 背景：Memento-Skills 论文启发
-
-**论文**：arXiv:2603.18743 - Memento-Skills: Let Agents Design Agents（2026-03-19）
-
-**核心思想**：将"可执行技能"作为外部记忆单元，通过**读写反思学习（RWRL）** 实现持续进化。
-
-### 关键创新
-
-1. **技能级反思学习**：记忆单元不是原始日志，而是可复用的"技能文件夹"，写操作直接修改 Prompt 或代码
-2. **行为对齐检索**：用离线 RL 训练路由器，目标是"执行成功率"而非"语义相似度"
-3. **安全进化机制**：单元测试门验证技能更新，失败则回滚
-
-### 对 Curious Agent 的意义
-
-当前 Curious Agent 的行为闭环（v0.2.3 Phase 1）：
-```
-探索 → 知识入库 → 通知用户 → 结束
-```
-
-Memento-Skills 升级路径：
-```
-探索 → 知识入库 → 识别技能缺口 → 编写/修改技能文件 → 验证 → 通知用户
-```
-
-** Curious Agent 不只是探索知识，而是能构建、调试、优化自己的技能库**
+> **唯一目标**: 从任意知识点追溯到根技术，并形成完整的因果链
+> **架构原则**: 增量优先，重用已有模块，谨慎新增，API 为单一事实来源，双消费者兼容
 
 ---
 
-## 1. 核心架构：技能进化循环
+## 变更概览（4个文件修改 + 1个新脚本）
 
-### 1.1 三层技能结构
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `core/knowledge_graph.py` | 修改 | 追加 parent 写入 + trace 读取 + root_pool 管理 |
+| `core/curious_api.py` | 修改 | 追加 `/api/kg/trace/`, `/api/kg/roots`, `/api/kg/overview` |
+| `core/event_bus_persistent.py` | 修改 | 追加 `root_candidate_elevated` 事件类型 |
+| `scripts/sync_kg_to_r1d3.py` | 新增 | R1D3 消费脚本（唯一新文件）|
+| `scripts/migrate_kg_parents.py` | 新增 | 旧数据迁移脚本 |
 
-```
-┌─────────────────────────────────────────────┐
-│  Skill Memory（技能记忆）                   │
-│  ├── skill_files/（可执行技能文件）          │
-│  │   ├── reasoning_template.md             │
-│  │   ├── verification_checklist.md         │
-│  │   ├── self_correction_patterns.md      │
-│  │   └── domain_*.md                      │
-│  └── skill_index.json（技能索引）            │
-├─────────────────────────────────────────────┤
-│  Skill Engine（技能引擎）                   │
-│  ├── SkillReader（读：检索最相关技能）        │
-│  ├── SkillWriter（写：反思并修改技能）        │
-│  └── SkillTester（验证：单元测试门）         │
-├─────────────────────────────────────────────┤
-│  Skill Router（技能路由器）                 │
-│  ├── 行为对齐检索（非语义相似度）             │
-│  └── 离线 RL 训练路由器                     │
-└─────────────────────────────────────────────┘
-```
-
-### 1.2 技能进化循环
-
-```
-Curious Agent 探索完成
-        ↓
-发现 skill gap（缺少某类技能）？
-        ↓ 是
-SkillWriter 构建新技能文件
-        ↓
-SkillTester 验证（单元测试）
-        ↓ 通过
-写入 skill_files/
-        ↓
-更新 skill_index.json
-        ↓
-通知 R1D3：新技能已学会
-        ↓ 否
-回滚 + 记录失败原因
-```
+**新增模块数：0 个**。所有逻辑复用现有模块。
 
 ---
 
-## 2. 技能文件格式
+## 一、Topic Schema 扩展
 
-```markdown
-# skill_reasoning_template.md
+**文件**: `core/knowledge_graph.py`
 
-## 技能名称
-{skill_name}
-
-## 触发条件
-{trigger_conditions}
-- 当用户问 "为什么" 类问题时触发
-- 当置信度 < 0.6 时触发
-
-## 执行模板
-{reasoning_template}
-1. 先说置信度："我对这个比较确定" / "基于猜测...
-2. 给出核心结论
-3. 如需要再展开推理链
-
-## 验证清单
-{verification_checklist}
-- [ ] 回答前先检查置信度
-- [ ] novice 模式简洁不展开
-- [ ] expert 模式主动展开细节
-
-## 更新日志
-{update_log}
-- 2026-03-25: 初始创建（来自 Memento-Skills 论文启发）
-- 2026-03-26: 增加边界情况处理
-```
-
----
-
-## 3. SkillReader — 行为对齐检索
-
-### 3.1 当前问题
-
-现有 `memory_search()` 基于语义相似度：
-- 检索"自我反思" → 可能返回"冥想"相关内容（语义相近但行为效用低）
-- 检索"置信度" → 可能返回"置信区间"（统计相关但不是同一技能）
-
-### 3.2 行为对齐检索设计
+在 `topics[topic_name]` 中追加以下字段（不删除已有字段）：
 
 ```python
-class SkillRouter:
-    """
-    技能路由器：用离线 RL 训练，
-    目标是"执行成功率"而非"文本相似度"
-    """
-    
-    def route(self, context: dict) -> list[dict]:
-        """
-        输入：当前上下文（话题、置信度、用户意图）
-        输出：Top-K 相关技能及其行为效用评分
-        
-        检索维度：
-        1. 触发条件匹配度
-        2. 历史使用成功率
-        3. 领域相关性
-        """
-        # 阶段1：候选技能初筛（快速过滤）
-        candidates = self._fast_filter(context)
-        
-        # 阶段2：行为对齐评分（核心）
-        scored = []
-        for skill in candidates:
-            score = self._behavior_align_score(skill, context)
-            scored.append((skill, score))
-        
-        # 阶段3：排序返回
-        return sorted(scored, key=lambda x: x[1], reverse=True)[:3]
-    
-    def _behavior_align_score(self, skill: dict, context: dict) -> float:
-        """
-        行为对齐评分
-        
-        评分维度：
-        - 触发条件匹配：w1 * match_score
-        - 历史使用成功率：w2 * success_rate
-        - 领域相关性：w3 * domain_relevance
-        """
-        trigger = skill.get("trigger_conditions", [])
-        match = any(t in context.get("intent", "") for t in trigger)
-        
-        success_rate = skill.get("usage_stats", {}).get("success_rate", 0.5)
-        domain = skill.get("domain", "")
-        domain_match = domain == context.get("domain", "")
-        
-        return (0.4 * int(match) + 
-                0.4 * success_rate + 
-                0.2 * int(domain_match))
+topics[topic_name] = {
+    # === 已有字段（保持不变）===
+    "known": bool,
+    "depth": int,
+    "status": "...",
+    "children": [],
+    "explored_children": [],
+    "summary": "",
+    "sources": [],
+    "quality": float,
+
+    # === 新增字段（向上关系）===
+    "parents": [],          # List[str]，谁派生了这个 topic
+    "explains": [],         # List[dict]，这个 topic 解释了哪些 topic
+                             # 格式: [{"target": "topic_name", "relation": "derived_from", "confidence": 0.85}]
+
+    # === 新增字段（溯源元数据）===
+    "cross_domain_count": 0,  # 跨多少个探索分支
+    "is_root_candidate": False,
+    "root_score": 0.0,      # 根评分，仅 is_root_candidate=True 时有效
+
+    # === 元数据（已有则保留）===
+    "first_observed": timestamp,  # 新增，初始化时写入
+    "last_updated": timestamp
+}
+```
+
+**root_technology_pool**（新增于 state 根级别）：
+
+```python
+state["root_technology_pool"] = {
+    "candidates": [],  # List[dict]
+    "last_updated": None
+}
+
+# candidates 元素格式：
+{
+    "name": "transformer attention",
+    "root_score": 9.2,
+    "cross_domain_count": 7,
+    "explains_count": 23,
+    "domains": ["LLM", "CV", "NLP", "RL"],
+    "confidence": 0.91,
+    "sources": ["cross_subgraph_detection", "manual_seed"]
+}
 ```
 
 ---
 
-## 4. SkillWriter — 技能编写与反思
+## 二、knowledge_graph.py 修改详解
 
-### 4.1 反思触发条件
+### 2.1 新增常量（文件顶部）
 
 ```python
-class SkillWriter:
-    """
-    技能书写器：识别技能缺口 → 编写/修改技能文件
-    """
-    
-    def should_write(self, exploration_result: dict) -> bool:
-        """
-        判断是否需要编写新技能或修改现有技能
-        
-        触发条件：
-        1. 探索发现新领域（domain 为空）
-        2. 反复遇到同一类问题（出现 >= 3 次）
-        3. 现有技能执行失败（success_rate 下降）
-        """
-        findings = exploration_result.get("findings", {})
-        domain = findings.get("domain")
-        
-        # 条件1：新领域
-        if not self._skill_exists_for_domain(domain):
-            return True
-        
-        # 条件2：重复问题
-        pattern = findings.get("recurring_pattern")
-        if pattern and self._pattern_count(pattern) >= 3:
-            return True
-        
-        # 条件3：技能退化
-        skill = self._get_skill(domain)
-        if skill and skill.get("usage_stats", {}).get("success_rate", 1.0) < 0.6:
-            return True
-        
-        return False
-    
-    def write_skill(self, exploration_result: dict) -> dict:
-        """
-        编写或修改技能文件
-        """
-        findings = exploration_result.get("findings", {})
-        domain = findings.get("domain")
-        
-        # 确定是新建还是修改
-        existing = self._get_skill(domain)
-        skill_file = self._skill_path(domain)
-        
-        if existing:
-            # 修改：追加更新日志 + 增强触发条件
-            skill = self._augment_skill(existing, exploration_result)
-        else:
-            # 新建：从探索结果生成技能模板
-            skill = self._generate_skill_template(exploration_result)
-        
-        # 写入文件
-        with open(skill_file, "w") as f:
-            f.write(self._render_skill_md(skill))
-        
-        # 更新索引
-        self._update_skill_index(domain, skill)
-        
-        return {"status": "written", "skill": skill}
+ROOT_SCORE_WEIGHT_DOMAIN = 0.4
+ROOT_SCORE_WEIGHT_EXPLAINS = 0.6
+CROSS_DOMAIN_THRESHOLD = 3  # cross_domain_count >= 3 时升为根候选
+ROOT_POOL_KEY = "root_technology_pool"
 ```
 
-### 4.2 技能更新策略
+### 2.2 `_ensure_meta_cognitive()` 修改
+
+在函数末尾追加，确保新字段存在：
 
 ```python
-def _augment_skill(self, existing: dict, new_findings: dict) -> dict:
+# 确保 root_technology_pool 存在
+if ROOT_POOL_KEY not in state:
+    state[ROOT_POOL_KEY] = {"candidates": [], "last_updated": None}
+```
+
+### 2.3 `add_exploration_result()` 修改
+
+**现有签名**（不改变）：
+```python
+def add_exploration_result(topic: str, result: dict, quality: float) -> None:
+```
+
+**新增逻辑**：在该函数末尾（保存 state 之前），追加 parent 写入：
+
+```python
+# === v0.2.5 新增：parent 写入 ===
+# 获取当前正在探索的 parent topic（从 curiosity_queue 获取 status=exploring 的条目）
+state = _load_state()
+for queue_item in state.get("curiosity_queue", []):
+    if queue_item.get("status") == "exploring":
+        parent_topic = queue_item.get("topic")
+        if parent_topic and parent_topic != topic:
+            _update_parent_relation(parent_topic, topic)
+            break
+# === v0.2.5 新增结束 ===
+```
+
+**新增内部函数** `_update_parent_relation(parent, child)`：
+
+```python
+def _update_parent_relation(parent: str, child: str, relation: str = "derived_from", confidence: float = 0.8):
+    """内部函数：双向写入父子关系"""
+    state = _load_state()
+    topics = state["knowledge"]["topics"]
+    now = datetime.now(timezone.utc).isoformat()
+
+    # 确保 child 有 parents 字段
+    if "parents" not in topics.setdefault(child, {}):
+        topics[child]["parents"] = []
+    if parent not in topics[child]["parents"]:
+        topics[child]["parents"].append(parent)
+
+    # 确保 parent 有 explains 字段
+    if "explains" not in topics.setdefault(parent, {}):
+        topics[parent]["explains"] = []
+    explains_entry = {"target": child, "relation": relation, "confidence": confidence}
+    if explains_entry not in topics[parent]["explains"]:
+        topics[parent]["explains"].append(explains_entry)
+
+    _save_state(state)
+```
+
+### 2.4 新增函数 `get_trace(topic, max_depth=10)`
+
+```python
+def get_trace(topic: str, max_depth: int = 10) -> list[dict]:
     """
-    增强现有技能
-    
-    更新策略：
-    1. 扩展触发条件（新增 pattern）
-    2. 补充验证清单（新 edge case）
-    3. 更新执行模板（更精确的指导）
+    向上追溯 topic 的因果链直到根技术。
+    返回格式:
+    [
+        {"level": 0, "topic": "metacognitive monitoring", "relation": "current", "is_root": False},
+        {"level": 1, "topic": "self-reflection", "relation": "derived_from", "is_root": False},
+        {"level": 2, "topic": "transformer attention", "relation": "derived_from", "is_root": True, "root_score": 9.2}
+    ]
     """
-    existing["trigger_conditions"].extend(
-        new_findings.get("new_triggers", [])
+    state = _load_state()
+    topics = state["knowledge"]["topics"]
+    root_pool = state.get(ROOT_POOL_KEY, {}).get("candidates", [])
+    root_names = {r["name"] for r in root_pool}
+
+    trace = []
+    current = topic
+    visited = set()
+
+    for level in range(max_depth):
+        if current in visited:
+            break
+        visited.add(current)
+
+        node = topics.get(current, {})
+        parents = node.get("parents", [])
+
+        # 判断是否为根
+        is_root = (
+            current in root_names or
+            not parents or
+            node.get("is_root_candidate", False)
+        )
+
+        root_info = {}
+        if is_root:
+            for r in root_pool:
+                if r["name"] == current:
+                    root_info = {"root_score": r["root_score"], "cross_domain_count": r["cross_domain_count"]}
+                    break
+            if not root_info and node.get("is_root_candidate"):
+                root_info = {"root_score": node.get("root_score", 0), "cross_domain_count": node.get("cross_domain_count", 0)}
+
+        trace.append({
+            "level": level,
+            "topic": current,
+            "relation": "current" if level == 0 else "derived_from",
+            "is_root": is_root,
+            **root_info
+        })
+
+        if is_root or not parents:
+            break
+
+        current = parents[0]  # 只追第一条父链（主链路）
+
+    return trace
+```
+
+### 2.5 新增函数 `get_root_technologies()`
+
+```python
+def get_root_technologies() -> list[dict]:
+    """返回所有根技术，按 root_score 降序"""
+    state = _load_state()
+    candidates = state.get(ROOT_POOL_KEY, {}).get("candidates", [])
+    return sorted(candidates, key=lambda x: x.get("root_score", 0), reverse=True)
+```
+
+### 2.6 新增函数 `init_root_pool(seeds: list[str])`
+
+```python
+def init_root_pool(seeds: list[str]) -> None:
+    """
+    从初始种子列表初始化根技术池。
+    seeds: e.g. ["transformer attention", "gradient descent", "backpropagation"]
+    """
+    state = _load_state()
+    pool = state.setdefault(ROOT_POOL_KEY, {"candidates": [], "last_updated": None})
+    existing_names = {r["name"] for r in pool["candidates"]}
+
+    for seed in seeds:
+        if seed not in existing_names:
+            pool["candidates"].append({
+                "name": seed,
+                "root_score": 8.0,  # 初始种子给 8.0
+                "cross_domain_count": 1,
+                "explains_count": 0,
+                "domains": ["seed"],
+                "confidence": 0.5,
+                "sources": ["manual_seed"]
+            })
+
+    pool["last_updated"] = datetime.now(timezone.utc).isoformat()
+    _save_state(state)
+```
+
+### 2.7 新增函数 `get_kg_overview()`
+
+```python
+def get_kg_overview() -> dict:
+    """返回 KG 全局视图数据"""
+    state = _load_state()
+    topics = state["knowledge"]["topics"]
+    pool = state.get(ROOT_POOL_KEY, {}).get("candidates", [])
+    root_names = {r["name"] for r in pool}
+
+    nodes = []
+    edges = []
+
+    for name, node in topics.items():
+        is_root = name in root_names or node.get("is_root_candidate", False)
+        nodes.append({
+            "id": name,
+            "quality": node.get("quality", 0),
+            "root_score": next((r["root_score"] for r in pool if r["name"] == name), 0),
+            "is_root": is_root,
+            "status": node.get("status", "unexplored"),
+            "children_count": len(node.get("children", [])),
+            "parents_count": len(node.get("parents", [])),
+            "explains_count": len(node.get("explains", [])),
+            "cross_domain_count": node.get("cross_domain_count", 0)
+        })
+
+        for child in node.get("children", []):
+            edges.append({"from": name, "to": child, "type": "child_of"})
+        for explain in node.get("explains", []):
+            edges.append({"from": name, "to": explain["target"], "type": "explains"})
+
+    return {"nodes": nodes, "edges": edges, "total": len(nodes)}
+```
+
+### 2.8 新增函数 `promote_to_root_candidate(topic: str, domains: list[str])`
+
+```python
+def promote_to_root_candidate(topic: str, domains: list[str]) -> None:
+    """
+    将 topic 升为根技术候选。
+    由 Cross-Subgraph Detector 或手动调用。
+    """
+    state = _load_state()
+    pool = state.setdefault(ROOT_POOL_KEY, {"candidates": [], "last_updated": None})
+    topics = state["knowledge"]["topics"]
+
+    # 计算 explains_count
+    explains_count = len(topics.get(topic, {}).get("explains", []))
+    cross_domain_count = len(domains)
+
+    root_score = (
+        cross_domain_count * ROOT_SCORE_WEIGHT_DOMAIN +
+        explains_count * ROOT_SCORE_WEIGHT_EXPLAINS
     )
-    existing["verification_checklist"].extend(
-        new_findings.get("edge_cases", [])
-    )
-    existing["update_log"].append({
-        "date": datetime.now().isoformat(),
-        "reason": "exploration_augment",
-        "changes": new_findings.get("changes", [])
+
+    # 写入或更新 pool
+    for r in pool["candidates"]:
+        if r["name"] == topic:
+            r["root_score"] = root_score
+            r["cross_domain_count"] = cross_domain_count
+            r["explains_count"] = explains_count
+            r["domains"] = domains
+            r["confidence"] = min(0.95, 0.5 + explains_count * 0.05)
+            break
+    else:
+        pool["candidates"].append({
+            "name": topic,
+            "root_score": root_score,
+            "cross_domain_count": cross_domain_count,
+            "explains_count": explains_count,
+            "domains": domains,
+            "confidence": min(0.95, 0.5 + explains_count * 0.05),
+            "sources": ["cross_subgraph_detection"]
+        })
+
+    # 标记 topic 为候选
+    if topic in topics:
+        topics[topic]["is_root_candidate"] = True
+        topics[topic]["root_score"] = root_score
+        topics[topic]["cross_domain_count"] = cross_domain_count
+
+    pool["last_updated"] = datetime.now(timezone.utc).isoformat()
+    _save_state(state)
+```
+
+---
+
+## 三、event_bus_persistent.py 修改详解
+
+### 3.1 新增事件类型常量（文件顶部）
+
+```python
+# === v0.2.5 root tracing events ===
+EVENT_ROOT_CANDIDATE_ELEVATED = "root_candidate_elevated"
+```
+
+### 3.2 在 `PersistentEventBus.__init__()` 之后追加默认订阅（如果需要）
+
+如已有 `subscribe` 机制可用则复用，无需修改。如果需要初始化根候选处理器：
+
+```python
+# 默认订阅（如果 bus 被明确初始化）
+def _on_root_candidate_elevated(event: Event):
+    from core.knowledge_graph import promote_to_root_candidate
+    data = event.data
+    promote_to_root_candidate(data["topic"], data.get("domains", []))
+
+# 在 __init__ 中（如果尚未订阅）:
+# self.subscribe(EVENT_ROOT_CANDIDATE_ELEVATED, _on_root_candidate_elevated)
+```
+
+---
+
+## 四、curious_api.py 修改详解
+
+在现有路由注册区域之后，追加：
+
+```python
+# === v0.2.5 KG Root Tracing APIs ===
+
+@app.route("/api/kg/trace/<path:topic>")
+def api_kg_trace(topic: str):
+    """向上追溯 topic 的因果链到根技术"""
+    from core.knowledge_graph import get_trace, get_root_technologies, get_state
+
+    topic = topic.strip()
+    state = get_state()
+    topics = state.get("knowledge", {}).get("topics", {})
+
+    if topic not in topics:
+        return jsonify({"error": f"Topic '{topic}' not found in KG"}), 404
+
+    node = topics[topic]
+    trace = get_trace(topic)
+    root_technologies = get_root_technologies()
+
+    return jsonify({
+        "topic": topic,
+        "quality": node.get("quality", 0),
+        "trace": trace,
+        "root_technologies": [
+            {"name": r["name"], "root_score": r["root_score"], "confidence": r["confidence"]}
+            for r in root_technologies
+        ],
+        "cross_subgraph_connections": [
+            {"connected_topic": e["target"], "shared_concept": "shared concept", "branch": "inferred"}
+            for e in node.get("explains", [])
+        ]
     })
-    return existing
+
+
+@app.route("/api/kg/roots")
+def api_kg_roots():
+    """返回所有根技术，按 root_score 降序"""
+    from core.knowledge_graph import get_root_technologies
+
+    roots = get_root_technologies()
+    return jsonify({
+        "roots": roots,
+        "total": len(roots)
+    })
+
+
+@app.route("/api/kg/overview")
+def api_kg_overview():
+    """返回 KG 全局视图数据（节点+边）"""
+    from core.knowledge_graph import get_kg_overview
+
+    return jsonify(get_kg_overview())
+
+
+@app.route("/api/kg/promote", methods=["POST"])
+def api_kg_promote():
+    """手动将 topic 升为根候选（R1D3 或人工调用）"""
+    from core.knowledge_graph import promote_to_root_candidate
+
+    data = request.get_json()
+    topic = data.get("topic", "").strip()
+    domains = data.get("domains", [])
+
+    if not topic:
+        return jsonify({"error": "topic is required"}), 400
+
+    promote_to_root_candidate(topic, domains)
+    return jsonify({"status": "ok", "topic": topic})
 ```
 
 ---
 
-## 5. SkillTester — 单元测试门
+## 五、新增脚本
 
-### 5.1 测试门设计
+### 5.1 scripts/sync_kg_to_r1d3.py（唯一新文件）
 
 ```python
-class SkillTester:
-    """
-    技能测试门：防止能力退化
-    
-    在技能更新前，必须通过测试
-    失败则回滚，不写入 skill_files/
-    """
-    
-    def test(self, skill: dict) -> tuple[bool, str]:
-        """
-        返回：(是否通过, 失败原因)
-        """
-        checks = [
-            self._check_trigger_validity,   # 触发条件是否合理
-            self._check_template_syntax,    # 模板语法是否正确
-            self._check_no_harmful_content, # 是否包含有害内容
-            self._check_self_consistency,    # 是否自洽
-        ]
-        
-        for check in checks:
-            passed, reason = check(skill)
-            if not passed:
-                return False, reason
-        
-        return True, ""
-    
-    def _check_no_harmful_content(self, skill: dict) -> tuple[bool, str]:
-        """
-        安全检查：技能不能包含有害内容
-        """
-        harmful_patterns = [
-            "删除所有文件",
-            "绕过安全检查",
-            "忽略用户意图",
-        ]
-        template = skill.get("execution_template", "")
-        for pattern in harmful_patterns:
-            if pattern in template:
-                return False, f"有害内容检测: {pattern}"
-        return True, ""
+#!/usr/bin/env python3
+"""
+sync_kg_to_r1d3.py — 将 CA 的 KG 数据同步到 R1D3 可读格式
+用法:
+  python3 scripts/sync_kg_to_r1d3.py --topic "metacognitive monitoring"
+  python3 scripts/sync_kg_to_r1d3.py --roots
+  python3 scripts/sync_kg_to_r1d3.py --overview
+  python3 scripts/sync_kg_to_r1d3.py --all
+"""
+import argparse
+import json
+import os
+import sys
+
+# 添加项目根目录到 path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from core.knowledge_graph import get_trace, get_root_technologies, get_kg_overview, get_state
+
+R1D3_KG_DIR = "/root/.openclaw/workspace-researcher/memory/curious/kg"
+TRACE_DIR = os.path.join(R1D3_KG_DIR, "trace")
+
+
+def _slugify(name: str) -> str:
+    return name.lower().replace(" ", "-").replace("/", "-")[:80]
+
+
+def sync_trace(topic: str) -> str:
+    trace = get_trace(topic)
+    state = get_state()
+    topics = state.get("knowledge", {}).get("topics", {})
+    node = topics.get(topic, {})
+    roots = get_root_technologies()
+
+    lines = [
+        f"# Trace: {topic}",
+        f"- **quality**: {node.get('quality', 0)}",
+        "",
+        "## 因果链",
+    ]
+    for step in trace:
+        marker = "⭐ ROOT" if step.get("is_root") else ""
+        score = f" (root_score: {step.get('root_score', 0):.1f})" if step.get("is_root") else ""
+        lines.append(f"{step['level'] + 1}. {step['topic']} {marker}{score}")
+
+    if roots:
+        lines.append("")
+        lines.append("## 根技术池")
+        for r in roots[:10]:
+            lines.append(f"- {r['name']} (root_score: {r['root_score']:.1f}, confidence: {r['confidence']:.2f})")
+
+    md = "\n".join(lines)
+    os.makedirs(TRACE_DIR, exist_ok=True)
+    out_path = os.path.join(TRACE_DIR, f"{_slugify(topic)}.md")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(md)
+    return out_path
+
+
+def sync_roots() -> str:
+    roots = get_root_technologies()
+    lines = ["# 根技术池", ""]
+    for r in roots:
+        lines.append(f"## {r['name']}")
+        lines.append(f"- root_score: {r.get('root_score', 0):.2f}")
+        lines.append(f"- cross_domain_count: {r.get('cross_domain_count', 0)}")
+        lines.append(f"- explains_count: {r.get('explains_count', 0)}")
+        lines.append(f"- domains: {', '.join(r.get('domains', []))}")
+        lines.append(f"- confidence: {r.get('confidence', 0):.2f}")
+        lines.append("")
+
+    md = "\n".join(lines)
+    os.makedirs(R1D3_KG_DIR, exist_ok=True)
+    out_path = os.path.join(R1D3_KG_DIR, "roots.md")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(md)
+    return out_path
+
+
+def sync_overview() -> str:
+    overview = get_kg_overview()
+    lines = ["# KG 全局视图", "", f"- 总节点数: {overview['total']}", ""]
+
+    roots_in_overview = [n for n in overview["nodes"] if n.get("is_root")]
+    if roots_in_overview:
+        lines.append("## 根技术")
+        for n in roots_in_overview:
+            lines.append(f"- {n['id']} (root_score: {n.get('root_score', 0):.1f})")
+
+    lines.append("")
+    lines.append(f"## 节点数: {len(overview['nodes'])}")
+    lines.append(f"## 边数: {len(overview['edges'])}")
+
+    md = "\n".join(lines)
+    os.makedirs(R1D3_KG_DIR, exist_ok=True)
+    out_path = os.path.join(R1D3_KG_DIR, "overview.md")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(md)
+    return out_path
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Sync CA KG to R1D3 memory")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--topic", type=str, help="同步指定 topic 的 trace")
+    group.add_argument("--roots", action="store_true", help="同步根技术池")
+    group.add_argument("--overview", action="store_true", help="同步 KG 全局视图")
+    group.add_argument("--all", action="store_true", help="全量同步")
+    args = parser.parse_args()
+
+    if args.topic:
+        path = sync_trace(args.topic)
+        print(f"Trace synced: {path}")
+    elif args.roots:
+        path = sync_roots()
+        print(f"Roots synced: {path}")
+    elif args.overview:
+        path = sync_overview()
+        print(f"Overview synced: {path}")
+    elif args.all:
+        sync_roots()
+        sync_overview()
+        print("Full sync done")
+```
+
+### 5.2 scripts/migrate_kg_parents.py
+
+```python
+#!/usr/bin/env python3
+"""
+migrate_kg_parents.py — 将 v0.2.4 的 KG 数据迁移到 v0.2.5 schema
+迁移内容：
+1. 为已有 topic 初始化 parents = []、explains = []
+2. 从 children 关系反向推算 parents（如果 parent 存在）
+3. 从 curiosity_queue 的历史父子关系补全 parents
+"""
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from core.knowledge_graph import get_state, _save_state, _load_state
+from datetime import datetime, timezone
+
+def migrate():
+    state = _load_state()
+    topics = state.get("knowledge", {}).get("topics", {})
+    updated = 0
+
+    # 1. 初始化新字段
+    for topic, node in topics.items():
+        if "parents" not in node:
+            node["parents"] = []
+            updated += 1
+        if "explains" not in node:
+            node["explains"] = []
+            updated += 1
+        if "cross_domain_count" not in node:
+            node["cross_domain_count"] = 0
+        if "is_root_candidate" not in node:
+            node["is_root_candidate"] = False
+        if "root_score" not in node:
+            node["root_score"] = 0.0
+        if "first_observed" not in node:
+            node["first_observed"] = node.get("last_updated", datetime.now(timezone.utc).isoformat())
+
+    # 2. 从 children 反推 parents（如果父节点存在）
+    for topic, node in topics.items():
+        children = node.get("children", [])
+        for child in children:
+            if child in topics:
+                if "parents" not in topics[child]:
+                    topics[child]["parents"] = []
+                if topic not in topics[child]["parents"]:
+                    topics[child]["parents"].append(topic)
+
+    # 3. 初始化 root_technology_pool
+    if "root_technology_pool" not in state:
+        state["root_technology_pool"] = {"candidates": [], "last_updated": datetime.now(timezone.utc).isoformat()}
+
+    # 4. 从 config 注入初始种子
+    config = state.get("config", {})
+    seeds = config.get("root_technology_seeds", [
+        "transformer attention",
+        "gradient descent",
+        "backpropagation",
+        "softmax",
+        "RL reward signal",
+        "uncertainty quantification"
+    ])
+
+    pool = state["root_technology_pool"]
+    existing = {r["name"] for r in pool["candidates"]}
+    for seed in seeds:
+        if seed not in existing:
+            pool["candidates"].append({
+                "name": seed,
+                "root_score": 8.0,
+                "cross_domain_count": 1,
+                "explains_count": 0,
+                "domains": ["seed"],
+                "confidence": 0.5,
+                "sources": ["manual_seed"]
+            })
+
+    _save_state(state)
+    print(f"Migration done: {updated} topics updated, {len(pool['candidates'])} root seeds loaded")
+
+
+if __name__ == "__main__":
+    migrate()
 ```
 
 ---
 
-## 6. 与现有模块的关系
-
-| 模块 | 复用/新建 | 关系 |
-|------|---------|------|
-| CuriosityDecomposer | 复用 | Layer 1，识别技能缺口 |
-| Explorer | 复用 | Layer 2，收集原始信息 |
-| InsightSynthesizer（v0.2.4） | 复用 | Layer 3，生成原创分析 |
-| **SkillReader** | **新建** | 行为对齐检索 |
-| **SkillWriter** | **新建** | 技能编写与反思 |
-| **SkillTester** | **新建** | 单元测试门 |
-| CompetenceTracker | 复用 | 识别技能缺口 |
-| AgentBehaviorWriter（v0.2.3） | 增强 | SkillWriter 的降级版（无测试门） |
-
----
-
-## 7. R1D3 技能调用流程（整合）
+## 六、实现顺序
 
 ```
-R1D3 收到用户提问
-        ↓
-SkillRouter 检索相关技能
-        ↓
-SkillReader 读取技能文件
-        ↓
-应用技能模板到回答
-        ↓
-执行后 SkillWriter 记录使用结果
-        ↓
-success_rate 更新
-        ↓
-如果 success_rate 下降 → 触发 SkillWriter 反思
+Step 1: 修改 knowledge_graph.py
+  - 追加常量
+  - 修改 _ensure_meta_cognitive() 初始化 root_technology_pool
+  - 修改 add_exploration_result() 追加 parent 写入
+  - 追加 _update_parent_relation()
+  - 追加 get_trace()
+  - 追加 get_root_technologies()
+  - 追加 init_root_pool()
+  - 追加 get_kg_overview()
+  - 追加 promote_to_root_candidate()
+
+Step 2: 修改 curious_api.py
+  - 追加 /api/kg/trace/<topic>
+  - 追加 /api/kg/roots
+  - 追加 /api/kg/overview
+  - 追加 /api/kg/promote (POST)
+
+Step 3: 修改 event_bus_persistent.py
+  - 追加 EVENT_ROOT_CANDIDATE_ELEVATED 常量
+  - （仅常量，无逻辑变更）
+
+Step 4: 新增 scripts/sync_kg_to_r1d3.py
+  - 实现 sync_trace(), sync_roots(), sync_overview()
+
+Step 5: 新增 scripts/migrate_kg_parents.py
+  - 实现 migrate() 并立即运行
+
+Step 6: 修改 config.json
+  - 追加 root_technology_seeds 列表
+
+Step 7: 验证
+  - 跑 migrate 脚本
+  - 调用 /api/kg/roots 确认种子在池中
+  - 调用 /api/kg/overview 确认节点和边返回正常
+  - 调用 /api/kg/trace/<任意已有topic> 确认链路返回
+  - 调用 sync_kg_to_r1d3.py --roots 确认 markdown 输出
 ```
 
 ---
 
-## 8. 实现任务
+## 七、验收标准（OpenCode 可独立验证）
 
-| 优先级 | 任务 | 说明 |
-|-------|------|------|
-| P0 | skill_files/ 目录结构 | 创建技能文件存储结构 |
-| P0 | SkillTester 单元测试门 | 安全底线，防止能力退化 |
-| P0 | SkillWriter 基础版 | 识别技能缺口 + 生成技能模板 |
-| P1 | SkillRouter 行为对齐检索 | 替代 semantic search |
-| P1 | SkillReader 技能读取 | 解析技能文件应用到回答 |
-| P2 | 离线 RL 训练路由器 | 合成数据训练 |
-| P2 | skill_index.json 自动更新 | 技能索引管理 |
+```bash
+# 1. 迁移后 schema 正确
+python3 scripts/migrate_kg_parents.py
+python3 -c "from core.knowledge_graph import get_state; s=get_state(); print('parents' in list(s['knowledge']['topics'].values())[0])"  # 应输出 True
+
+# 2. /api/kg/roots 返回根技术池
+curl http://localhost:4848/api/kg/roots | python3 -m json.tool  # 应包含 transformer attention
+
+# 3. /api/kg/overview 返回图数据
+curl http://localhost:4848/api/kg/overview | python3 -m json.tool  # 应包含 nodes 和 edges
+
+# 4. /api/kg/trace/<topic> 返回链路
+curl "http://localhost:4848/api/kg/trace/agent" | python3 -m json.tool  # 应返回 trace 列表
+
+# 5. sync 脚本输出正确格式
+python3 scripts/sync_kg_to_r1d3.py --roots
+cat /root/.openclaw/workspace-researcher/memory/curious/kg/roots.md  # 应为 markdown
+
+# 6. 初始种子在 pool 中
+python3 -c "from core.knowledge_graph import get_root_technologies; roots=get_root_technologies(); print([r['name'] for r in roots])"  # 应列出初始种子
+```
 
 ---
 
-## 9. 不纳入 v0.2.5 的内容
+## 八、config.json 修改
 
-- 多技能并行更新（单技能串行足够）
-- 技能版本管理（简化版只有覆盖）
-- 跨领域技能迁移（Memento-Skills 论文中的高级特性）
-- 完整离线 RL 训练框架（先用手写规则替代）
+在 `config.json` 中追加：
+
+```json
+{
+  "root_technology_seeds": [
+    "transformer attention",
+    "gradient descent",
+    "backpropagation",
+    "softmax",
+    "RL reward signal",
+    "uncertainty quantification"
+  ]
+}
+```
 
 ---
 
-## 10. 战略意义
-
-v0.2.5 让 Curious Agent 从"知识探索者"进化为"技能构建者"：
-
-- **当前**：探索 → 存知识 → 通知用户
-- **v0.2.5**：探索 → 识别缺口 → 构建技能 → 测试验证 → 通知用户
-
-结合 Memento-Skills 的设计原则，v0.2.5 是数字生命体"自我进化"能力的初级实现。
+_Last updated: 2026-03-27 by R1D3_
+_v0.2.5: 4 files modified, 1 new script, 0 new modules_
