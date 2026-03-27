@@ -88,6 +88,7 @@ def run_one_cycle(depth: str = "medium") -> dict:
     parent_state = state.get("knowledge", {}).get("topics", {}).get(topic, {})
     if not parent_state.get("known"):
         print(f"[Explorer] Parent '{topic}' not yet explored, exploring first...")
+        kg.update_curiosity_status(topic, "exploring")
         parent_explorer = Explorer(exploration_depth=depth)
         parent_result = parent_explorer.explore({"topic": topic, "score": next_curiosity.get("score", 5.0)})
 
@@ -119,15 +120,24 @@ def run_one_cycle(depth: str = "medium") -> dict:
                 s_strength = sibling.get("signal_strength", "unknown")
                 s_relevance = 7.0 if s_strength == "strong" else (6.0 if s_strength == "medium" else 5.0)
                 s_depth = 6.0 if s_strength == "strong" else (5.5 if s_strength == "medium" else 5.0)
-                kg.add_curiosity(topic=s_topic, reason=f"Sibling of: {topic}", relevance=float(s_relevance), depth=float(s_depth))
+                kg.add_curiosity(topic=s_topic, reason=f"Sibling of: {topic}", relevance=float(s_relevance), depth=float(s_depth), original_topic=topic)
+                kg.add_child(topic, s_topic)
                 print(f"[Decomposer]   + Sibling: '{s_topic}' ({s_strength})")
 
             next_curiosity["original_topic"] = topic
             next_curiosity["topic"] = explore_topic
             next_curiosity["decomposition"] = best
+            
+            # v0.2.5: 立即写入父子关系（Bug #7 fix）
+            kg.add_child(topic, explore_topic)
         else:
             explore_topic = topic
-            
+            # v0.2.5: 非 decomposition 路径也写入父子关系（Bug #7 完整修复）
+            if next_curiosity.get("original_topic"):
+                parent = next_curiosity["original_topic"]
+                if parent != topic:
+                    kg.add_child(parent, topic)
+
     except ClarificationNeeded as e:
         print(f"[Decomposer] Clarification needed for '{e.topic}': {e.reason}")
         kg.mark_topic_done(e.topic, f"Needs clarification: {e.reason}")
@@ -149,6 +159,9 @@ def run_one_cycle(depth: str = "medium") -> dict:
         return {"status": "blocked", "topic": topic, "reason": reason}
     
     explorer = Explorer(exploration_depth=depth)
+
+    # v0.2.5: 设置 exploring 状态以便 parent 追踪
+    kg.update_curiosity_status(topic, "exploring")
 
     from core.three_phase_explorer import ThreePhaseExplorer
     three_phase = ThreePhaseExplorer(explorer, monitor, llm_manager)
@@ -247,10 +260,6 @@ def run_one_cycle(depth: str = "medium") -> dict:
         if write_result["applied"]:
             print(f"[BehaviorWriter] ✓ Written to {write_result['section']}: {topic}")
     
-    # Record parent-child relationship if topic was decomposed
-    if "original_topic" in next_curiosity:
-        kg.add_child(next_curiosity["original_topic"], next_curiosity["topic"])
-    
     continue_allowed, continue_reason = controller.should_continue(topic)
     
     if continue_allowed:
@@ -331,6 +340,19 @@ def daemon_mode(interval_minutes: int = 30):
     print(f"🚀 Curious Agent 进入守护进程模式 (每 {interval_minutes} 分钟探索一次)")
     print("   按 Ctrl+C 停止")
     print()
+    
+    from core.config import get_config
+    cfg = get_config()
+    seeds = getattr(cfg, 'root_technology_seeds', [
+        "transformer attention",
+        "gradient descent",
+        "backpropagation",
+        "softmax",
+        "RL reward signal",
+        "uncertainty quantification"
+    ])
+    kg.init_root_pool(seeds)
+    print(f"[v0.2.5] Root pool initialized with {len(seeds)} seeds")
     
     cycle_count = 0
     while True:
