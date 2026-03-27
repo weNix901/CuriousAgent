@@ -18,9 +18,11 @@ def _get_instances():
     global _explorer_instance, _quality_assessor_instance
     if _explorer_instance is None:
         from core.explorer import Explorer
+        from core.llm_client import LLMClient
         from core.quality_v2 import QualityV2Assessor
+        llm = LLMClient()
         _explorer_instance = Explorer()
-        _quality_assessor_instance = QualityV2Assessor()
+        _quality_assessor_instance = QualityV2Assessor(llm)
     return _explorer_instance, _quality_assessor_instance
 
 
