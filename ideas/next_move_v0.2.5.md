@@ -143,66 +143,130 @@ def _update_parent_relation(parent: str, child: str, relation: str = "derived_fr
     _save_state(state)
 ```
 
-### 2.4 新增函数 `get_trace(topic, max_depth=10)`
+### 2.4 新增函数 `get_spreading_activation_trace(topic, max_depth=10, decay=0.5, threshold=0.1)`
 
 ```python
-def get_trace(topic: str, max_depth: int = 10) -> list[dict]:
+def get_spreading_activation_trace(
+    topic: str,
+    max_depth: int = 10,
+    decay: float = 0.5,
+    threshold: float = 0.1
+) -> dict:
     """
-    向上追溯 topic 的因果链直到根技术。
+    使用扩散激活算法（Collins & Loftus, 1975）从任意 topic 追溯根技术。
+
+    机制：
+    - 从起点 topic 开始，激活值 = 1.0
+    - 激活沿所有边（parents + explains）并行扩散
+    - 每跳衰减系数 = decay（默认 0.5）
+    - 多条路径汇聚时，激活值累加（跨子图连接自然体现）
+    - 激活值低于 threshold 时停止扩散
+    - 按激活值降序排列，paths >= 2 的节点为候选根技术
+
     返回格式:
-    [
-        {"level": 0, "topic": "metacognitive monitoring", "relation": "current", "is_root": False},
-        {"level": 1, "topic": "self-reflection", "relation": "derived_from", "is_root": False},
-        {"level": 2, "topic": "transformer attention", "relation": "derived_from", "is_root": True, "root_score": 9.2}
-    ]
+    {
+        "origin": "metacognitive monitoring in LLM agents",
+        "activation_map": {
+            "metacognitive monitoring...": {"activation": 1.0, "distance": 0, "paths": 1},
+            "self-reflection mechanisms": {"activation": 0.5, "distance": 1, "paths": 1},
+            "transformer attention": {"activation": 0.625, "distance": 3, "paths": 2},
+        },
+        "ordered_trace": [
+            {"topic": "transformer attention", "activation": 0.625, "distance": 3, "is_root": True},
+            {"topic": "self-reflection mechanisms", "activation": 0.5, "distance": 1, "is_root": False},
+            {"topic": "metacognitive monitoring...", "activation": 1.0, "distance": 0, "is_root": False},
+        ],
+        "root_technologies": [
+            {"topic": "transformer attention", "activation": 0.625, "paths_converged": 2}
+        ],
+        "cross_subgraph_connections": [...]
+    }
     """
     state = _load_state()
     topics = state["knowledge"]["topics"]
     root_pool = state.get(ROOT_POOL_KEY, {}).get("candidates", [])
     root_names = {r["name"] for r in root_pool}
 
-    trace = []
-    current = topic
-    visited = set()
+    activation_map = {}
+    activation_map[topic] = {"activation": 1.0, "distance": 0, "paths": 1}
 
-    for level in range(max_depth):
-        if current in visited:
-            break
-        visited.add(current)
+    queue = [(topic, 1.0, 0)]
+    visited = {topic}
+
+    while queue:
+        current, current_activation, current_distance = queue.pop(0)
+
+        if current_distance >= max_depth or current_activation < threshold:
+            continue
 
         node = topics.get(current, {})
-        parents = node.get("parents", [])
+        next_activation = current_activation * decay
 
-        # 判断是否为根
-        is_root = (
-            current in root_names or
-            not parents or
-            node.get("is_root_candidate", False)
-        )
+        # 从 parents（谁派生了我）和 explains（我解释了谁）两个方向扩散
+        connected = []
+        for parent in node.get("parents", []):
+            connected.append(parent)
+        for explain in node.get("explains", []):
+            target = explain.get("target", "") if isinstance(explain, dict) else explain
+            if target:
+                connected.append(target)
 
-        root_info = {}
-        if is_root:
-            for r in root_pool:
-                if r["name"] == current:
-                    root_info = {"root_score": r["root_score"], "cross_domain_count": r["cross_domain_count"]}
-                    break
-            if not root_info and node.get("is_root_candidate"):
-                root_info = {"root_score": node.get("root_score", 0), "cross_domain_count": node.get("cross_domain_count", 0)}
+        for next_topic in connected:
+            if not next_topic or next_topic in visited:
+                continue
 
-        trace.append({
-            "level": level,
-            "topic": current,
-            "relation": "current" if level == 0 else "derived_from",
-            "is_root": is_root,
-            **root_info
+            if next_topic not in activation_map:
+                activation_map[next_topic] = {"activation": 0.0, "distance": current_distance + 1, "paths": 0}
+
+            activation_map[next_topic]["activation"] += next_activation
+            activation_map[next_topic]["distance"] = min(
+                activation_map[next_topic]["distance"], current_distance + 1
+            )
+            activation_map[next_topic]["paths"] += 1
+
+            if next_topic not in visited:
+                visited.add(next_topic)
+                queue.append((next_topic, next_activation, current_distance + 1))
+
+    # 构建有序 trace（按激活值降序）
+    ordered_trace = []
+    for t, info in activation_map.items():
+        # 根技术判断：来自 root_pool 或 多路径汇聚（paths >= 2）
+        is_root = t in root_names or info["paths"] >= 2
+        ordered_trace.append({
+            "topic": t,
+            "activation": round(info["activation"], 4),
+            "distance": info["distance"],
+            "paths": info["paths"],
+            "is_root": is_root
         })
 
-        if is_root or not parents:
-            break
+    ordered_trace.sort(key=lambda x: (-x["activation"], x["distance"]))
 
-        current = parents[0]  # 只追第一条父链（主链路）
+    root_technologies = [
+        {"topic": t["topic"], "activation": t["activation"], "paths_converged": t["paths"]}
+        for t in ordered_trace if t["is_root"]
+    ]
 
-    return trace
+    cross_subgraph_connections = []
+    origin_node = topics.get(topic, {})
+    for explain in origin_node.get("explains", []):
+        if isinstance(explain, dict):
+            target = explain.get("target", "")
+            cross_subgraph_connections.append({
+                "from": topic,
+                "to": target,
+                "shared_concept": explain.get("relation", "shared concept"),
+                "activation": activation_map.get(target, {}).get("activation", 0)
+            })
+
+    return {
+        "origin": topic,
+        "activation_map": activation_map,
+        "ordered_trace": ordered_trace,
+        "root_technologies": root_technologies,
+        "cross_subgraph_connections": cross_subgraph_connections
+    }
 ```
 
 ### 2.5 新增函数 `get_root_technologies()`
@@ -366,32 +430,22 @@ def _on_root_candidate_elevated(event: Event):
 
 @app.route("/api/kg/trace/<path:topic>")
 def api_kg_trace(topic: str):
-    """向上追溯 topic 的因果链到根技术"""
-    from core.knowledge_graph import get_trace, get_root_technologies, get_state
+    """使用扩散激活算法向上追溯 topic 的因果链到根技术"""
+    from core.knowledge_graph import get_spreading_activation_trace, get_root_technologies
 
     topic = topic.strip()
-    state = get_state()
-    topics = state.get("knowledge", {}).get("topics", {})
 
-    if topic not in topics:
-        return jsonify({"error": f"Topic '{topic}' not found in KG"}), 404
+    result = get_spreading_activation_trace(topic)
 
-    node = topics[topic]
-    trace = get_trace(topic)
     root_technologies = get_root_technologies()
 
     return jsonify({
         "topic": topic,
-        "quality": node.get("quality", 0),
-        "trace": trace,
-        "root_technologies": [
-            {"name": r["name"], "root_score": r["root_score"], "confidence": r["confidence"]}
-            for r in root_technologies
-        ],
-        "cross_subgraph_connections": [
-            {"connected_topic": e["target"], "shared_concept": "shared concept", "branch": "inferred"}
-            for e in node.get("explains", [])
-        ]
+        "origin": result["origin"],
+        "activation_map": result["activation_map"],
+        "ordered_trace": result["ordered_trace"],
+        "root_technologies": result["root_technologies"],
+        "cross_subgraph_connections": result["cross_subgraph_connections"]
     })
 
 
@@ -455,7 +509,7 @@ import sys
 # 添加项目根目录到 path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.knowledge_graph import get_trace, get_root_technologies, get_kg_overview, get_state
+from core.knowledge_graph import get_spreading_activation_trace, get_root_technologies, get_kg_overview, get_state
 
 R1D3_KG_DIR = "/root/.openclaw/workspace-researcher/memory/curious/kg"
 TRACE_DIR = os.path.join(R1D3_KG_DIR, "trace")
@@ -466,7 +520,7 @@ def _slugify(name: str) -> str:
 
 
 def sync_trace(topic: str) -> str:
-    trace = get_trace(topic)
+    trace = get_spreading_activation_trace(topic)
     state = get_state()
     topics = state.get("knowledge", {}).get("topics", {})
     node = topics.get(topic, {})
@@ -661,7 +715,7 @@ Step 1: 修改 knowledge_graph.py
   - 修改 add_child() — 在函数末尾追加 _update_parent_relation(parent, child) 调用
   - 修改 mark_topic_done() — 在函数末尾追加 _update_parent_relation() 调用（追踪所有已完成 topic 的 parent）
   - 追加 _update_parent_relation(parent, child, relation, confidence)
-  - 追加 get_trace(topic, max_depth)
+  - 追加 get_spreading_activation_trace(topic, max_depth, decay, threshold)
   - 追加 get_root_technologies()
   - 追加 init_root_pool(seeds)
   - 追加 get_kg_overview()
@@ -789,8 +843,8 @@ curl http://localhost:4848/api/kg/roots | python3 -m json.tool  # 应包含 tran
 # 3. /api/kg/overview 返回图数据
 curl http://localhost:4848/api/kg/overview | python3 -m json.tool  # 应包含 nodes 和 edges
 
-# 4. /api/kg/trace/<topic> 返回链路
-curl "http://localhost:4848/api/kg/trace/agent" | python3 -m json.tool  # 应返回 trace 列表
+# 4. /api/kg/trace/<topic> 返回扩散激活链路
+curl "http://localhost:4848/api/kg/trace/agent" | python3 -m json.tool  # 应返回 activation_map 和 ordered_trace
 
 # 5. sync 脚本输出正确格式
 python3 scripts/sync_kg_to_r1d3.py --roots
