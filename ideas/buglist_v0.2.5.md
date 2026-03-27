@@ -385,3 +385,112 @@ else:
 
 _Last updated: 2026-03-27 by R1D3_
 _v0.2.5: bug #7 diagnosis refined — mark_topic_done logic always fails_
+
+---
+
+## Bug #8: `_update_parent_relation` 创建不完整的 topic 结构（P1）
+
+**严重程度**: P1
+**发现时间**: 2026-03-27 by R1D3
+**状态**: 未修复
+
+**问题描述**:
+
+`_update_parent_relation` 用 `setdefault(child, {})` 创建子 topic 时，只创建了包含 `parents` 字段的空 dict，没有初始化 `known`、`status`、`depth` 等必填字段：
+
+```python
+# 当前代码（错误）：
+if "parents" not in topics.setdefault(child, {}):
+    topics[child]["parents"] = []
+```
+
+`setdefault(child, {})` 创建的 dict 只有 `parents` 字段，导致：
+
+**验证**：
+```bash
+cd /root/dev/curious-agent
+python3 -c "
+from core.knowledge_graph import get_state
+s = get_state()
+topics = s['knowledge']['topics']
+for name, t in topics.items():
+    if t.get('known') is None:
+        print(f'{name}: known={t.get("known")}, status={t.get("status")}, fields={list(t.keys())}')
+"
+# 输出：child_test known=None, status=None
+```
+
+**根因**:
+
+`add_child` 中创建新 topic 时会初始化完整结构：
+```python
+topics[parent] = {
+    "known": False,
+    "depth": 0,
+    "children": [],
+    ...
+    "status": "partial"
+}
+```
+
+但 `_update_parent_relation` 用的是裸 `setdefault`，缺少这些字段。
+
+**修复方案**:
+
+在 `_update_parent_relation` 里，如果 child 不存在，需要初始化完整结构：
+
+```python
+if child not in topics:
+    topics[child] = {
+        "known": False,
+        "depth": 0,
+        "parents": [],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": False,
+        "root_score": 0.0,
+        "first_observed": now,
+        "last_updated": now,
+        "status": "partial"
+    }
+else:
+    # 只补全缺失的字段
+    if "parents" not in topics[child]:
+        topics[child]["parents"] = []
+    if "explains" not in topics[child]:
+        topics[child]["explains"] = []
+
+# 对 parent 也做同样的处理
+if parent not in topics:
+    topics[parent] = {
+        "known": False,
+        "depth": 0,
+        "parents": [],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": False,
+        "root_score": 0.0,
+        "first_observed": now,
+        "last_updated": now,
+        "status": "partial"
+    }
+else:
+    if "explains" not in topics[parent]:
+        topics[parent]["explains"] = []
+```
+
+**验证命令**：
+```bash
+python3 -c "
+from core.knowledge_graph import get_state
+s = get_state()
+topics = s['knowledge']['topics']
+incomplete = [n for n, t in topics.items() if t.get('known') is None]
+print(f'Incomplete topics: {incomplete}')
+# 期望：无输出（所有 topic 都有 known 字段）
+```
+
