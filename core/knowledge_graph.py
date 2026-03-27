@@ -8,6 +8,12 @@ from typing import Optional
 
 STATE_FILE = os.path.join(os.path.dirname(__file__), "../knowledge/state.json")
 
+# === v0.2.5 根技术追溯常量 ===
+ROOT_SCORE_WEIGHT_DOMAIN = 0.4
+ROOT_SCORE_WEIGHT_EXPLAINS = 0.6
+CROSS_DOMAIN_THRESHOLD = 3  # cross_domain_count >= 3 时升为根候选
+ROOT_POOL_KEY = "root_technology_pool"
+
 DEFAULT_STATE = {
     "version": "1.0",
     "last_update": None,
@@ -51,13 +57,20 @@ def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: list =
     
     if topic in topics:
         topics[topic]["known"] = True
-        topics[topic]["depth"] = max(topics[topic]["depth"], depth)
+        topics[topic]["depth"] = max(topics[topic].get("depth", 0), depth)
         topics[topic]["last_updated"] = now
         if summary:
             topics[topic]["summary"] = summary
         if sources:
             topics[topic]["sources"] = list(set(topics[topic].get("sources", []) + sources))
         topics[topic]["status"] = "complete"
+        # Ensure new fields exist for existing topics
+        if "children" not in topics[topic]:
+            topics[topic]["children"] = []
+        if "parents" not in topics[topic]:
+            topics[topic]["parents"] = []
+        if "explains" not in topics[topic]:
+            topics[topic]["explains"] = []
     else:
         topics[topic] = {
             "known": True,
@@ -65,7 +78,10 @@ def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: list =
             "last_updated": now,
             "summary": summary,
             "sources": sources or [],
-            "status": "complete"
+            "status": "complete",
+            "children": [],
+            "parents": [],
+            "explains": []
         }
     
     # 限制节点数：保留深度最高的
@@ -78,8 +94,11 @@ def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: list =
     _save_state(state)
 
 
-def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float = 5.0) -> None:
-    """添加一个新的好奇心项到队列"""
+def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float = 5.0, **extra) -> None:
+    """添加一个新的好奇心项到队列
+    
+    支持 extra 参数（如 original_topic）用于追踪父子关系
+    """
     state = _load_state()
     now = datetime.now(timezone.utc).isoformat()
     
@@ -89,7 +108,7 @@ def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float 
             return
     
     score = min(10.0, relevance * 0.35 + depth * 0.25 + 5.0 * 0.4)
-    state["curiosity_queue"].append({
+    queue_item = {
         "topic": topic,
         "reason": reason,
         "score": score,
@@ -97,7 +116,10 @@ def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float 
         "depth": depth,
         "created_at": now,
         "status": "pending"
-    })
+    }
+    # v0.2.5: 存储额外字段（如 original_topic）
+    queue_item.update(extra)
+    state["curiosity_queue"].append(queue_item)
     _save_state(state)
 
 
@@ -216,7 +238,13 @@ def _ensure_meta_cognitive(state: dict) -> dict:
             "exploration_log": [],
             "completed_topics": {}
         }
-        return state
+
+    # === v0.2.5 新增: 确保 root_technology_pool 存在 ===
+    if ROOT_POOL_KEY not in state:
+        state[ROOT_POOL_KEY] = {"candidates": [], "last_updated": None}
+    # === v0.2.5 新增结束 ===
+
+    mc = state["meta_cognitive"]
 
     mc = state["meta_cognitive"]
 
@@ -289,6 +317,15 @@ def mark_topic_done(topic: str, reason: str) -> None:
         if item["topic"] == topic and item.get("status") != "done":
             item["status"] = "done"
 
+    _save_state(state)
+
+    state = _load_state()
+    for queue_item in state.get("curiosity_queue", []):
+        if queue_item.get("status") == "exploring":
+            parent_topic = queue_item.get("topic")
+            if parent_topic and parent_topic != topic:
+                _update_parent_relation(parent_topic, topic)
+                break
 
     topics = state["knowledge"]["topics"]
     if topic in topics:
@@ -303,6 +340,87 @@ def mark_topic_done(topic: str, reason: str) -> None:
             del topics[topic]
 
     _save_state(state)
+
+
+# === v0.2.5 新增: 内部函数 - 双向写入父子关系 ===
+def _update_parent_relation(parent: str, child: str, relation: str = "derived_from", confidence: float = 0.8):
+    """内部函数：双向写入父子关系"""
+    state = _load_state()
+    topics = state["knowledge"]["topics"]
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Bug #8 fix: 确保 child 存在且有完整结构
+    if child not in topics:
+        topics[child] = {
+            "known": False,
+            "depth": 0,
+            "parents": [],
+            "explains": [],
+            "children": [],
+            "explored_children": [],
+            "cross_domain_count": 0,
+            "is_root_candidate": False,
+            "root_score": 0.0,
+            "first_observed": now,
+            "last_updated": now,
+            "status": "partial"
+        }
+    else:
+        # 补全缺失的字段
+        if "parents" not in topics[child]:
+            topics[child]["parents"] = []
+        if "explains" not in topics[child]:
+            topics[child]["explains"] = []
+        if "children" not in topics[child]:
+            topics[child]["children"] = []
+
+    # 确保 parent 存在且有完整结构
+    if parent not in topics:
+        topics[parent] = {
+            "known": False,
+            "depth": 0,
+            "parents": [],
+            "explains": [],
+            "children": [],
+            "explored_children": [],
+            "cross_domain_count": 0,
+            "is_root_candidate": False,
+            "root_score": 0.0,
+            "first_observed": now,
+            "last_updated": now,
+            "status": "partial"
+        }
+    else:
+        # 补全缺失的字段
+        if "explains" not in topics[parent]:
+            topics[parent]["explains"] = []
+        if "children" not in topics[parent]:
+            topics[parent]["children"] = []
+
+    # 写入父子关系
+    if parent not in topics[child]["parents"]:
+        topics[child]["parents"].append(parent)
+
+    explains_entry = {"target": child, "relation": relation, "confidence": confidence}
+    if explains_entry not in topics[parent]["explains"]:
+        topics[parent]["explains"].append(explains_entry)
+
+    # 确保溯源元数据字段存在
+    for t in [parent, child]:
+        if t in topics:
+            if "cross_domain_count" not in topics[t]:
+                topics[t]["cross_domain_count"] = 0
+            if "is_root_candidate" not in topics[t]:
+                topics[t]["is_root_candidate"] = False
+            if "root_score" not in topics[t]:
+                topics[t]["root_score"] = 0.0
+            if "first_observed" not in topics[t]:
+                topics[t]["first_observed"] = now
+            if "last_updated" not in topics[t]:
+                topics[t]["last_updated"] = now
+
+    _save_state(state)
+# === v0.2.5 新增结束 ===
 
 
 def update_last_exploration_notified(topic: str, notified: bool) -> None:
@@ -421,7 +539,7 @@ def add_child(parent: str, child: str) -> None:
             "status": "partial"
         }
     
-    if "children" not in topics[parent]:
+    if not topics[parent].get("children"):
         topics[parent]["children"] = []
     
     if child not in topics[parent]["children"]:
@@ -430,6 +548,8 @@ def add_child(parent: str, child: str) -> None:
     topics[parent]["status"] = "partial"
     
     _save_state(state)
+    
+    _update_parent_relation(parent, child)
 
 
 def get_children(topic: str) -> list:
@@ -532,3 +652,229 @@ def add_exploration_result(topic: str, result: dict, quality: float) -> None:
         writer.process(topic, findings_for_writer, quality, result.get("sources", []))
     except Exception as e:
         print(f"[KG] AgentBehaviorWriter failed: {e}")
+
+    # v0.2.5: parent 写入 - 从 curiosity_queue 获取正在探索的 parent
+    state = _load_state()
+    for queue_item in state.get("curiosity_queue", []):
+        if queue_item.get("status") == "exploring":
+            parent_topic = queue_item.get("topic")
+            if parent_topic and parent_topic != topic:
+                _update_parent_relation(parent_topic, topic)
+                break
+
+# v0.2.5 Root Tracing Functions
+
+def get_spreading_activation_trace(
+    topic: str,
+    max_depth: int = 10,
+    decay: float = 0.5,
+    threshold: float = 0.1
+) -> dict:
+    """
+    使用扩散激活算法（Collins & Loftus, 1975）从任意 topic 追溯根技术。
+
+    机制：
+    - 从起点 topic 开始，激活值 = 1.0
+    - 激活沿所有边（parents + explains）并行扩散
+    - 每跳衰减系数 = decay（默认 0.5）
+    - 多条路径汇聚时，激活值累加（跨子图连接自然体现）
+    - 激活值低于 threshold 时停止扩散
+    - 按激活值降序排列，paths >= 2 的节点为候选根技术
+    """
+    state = _load_state()
+    topics = state["knowledge"]["topics"]
+    root_pool = state.get(ROOT_POOL_KEY, {}).get("candidates", [])
+    root_names = {r["name"] for r in root_pool}
+
+    activation_map = {}
+    activation_map[topic] = {"activation": 1.0, "distance": 0, "paths": 1}
+
+    queue = [(topic, 1.0, 0)]
+    visited = {topic}
+
+    while queue:
+        current, current_activation, current_distance = queue.pop(0)
+
+        if current_distance >= max_depth or current_activation < threshold:
+            continue
+
+        node = topics.get(current, {})
+        next_activation = current_activation * decay
+
+        # 从 parents（谁派生了我）和 explains（我解释了谁）两个方向扩散
+        connected = []
+        for parent in node.get("parents", []):
+            connected.append(parent)
+        for explain in node.get("explains", []):
+            target = explain.get("target", "") if isinstance(explain, dict) else explain
+            if target:
+                connected.append(target)
+
+        for next_topic in connected:
+            if not next_topic or next_topic in visited:
+                continue
+
+            if next_topic not in activation_map:
+                activation_map[next_topic] = {"activation": 0.0, "distance": current_distance + 1, "paths": 0}
+
+            activation_map[next_topic]["activation"] += next_activation
+            activation_map[next_topic]["distance"] = min(
+                activation_map[next_topic]["distance"], current_distance + 1
+            )
+            activation_map[next_topic]["paths"] += 1
+
+            if next_topic not in visited:
+                visited.add(next_topic)
+                queue.append((next_topic, next_activation, current_distance + 1))
+
+    # 构建有序 trace（按激活值降序）
+    ordered_trace = []
+    for t, info in activation_map.items():
+        # 根技术判断：来自 root_pool 或 多路径汇聚（paths >= 2）
+        is_root = t in root_names or info["paths"] >= 2
+        ordered_trace.append({
+            "topic": t,
+            "activation": round(info["activation"], 4),
+            "distance": info["distance"],
+            "paths": info["paths"],
+            "is_root": is_root
+        })
+
+    ordered_trace.sort(key=lambda x: (-x["activation"], x["distance"]))
+
+    root_technologies = [
+        {"topic": t["topic"], "activation": t["activation"], "paths_converged": t["paths"]}
+        for t in ordered_trace if t["is_root"]
+    ]
+
+    cross_subgraph_connections = []
+    origin_node = topics.get(topic, {})
+    for explain in origin_node.get("explains", []):
+        if isinstance(explain, dict):
+            target = explain.get("target", "")
+            cross_subgraph_connections.append({
+                "from": topic,
+                "to": target,
+                "shared_concept": explain.get("relation", "shared concept"),
+                "activation": activation_map.get(target, {}).get("activation", 0)
+            })
+
+    return {
+        "origin": topic,
+        "activation_map": activation_map,
+        "ordered_trace": ordered_trace,
+        "root_technologies": root_technologies,
+        "cross_subgraph_connections": cross_subgraph_connections
+    }
+
+
+def get_root_technologies() -> list:
+    """返回所有根技术，按 root_score 降序"""
+    state = _load_state()
+    candidates = state.get(ROOT_POOL_KEY, {}).get("candidates", [])
+    return sorted(candidates, key=lambda x: x.get("root_score", 0), reverse=True)
+
+
+def init_root_pool(seeds: list) -> None:
+    """
+    从初始种子列表初始化根技术池。
+    seeds: e.g. ["transformer attention", "gradient descent", "backpropagation"]
+    """
+    state = _load_state()
+    pool = state.setdefault(ROOT_POOL_KEY, {"candidates": [], "last_updated": None})
+    existing_names = {r["name"] for r in pool["candidates"]}
+
+    for seed in seeds:
+        if seed not in existing_names:
+            pool["candidates"].append({
+                "name": seed,
+                "root_score": 8.0,  # 初始种子给 8.0
+                "cross_domain_count": 1,
+                "explains_count": 0,
+                "domains": ["seed"],
+                "confidence": 0.5,
+                "sources": ["manual_seed"]
+            })
+
+    pool["last_updated"] = datetime.now(timezone.utc).isoformat()
+    _save_state(state)
+
+
+def get_kg_overview() -> dict:
+    """返回 KG 全局视图数据"""
+    state = _load_state()
+    topics = state["knowledge"]["topics"]
+    pool = state.get(ROOT_POOL_KEY, {}).get("candidates", [])
+    root_names = {r["name"] for r in pool}
+
+    nodes = []
+    edges = []
+
+    for name, node in topics.items():
+        is_root = name in root_names or node.get("is_root_candidate", False)
+        nodes.append({
+            "id": name,
+            "quality": node.get("quality", 0),
+            "root_score": next((r["root_score"] for r in pool if r["name"] == name), 0),
+            "is_root": is_root,
+            "status": node.get("status", "unexplored"),
+            "children_count": len(node.get("children", [])),
+            "parents_count": len(node.get("parents", [])),
+            "explains_count": len(node.get("explains", [])),
+            "cross_domain_count": node.get("cross_domain_count", 0)
+        })
+
+        for child in node.get("children", []):
+            edges.append({"from": name, "to": child, "type": "child_of"})
+        for explain in node.get("explains", []):
+            edges.append({"from": name, "to": explain["target"], "type": "explains"})
+
+    return {"nodes": nodes, "edges": edges, "total": len(nodes)}
+
+
+def promote_to_root_candidate(topic: str, domains: list) -> None:
+    """
+    将 topic 升为根技术候选。
+    由 Cross-Subgraph Detector 或手动调用。
+    """
+    state = _load_state()
+    pool = state.setdefault(ROOT_POOL_KEY, {"candidates": [], "last_updated": None})
+    topics = state["knowledge"]["topics"]
+
+    # 计算 explains_count
+    explains_count = len(topics.get(topic, {}).get("explains", []))
+    cross_domain_count = len(domains)
+
+    root_score = (
+        cross_domain_count * ROOT_SCORE_WEIGHT_DOMAIN +
+        explains_count * ROOT_SCORE_WEIGHT_EXPLAINS
+    )
+
+    # 写入或更新 pool
+    for r in pool["candidates"]:
+        if r["name"] == topic:
+            r["root_score"] = root_score
+            r["cross_domain_count"] = cross_domain_count
+            r["explains_count"] = explains_count
+            r["domains"] = domains
+            r["confidence"] = min(0.95, 0.5 + explains_count * 0.05)
+            break
+    else:
+        pool["candidates"].append({
+            "name": topic,
+            "root_score": root_score,
+            "cross_domain_count": cross_domain_count,
+            "explains_count": explains_count,
+            "domains": domains,
+            "confidence": min(0.95, 0.5 + explains_count * 0.05),
+            "sources": ["cross_subgraph_detection"]
+        })
+
+    # 标记 topic 为候选
+    if topic in topics:
+        topics[topic]["is_root_candidate"] = True
+        topics[topic]["root_score"] = root_score
+        topics[topic]["cross_domain_count"] = cross_domain_count
+
+    pool["last_updated"] = datetime.now(timezone.utc).isoformat()
+    _save_state(state)
