@@ -656,36 +656,44 @@ if __name__ == "__main__":
 
 ```
 Step 1: 修改 knowledge_graph.py
-  - 追加常量
-  - 修改 _ensure_meta_cognitive() 初始化 root_technology_pool
-  - 修改 add_exploration_result() 追加 parent 写入
-  - 追加 _update_parent_relation()
-  - 追加 get_trace()
+  - 追加常量（ROOT_SCORE_WEIGHT_*、CROSS_DOMAIN_THRESHOLD、ROOT_POOL_KEY）
+  - 修改 _ensure_meta_cognitive() — 初始化 root_technology_pool
+  - 修改 add_child() — 在函数末尾追加 _update_parent_relation(parent, child) 调用
+  - 修改 mark_topic_done() — 在函数末尾追加 _update_parent_relation() 调用（追踪所有已完成 topic 的 parent）
+  - 追加 _update_parent_relation(parent, child, relation, confidence)
+  - 追加 get_trace(topic, max_depth)
   - 追加 get_root_technologies()
-  - 追加 init_root_pool()
+  - 追加 init_root_pool(seeds)
   - 追加 get_kg_overview()
-  - 追加 promote_to_root_candidate()
+  - 追加 promote_to_root_candidate(topic, domains)
 
-Step 2: 修改 curious_api.py
-  - 追加 /api/kg/trace/<topic>
+Step 2: 修改 curious_agent.py — run_one_cycle()
+  无需修改！parent 追踪已由 mark_topic_done() 内部自动处理（Step 1 修改）
+  仅需确认 add_child() 调用处有 _update_parent_relation（已在 Step 1 add_child 内部处理）
+
+Step 3: 修改 curious_api.py
+  - 追加 /api/kg/trace/<path:topic>
   - 追加 /api/kg/roots
   - 追加 /api/kg/overview
   - 追加 /api/kg/promote (POST)
 
-Step 3: 修改 event_bus_persistent.py
-  - 追加 EVENT_ROOT_CANDIDATE_ELEVATED 常量
-  - （仅常量，无逻辑变更）
+Step 4: 修改 event_bus_persistent.py
+  - 追加 EVENT_ROOT_CANDIDATE_ELEVATED 常量（仅常量，无逻辑变更）
 
-Step 4: 新增 scripts/sync_kg_to_r1d3.py
+Step 5: 新增 scripts/sync_kg_to_r1d3.py
   - 实现 sync_trace(), sync_roots(), sync_overview()
 
-Step 5: 新增 scripts/migrate_kg_parents.py
+Step 6: 新增 scripts/migrate_kg_parents.py
   - 实现 migrate() 并立即运行
 
-Step 6: 修改 config.json
+Step 7: 修改 config.json
   - 追加 root_technology_seeds 列表
 
-Step 7: 验证
+Step 8: 修改 curious_agent.py — main() 或 daemon_mode()
+  在 daemon 循环开始前追加：
+  - 调用 init_root_pool(config.root_technology_seeds)
+
+Step 9: 验证
   - 跑 migrate 脚本
   - 调用 /api/kg/roots 确认种子在池中
   - 调用 /api/kg/overview 确认节点和边返回正常
@@ -695,7 +703,80 @@ Step 7: 验证
 
 ---
 
-## 七、验收标准（OpenCode 可独立验证）
+## 七、主流程集成点（必须逐个确认的位置）
+
+这是每次都遗漏的部分。以下是 v0.2.5 所有新增逻辑的调用位置，必须逐个确认。
+
+### 7.1 `curious_agent.py` — `run_one_cycle()` 函数
+
+**无需修改**。parent 追踪已在 `mark_topic_done()` 内部自动处理（Step 1 修改）。
+
+- 所有已探索 topic（无论是否 decomposed）都会调用 `mark_topic_done()`
+- `mark_topic_done()` 内部自动从 curiosity_queue 查找 parent 并写入
+- `add_child()` 内部也会调用 `_update_parent_relation()`（双重保险）
+
+**无需在 curious_agent.py 中追加任何代码。**
+
+---
+
+### 7.2 `curious_agent.py` — `daemon_mode()` 函数（初始化根技术池）
+
+**新增代码**：在 daemon 循环开始前，初始化根技术池：
+
+```python
+# === v0.2.5 集成: 初始化根技术池（仅在 daemon 启动时执行一次）===
+from core.config import get_config
+cfg = get_config()
+seeds = getattr(cfg, 'root_technology_seeds', [
+    "transformer attention",
+    "gradient descent",
+    "backpropagation",
+    "softmax",
+    "RL reward signal",
+    "uncertainty quantification"
+])
+kg.init_root_pool(seeds)
+print(f"[v0.2.5] Root pool initialized with {len(seeds)} seeds")
+# === v0.2.5 集成结束 ===
+```
+
+---
+
+### 7.3 `async_explorer.py` — `_explore_in_thread()` 函数
+
+**无需修改**。`add_exploration_result()` 内部已追加 parent 写入（Step 1 修改），所有异步探索自动获得 parent 追踪。
+
+---
+
+### 7.4 同步/异步探索写入路径汇总
+
+| 调用位置 | 调用的写入函数 | parent 追踪方式 |
+|---------|-------------|--------------|
+| `async_explorer._explore_in_thread()` | `add_exploration_result()` | ✅ 自动（Step 1 修改该函数内部） |
+| `curious_agent.run_one_cycle()` | `kg.mark_topic_done()` | ✅ 自动（Step 1 修改该函数内部） |
+| `curious_agent.run_one_cycle()` | `kg.add_child()` | ✅ 自动（Step 1 修改该函数内部） |
+
+**结论**：3 个写入路径均已自动获得 parent 追踪，无需在 `curious_agent.py` 中追加任何代码。
+
+---
+
+### 7.5 API 路由注册
+
+**位置**：`curious_api.py` 文件末尾
+
+追加 4 个新路由，无需修改任何现有路由。
+
+---
+
+### 7.6 R1D3 消费脚本
+
+**位置**：`scripts/sync_kg_to_r1d3.py`（新增文件）
+
+**不在 CA 主流程中调用**，由 R1D3 心跳或 cron 触发。
+
+---
+
+## 八、验收标准（OpenCode 可独立验证）
 
 ```bash
 # 1. 迁移后 schema 正确
@@ -717,11 +798,19 @@ cat /root/.openclaw/workspace-researcher/memory/curious/kg/roots.md  # 应为 ma
 
 # 6. 初始种子在 pool 中
 python3 -c "from core.knowledge_graph import get_root_technologies; roots=get_root_technologies(); print([r['name'] for r in roots])"  # 应列出初始种子
+
+# 7. 集成点确认
+# 位置A：grep 确认 curious_agent.py 的 run_one_cycle() 中有 _update_parent_relation 调用
+grep -n "_update_parent_relation" /root/dev/curious-agent/curious_agent.py
+
+# 8. add_child 自动触发 parent 追踪
+grep -n "_update_parent_relation" /root/dev/curious-agent/core/knowledge_graph.py
+# 应在 add_child() 函数内部出现
 ```
 
 ---
 
-## 八、config.json 修改
+## 九、config.json 修改
 
 在 `config.json` 中追加：
 
