@@ -1,359 +1,744 @@
 # SPEC v0.2.5 — KG 根技术追溯能力
 
 > **唯一目标**: 从任意知识点追溯到根技术，并形成完整的因果链
-> **发布日期**: TBD
+> **架构原则**: 增量优先，重用已有模块，谨慎新增，API 为单一事实来源，双消费者兼容
 
 ---
 
-## 背景
+## 变更概览（4个文件修改 + 1个新脚本）
 
-v0.2.4 的 KG 只能向下分解（parent → children），无法向上回溯（child → parent → root）。
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `core/knowledge_graph.py` | 修改 | 追加 parent 写入 + trace 读取 + root_pool 管理 |
+| `core/curious_api.py` | 修改 | 追加 `/api/kg/trace/`, `/api/kg/roots`, `/api/kg/overview` |
+| `core/event_bus_persistent.py` | 修改 | 追加 `root_candidate_elevated` 事件类型 |
+| `scripts/sync_kg_to_r1d3.py` | 新增 | R1D3 消费脚本（唯一新文件）|
+| `scripts/migrate_kg_parents.py` | 新增 | 旧数据迁移脚本 |
 
-这导致两个问题：
-1. **R1D3 无法消费 KG** — 无法回答"metacognitive monitoring 的根技术是什么"
-2. **跨子图根技术被埋没** — transformer attention 横跨多个探索分支，但在各分支里都不显眼
-
-v0.2.5 只解决这两个问题。
-
----
-
-## 架构原则（所有设计决策的出发点）
-
-### 1. 增量优先，重用为本
-- **优先扩展**现有模块，而不是新增并行模块
-- 新增模块只在"职责边界清晰、现有模块无法承载"时才引入
-- 示例：`knowledge_graph.py` 能扩展的，不新建 `xxx_graph.py`
-
-### 2. 高内聚、低耦合
-- 每个模块只做一件事
-- 模块间通过**事件总线**（event_bus）或**显式接口**通信，不直接调用对方内部状态
-- 禁止循环依赖：A → B → C → A
-
-### 3. API 是唯一的事实来源
-- UI 和 sync 脚本都只消费 API，不直接读写 state.json
-- API 保证双消费者兼容（人类可读 + R1D3 可解析）
-- API 返回 JSON；sync 脚本负责格式转换（JSON → markdown）
-
-### 4. 双消费者兼容
-```
-API (JSON)
-  ├── UI 渲染层 → HTML (人类消费)
-  └── sync_kg_to_r1d3.py → markdown (R1D3 消费)
-```
-
-### 5. 增量开发顺序
-```
-阶段1（P0）: KG schema 扩展 + Parent Tracker（只改数据层）
-阶段2（P0）: Root Tracer API（只读层，不写数据）
-阶段3（P0）: sync_kg_to_r1d3.py（R1D3 消费接口）
-阶段4（P1）: Cross-Subgraph Detector（写数据，触发根浮现）
-阶段5（P1）: Root Technology Writer（管理根候选池）
-阶段6（P2）: 可视化层（增量增强，不改数据层）
-```
+**新增模块数：0 个**。所有逻辑复用现有模块。
 
 ---
 
-## 核心数据结构
+## 一、Topic Schema 扩展
 
-### Topic Schema 扩展（不破坏现有字段）
+**文件**: `core/knowledge_graph.py`
+
+在 `topics[topic_name]` 中追加以下字段（不删除已有字段）：
 
 ```python
-# knowledge/state.json 的 topic 结构变更（字段追加，不删除）
 topics[topic_name] = {
     # === 已有字段（保持不变）===
     "known": bool,
     "depth": int,
-    "status": "unexplored | partial | complete | explored",
+    "status": "...",
     "children": [],
     "explored_children": [],
     "summary": "",
     "sources": [],
-    "quality": float,  # v0.2.4 已有
-    
+    "quality": float,
+
     # === 新增字段（向上关系）===
-    "parents": [],           # 谁派生了这个 topic
-    "explains": [],          # 这个 topic 解释了哪些 topic
-    
+    "parents": [],          # List[str]，谁派生了这个 topic
+    "explains": [],         # List[dict]，这个 topic 解释了哪些 topic
+                             # 格式: [{"target": "topic_name", "relation": "derived_from", "confidence": 0.85}]
+
     # === 新增字段（溯源元数据）===
-    "derived_from": [        # 因果链条目
-        {
-            "source": "self-reflection mechanisms",
-            "relation": "explains",
-            "confidence": 0.85
-        }
-    ],
     "cross_domain_count": 0,  # 跨多少个探索分支
     "is_root_candidate": False,
-    
-    # === 新增字段（根评分，v0.2.5 核心）===
-    "root_score": 0.0,       # 根技术评分（仅 is_root_candidate=True 时有效）
-    
-    # === 元数据 ===
-    "first_observed": timestamp,
+    "root_score": 0.0,      # 根评分，仅 is_root_candidate=True 时有效
+
+    # === 元数据（已有则保留）===
+    "first_observed": timestamp,  # 新增，初始化时写入
     "last_updated": timestamp
 }
 ```
 
-### Root Technology Pool（独立区域）
+**root_technology_pool**（新增于 state 根级别）：
 
 ```python
-# state["root_technology_pool"]
 state["root_technology_pool"] = {
-    "candidates": [
-        {
-            "name": "transformer attention",
-            "root_score": 9.2,
-            "cross_domain_count": 7,
-            "explains_count": 23,
-            "domains": ["LLM", "CV", "NLP", "RL", "Speech", "Recommendation", "TimeSeries"],
-            "confidence": 0.91,
-            "sources": ["cross_subgraph_detection", "manual_seed"]
-        }
-    ],
-    "last_updated": timestamp
+    "candidates": [],  # List[dict]
+    "last_updated": None
+}
+
+# candidates 元素格式：
+{
+    "name": "transformer attention",
+    "root_score": 9.2,
+    "cross_domain_count": 7,
+    "explains_count": 23,
+    "domains": ["LLM", "CV", "NLP", "RL"],
+    "confidence": 0.91,
+    "sources": ["cross_subgraph_detection", "manual_seed"]
 }
 ```
 
 ---
 
-## 组件关系图
+## 二、knowledge_graph.py 修改详解
 
+### 2.1 新增常量（文件顶部）
+
+```python
+ROOT_SCORE_WEIGHT_DOMAIN = 0.4
+ROOT_SCORE_WEIGHT_EXPLAINS = 0.6
+CROSS_DOMAIN_THRESHOLD = 3  # cross_domain_count >= 3 时升为根候选
+ROOT_POOL_KEY = "root_technology_pool"
 ```
-探索完成
-   │
-   ▼
-add_exploration_result(topic, result, quality, parent_topic)
-   │
-   ├──► Parent Tracker ──► knowledge_graph.update_parents()
-   │                              │
-   │                              ▼
-   │                      Cross-Subgraph Detector (通过事件总线)
-   │                              │
-   │                              ▼
-   │                      Root Technology Writer
-   │                              │
-   │                              ▼
-   │                      root_technology_pool 更新
-   │
-   └──► Root Tracer API (只读)
-              │
-              ├──► /api/kg/trace/<topic>  ──► UI Trace View
-              │                              │
-              ├──► /api/kg/roots  ──► UI Root Pool View
-              │                              │
-              ├──► /api/kg/overview ──► UI KG Overview
-              │                              │
-              └──► sync_kg_to_r1d3.py ──► R1D3 memory/curious/kg/
+
+### 2.2 `_ensure_meta_cognitive()` 修改
+
+在函数末尾追加，确保新字段存在：
+
+```python
+# 确保 root_technology_pool 存在
+if ROOT_POOL_KEY not in state:
+    state[ROOT_POOL_KEY] = {"candidates": [], "last_updated": None}
+```
+
+### 2.3 `add_exploration_result()` 修改
+
+**现有签名**（不改变）：
+```python
+def add_exploration_result(topic: str, result: dict, quality: float) -> None:
+```
+
+**新增逻辑**：在该函数末尾（保存 state 之前），追加 parent 写入：
+
+```python
+# === v0.2.5 新增：parent 写入 ===
+# 获取当前正在探索的 parent topic（从 curiosity_queue 获取 status=exploring 的条目）
+state = _load_state()
+for queue_item in state.get("curiosity_queue", []):
+    if queue_item.get("status") == "exploring":
+        parent_topic = queue_item.get("topic")
+        if parent_topic and parent_topic != topic:
+            _update_parent_relation(parent_topic, topic)
+            break
+# === v0.2.5 新增结束 ===
+```
+
+**新增内部函数** `_update_parent_relation(parent, child)`：
+
+```python
+def _update_parent_relation(parent: str, child: str, relation: str = "derived_from", confidence: float = 0.8):
+    """内部函数：双向写入父子关系"""
+    state = _load_state()
+    topics = state["knowledge"]["topics"]
+    now = datetime.now(timezone.utc).isoformat()
+
+    # 确保 child 有 parents 字段
+    if "parents" not in topics.setdefault(child, {}):
+        topics[child]["parents"] = []
+    if parent not in topics[child]["parents"]:
+        topics[child]["parents"].append(parent)
+
+    # 确保 parent 有 explains 字段
+    if "explains" not in topics.setdefault(parent, {}):
+        topics[parent]["explains"] = []
+    explains_entry = {"target": child, "relation": relation, "confidence": confidence}
+    if explains_entry not in topics[parent]["explains"]:
+        topics[parent]["explains"].append(explains_entry)
+
+    _save_state(state)
+```
+
+### 2.4 新增函数 `get_trace(topic, max_depth=10)`
+
+```python
+def get_trace(topic: str, max_depth: int = 10) -> list[dict]:
+    """
+    向上追溯 topic 的因果链直到根技术。
+    返回格式:
+    [
+        {"level": 0, "topic": "metacognitive monitoring", "relation": "current", "is_root": False},
+        {"level": 1, "topic": "self-reflection", "relation": "derived_from", "is_root": False},
+        {"level": 2, "topic": "transformer attention", "relation": "derived_from", "is_root": True, "root_score": 9.2}
+    ]
+    """
+    state = _load_state()
+    topics = state["knowledge"]["topics"]
+    root_pool = state.get(ROOT_POOL_KEY, {}).get("candidates", [])
+    root_names = {r["name"] for r in root_pool}
+
+    trace = []
+    current = topic
+    visited = set()
+
+    for level in range(max_depth):
+        if current in visited:
+            break
+        visited.add(current)
+
+        node = topics.get(current, {})
+        parents = node.get("parents", [])
+
+        # 判断是否为根
+        is_root = (
+            current in root_names or
+            not parents or
+            node.get("is_root_candidate", False)
+        )
+
+        root_info = {}
+        if is_root:
+            for r in root_pool:
+                if r["name"] == current:
+                    root_info = {"root_score": r["root_score"], "cross_domain_count": r["cross_domain_count"]}
+                    break
+            if not root_info and node.get("is_root_candidate"):
+                root_info = {"root_score": node.get("root_score", 0), "cross_domain_count": node.get("cross_domain_count", 0)}
+
+        trace.append({
+            "level": level,
+            "topic": current,
+            "relation": "current" if level == 0 else "derived_from",
+            "is_root": is_root,
+            **root_info
+        })
+
+        if is_root or not parents:
+            break
+
+        current = parents[0]  # 只追第一条父链（主链路）
+
+    return trace
+```
+
+### 2.5 新增函数 `get_root_technologies()`
+
+```python
+def get_root_technologies() -> list[dict]:
+    """返回所有根技术，按 root_score 降序"""
+    state = _load_state()
+    candidates = state.get(ROOT_POOL_KEY, {}).get("candidates", [])
+    return sorted(candidates, key=lambda x: x.get("root_score", 0), reverse=True)
+```
+
+### 2.6 新增函数 `init_root_pool(seeds: list[str])`
+
+```python
+def init_root_pool(seeds: list[str]) -> None:
+    """
+    从初始种子列表初始化根技术池。
+    seeds: e.g. ["transformer attention", "gradient descent", "backpropagation"]
+    """
+    state = _load_state()
+    pool = state.setdefault(ROOT_POOL_KEY, {"candidates": [], "last_updated": None})
+    existing_names = {r["name"] for r in pool["candidates"]}
+
+    for seed in seeds:
+        if seed not in existing_names:
+            pool["candidates"].append({
+                "name": seed,
+                "root_score": 8.0,  # 初始种子给 8.0
+                "cross_domain_count": 1,
+                "explains_count": 0,
+                "domains": ["seed"],
+                "confidence": 0.5,
+                "sources": ["manual_seed"]
+            })
+
+    pool["last_updated"] = datetime.now(timezone.utc).isoformat()
+    _save_state(state)
+```
+
+### 2.7 新增函数 `get_kg_overview()`
+
+```python
+def get_kg_overview() -> dict:
+    """返回 KG 全局视图数据"""
+    state = _load_state()
+    topics = state["knowledge"]["topics"]
+    pool = state.get(ROOT_POOL_KEY, {}).get("candidates", [])
+    root_names = {r["name"] for r in pool}
+
+    nodes = []
+    edges = []
+
+    for name, node in topics.items():
+        is_root = name in root_names or node.get("is_root_candidate", False)
+        nodes.append({
+            "id": name,
+            "quality": node.get("quality", 0),
+            "root_score": next((r["root_score"] for r in pool if r["name"] == name), 0),
+            "is_root": is_root,
+            "status": node.get("status", "unexplored"),
+            "children_count": len(node.get("children", [])),
+            "parents_count": len(node.get("parents", [])),
+            "explains_count": len(node.get("explains", [])),
+            "cross_domain_count": node.get("cross_domain_count", 0)
+        })
+
+        for child in node.get("children", []):
+            edges.append({"from": name, "to": child, "type": "child_of"})
+        for explain in node.get("explains", []):
+            edges.append({"from": name, "to": explain["target"], "type": "explains"})
+
+    return {"nodes": nodes, "edges": edges, "total": len(nodes)}
+```
+
+### 2.8 新增函数 `promote_to_root_candidate(topic: str, domains: list[str])`
+
+```python
+def promote_to_root_candidate(topic: str, domains: list[str]) -> None:
+    """
+    将 topic 升为根技术候选。
+    由 Cross-Subgraph Detector 或手动调用。
+    """
+    state = _load_state()
+    pool = state.setdefault(ROOT_POOL_KEY, {"candidates": [], "last_updated": None})
+    topics = state["knowledge"]["topics"]
+
+    # 计算 explains_count
+    explains_count = len(topics.get(topic, {}).get("explains", []))
+    cross_domain_count = len(domains)
+
+    root_score = (
+        cross_domain_count * ROOT_SCORE_WEIGHT_DOMAIN +
+        explains_count * ROOT_SCORE_WEIGHT_EXPLAINS
+    )
+
+    # 写入或更新 pool
+    for r in pool["candidates"]:
+        if r["name"] == topic:
+            r["root_score"] = root_score
+            r["cross_domain_count"] = cross_domain_count
+            r["explains_count"] = explains_count
+            r["domains"] = domains
+            r["confidence"] = min(0.95, 0.5 + explains_count * 0.05)
+            break
+    else:
+        pool["candidates"].append({
+            "name": topic,
+            "root_score": root_score,
+            "cross_domain_count": cross_domain_count,
+            "explains_count": explains_count,
+            "domains": domains,
+            "confidence": min(0.95, 0.5 + explains_count * 0.05),
+            "sources": ["cross_subgraph_detection"]
+        })
+
+    # 标记 topic 为候选
+    if topic in topics:
+        topics[topic]["is_root_candidate"] = True
+        topics[topic]["root_score"] = root_score
+        topics[topic]["cross_domain_count"] = cross_domain_count
+
+    pool["last_updated"] = datetime.now(timezone.utc).isoformat()
+    _save_state(state)
 ```
 
 ---
 
-## 新增/修改组件
+## 三、event_bus_persistent.py 修改详解
 
-### R1: 扩展 knowledge_graph.py（修改现有模块）
-
-**修改内容**：
-1. `add_child()` 保持不变
-2. 新增 `add_parent(child, parent, relation)` — 双向写入 parents + explains
-3. 新增 `get_trace(topic, max_depth=10)` — 向上追溯到根，返回路径列表
-4. 新增 `get_root_technologies()` — 读取 root_technology_pool
-5. 新增 `update_cross_domain_count(topic, count)` — 更新跨分支计数
-6. 新增 `init_root_pool(seeds)` — 初始化根技术池（从 config 注入）
-
-**不新增文件**，直接在现有 `knowledge_graph.py` 里追加方法。
-
-### R2: Parent Tracker（core/parent_tracker.py）— 新增
-
-**职责**：薄封装，在探索结果写入时调用 knowledge_graph.update_parents()
-
-**不独立存储状态**，只做参数校验 + 委托。
+### 3.1 新增事件类型常量（文件顶部）
 
 ```python
-def track_parent(child: str, parent: str, relation: str = "derived_from"):
-    # 校验 parent 存在于 KG
-    # 调用 knowledge_graph.add_parent()
+# === v0.2.5 root tracing events ===
+EVENT_ROOT_CANDIDATE_ELEVATED = "root_candidate_elevated"
 ```
 
-**设计理由**：如果直接散在 add_exploration_result 里，parent 逻辑会混入数据写入代码。独立出来后方便测试和复用。
+### 3.2 在 `PersistentEventBus.__init__()` 之后追加默认订阅（如果需要）
 
-### R3: Root Tracer（core/root_tracer.py）— 新增
-
-**职责**：封装 trace 和 roots 的读取逻辑，供 API 层调用。
+如已有 `subscribe` 机制可用则复用，无需修改。如果需要初始化根候选处理器：
 
 ```python
-def trace_topic(topic: str) -> dict:   # 对应 /api/kg/trace/<topic>
-def list_roots() -> list:               # 对应 /api/kg/roots
-def get_overview() -> dict:             # 对应 /api/kg/overview
-def get_anomalies() -> dict:            # 对应 /api/kg/anomalies
-def filter_subgraph(**filters) -> list: # 对应 /api/kg/subgraph
+# 默认订阅（如果 bus 被明确初始化）
+def _on_root_candidate_elevated(event: Event):
+    from core.knowledge_graph import promote_to_root_candidate
+    data = event.data
+    promote_to_root_candidate(data["topic"], data.get("domains", []))
+
+# 在 __init__ 中（如果尚未订阅）:
+# self.subscribe(EVENT_ROOT_CANDIDATE_ELEVATED, _on_root_candidate_elevated)
 ```
 
-**不写数据**，只读。
+---
 
-### R4: Cross-Subgraph Detector（core/cross_subgraph_detector.py）— 新增
+## 四、curious_api.py 修改详解
 
-**职责**：检测跨探索分支的连接，触发根候选浮现。
-
-**通过事件总线触发**，不直接调用 Root Technology Writer。
+在现有路由注册区域之后，追加：
 
 ```python
-def detect(new_topic: str, kg_state: dict) -> list:
-    # 1. 提取 new_topic 的关键词（从 summary/sources）
-    # 2. 遍历已有 KG，找共享概念的 topic（排除直接父子关系）
-    # 3. 返回跨子图连接列表
-    
-def maybe_elevate_to_root(topic: str, cross_domain_count: int):
-    # cross_domain_count >= 3 → 触发事件 root_candidate_elevated
-    # 通过事件总线，不直接写 root_technology_pool
-```
+# === v0.2.5 KG Root Tracing APIs ===
 
-### R5: Root Technology Writer（core/root_technology_writer.py）— 新增
+@app.route("/api/kg/trace/<path:topic>")
+def api_kg_trace(topic: str):
+    """向上追溯 topic 的因果链到根技术"""
+    from core.knowledge_graph import get_trace, get_root_technologies, get_state
 
-**职责**：订阅 `root_candidate_elevated` 事件，管理 root_technology_pool 写入。
+    topic = topic.strip()
+    state = get_state()
+    topics = state.get("knowledge", {}).get("topics", {})
 
-**与其他组件通过事件通信**，不直接调用 detector 或 tracer。
+    if topic not in topics:
+        return jsonify({"error": f"Topic '{topic}' not found in KG"}), 404
 
-```python
-def on_root_candidate_elevated(topic: str, cross_domain_count: int):
-    # 写入 root_technology_pool
-    # 计算 root_score = cross_domain_count × 0.4 + explains_count × 0.6
+    node = topics[topic]
+    trace = get_trace(topic)
+    root_technologies = get_root_technologies()
 
-def mark_root_from_seed(seed_name: str):
-    # 从 config 的 initial_seeds 初始化时调用
-```
+    return jsonify({
+        "topic": topic,
+        "quality": node.get("quality", 0),
+        "trace": trace,
+        "root_technologies": [
+            {"name": r["name"], "root_score": r["root_score"], "confidence": r["confidence"]}
+            for r in root_technologies
+        ],
+        "cross_subgraph_connections": [
+            {"connected_topic": e["target"], "shared_concept": "shared concept", "branch": "inferred"}
+            for e in node.get("explains", [])
+        ]
+    })
 
-### R6: API 层扩展（curious_api.py）— 修改
-
-**不新增文件**，在 `curious_api.py` 里追加 `/api/kg/*` 路由。
-
-```python
-@app.route("/api/kg/trace/<topic>")
-def api_kg_trace(topic):  # 使用 Root Tracer
 
 @app.route("/api/kg/roots")
 def api_kg_roots():
+    """返回所有根技术，按 root_score 降序"""
+    from core.knowledge_graph import get_root_technologies
+
+    roots = get_root_technologies()
+    return jsonify({
+        "roots": roots,
+        "total": len(roots)
+    })
+
 
 @app.route("/api/kg/overview")
 def api_kg_overview():
+    """返回 KG 全局视图数据（节点+边）"""
+    from core.knowledge_graph import get_kg_overview
 
-@app.route("/api/kg/anomalies")
-def api_kg_anomalies():
+    return jsonify(get_kg_overview())
 
-@app.route("/api/kg/subgraph")
-def api_kg_subgraph():
+
+@app.route("/api/kg/promote", methods=["POST"])
+def api_kg_promote():
+    """手动将 topic 升为根候选（R1D3 或人工调用）"""
+    from core.knowledge_graph import promote_to_root_candidate
+
+    data = request.get_json()
+    topic = data.get("topic", "").strip()
+    domains = data.get("domains", [])
+
+    if not topic:
+        return jsonify({"error": "topic is required"}), 400
+
+    promote_to_root_candidate(topic, domains)
+    return jsonify({"status": "ok", "topic": topic})
 ```
 
-### R7: sync_kg_to_r1d3.py（scripts/sync_kg_to_r1d3.py）— 新增
+---
 
-**职责**：将 API 输出转换为 R1D3 可读的 markdown 格式。
+## 五、新增脚本
 
-**不直接读写 state.json**，只调用 API 或 Root Tracer。
+### 5.1 scripts/sync_kg_to_r1d3.py（唯一新文件）
+
+```python
+#!/usr/bin/env python3
+"""
+sync_kg_to_r1d3.py — 将 CA 的 KG 数据同步到 R1D3 可读格式
+用法:
+  python3 scripts/sync_kg_to_r1d3.py --topic "metacognitive monitoring"
+  python3 scripts/sync_kg_to_r1d3.py --roots
+  python3 scripts/sync_kg_to_r1d3.py --overview
+  python3 scripts/sync_kg_to_r1d3.py --all
+"""
+import argparse
+import json
+import os
+import sys
+
+# 添加项目根目录到 path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from core.knowledge_graph import get_trace, get_root_technologies, get_kg_overview, get_state
+
+R1D3_KG_DIR = "/root/.openclaw/workspace-researcher/memory/curious/kg"
+TRACE_DIR = os.path.join(R1D3_KG_DIR, "trace")
+
+
+def _slugify(name: str) -> str:
+    return name.lower().replace(" ", "-").replace("/", "-")[:80]
+
+
+def sync_trace(topic: str) -> str:
+    trace = get_trace(topic)
+    state = get_state()
+    topics = state.get("knowledge", {}).get("topics", {})
+    node = topics.get(topic, {})
+    roots = get_root_technologies()
+
+    lines = [
+        f"# Trace: {topic}",
+        f"- **quality**: {node.get('quality', 0)}",
+        "",
+        "## 因果链",
+    ]
+    for step in trace:
+        marker = "⭐ ROOT" if step.get("is_root") else ""
+        score = f" (root_score: {step.get('root_score', 0):.1f})" if step.get("is_root") else ""
+        lines.append(f"{step['level'] + 1}. {step['topic']} {marker}{score}")
+
+    if roots:
+        lines.append("")
+        lines.append("## 根技术池")
+        for r in roots[:10]:
+            lines.append(f"- {r['name']} (root_score: {r['root_score']:.1f}, confidence: {r['confidence']:.2f})")
+
+    md = "\n".join(lines)
+    os.makedirs(TRACE_DIR, exist_ok=True)
+    out_path = os.path.join(TRACE_DIR, f"{_slugify(topic)}.md")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(md)
+    return out_path
+
+
+def sync_roots() -> str:
+    roots = get_root_technologies()
+    lines = ["# 根技术池", ""]
+    for r in roots:
+        lines.append(f"## {r['name']}")
+        lines.append(f"- root_score: {r.get('root_score', 0):.2f}")
+        lines.append(f"- cross_domain_count: {r.get('cross_domain_count', 0)}")
+        lines.append(f"- explains_count: {r.get('explains_count', 0)}")
+        lines.append(f"- domains: {', '.join(r.get('domains', []))}")
+        lines.append(f"- confidence: {r.get('confidence', 0):.2f}")
+        lines.append("")
+
+    md = "\n".join(lines)
+    os.makedirs(R1D3_KG_DIR, exist_ok=True)
+    out_path = os.path.join(R1D3_KG_DIR, "roots.md")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(md)
+    return out_path
+
+
+def sync_overview() -> str:
+    overview = get_kg_overview()
+    lines = ["# KG 全局视图", "", f"- 总节点数: {overview['total']}", ""]
+
+    roots_in_overview = [n for n in overview["nodes"] if n.get("is_root")]
+    if roots_in_overview:
+        lines.append("## 根技术")
+        for n in roots_in_overview:
+            lines.append(f"- {n['id']} (root_score: {n.get('root_score', 0):.1f})")
+
+    lines.append("")
+    lines.append(f"## 节点数: {len(overview['nodes'])}")
+    lines.append(f"## 边数: {len(overview['edges'])}")
+
+    md = "\n".join(lines)
+    os.makedirs(R1D3_KG_DIR, exist_ok=True)
+    out_path = os.path.join(R1D3_KG_DIR, "overview.md")
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(md)
+    return out_path
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Sync CA KG to R1D3 memory")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--topic", type=str, help="同步指定 topic 的 trace")
+    group.add_argument("--roots", action="store_true", help="同步根技术池")
+    group.add_argument("--overview", action="store_true", help="同步 KG 全局视图")
+    group.add_argument("--all", action="store_true", help="全量同步")
+    args = parser.parse_args()
+
+    if args.topic:
+        path = sync_trace(args.topic)
+        print(f"Trace synced: {path}")
+    elif args.roots:
+        path = sync_roots()
+        print(f"Roots synced: {path}")
+    elif args.overview:
+        path = sync_overview()
+        print(f"Overview synced: {path}")
+    elif args.all:
+        sync_roots()
+        sync_overview()
+        print("Full sync done")
+```
+
+### 5.2 scripts/migrate_kg_parents.py
+
+```python
+#!/usr/bin/env python3
+"""
+migrate_kg_parents.py — 将 v0.2.4 的 KG 数据迁移到 v0.2.5 schema
+迁移内容：
+1. 为已有 topic 初始化 parents = []、explains = []
+2. 从 children 关系反向推算 parents（如果 parent 存在）
+3. 从 curiosity_queue 的历史父子关系补全 parents
+"""
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from core.knowledge_graph import get_state, _save_state, _load_state
+from datetime import datetime, timezone
+
+def migrate():
+    state = _load_state()
+    topics = state.get("knowledge", {}).get("topics", {})
+    updated = 0
+
+    # 1. 初始化新字段
+    for topic, node in topics.items():
+        if "parents" not in node:
+            node["parents"] = []
+            updated += 1
+        if "explains" not in node:
+            node["explains"] = []
+            updated += 1
+        if "cross_domain_count" not in node:
+            node["cross_domain_count"] = 0
+        if "is_root_candidate" not in node:
+            node["is_root_candidate"] = False
+        if "root_score" not in node:
+            node["root_score"] = 0.0
+        if "first_observed" not in node:
+            node["first_observed"] = node.get("last_updated", datetime.now(timezone.utc).isoformat())
+
+    # 2. 从 children 反推 parents（如果父节点存在）
+    for topic, node in topics.items():
+        children = node.get("children", [])
+        for child in children:
+            if child in topics:
+                if "parents" not in topics[child]:
+                    topics[child]["parents"] = []
+                if topic not in topics[child]["parents"]:
+                    topics[child]["parents"].append(topic)
+
+    # 3. 初始化 root_technology_pool
+    if "root_technology_pool" not in state:
+        state["root_technology_pool"] = {"candidates": [], "last_updated": datetime.now(timezone.utc).isoformat()}
+
+    # 4. 从 config 注入初始种子
+    config = state.get("config", {})
+    seeds = config.get("root_technology_seeds", [
+        "transformer attention",
+        "gradient descent",
+        "backpropagation",
+        "softmax",
+        "RL reward signal",
+        "uncertainty quantification"
+    ])
+
+    pool = state["root_technology_pool"]
+    existing = {r["name"] for r in pool["candidates"]}
+    for seed in seeds:
+        if seed not in existing:
+            pool["candidates"].append({
+                "name": seed,
+                "root_score": 8.0,
+                "cross_domain_count": 1,
+                "explains_count": 0,
+                "domains": ["seed"],
+                "confidence": 0.5,
+                "sources": ["manual_seed"]
+            })
+
+    _save_state(state)
+    print(f"Migration done: {updated} topics updated, {len(pool['candidates'])} root seeds loaded")
+
+
+if __name__ == "__main__":
+    migrate()
+```
+
+---
+
+## 六、实现顺序
+
+```
+Step 1: 修改 knowledge_graph.py
+  - 追加常量
+  - 修改 _ensure_meta_cognitive() 初始化 root_technology_pool
+  - 修改 add_exploration_result() 追加 parent 写入
+  - 追加 _update_parent_relation()
+  - 追加 get_trace()
+  - 追加 get_root_technologies()
+  - 追加 init_root_pool()
+  - 追加 get_kg_overview()
+  - 追加 promote_to_root_candidate()
+
+Step 2: 修改 curious_api.py
+  - 追加 /api/kg/trace/<topic>
+  - 追加 /api/kg/roots
+  - 追加 /api/kg/overview
+  - 追加 /api/kg/promote (POST)
+
+Step 3: 修改 event_bus_persistent.py
+  - 追加 EVENT_ROOT_CANDIDATE_ELEVATED 常量
+  - （仅常量，无逻辑变更）
+
+Step 4: 新增 scripts/sync_kg_to_r1d3.py
+  - 实现 sync_trace(), sync_roots(), sync_overview()
+
+Step 5: 新增 scripts/migrate_kg_parents.py
+  - 实现 migrate() 并立即运行
+
+Step 6: 修改 config.json
+  - 追加 root_technology_seeds 列表
+
+Step 7: 验证
+  - 跑 migrate 脚本
+  - 调用 /api/kg/roots 确认种子在池中
+  - 调用 /api/kg/overview 确认节点和边返回正常
+  - 调用 /api/kg/trace/<任意已有topic> 确认链路返回
+  - 调用 sync_kg_to_r1d3.py --roots 确认 markdown 输出
+```
+
+---
+
+## 七、验收标准（OpenCode 可独立验证）
 
 ```bash
-python3 scripts/sync_kg_to_r1d3.py --topic "metacognitive monitoring"
-  → memory/curious/kg/trace/metacognitive-monitoring.md
+# 1. 迁移后 schema 正确
+python3 scripts/migrate_kg_parents.py
+python3 -c "from core.knowledge_graph import get_state; s=get_state(); print('parents' in list(s['knowledge']['topics'].values())[0])"  # 应输出 True
 
+# 2. /api/kg/roots 返回根技术池
+curl http://localhost:4848/api/kg/roots | python3 -m json.tool  # 应包含 transformer attention
+
+# 3. /api/kg/overview 返回图数据
+curl http://localhost:4848/api/kg/overview | python3 -m json.tool  # 应包含 nodes 和 edges
+
+# 4. /api/kg/trace/<topic> 返回链路
+curl "http://localhost:4848/api/kg/trace/agent" | python3 -m json.tool  # 应返回 trace 列表
+
+# 5. sync 脚本输出正确格式
 python3 scripts/sync_kg_to_r1d3.py --roots
-  → memory/curious/kg/roots.md
+cat /root/.openclaw/workspace-researcher/memory/curious/kg/roots.md  # 应为 markdown
 
-python3 scripts/sync_kg_to_r1d3.py --overview
-  → memory/curious/kg/overview.md
-
-python3 scripts/sync_kg_to_r1d3.py --all  # 全量同步（可选 cron）
-```
-
-**输出格式示例（markdown for R1D3）**：
-```markdown
-# Trace: metacognitive monitoring in LLM agents
-- quality: 10.51
-
-## 因果链
-1. metacognitive monitoring in LLM agents (current)
-2. → self-reflection mechanisms (derived_from)
-3. → ReAct loop (derived_from)
-4. → transformer attention ⭐ ROOT (root_score: 9.2)
-
-## 跨子图连接
-- RLHF (shared concept: reward signal evaluation)
-
-## 根技术
-- transformer attention (root_score: 9.2, confidence: 0.91)
+# 6. 初始种子在 pool 中
+python3 -c "from core.knowledge_graph import get_root_technologies; roots=get_root_technologies(); print([r['name'] for r in roots])"  # 应列出初始种子
 ```
 
 ---
 
-## 可视化设计（UI 层）
+## 八、config.json 修改
 
-复用 `ui/` 现有框架，逐步增强。
+在 `config.json` 中追加：
 
-### Trace View（溯源视图）
-- 从任意 topic 向上追溯到根（纵向树状图）
-- 根节点 gold + 双圈高亮
-- 跨子图边用虚线标注
-
-### KG Overview（全图视图）
-- 所有 topic 节点按探索分支聚类（domain coloring）
-- 根节点特殊边框（双圈）
-- 节点大小可切换（quality 或 root_score）
-
-### Root Pool View（根技术池）
-- 按 root_score 排序
-- 显示 cross_domain_count + explains_count
-
-### Subgraph Filter（筛选器）
-- Branch filter / Time slider / Quality threshold / Root only toggle
-
-### Anomaly Detection View（异常检测）
-- 孤立节点（红虚线）、高入度低质量（黄警告）、边界根候选（绿脉冲）
-
-**实现顺序**：Trace View → KG Overview → Root Pool → Filter → Anomaly
-
----
-
-## 实现任务
-
-| Task | 组件 | 类型 | 描述 | 优先级 |
-|------|------|------|--------|--------|
-| T-1 | knowledge_graph.py schema | 修改 | topic 结构追加 parents/explains/cross_domain_count/root_score | P0 |
-| T-2 | knowledge_graph.add_parent() | 修改 | 双向写入 parents + explains | P0 |
-| T-3 | knowledge_graph.get_trace() | 修改 | 向上追溯链路 | P0 |
-| T-4 | knowledge_graph.init_root_pool() | 修改 | 从 config 注入初始种子 | P0 |
-| T-5 | Parent Tracker | 新增 | 探索时记录 parent | P0 |
-| T-6 | Root Tracer | 新增 | trace/roots/overview 读取接口 | P0 |
-| T-7 | curious_api.py 路由 | 修改 | `/api/kg/trace/<topic>`, `/api/kg/roots`, `/api/kg/overview` | P0 |
-| T-8 | sync_kg_to_r1d3.py | 新增 | R1D3 markdown 消费脚本 | P0 |
-| T-9 | 迁移脚本 | 新增 | 旧数据迁移到新 schema（补 parents/explains） | P1 |
-| T-10 | Cross-Subgraph Detector | 新增 | 检测跨分支连接 | P1 |
-| T-11 | Root Technology Writer | 新增 | 管理 root_technology_pool | P1 |
-| T-12 | Anomaly Detection API | 修改 | `/api/kg/anomalies` | P1 |
-| T-13 | Subgraph Filter API | 修改 | `/api/kg/subgraph` | P1 |
-| T-14 | Trace View UI | 修改 | 溯源视图 | P0 |
-| T-15 | KG Overview UI | 修改 | 全图视图 | P0 |
-| T-16 | Root Pool View UI | 修改 | 根技术池视图 | P1 |
-| T-17 | 测试验证 | — | trace 链路 + roots 浮现 + sync 脚本 | P0 |
-
----
-
-## 验收标准
-
-1. `add_exploration_result(topic, result, quality, parent_topic)` 被调用时，parent 信息写入 `topics[topic]["parents"]` 和 `topics[parent]["explains"]`
-2. `/api/kg/trace/metacognitive%20monitoring` 返回完整向上链路（至少含 level 0 ~ root）
-3. `/api/kg/roots` 返回按 root_score 降序排列的根技术列表
-4. transformer attention 从 initial_seeds 注入后在 root_technology_pool 中可见
-5. `sync_kg_to_r1d3.py --topic X` 输出 markdown 格式的 trace 到 `memory/curious/kg/trace/`
-6. 已有 KG 数据通过 T-9 迁移脚本后能显示父子关系（不要求完整，但要有边）
-7. Cross-Subgraph Detector 在 cross_domain_count ≥ 3 时触发 root_candidate_elevated 事件
-
----
-
-## 不在 v0.2.5 范围内
-
-- 新建独立的 KG 服务进程
-- 3D 图、Force-directed animation、复杂粒子效果
-- 新的探索策略
-- 多 Provider 并行优化
+```json
+{
+  "root_technology_seeds": [
+    "transformer attention",
+    "gradient descent",
+    "backpropagation",
+    "softmax",
+    "RL reward signal",
+    "uncertainty quantification"
+  ]
+}
+```
 
 ---
 
 _Last updated: 2026-03-27 by R1D3_
-_v0.2.5 principles: incremental-first, reuse existing, high-cohesion-low-coupling, dual-consumer compatible_
+_v0.2.5: 4 files modified, 1 new script, 0 new modules_
