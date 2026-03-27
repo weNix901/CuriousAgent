@@ -334,7 +334,7 @@ curl http://localhost:4848/api/curious/state
 ```
 
 **访问地址：**
-- 🌐 Web UI：http://10.1.0.13:4849/
+- 🌐 Web UI：http://0.0.0.0:4849/
 - 📡 API：http://localhost:4848/
 
 ### 5.2 命令行使用
