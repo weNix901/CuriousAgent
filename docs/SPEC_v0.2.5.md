@@ -264,6 +264,95 @@ python3 scripts/sync_kg_to_r1d3.py --roots
 
 ---
 
+## 可视化设计（UI 层）
+
+v0.2.5 的 KG 可视化是给人类理解和 R1D3 调试用的，不追求花哨，强调**信息密度**和**可操作性**。
+
+### 1. Trace View（溯源视图）
+
+**入口**: 点击任意 topic 节点，或 API 调用 `/api/kg/trace/<topic>`
+
+**展示内容**:
+- 从该 topic 到根技术的完整路径（纵向树状图）
+- 根节点在最底部，层层向上汇聚
+- 每条边上标注关系类型：`derived_from` | `shares_concept` | `parent_of`
+
+**样式**:
+- 根节点：实心圆，大小 = root_score，颜色 = gold
+- 中间节点：实心圆，大小 = quality
+- 叶子节点（当前 topic）：实心圆 + 脉冲动画
+- 跨子图边：虚线（实线 = 域内，边线 = 跨分支）
+
+### 2. KG Overview（全局视图）
+
+**入口**: 默认首页，或点击"全图"tab
+
+**展示内容**:
+- 所有 topic 节点按探索分支聚类
+- 不同分支用不同颜色：meta-cognitive=蓝、planning=绿、memory=紫、RL=橙
+- 根技术节点用特殊边框（双圈）高亮
+- 节点大小 = quality 或 root_score（可切换）
+
+**交互**:
+- 拖拽平移 + 滚轮缩放
+- Hover 节点 → 显示 tooltip（topic name + quality + 简介摘要）
+- Click 节点 → 弹出详情卡，或跳转到 Trace View
+- 右键节点 → "展开 explains 链" / "查看 sources" / "标记为根技术"
+
+### 3. Root Pool View（根技术池）
+
+**入口**: 切换 tab 或 `/api/kg/roots` 对应的可视化
+
+**展示内容**:
+- 所有根技术候选节点（来自 root_technology_pool）
+- 按 root_score 排序，横向柱状图 + 节点图双视图
+- 显示 cross_domain_count（多少分支引用）和 explains_count（解释了多少 topic）
+
+**样式**:
+- 根节点大小 = root_score
+- 连接线粗细 = explains_count
+- 分支引用用分枝小圆点列表标注
+
+### 4. Subgraph Filter（子图筛选）
+
+**交互控件**:
+- **Branch filter**: 下拉选择只看某个探索分支（meta-cognitive、planning、memory 等）
+- **Time slider**: 按探索时间范围过滤
+- **Quality threshold**: 滑块过滤 quality < X 的节点
+- **Root only**: toggle，只显示根技术及其直接子节点
+
+### 5. Anomaly Detection View（异常检测）
+
+**展示内容**:
+- 孤立节点（无任何连接的 topic）→ 红色虚线边框
+- 高入度但低 quality 的节点 → 黄色警告图标
+- 根候选（root_score 在阈值 ±0.5 波动）→ 绿色脉冲
+
+**数据来源**:
+```python
+def detect_anomalies() -> dict:
+    return {
+        "orphans": [topic for topic in kg if no connections(topic)],
+        "low_quality_hubs": [topic for topic in kg if indegree > 5 and quality < 4.0],
+        "borderline_roots": [r for r in roots if 4.0 <= r.root_score < 5.0]
+    }
+```
+
+### 6. 实现方式
+
+**前端**: 复用现有 UI 框架（PyWebIO 或类 streamlit），逐步增强
+
+**不做**: 3D 图、Force-directed animation、复杂粒子效果——v0.2.5 强调可操作性，不做炫技。
+
+**API 补充**:
+```
+GET /api/kg/overview          # 全图数据（带分支聚类）
+GET /api/kg/anomalies          # 异常节点列表
+GET /api/kg/subgraph?branch=X&after=TS # 筛选子图
+```
+
+---
+
 ## 实现任务
 
 | Task | 组件 | 描述 | 优先级 |
@@ -277,12 +366,18 @@ python3 scripts/sync_kg_to_r1d3.py --roots
 | T-7 | config.json | 注入初始根技术种子列表 | P1 |
 | T-8 | 迁移脚本 | 将已有 KG 数据迁移到新 schema | P1 |
 | T-9 | 测试验证 | 验证 trace 链路正确性 | P0 |
+| T-10 | KG Overview API | `/api/kg/overview` 返回全图数据（带分支聚类）| P0 |
+| T-11 | Anomaly Detection API | `/api/kg/anomalies` 返回异常节点列表 | P1 |
+| T-12 | Subgraph Filter API | `/api/kg/subgraph` 支持分支/时间/quality 筛选 | P1 |
+| T-13 | Trace View UI | 溯源视图（纵向树状图） | P0 |
+| T-14 | KG Overview UI | 全局视图（分支聚类 + 根节点高亮） | P0 |
+| T-15 | Anomaly View UI | 异常检测视图 | P2 |
 
 ---
 
 ## 不在 v0.2.5 范围内
 
-- UI 改动
+- 3D 图、Force-directed animation、复杂粒子效果
 - 新的探索策略
 - 多 Provider 并行优化
 - 其他非 KG 根技术追溯的功能
