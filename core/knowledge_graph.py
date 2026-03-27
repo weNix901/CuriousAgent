@@ -496,13 +496,39 @@ def add_exploration_result(topic: str, result: dict, quality: float) -> None:
     """Record exploration result with quality score (T-10)"""
     state = _load_state()
     topics = state.get("knowledge", {}).setdefault("topics", {})
+
+    # Build findings dict (Explorer returns findings as string, also accept dict)
+    findings_data = result.get("findings", {})
+    findings_str = findings_data.get("summary", "") if isinstance(findings_data, dict) else (findings_data or "")
+    findings_for_writer = {
+        "summary": findings_str,
+        "sources": result.get("sources", []),
+        "papers": result.get("papers", [])
+    }
+
     if topic not in topics:
         topics[topic] = {}
     topics[topic].update({
         "quality": quality,
-        "summary": result.get("summary", ""),
+        "summary": findings_str,
         "sources": result.get("sources", []),
-        "findings": result.get("findings", {}),
+        "findings": findings_data,
         "status": "explored"
     })
+
+    # Fix Bug #2: Also write to meta_cognitive.last_quality (what the API reads)
+    state = _ensure_meta_cognitive(state)
+    mc = state["meta_cognitive"]
+    if "last_quality" not in mc:
+        mc["last_quality"] = {}
+    mc["last_quality"][topic] = quality
+
     _save_state(state)
+
+    # Fix Bug #1: Also write to shared_knowledge/curious/ via AgentBehaviorWriter
+    try:
+        from core.agent_behavior_writer import AgentBehaviorWriter
+        writer = AgentBehaviorWriter()
+        writer.process(topic, findings_for_writer, quality, result.get("sources", []))
+    except Exception as e:
+        print(f"[KG] AgentBehaviorWriter failed: {e}")

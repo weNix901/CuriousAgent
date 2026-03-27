@@ -6,7 +6,7 @@ from datetime import datetime
 
 BEHAVIOR_FILE = "/root/.openclaw/workspace-researcher/curious-agent-behaviors.md"
 MEMORY_CURIOUS_DIR = "/root/.openclaw/workspace-researcher/memory/curious"
-QUALITY_THRESHOLD = 7.0
+QUALITY_THRESHOLD = 4.0  # 降低阈值让中等质量发现也能写入 shared_knowledge
 
 # T-4: shared_knowledge paths (authority directory)
 SHARED_KNOWLEDGE_DIR = "/root/.openclaw/workspace-researcher/shared_knowledge"
