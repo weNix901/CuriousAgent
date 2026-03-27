@@ -347,5 +347,41 @@ for name, t in topics.items():
 
 ---
 
+
+---
+
+## Bug #7 诊断更新（2026-03-27 晚）
+
+**关键验证**：运行一轮新探索（"OMO multi-agent orchestration"）后，数据仍然是 parents=0, explains=0, children=0。
+
+**根本原因（精确）**：
+
+curious_agent.py 的主流程：
+1. `select_next()` → 选出一个 pending topic
+2. `update_curiosity_status(topic, "exploring")` → 该 topic 变为 exploring
+3. decomposition 尝试 → 如果没有子话题，直接探索原 topic
+4. `add_child(topic, explore_topic)` → **只在 decomposition 有结果时才调用**
+5. `mark_topic_done(topic)` → 查找 `status == "exploring"` 的父 topic → **永远找不到**（exploring item 就是 topic 自己）
+
+**mark_topic_done 里的逻辑错误**：
+```python
+for queue_item in state.get("curiosity_queue", []):
+    if queue_item.get("status") == "exploring":
+        parent_topic = queue_item.get("topic")  # ← 这就是 topic 自己！
+        if parent_topic and parent_topic != topic:  # ← 永远 False
+```
+
+**方案A（推荐）**：在 curious_agent.py decomposition 之后，直接写入父子关系：
+```python
+# 在第 132 行 add_child 之后追加：
+else:
+    # decomposition 为空，直接探索原 topic
+    if "original_topic" in next_curiosity:
+        kg.add_child(next_curiosity["original_topic"], topic)
+        kg._update_parent_relation(next_curiosity["original_topic"], topic)
+```
+
+**方案B**：修改 mark_topic_done 接收 parent_topic 参数。
+
 _Last updated: 2026-03-27 by R1D3_
-_v0.2.5 additional bug found during verification_
+_v0.2.5: bug #7 diagnosis refined — mark_topic_done logic always fails_
