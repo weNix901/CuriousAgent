@@ -1,797 +1,1600 @@
-# next_move_v0.2.4 - R1D3 记忆优先框架 + 主动分享机制
+# Curious Agent v0.2.4 — 蜘蛛引擎 + KG 图谱
 
-> **版本关系**：v0.2.4 是 v0.2.3 的能力增强，叠加在 v0.2.3 之上，不替换已有能力  
-> **核心目标**：R1D3 回答与学习解耦——记忆优先回答，探索后主动分享  
-> **设计原则**：尽量复用现有模块，不重复造轮子  
-> **最后更新**：2026-03-24（问题讨论完毕，已全部确认）
-
----
-
-## 0. v0.2.3 能力清单（已包含）
-
-| Phase | 能力 | 核心模块 |
-|-------|------|---------|
-| Phase 1 | Agent-Behavior-Writer | `AgentBehaviorWriter` |
-| Phase 1 | 行为文件写入 | `curious-agent-behaviors.md` |
-| Phase 2 | CompetenceTracker | `CompetenceTracker` |
-| Phase 2 | 能力感知调度 | `select_next_v2` |
-| Phase 2 | Quality v2 评估 | `QualityV2Assessor` |
-| Phase 2 | 边际收益计算 | `MetaCognitiveMonitor` |
-| Phase 3 | CuriosityDecomposer | `CuriosityDecomposer` |
-| Phase 3 | Provider 热力图 | `ProviderRegistry` |
-| 集成点3 | 话题注入 API | `POST /api/curious/inject` |
-| 集成点4 | 状态查询 API | `GET /api/curious/state` |
+> **文档状态**: 完整设计，待 OpenCode 实现
+> **版本**: v0.2.4
+> **日期**: 2026-03-25
+> **设计者**: R1D3 + weNix
+> **实现者**: OpenCode
+> **前置依赖**: v0.2.3（好奇心分解引擎 + Bug 修复）
+> **配套文档**: `ARCHITECTURE.md`（已有）、各 `RELEASE_NOTE_v0.2.x.md`（已有）
 
 ---
 
-## 1. 核心需求分析
+## 版本叠加关系
 
-### 1.1 R1D3 回答的现状问题
-
-当前 R1D3 回答问题时：
-- **没有先查记忆**——直接用 LLM 知识回答，不知道自己"记过什么"
-- **探索是独立事件**—— Curious Agent 定时探索，但探索结果没有反馈到 R1D3 的回答中
-- **用户无法感知学习闭环**——探索完成后 R1D3 不会主动告诉用户"我学会了什么"
-
-### 1.2 v0.2.4 要解决的核心问题
-
-| 问题 | 解决方案 | 复用模块 |
-|------|---------|---------|
-| R1D3 不知道"记过什么" | 记忆优先回答流程 | `memory_search()` |
-| 触发探索需要新 API 吗？ | 复用 `/api/curious/inject` | `POST /api/curious/inject` |
-| 如何判断该不该先探索？ | 复用 `CompetenceTracker` | `CompetenceTracker.assess_competence()` |
-| 探索完成后如何主动分享？ | 复用 EventBus + 心跳同步 | `EventBus` + `CuriousHeartbeatClient` |
-
----
-
-## 2. 新增/增强特性清单
-
-### 2.1 特性总览
-
-| 特性 | 类型 | 位置 | 复用/新建 |
-|------|------|------|----------|
-| 记忆优先回答流程 | 新增强制规则 | R1D3 (AGENTS.md) | 新建 |
-| R1D3 侧置信度检查 | 新增 Tool | R1D3 | 新建（封装已有模块）|
-| R1D3 侧定向触发探索 | 新增 Tool | R1D3 | 复用 `/api/curious/inject` |
-| 主动分享机制 | 增强 | R1D3 | 复用已有记忆系统 |
-| R1D3 注入优先处理 | 增强 | Curious Agent 侧 | 新建（config 控制）|
-| 置信度主动暴露 | 新增行为规范 | R1D3 (SOUL.md) | 新建 |
-| 自发主动探索机制 | 新增能力 | Curious Agent + R1D3 | 新建（双模式） |
-| **3层探索器原创分析** | **新增能力** | **Curious Agent** | **新建（核心能力）** |
-
----
-
-## 3. 特性一：记忆优先回答流程
-
-### 3.1 AGENTS.md 规则
-
-**位置**：R1D3 的 `AGENTS.md`
-
-**新增规则**：
-
-```markdown
-## 回答前检查（v0.2.4）
-
-### 回答流程
-1. **先搜索记忆**：使用 `memory_search(topic)` 搜索相关答案
-2. **找到 → 直接回答**：标注"从记忆中..."，置信度高
-3. **没找到 →诚实回答**：标注"基于 LLM 知识，我猜测..."，novice 档
-4. **必然触发探索**：无论找到与否，都触发 `curious_agent_inject(topic)` 注入话题
 ```
-
-### 3.2 curious_check_confidence Tool
-
-**封装已有模块**：调用 `GET /api/curious/state`（集成点4），解析 `competence_state`
-
-```python
-def curious_check_confidence(topic: str) -> dict:
-    """
-    R1D3 查询某个 topic 的置信度
-    
-    Returns:
-        {
-            "topic": str,
-            "confidence": float,       # 0-1, 来自 CompetenceTracker
-            "level": str,              # "novice" | "competent" | "proficient" | "expert"
-            "explore_count": int,      # 探索次数
-            "gaps": list               # 知识缺口（如果有）
-        }
-    """
-    # 调用 GET /api/curious/state
-    # 解析 competence_state[topic_name]
-```
-
-### 3.3 curious_agent_inject Tool
-
-**直接复用已有 API**：`POST /api/curious/inject`（集成点3）
-
-```python
-def curious_agent_inject(topic: str, context: str = "", depth: str = "medium") -> dict:
-    """
-    R1D3 主动触发定向探索
-    
-    Args:
-        topic: 话题名称
-        context: 用户问的原问题（用于评分）
-        depth: 探索深度 ("shallow" | "medium" | "deep")
-    
-    Returns:
-        {
-            "status": "success" | "error",
-            "topic_id": str,
-            "estimated_position": int,
-            "queue_length": int
-        }
-    """
-    # 复用 POST /api/curious/inject
-    # payload = { "topic": topic, "reason": context, "source": "r1d3" }
-    # 如果 config.injection_priority.enabled=True 且 source 在 priority_sources 里
-    # → 优先处理
-    # 如果 config.injection_priority.trigger_immediate=True
-    # → 立即触发探索，R1D3 不等待（异步）
+v0.2   — 分层探索 (shallow/medium/deep)               ← 复用
+v0.2.1 — ICM 融合评分                                  ← 复用
+v0.2.2 — 元认知监控器 + MGV + EventBus + 多LLM路由     ← 复用
+         └── should_continue(topic) → tuple[bool, str]
+         └── monitor.get_marginal_returns(topic) → list[float]
+         └── monitor.assess_exploration_quality(topic, findings) → float
+v0.2.3 — 好奇心分解引擎 (CuriosityDecomposer)           ← 复用
+v0.2.4 — 蜘蛛引擎 + KG 图谱基础  ← 本文定义
+v0.2.5 — R1D3 KG Search Skill（未来）
 ```
 
 ---
 
-## 4. 特性二：置信度主动暴露 + 回答详细程度分级
+## 一、目标
 
-### 4.1 置信度 level 与回答策略
-
-| Level | Confidence | 回答策略 | 详细程度 |
-|-------|-----------|---------|---------|
-| **novice** | < 0.3 | 基于 LLM 知识，我猜测... | 简洁，不展开 |
-| **competent** | 0.3-0.6 | 我有一些了解但不深入... | 给大概方向 |
-| **proficient** | 0.6-0.85 | 详细展开，主动给例子和细节 | 较详细 |
-| **expert** | > 0.85 | 可以深入到实现细节、源码、论文 | 最详细 |
-
-### 4.2 novice 回答示例
-
-```
-用户: Attention 机制是怎么工作的？
-
-R1D3: 基于 LLM 的知识，我猜测你想问的是 Transformer 中的 Attention 机制...
-（不展开细节，简短回答，不假装很懂）
-```
-
-### 4.3 expert 回答示例
-
-```
-用户: Attention 机制是怎么工作的？
-
-R1D3: Attention 机制的核心是 Query-Key-Value 计算...
-
-从记忆中（这个方向我研究过多次）：
-1. Scaled Dot-Product Attention: QK^T / √d_k
-2. Multi-Head Attention: 多组 QKV 并行...
-3. 具体实现可以参考 transformer_modules.py...
-
-深入一点，FlashAttention 的实现原理是...
-（主动展开细节、例子、源码）
-```
-
-### 4.4 诚实是第一性原则
-
-**无论哪个 level，都要诚实**：
-- expert 不隐藏知识
-- novice 不假装不懂也不假装很懂
-- 置信度只是决定**详细程度**，不是决定**说不说**
+| 编号 | 目标 | 描述 |
+|------|------|------|
+| O1 | 自主探索 | CA 能自主决定探索方向，不依赖 R1D3 的具体指令 |
+| O2 | 持续运行 | CA 能持续探索，不间断、不迷路 |
+| O3 | KG 图谱 | 探索结果形成结构化 KG 图谱，R1D3 可查询 |
+| O4 | 命题驱动 | R1D3 只需给出大命题，CA 自动完成探索 |
 
 ---
 
-## 5. 特性三：主动分享机制
+## 二、核心原理
 
-### 5.1 分享粒度
+### 2.1 边际收益驱动自主性
 
-**结论**：先全部分享，根据实际打扰程度再迭代。
+```
+探索节点 A → findings
+    ↓
+monitor.assess_quality(A, findings) → quality分数
+    ↓
+controller.should_continue(A) 内部：
+    marginal = current_quality - avg(历史returns)
+    ↓
+marginal > 0.3 → 继续深入
+marginal ≤ 0.3 → 跳转
+```
 
-### 5.2 复用现有机制
+**重要**：不要把边际收益判断理解成"比较两次 findings"。真正的计算是：
+- 从 monitor 拿到历史 marginal_returns 列表
+- 取最近几次的平均值
+- 当前 quality 减去该平均值
 
-| 已有机制 | 复用方式 |
+### 2.2 图结构 vs 树结构
+
+树：每个节点只能有一个父节点 → 同一知识点被不同路径发现时，重复探索
+
+图：节点可以有多个父节点 → 共享同一个节点，只探索一次
+
+```
+树结构：
+    A ──→ C
+    B ──→ C   ← C 被发现两次，但树无法合并
+
+图结构：
+    A ──→ C ←── B   ← C 只探索一次，A 和 B 都是 C 的父节点
+```
+
+### 2.3 蜘蛛引擎循环
+
+```
+observe → reason → act → reflect → checkpoint
+    ↑                                    ↓
+    ←──────── 边际收益判断 ←←←←←←←←←←←←←←←←
+```
+
+---
+
+## 三、文件结构（OpenCode 开发清单）
+
+### 3.1 新建文件
+
+| 文件路径 | 描述 | 对应特性 |
+|---------|------|---------|
+| `spider_engine.py` | 蜘蛛引擎主入口 | F1 |
+| `core/kg_graph.py` | KG 图谱管理 | F2 |
+| `core/surprise_detector.py` | 惊异检测 | F4 |
+| `core/r1d3_watcher.py` | R1D3 命题感知 | F5 |
+| `state/checkpoint.py` | 状态持久化 | F6 |
+| `state/spider_state.json` | 蜘蛛运行状态 | F6 |
+
+### 3.2 复用文件（只读，不修改）
+
+| 文件路径 | 复用方式 |
 |---------|---------|
-| `sync_discoveries.py` | 每次心跳同步最新发现到 `curious-discoveries.md` |
-| `memory/curious-discoveries.md` | 新发现自动追加，格式含时间戳 |
-| 新会话读取 | R1D3 启动时读取，与上一轮时间戳对比 |
+| `core/explorer.py` | `Explorer().explore({"topic":..., "score":..., "depth":...})` |
+| `core/meta_cognitive_controller.py` | `controller.should_continue(topic)` |
+| `core/meta_cognitive_monitor.py` | `monitor.assess_quality(topic, findings)`, `monitor.get_marginal_returns(topic)` |
+| `core/curiosity_decomposer.py` | `decomposer.decompose(topic)` (async) |
+| `curious_agent.py` | 启动入口，可选调用 spider_engine |
 
-### 5.3 追踪"已分享"
+### 3.3 共享知识路径
 
-在 `curious-discoveries.md` 中加字段：
-
-```markdown
-- **[8.2]** Agent Memory Systems
-  - 分享时间: 2026-03-24T16:50:00Z
-  - shared: true
-```
-
-分享逻辑：
-1. R1D3 启动时读取 `curious-discoveries.md`
-2. 找出 `shared: false` 的发现
-3. 主动说："你之前问的 XXX，我现在有答案了..."
-4. 更新 `shared: true`
+| 路径 | 用途 |
+|------|------|
+| `shared_knowledge/r1d3/propositions/` | R1D3 写入命题，spider 读取 |
+| `shared_knowledge/ca/kg/kg_graph.json` | KG 图谱，R1D3 和 CA 共享 |
+| `shared_knowledge/ca/discoveries/` | CA 写入发现，R1D3 感知 |
 
 ---
 
-## 6. 特性四：R1D3 注入优先处理（Curious Agent 侧）
+## 四、特性开发顺序与依赖拓扑
 
-### 6.1 config 新增配置
+### 4.1 依赖拓扑
+
+```
+F2 (KG Graph)          ← 无依赖，基础中的基础
+    ↓
+F6 (Checkpoint)        ← 依赖 F2（需要知道 kg_path）
+    ↓
+F1 (Spider Engine)      ← 依赖 F2、F6
+    ↓
+F3 (边际收益)           ← 复用 v0.2.2，已在 F1 中集成
+    ↓
+F5 (R1D3 Watcher)      ← 独立，可与 F1 并行
+    ↓
+F7 (Discv. Write)      ← 依赖 F1（探索完成后写）
+    ↓
+F4 (Surprise Detect)   ← 依赖 F1（探索前后 hook）
+    ↓
+F8 (KG 共享)           ← 依赖 F2，基础设施
+```
+
+### 4.2 推荐开发顺序
+
+```
+Phase 1: 基础设施
+  ① F2 — KG 图结构（无依赖，最先做）
+  
+Phase 2: 持久化
+  ② F6 — Checkpoint（依赖 F2）
+
+Phase 3: 核心引擎
+  ③ F1 — Spider Engine（依赖 F2、F6）
+  ④ F3 — 边际收益（复用 v0.2.2，在 F1 中验证）
+
+Phase 4: 感知层（可并行）
+  ⑤ F5 — R1D3 Watcher（独立模块）
+  ⑥ F7 — Discoveries Write（依赖 F1）
+
+Phase 5: 增强功能
+  ⑦ F4 — Surprise Detector（依赖 F1 的 act/reflect 钩子）
+  
+Phase 6: 共享
+  ⑧ F8 — KG 共享（依赖 F2，基础设施）
+```
+
+**理由**：
+- F2 是所有功能的基础，先做
+- F1 需要 F2 和 F6，所以它们先做
+- F5 和 F1 可并行：F5 只感知命题文件，不依赖引擎
+- F4 需要 F1 的 act/reflect hook，最后做
+
+---
+
+## 五、F2: KG 图结构（P0）
+
+### 5.1 需求描述
+
+将 KG 从树改为图，支持多父节点，避免重复探索。
+
+### 5.2 设计目的
+
+解决树结构中同一节点被多次发现时重复探索的问题。
+
+### 5.3 节点数据结构
 
 ```json
-// curious-agent config.json
 {
-  "injection_priority": {
-    "enabled": true,
-    "priority_sources": ["r1d3"],
-    "boost_score": 2.0,
-    "trigger_immediate": true
-  }
-}
-```
-
-| 配置项 | 说明 |
-|-------|------|
-| `enabled` | 是否启用优先处理 |
-| `priority_sources` | 优先名单，名单内的 source 注入的话题优先处理 |
-| `boost_score` | 优先话题的分数加成 |
-| `trigger_immediate` | True = 立即触发探索，R1D3 不等待（异步） |
-
-### 6.2 处理逻辑
-
-```python
-# curious_agent.py inject 端点
-def inject_topic(topic, source, score=None, ...):
-    if config.injection_priority.enabled and source in config.injection_priority.priority_sources:
-        # 优先处理
-        effective_score = (score or 5.0) + config.injection_priority.boost_score
-        
-        if config.injection_priority.trigger_immediate:
-            # 立即触发探索，异步，不阻塞
-            async_trigger_exploration(topic)
-        else:
-            # 入队，等 cron 定时处理
-            queue.add(topic, score=effective_score)
-    else:
-        # 普通处理
-        queue.add(topic, score=score)
-```
-
----
-
-## 7. 架构接口图（v0.2.4 新增部分）
-
-```
-R1D3 (OpenClaw Agent)
-│
-├── AGENTS.md 规则（新建）
-│   └── 记忆优先回答流程
-│
-├── curious_check_confidence(topic) [Tool, 新建]
-│   └── 封装: GET /api/curious/state
-│
-├── curious_agent_inject(topic, context, depth) [Tool, 新建]
-│   └── 复用: POST /api/curious/inject
-│   └── priority_sources 名单内 → 优先处理 + 立即探索
-│
-├── SOUL.md 行为规范（增强）
-│   └── 置信度主动暴露 + 回答详细程度分级
-│
-└── 主动分享 [增强]
-    └── 复用: memory/curious-discoveries.md + sync_discoveries.py
-    └── shared 字段追踪已分享
-
-
-Curious Agent (改动: config.json + inject 端点)
-│
-├── config.json 新增 injection_priority 配置
-├── POST /api/curious/inject [增强]
-│   └── priority_sources 名单内 → boost_score + trigger_immediate
-├── GET /api/curious/state [已有, 复用]
-├── CompetenceTracker [已有, 复用]
-├── AgentBehaviorWriter [已有, 复用]
-└── EventBus [已有, 复用]
-```
-
----
-
-## 8. 实现任务清单
-
-### 8.1 R1D3 侧（新增）
-
-| 优先级 | 任务 | 说明 |
-|-------|------|------|
-| P0 | AGENTS.md 记忆优先规则 | 回答前先查 memory_search() |
-| P0 | curious_check_confidence Tool | 封装 /api/curious/state |
-| P0 | curious_agent_inject Tool | 封装 /api/curious/inject |
-| P0 | SOUL.md 置信度暴露规范 | novice~expert 四档回答策略 |
-| P1 | 主动分享逻辑 | 新会话时对比 shared 字段 |
-| P2 | shared 追踪写入 | 更新 curious-discoveries.md |
-
-### 8.2 Curious Agent 侧（新增）
-
-| 优先级 | 任务 | 说明 |
-|-------|------|------|
-| P0 | config.json injection_priority | 新增配置项 |
-| P0 | inject 端点优先逻辑 | priority_sources + boost_score + trigger_immediate |
-| P1 | config.json exploration mode | hybrid/daemon/api_only 三模式 |
-| P1 | daemon 与 inject 联动 | trigger_immediate=true 时 inject 后立即异步探索 |
-| **P0** | **InsightSynthesizer 类** | **Layer 3 核心，跨 sub-topic 原创分析合成** |
-| **P1** | **cross_topic_patterns()** | **识别跨子话题模式** |
-| **P1** | **generate_hypotheses()** | **基于模式生成原创假设** |
-| **P2** | **compute_confidence()** | **假设置信度评分** |
-| **P2** | **合成结果 KG 持久化** | **避免重复合成** |
-
----
-
-## 9. 不纳入 v0.2.4 的内容
-
-- mission 验证机制（移至 v0.2.5+）
-- OpenClaw Hook 实时注入（依赖验证）
-- 置信度精确计算（当前 level 映射够用）
-- 分享粒度迭代（先全部分享，看打扰程度再调）
-- Layer 3 InsightSynthesizer 实时合成 R1D3 调用（Layer 3 探索能力先独立，R1D3 整合后续）
-
----
-
-## 10. 与 v0.2.3 的接口关系
-
-```
-v0.2.3 基础层（完全不变）
-├── /api/curious/inject ←── R1D3 inject Tool 复用
-│   └── 新增：priority_sources 名单判断
-├── /api/curious/state ←── R1D3 confidence Tool 复用
-├── CompetenceTracker ←── R1D3 confidence Tool 复用
-├── AgentBehaviorWriter ←── 被动复用（写入行为规则）
-└── EventBus ←── 被动复用（通知机制）
-
-v0.2.4 新增
-├── R1D3 侧
-│   ├── AGENTS.md 记忆优先规则
-│   ├── curious_check_confidence Tool
-│   ├── curious_agent_inject Tool
-│   ├── SOUL.md 置信度暴露规范
-│   └── 主动分享逻辑
-└── Curious Agent 侧
-    ├── config.json injection_priority + exploration mode
-├── curious_agent.py --daemon [已有, 复用]
-├── POST /api/curious/inject [增强]
-    └── inject 端点优先逻辑
-```
-
----
-
-## 12. 特性五：自发主动探索机制
-
-### 12.1 两种探索触发模式
-
-Curious Agent 的探索触发分为**外部触发**和**自发主动**两类：
-
-| 模式 | 触发方式 | 适用场景 |
-|------|---------|---------|
-| **外部触发** | R1D3 调用 `trigger_explore.sh` → `POST /api/curious/inject` | 用户提问时注入话题 |
-| **定时自发** | `curious_agent.py --daemon --interval N` 守护进程 | 无人介入时持续探索 |
-| **混合模式** | 外部触发优先 + 定时兜底 | 平衡实时性和持续性 |
-
-### 12.2 定时自发探索（守护进程模式）
-
-**已有实现**：`curious_agent.py --daemon --interval N`
-
-```bash
-# 每 30 分钟探索一次
-python3 curious_agent.py --daemon --interval 30
-
-# 每 2 小时探索一次
-python3 curious_agent.py --daemon --interval 120
-```
-
-**daemon 模式逻辑**：
-
-```python
-def daemon_mode(interval_minutes: int = 30):
-    while True:
-        # 1. 从队列取 top curiosity
-        topic = select_next_v2()
-        # 2. 执行探索（generate_insights）
-        result = explorer.explore(topic)
-        # 3. 质量评估 + 写入 KG
-        quality = quality_assessor(result)
-        write_to_kg(topic, result, quality)
-        # 4. 计算边际收益，决定是否继续
-        if marginal_return_too_low():
-            break
-        # 5. 等待下一个 interval
-        time.sleep(interval_minutes * 60)
-```
-
-### 12.3 外部触发（外部注入）
-
-**已有实现**：`POST /api/curious/inject`
-
-```bash
-bash trigger_explore.sh "MCP协议工作原理" "用户问了我MCP协议"
-```
-
-**inject 端点行为**：
-
-```python
-# POST /api/curious/inject
-payload = {
-    "topic": "MCP协议工作原理",
-    "context": "用户问了我MCP协议",
-    "source": "r1d3",          # 来源标识
-    "priority": True           # 可选：优先处理
-}
-
-# 如果 priority=True + trigger_immediate=True
-# → 立即触发探索（异步），不等待 daemon
-# 否则 → 入队，等 daemon 下一次轮询
-```
-
-### 12.4 混合模式架构
-
-```
-                    ┌─────────────────────────────────────┐
-                    │       R1D3 (OpenClaw Agent)          │
-                    │                                      │
-  用户提问 ──→ memory_search ──→ 回答 ──→ inject(topic)      │
-                    │                        │              │
-                    │                   POST /api/curious/inject
-                    │                        │
-                    └────────────────────────┼──────────────┘
-                                             │
-                              ┌──────────────┴──────────────┐
-                              │   Curious Agent API Server     │
-                              │   (curious_api.py)            │
-                              │                               │
-                              │  ┌─────────────────────────┐ │
-                              │  │ injection_priority 配置  │ │
-                              │  │ priority_sources: [r1d3] │ │
-                              │  └──────────┬──────────────┘ │
-                              │             │                 │
-                              │      是否优先注入?            │
-                              │             │                 │
-                              │    ┌────────┴────────┐      │
-                              │    │                 │        │
-                              │   YES               NO       │
-                              │    │                 │        │
-                              │    ▼                 ▼        │
-                              │ 立即异步探索      入队等待     │
-                              │ (不阻塞R1D3)    daemon轮询    │
-                              │                               │
-                              │  ┌─────────────────────────┐ │
-                              │  │   Daemon 守护进程        │ │
-                              │  │   curious_agent.py       │ │
-                              │  │   --daemon --interval N  │ │
-                              │  └──────────┬──────────────┘ │
-                              │             │                 │
-                              │    每 N 分钟轮询队列          │
-                              │    执行 select_next_v2()      │
-                              │    → 探索 → 写 KG            │
-                              └─────────────────────────────────┘
-                                             │
-                              ┌──────────────┴──────────────┐
-                              │   探索结果同步到 R1D3         │
-                              │   sync_discoveries.py        │
-                              │   → curious-discoveries.md   │
-                              └──────────────────────────────┘
-```
-
-### 12.5 配置项
-
-```json
-// Curious Agent config.json
-{
-  "exploration": {
-    "mode": "daemon",           // "daemon" | "api_only" | "hybrid"
-    "daemon": {
-      "interval_minutes": 30,   // 守护进程探索间隔
-      "explore_per_round": 1    // 每次探索几个 topic
-    },
-    "injection_priority": {
-      "enabled": true,
-      "priority_sources": ["r1d3"],
-      "trigger_immediate": true,  // true=外部注入立即触发 false=入队等daemon
-      "boost_score": 2.0
+  "nodes": {
+    "节点名": {
+      "parents": ["父节点A", "父节点B"],
+      "children": ["子节点C"],
+      "explored": true,
+      "fully_explored": false,
+      "explored_at": "2026-03-25T18:00:00",
+      "explored_by": ["父节点A"],
+      "findings_summary": "...",
+      "created_at": "2026-03-25T17:00:00"
     }
-  }
+  },
+  "edges": [
+    {"from": "节点A", "to": "节点B", "relation": "associated"}
+  ]
 }
 ```
 
-| 配置组合 | 行为 |
-|---------|------|
-| `mode: "api_only"` | 完全依赖外部触发，无定时探索 |
-| `mode: "daemon"` | 纯定时探索，忽略外部注入立即触发 |
-| `mode: "hybrid"` | 外部注入优先 + daemon 兜底（推荐） |
-
-### 12.6 推荐配置
-
-**v0.2.4 默认配置**：
-
-```json
-{
-  "exploration": {
-    "mode": "hybrid",
-    "daemon": {
-      "interval_minutes": 60,
-      "explore_per_round": 1
-    },
-    "injection_priority": {
-      "enabled": true,
-      "priority_sources": ["r1d3"],
-      "trigger_immediate": true,
-      "boost_score": 2.0
-    }
-  }
-}
-```
-
-- R1D3 提问 → 立即触发探索（异步）
-- daemon 每 60 分钟做一次兜底探索
-- 外部注入的 priority 话题 boost 2.0 分
-
----
-
-## 13. 关键结论
-
-1. **inject_and_explore 不需要新 API**——`POST /api/curious/inject` + 已有定时探索机制完全够用
-2. **check_confidence 不需要新 API**——`GET /api/curious/state` 的 `competence_state` 完全够用
-3. **v0.2.4 的开发量分在 R1D3 侧和 Curious Agent 侧**
-4. **主动分享复用现有 sync_discoveries 机制**——只需要加"已分享"追踪逻辑
-5. **R1D3 注入优先处理**——config 配置 priority_sources + boost_score + trigger_immediate
-6. **置信度主动暴露**——novice 说"基于 LLM 知识我猜测"，expert 详细展开
-7. **自发探索 = hybrid 模式**——外部触发优先（trigger_immediate）+ daemon 定时兜底，推荐 interval=60min
-
----
-
-## 14. 特性六：3层探索器生成原创分析
-
-### 14.1 现状问题
-
-当前 CuriousDecomposer 的四级级联分解：
-- **Step 1**：LLM 推理生成候选 sub-topics
-- **Step 2**：多 Provider 搜索验证，过滤不存在的主题
-- **Step 3**：KG 补充，从已有结构推断父子关系
-- **Step 4**：澄清机制，无法判断时询问用户
-
-**缺失环节**：分解完成后，每个 sub-topic 被探索器搜索，但探索结果只是原始搜索内容的堆叠，没有**原创性分析合成**。
-
-```
-当前流程：
-  agent
-    ├── memory → 搜索结果1 + 搜索结果2 + 搜索结果3（原始堆叠）
-    ├── planning → 搜索结果4 + 搜索结果5（原始堆叠）
-    └── tool use → 搜索结果6 + 搜索结果7（原始堆叠）
-    
-缺失：没有"这8条结果综合起来，agent 的 memory 子领域有什么原创洞察"
-```
-
-### 14.2 三层探索分析架构
-
-```
-输入：topic（如 "agent"）
-    ↓
-【Layer 1 - 分解】CuriosityDecomposer
-    - 把泛 topic 分解为结构化 sub-topics 树
-    ↓
-【Layer 2 - 探索】Multi-Provider Explorer
-    - 对每个 sub-topic 并行多 Provider 搜索
-    - 收集原始信息片段（snippet + URL + source）
-    ↓
-【Layer 3 - 合成】InsightSynthesizer ⭐（新增核心能力）
-    - 对同层所有 sub-topic 探索结果进行跨维度分析
-    - 生成原创洞察、假设、推导
-    - 输出格式：Insight Object（含 confidence + reasoning）
-    ↓
-输出：
-  - 原始发现碎片（用于 KG 存储）
-  - 原创分析合成（用于 R1D3 直接使用）
-```
-
-### 14.3 Layer 3：InsightSynthesizer 核心逻辑
+### 5.4 实现逻辑（core/kg_graph.py）
 
 ```python
-class InsightSynthesizer:
+import json
+import os
+from typing import Optional
+
+def timestamp():
+    import datetime
+    return datetime.datetime.now().isoformat()
+
+class KGGraph:
     """
-    第三层：跨 sub-topic 原始分析合成
-    
-    输入：exploration_results[sub_topic] = [SearchResult, ...]
-    输出：insights = [Insight, ...]
-    
-    核心方法：
-    1. cross_topic_patterns() — 跨子话题模式识别
-    2. generate_hypotheses() — 基于模式生成假设
-    3. compute_confidence() — 假设置信度评分
-    4. format_insight() — 格式化为 Insight Object
+    KG 图谱管理器。
+    图结构：节点可有多父节点，边记录关联关系。
     """
-    
-    def synthesize(self, topic: str, sub_topic_results: dict) -> list[dict]:
-        """
-        合成入口
-        """
-        # 1. 聚合所有子话题的搜索片段
-        all_snippets = []
-        for sub_topic, results in sub_topic_results.items():
-            all_snippets.extend(self._extract_snippets(results))
-        
-        # 2. 跨维度模式识别
-        patterns = self.cross_topic_patterns(topic, all_snippets)
-        
-        # 3. 基于模式生成原创假设
-        hypotheses = self.generate_hypotheses(patterns)
-        
-        # 4. 置信度评分 + 过滤
-        scored_hypotheses = []
-        for h in hypotheses:
-            confidence = self.compute_confidence(h, all_snippets)
-            if confidence >= 0.5:  # 只保留置信度 >= 0.5 的假设
-                scored_hypotheses.append({**h, "confidence": confidence})
-        
-        # 5. 格式化为 Insight
-        return [self.format_insight(h) for h in scored_hypotheses]
-    
-    def cross_topic_patterns(self, topic: str, snippets: list[str]) -> list[dict]:
-        """
-        跨子话题模式识别
-        
-        例如：agent 的 memory + planning + tool use 三个子话题
-        探索结果中共同出现的模式：
-        - "context window" 同时出现在 memory 和 planning 中
-        - "tool calling" 与 planning 的 "reasoning" 经常共同出现
-        → 生成假设：context window 是连接 memory 和 planning 的关键桥梁
-        
-        Returns:
-            [{"pattern": str, "supporting_snippets": [str], "related_sub_topics": [str]}]
-        """
-        # LLM 推理：从所有片段中识别跨子话题模式
-        prompt = f"""
-给定主题：{topic}
-收集到的信息片段：
-{self._format_snippets(snippets)}
 
-任务：从这些片段中识别跨维度的模式。
-输出 JSON 格式：
-{{
-  "patterns": [
-    {{
-      "pattern": "模式描述",
-      "supporting_snippets": ["支撑片段1", "支撑片段2"],
-      "related_sub_topics": ["相关的子话题列表"]
-    }}
-  ]
-}}
-"""
-        return self._llm_call(prompt)["patterns"]
-    
-    def generate_hypotheses(self, patterns: list[dict]) -> list[dict]:
-        """
-        基于识别的模式生成原创假设
-        
-        假设类型：
-        - 因果假设：A → B（因为A，所以B）
-        - 相关假设：A ⟷ B（A和B相关，但因果不明）
-        - 对比假设：A vs B（A和B有本质差异）
-        - 推演假设：A → B → C（链式推演）
-        
-        Returns:
-            [{"hypothesis": str, "type": str, "reasoning": str}]
-        """
-        prompt = f"""
-基于以下跨维度模式，生成原创假设：
+    def __init__(self, path: str = "shared_knowledge/ca/kg/kg_graph.json"):
+        self.path = path
+        self.nodes: dict[str, dict] = {}
+        self.edges: list[dict] = []
+        self.load()
 
-{self._format_patterns(patterns)}
+    # ── 核心判断 ───────────────────────────────────────
 
-要求：
-1. 每个假设必须有推理过程（reasoning）
-2. 假设应该超出原始信息的简单总结
-3. 允许有一定推测性，但必须有片段支撑
-4. 生成 3-5 个最具洞察力的假设
+    def should_explore(self, node: str, from_parent: Optional[str]) -> tuple[bool, str]:
+        """
+        判断是否需要探索该节点。
 
-输出 JSON 格式：
-{{
-  "hypotheses": [
-    {{
-      "hypothesis": "假设内容",
-      "type": "causal|correlation|contrast|deduction",
-      "reasoning": "推理过程"
-    }}
-  ]
-}}
-"""
-        return self._llm_call(prompt)["hypotheses"]
-    
-    def compute_confidence(self, hypothesis: dict, snippets: list[str]) -> float:
+        三种返回值：
+        - (True,  "first_visit")          → 新节点，需要探索
+        - (True,  "not_yet_explored")      → 已存在但未探索，需要探索
+        - (False, "linked_only")           → 已探索，只更新关联
+        - (False, "already_explored")      → 已探索且已知此父节点，跳过
         """
-        计算假设置信度
-        
-        评分维度：
-        - 支持片段数量（越多越可信）
-        - 片段来源多样性（来源越多越可信）
-        - 假设逻辑一致性（推理链是否自洽）
-        - 与已知 KG 的一致性（KG 中已有知识是否矛盾）
-        """
-        support_count = len(hypothesis.get("supporting_snippets", []))
-        diversity = self._compute_source_diversity(hypothesis.get("supporting_snippets", []))
-        consistency = self._check_kg_consistency(hypothesis)
-        
-        confidence = (
-            min(support_count / 5, 1.0) * 0.4 +   # 片段数量
-            diversity * 0.3 +                       # 来源多样性
-            consistency * 0.3                       # KG 一致性
-        )
-        return round(confidence, 2)
-    
-    def format_insight(self, hypothesis: dict) -> dict:
-        """
-        格式化为标准 Insight Object
-        """
-        return {
-            "id": generate_uuid(),
-            "topic": hypothesis["topic"],
-            "hypothesis": hypothesis["hypothesis"],
-            "type": hypothesis["type"],
-            "reasoning": hypothesis["reasoning"],
-            "confidence": hypothesis["confidence"],
-            "supporting_snippets": hypothesis.get("supporting_snippets", []),
-            "generated_by": "InsightSynthesizer",
-            "timestamp": datetime.now().isoformat()
+        if node not in self.nodes:
+            return True, "first_visit"
+
+        nd = self.nodes[node]
+
+        if not nd.get("explored"):
+            return True, "not_yet_explored"
+
+        # 已探索，但这个父节点还没关联过 → 只建立关联，不重复探索
+        if from_parent and from_parent not in nd.get("explored_by", []):
+            nd.setdefault("parents", []).append(from_parent)
+            nd.setdefault("explored_by", []).append(from_parent)
+            self._add_edge(from_parent, node, "associated")
+            return False, "linked_only"
+
+        return False, "already_explored"
+
+    # ── 增删改 ─────────────────────────────────────────
+
+    def add_node(self, node: str, from_parent: Optional[str] = None) -> None:
+        """添加节点（如果不存在）"""
+        if node in self.nodes:
+            return
+        self.nodes[node] = {
+            "parents": [from_parent] if from_parent else [],
+            "children": [],
+            "explored": False,
+            "fully_explored": False,
+            "explored_by": [from_parent] if from_parent else [],
+            "findings_summary": "",
+            "created_at": timestamp()
         }
+
+    def mark_explored(self, node: str, findings: str = "") -> None:
+        """标记节点已探索"""
+        if node not in self.nodes:
+            self.add_node(node)
+        self.nodes[node]["explored"] = True
+        self.nodes[node]["explored_at"] = timestamp()
+        if findings:
+            self.nodes[node]["findings_summary"] = findings
+
+    def mark_fully_explored(self, node: str) -> None:
+        """标记节点为充分探索（不再跳转回来）"""
+        if node in self.nodes:
+            self.nodes[node]["fully_explored"] = True
+            self.nodes[node]["fully_explored_at"] = timestamp()
+
+    def _add_edge(self, from_node: str, to_node: str, relation: str = "associated") -> None:
+        """添加边（内部用，不做去重检查）"""
+        edge = {"from": from_node, "to": to_node, "relation": relation}
+        if edge not in self.edges:
+            self.edges.append(edge)
+
+        if to_node not in self.nodes.get(from_node, {}).get("children", []):
+            self.nodes.setdefault(from_node, {}).setdefault("children", []).append(to_node)
+        if from_node not in self.nodes.get(to_node, {}).get("parents", []):
+            self.nodes.setdefault(to_node, {}).setdefault("parents", []).append(from_node)
+
+    def add_relation(self, from_node: str, to_node: str, relation: str = "associated") -> None:
+        """从探索结果中提取关联节点并添加边"""
+        self.add_node(to_node, from_node)
+        self._add_edge(from_node, to_node, relation)
+
+    # ── 查询 ───────────────────────────────────────────
+
+    def get_high_degree_unexplored(self) -> Optional[str]:
+        """获取度（入+出）最高且未 fully_explored 的节点"""
+        candidates = []
+        for node, data in self.nodes.items():
+            if data.get("fully_explored"):
+                continue
+            degree = len(data.get("parents", [])) + len(data.get("children", []))
+            candidates.append((degree, node))
+        if not candidates:
+            return None
+        candidates.sort(reverse=True)
+        return candidates[0][1]
+
+    def get_unexplored_nodes(self) -> list[str]:
+        """获取所有未探索的节点名"""
+        return [n for n, d in self.nodes.items() if not d.get("explored")]
+
+    def is_empty(self) -> bool:
+        return len(self.nodes) == 0
+
+    # ── 持久化 ────────────────────────────────────────
+
+    def save(self) -> None:
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        with open(self.path, "w", encoding="utf-8") as f:
+            json.dump({"nodes": self.nodes, "edges": self.edges}, f,
+                      ensure_ascii=False, indent=2)
+
+    def load(self) -> "KGGraph":
+        if os.path.exists(self.path):
+            with open(self.path, encoding="utf-8") as f:
+                data = json.load(f)
+                self.nodes = data.get("nodes", {})
+                self.edges = data.get("edges", [])
+        return self
 ```
 
-### 14.4 输出结构示例
+### 5.5 复用已有模块
+
+无（全新模块）。
+
+### 5.6 主流程集成点
+
+```
+SpiderEngine 初始化时：
+    self.kg = KGGraph()
+
+SpiderEngine.run_once() 中：
+    # 探索前判断
+    should, reason = self.kg.should_explore(node, parent)
+    if should:
+        self.explorer.explore(...)
+
+    # 探索后更新
+    self.kg.mark_explored(node, findings)
+    for subtopic in subtopics:
+        self.kg.add_relation(node, subtopic)
+    self.kg.save()
+```
+
+### 5.7 测试方式
+
+```python
+import pytest, os, tempfile
+from core.kg_graph import KGGraph
+
+@pytest.fixture
+def kg():
+    path = tempfile.mktemp(suffix=".json")
+    yield KGGraph(path)
+    if os.path.exists(path):
+        os.remove(path)
+
+def test_first_visit(kg):
+    should, reason = kg.should_explore("new_topic", None)
+    assert should == True
+    assert reason == "first_visit"
+
+def test_already_explored_same_parent(kg):
+    kg.add_node("C", "A")
+    kg.mark_explored("C")
+    should, reason = kg.should_explore("C", "A")
+    assert should == False
+    assert reason == "already_explored"
+
+def test_linked_only_new_parent(kg):
+    kg.add_node("C", "A")
+    kg.mark_explored("C")
+    should, reason = kg.should_explore("C", "B")
+    assert should == False
+    assert reason == "linked_only"
+    assert "A" in kg.nodes["C"]["parents"]
+    assert "B" in kg.nodes["C"]["parents"]
+    assert kg.nodes["C"]["explored"] == True  # 探索状态不变
+
+def test_multi_parent_three_parents(kg):
+    kg.add_node("C", "A")
+    kg.mark_explored("C")
+    kg.should_explore("C", "B")
+    kg.should_explore("C", "D")
+    assert set(kg.nodes["C"]["parents"]) == {"A", "B", "D"}
+    assert kg.nodes["C"]["explored"] == True  # 不重复探索
+
+def test_high_degree_unexplored(kg):
+    kg.add_node("A", None)
+    kg.add_node("B", None)
+    kg.add_node("C", None)
+    kg.add_relation("A", "B")
+    kg.add_relation("A", "C")
+    # A 的度=2（2条出边），B和C的度=1
+    assert kg.get_high_degree_unexplored() == "A"
+
+def test_save_and_load(kg):
+    kg.add_node("X", None)
+    kg.add_relation("X", "Y")
+    kg.save()
+
+    kg2 = KGGraph(kg.path).load()
+    assert "X" in kg2.nodes
+    assert len(kg2.edges) == 1
+```
+
+### 5.8 验收标准
+
+| 编号 | 标准 | 验证方式 |
+|------|------|---------|
+| V2.1 | `should_explore` 对新节点返回 `(True, "first_visit")` | 单元测试 |
+| V2.2 | 同一节点被 A、B 关联，只探索一次 | 单元测试 `test_multi_parent_three_parents` |
+| V2.3 | `add_relation` 后节点 children/parents 双向更新 | 单元测试 |
+| V2.4 | `get_high_degree_unexplored` 返回度最高的未充分探索节点 | 单元测试 |
+| V2.5 | `save()`/`load()` 正确持久化图结构 | 单元测试 `test_save_and_load` |
+
+### 5.9 已知限制
+
+- `get_high_degree_unexplored` 按度排序，度相同时按字母顺序选第一个（确定性但不保证最优）
+
+---
+
+## 六、F6: 状态持久化（P0）
+
+### 6.1 需求描述
+
+蜘蛛状态定期持久化，支持 kill -9 后重启恢复。
+
+### 6.2 设计目的
+
+确保探索过程不因进程中断而丢失，实现"断点续探"。
+
+### 6.3 实现逻辑（state/checkpoint.py）
+
+```python
+import json
+import os
+from datetime import datetime
+
+class Checkpoint:
+    """
+    蜘蛛状态持久化。
+    保存：当前节点、frontier、visited、连续低收益计数、步数、kg路径。
+    """
+
+    CHECKPOINT_DIR = "state"
+    CHECKPOINT_FILE = "state/spider_checkpoint.json"
+
+    def __init__(self, path: str = None):
+        self.path = path or self.CHECKPOINT_FILE
+
+    def save(self, spider_state: dict) -> None:
+        """
+        spider_state 格式：
+        {
+            "current_node": str | None,
+            "frontier": list[str],
+            "visited": list[str],         # set 在这里转 list
+            "consecutive_low_gain": int,
+            "step_count": int,
+            "kg_path": str,
+            "previous_findings": dict,    # 可选，用于边际收益计算
+        }
+        """
+        data = {
+            "last_loop_time": datetime.now().isoformat(),
+            **spider_state
+        }
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        with open(self.path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    def load(self) -> dict | None:
+        """返回 None 表示没有 checkpoint"""
+        if not os.path.exists(self.path):
+            return None
+        with open(self.path, encoding="utf-8") as f:
+            return json.load(f)
+
+    def exists(self) -> bool:
+        return os.path.exists(self.path)
+
+    def clear(self) -> None:
+        if os.path.exists(self.path):
+            os.remove(self.path)
+```
+
+### 6.4 复用已有模块
+
+无（全新模块）。
+
+### 6.5 主流程集成点
+
+```
+SpiderEngine.__init__():
+    self.checkpoint = Checkpoint()
+
+SpiderEngine.run_once() 末尾：
+    self.checkpoint.save({
+        "current_node": self.current_node,
+        "frontier": self.frontier,
+        "visited": list(self.visited),        # set → list
+        "consecutive_low_gain": self.consecutive_low_gain,
+        "step_count": self.step_count,
+        "kg_path": self.kg.path,
+    })
+
+SpiderEngine.__init__() 恢复路径：
+    saved = self.checkpoint.load()
+    if saved:
+        self.current_node = saved.get("current_node")
+        self.frontier = saved.get("frontier", [])
+        self.visited = set(saved.get("visited", []))
+        self.consecutive_low_gain = saved.get("consecutive_low_gain", 0)
+        self.step_count = saved.get("step_count", 0)
+```
+
+### 6.6 测试方式
+
+```python
+import pytest, tempfile, os
+from state.checkpoint import Checkpoint
+
+def test_save_and_load():
+    ck = Checkpoint(tempfile.mktemp(suffix=".json"))
+
+    state = {
+        "current_node": "node_a",
+        "frontier": ["b", "c"],
+        "visited": ["x", "y"],          # list[str]
+        "consecutive_low_gain": 2,
+        "step_count": 10,
+        "kg_path": "shared_knowledge/ca/kg/kg_graph.json"
+    }
+
+    ck.save(state)
+    loaded = ck.load()
+
+    assert loaded["current_node"] == "node_a"
+    assert loaded["frontier"] == ["b", "c"]
+    assert set(loaded["visited"]) == {"x", "y"}
+    assert loaded["consecutive_low_gain"] == 2
+    assert loaded["step_count"] == 10
+
+def test_load_returns_none_when_missing():
+    ck = Checkpoint("/nonexistent/path.json")
+    assert ck.load() is None
+
+def test_clear():
+    path = tempfile.mktemp(suffix=".json")
+    ck = Checkpoint(path)
+    ck.save({"step_count": 1})
+    assert os.path.exists(path)
+    ck.clear()
+    assert not os.path.exists(path)
+```
+
+### 6.7 验收标准
+
+| 编号 | 标准 | 验证方式 |
+|------|------|---------|
+| V6.1 | kill -TERM 后 checkpoint 文件存在且格式正确 | 发送信号，cat 文件 |
+| V6.2 | 重启后 `checkpoint.load()` 返回正确状态 | 单元测试 |
+| V6.3 | `visited` 字段 set→list→set 互转正确 | 单元测试 |
+| V6.4 | checkpoint 不存在时 `load()` 返回 None | 单元测试 |
+
+### 6.8 已知限制
+
+- 只保存蜘蛛引擎状态，不保存 KG 图谱（KG 图谱自己通过 `kg.save()` 持久化）
+
+---
+
+## 七、F1: 蜘蛛引擎（P0）
+
+### 7.1 需求描述
+
+不知疲倦的蜘蛛，在 KG 图上自主探索，自主决定探索方向和深度。
+
+### 7.2 设计目的
+
+实现 CA 从"被动响应"到"自驱动探索"的转变。
+
+### 7.3 关键设计决策
+
+**决策1：Explorer.explore() 的正确调用方式**
+
+```python
+# ❌ 错误（文档旧版）
+findings = self.explorer.explore(self.current_node, DEFAULT_DEPTH)
+
+# ✅ 正确（实际 API）
+findings = self.explorer.explore({
+    "topic": self.current_node,
+    "score": 0.5,
+    "depth": 2  # 对应 medium
+})
+```
+
+**决策2：should_continue() 的正确调用方式**
+
+```python
+# ❌ 错误（旧版理解：传入 findings 和 previous_findings）
+should = controller.should_continue(self.current_node, findings, prev_findings)
+
+# ✅ 正确（实际 API：只传 topic，内部查 monitor）
+should, reason = controller.should_continue(self.current_node)
+# 内部逻辑：
+#   returns = monitor.get_marginal_returns(topic)
+#   marginal = current_quality - avg(recent_returns)
+#   return marginal > MIN_MARGINAL_RETURN
+```
+
+**决策3：CuriosityDecomposer.decompose() 是 async**
+
+```python
+# ✅ 正确
+subtopics = await decomposer.decompose(self.current_node)
+# 返回格式：list[dict]，每个 dict 包含 "topic" 字段
+```
+
+### 7.4 实现逻辑（spider_engine.py）
+
+```python
+import asyncio
+import os
+import sys
+from core.explorer import Explorer
+from core.meta_cognitive_controller import MetaCognitiveController
+from core.meta_cognitive_monitor import MetaCognitiveMonitor
+from core.curiosity_decomposer import CuriosityDecomposer
+from core.kg_graph import KGGraph
+from core.surprise_detector import SurpriseDetector
+from core.r1d3_watcher import R1D3Watcher
+from state.checkpoint import Checkpoint
+
+# 复用 v0.2.2 的边际收益阈值常量
+MIN_MARGINAL_RETURN = 0.3
+MAX_CONSECUTIVE_LOW = 3
+LOOP_INTERVAL = 30  # 秒
+DEFAULT_DEPTH = 2  # medium
+DISCOVERIES_DIR = "shared_knowledge/ca/discoveries"
+
+class SpiderEngine:
+    def __init__(self, config: dict = None):
+        self.kg = KGGraph()
+        self.checkpoint = Checkpoint()
+
+        # 复用 v0.2.2 的元认知组件
+        monitor = MetaCognitiveMonitor()
+        self.controller = MetaCognitiveController(monitor)
+
+        # 复用 v0.2
+        self.explorer = Explorer(exploration_depth="medium")
+        # 复用 v0.2.3
+        self.decomposer = CuriosityDecomposer()
+
+        # 新增组件
+        self.detector = SurpriseDetector()
+        self.watcher = R1D3Watcher()
+
+        # 状态
+        self.current_node: str | None = None
+        self.frontier: list[str] = []
+        self.visited: set[str] = set()
+        self.consecutive_low_gain: int = 0
+        self.step_count: int = 0
+        self.previous_findings: dict = {}
+
+        # 从 checkpoint 恢复
+        self._restore_from_checkpoint()
+
+    def _restore_from_checkpoint(self):
+        saved = self.checkpoint.load()
+        if saved:
+            self.current_node = saved.get("current_node")
+            self.frontier = saved.get("frontier", [])
+            self.visited = set(saved.get("visited", []))
+            self.consecutive_low_gain = saved.get("consecutive_low_gain", 0)
+            self.step_count = saved.get("step_count", 0)
+            print(f"[Spider] Restored from checkpoint: node={self.current_node}, step={self.step_count}")
+
+    # ── 主循环 ─────────────────────────────────────────
+
+    def run_loop(self):
+        """阻塞主循环"""
+        print(f"[Spider] Starting. Loop interval={LOOP_INTERVAL}s")
+        while True:
+            try:
+                self.observe()
+                self.run_once()
+            except Exception as e:
+                print(f"[Spider] Error in loop: {e}")
+            import time; time.sleep(LOOP_INTERVAL)
+
+    def run_once(self):
+        """执行一轮探索（observe→act→reason→reflect→checkpoint）"""
+        # 1. 如果没有 current_node，尝试从 frontier 取
+        if not self.current_node:
+            self._pick_next_node()
+            if not self.current_node:
+                return  # 没有可探索的节点
+
+        # 2. act: 探索
+        curiosity_item = {
+            "topic": self.current_node,
+            "score": 0.5,   # 占位，monitor 会重新评估
+            "depth": DEFAULT_DEPTH
+        }
+        findings = self.explorer.explore(curiosity_item)
+
+        # 3. reason: 边际收益判断（复用 v0.2.2）
+        should_continue, reason = self.controller.should_continue(self.current_node)
+
+        # 4. 更新 KG + 决定下一步
+        if should_continue:
+            # 深入：将子节点加入 frontier
+            self._expand_frontier(self.current_node, findings)
+            self.consecutive_low_gain = 0
+        else:
+            # 跳转
+            self.kg.mark_fully_explored(self.current_node)
+            self.consecutive_low_gain += 1
+
+            if self.consecutive_low_gain >= MAX_CONSECUTIVE_LOW:
+                # 强制跳转：选 KG 中度最高且未充分探索的节点
+                forced = self.kg.get_high_degree_unexplored()
+                if forced:
+                    print(f"[Spider] Force jump to {forced} (consecutive_low_gain={MAX_CONSECUTIVE_LOW})")
+                    self.current_node = forced
+                else:
+                    self.current_node = None
+                self.consecutive_low_gain = 0
+            else:
+                self._pick_next_node()
+
+        # 5. reflect: 惊异检测 + discoveries 写入
+        self._reflect(self.current_node, findings)
+
+        # 6. 记录并 checkpoint
+        self.step_count += 1
+        self.visited.add(self.current_node)
+        self.checkpoint.save({
+            "current_node": self.current_node,
+            "frontier": self.frontier,
+            "visited": list(self.visited),
+            "consecutive_low_gain": self.consecutive_low_gain,
+            "step_count": self.step_count,
+            "kg_path": self.kg.path,
+        })
+
+        self.previous_findings = findings
+
+    # ── 子方法 ─────────────────────────────────────────
+
+    def observe(self):
+        """感知 R1D3 新命题"""
+        propositions = self.watcher.scan_new_propositions()
+        for prop in propositions:
+            seed_topics = prop.get("seed_topics", [])
+            print(f"[Spider] Received proposition: {prop.get('proposition')}, seeds={seed_topics}")
+            for topic in seed_topics:
+                if self.kg.should_explore(topic, None)[0]:
+                    self.frontier.append(topic)
+                    self.kg.add_node(topic, None)
+
+    def _pick_next_node(self):
+        """从 frontier 取下一个节点"""
+        if self.frontier:
+            self.current_node = self.frontier.pop(0)
+        elif not self.kg.is_empty():
+            # frontier 为空，从 KG 选度最高的
+            self.current_node = self.kg.get_high_degree_unexplored()
+
+    async def _expand_frontier(self, node: str, findings: dict):
+        """从探索结果中提取子节点，加入 frontier"""
+        try:
+            subtopics = await self.decomposer.decompose(node)
+            for st in subtopics[:5]:  # 最多 5 个
+                topic_name = st.get("topic", "") or st.get("name", "")
+                if not topic_name:
+                    continue
+                should_exp, reason = self.kg.should_explore(topic_name, node)
+                if should_exp:
+                    self.kg.add_node(topic_name, node)
+                    self.frontier.append(topic_name)
+                else:
+                    # 已存在节点，只建立关联
+                    self.kg.add_relation(node, topic_name)
+        except Exception as e:
+            print(f"[Spider] Failed to expand frontier: {e}")
+
+    def _reflect(self, node: str, findings: dict):
+        """惊异检测 + discoveries 写入"""
+        if not node:
+            return
+        assumptions = self.detector.generate_assumptions(node)
+        surprise = self.detector.check_surprise(findings, assumptions)
+
+        monitor = MetaCognitiveMonitor()
+        quality = monitor.assess_exploration_quality(node, findings)
+
+        self._write_discoveries(node, findings, surprise, quality)
+
+    def _write_discoveries(self, topic: str, findings: dict, surprise: dict, quality: float):
+        """写入 discoveries 文件"""
+        summary = findings.get("summary", str(findings)[:500])
+        os.makedirs(DISCOVERIES_DIR, exist_ok=True)
+        import time
+        filename = f"{int(time.time())}_{slugify(topic)}.json"
+        filepath = os.path.join(DISCOVERIES_DIR, filename)
+
+        data = {
+            "topic": topic,
+            "findings_summary": summary,
+            "is_surprise": surprise.get("is_surprise", False),
+            "surprise_level": surprise.get("surprise_level", 0.0),
+            "quality_score": quality,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S")
+        }
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def slugify(text: str) -> str:
+    import re
+    text = text.lower().strip()
+    text = re.sub(r'[^\w\s-]', '', text)
+    text = re.sub(r'[-\s]+', '-', text)
+    return text[:50]
+
+
+if __name__ == "__main__":
+    # 可选：从命令行接收初始命题
+    if len(sys.argv) > 1:
+        proposition_text = sys.argv[1]
+        # 写入命题文件
+        import time, json, os
+        prop_dir = "shared_knowledge/r1d3/propositions"
+        os.makedirs(prop_dir, exist_ok=True)
+        fname = f"{int(time.time())}_cli.json"
+        with open(os.path.join(prop_dir, fname), "w") as f:
+            json.dump({"proposition": proposition_text, "seed_topics": [proposition_text]}, f)
+    engine = SpiderEngine()
+    engine.run_loop()
+```
+
+### 7.5 复用已有模块
+
+| 模块 | 复用方式 | 注意事项 |
+|------|---------|---------|
+| `core.explorer.Explorer` | `explorer.explore({"topic":..., "score":..., "depth":...})` | 传 dict 不是 (topic, depth) |
+| `core.meta_cognitive_controller.MetaCognitiveController` | `controller.should_continue(topic)` | 只传 topic，内部查 monitor |
+| `core.meta_cognitive_monitor.MetaCognitiveMonitor` | `monitor.assess_exploration_quality(topic, findings)` | 用于写 discoveries 时获取质量分 |
+| `core.curiosity_decomposer.CuriosityDecomposer` | `await decomposer.decompose(topic)` | async 方法 |
+
+### 7.6 主流程集成点
+
+```
+spider_engine.py 是独立进程，不在 curious_agent.py 的 loop 内。
+启动方式：
+    python3 spider_engine.py --proposition "我对 Agent 架构感兴趣"
+
+或从 curious_agent.py 启动（可选）：
+    subprocess.Popen(["python3", "spider_engine.py"])
+```
+
+### 7.7 测试方式
+
+```python
+import pytest, asyncio, tempfile, os
+from spider_engine import SpiderEngine, slugify
+
+@pytest.fixture
+def engine(tmp_path):
+    # 使用临时路径避免污染
+    os.environ["KG_GRAPH_PATH"] = str(tmp_path / "kg.json")
+    eng = SpiderEngine()
+    eng.kg = KGGraph(str(tmp_path / "kg.json"))
+    eng.checkpoint = Checkpoint(str(tmp_path / "ckpt.json"))
+    return eng
+
+def test_pick_next_node_from_frontier(engine):
+    engine.frontier = ["a", "b", "c"]
+    engine.current_node = None
+    engine._pick_next_node()
+    assert engine.current_node == "a"
+    assert engine.frontier == ["b", "c"]
+
+def test_force_jump_triggers_at_max_consecutive_low(engine):
+    engine.current_node = "node_a"
+    engine.consecutive_low_gain = MAX_CONSECUTIVE_LOW - 1
+    engine.frontier = []
+    engine.kg.add_node("high_degree_node", None)
+    # 让 node_a 成为充分探索
+    engine.kg.add_node("node_a", None)
+    engine.kg.mark_fully_explored("node_a")
+
+    # 下一次 run_once 会触发强制跳转
+    # （实际上 should_continue 返回 False 才会进入跳转逻辑）
+    # 这里测试的是状态转换
+    engine.consecutive_low_gain = MAX_CONSECUTIVE_LOW
+    engine.current_node = None  # 模拟跳转后清空
+    engine._pick_next_node()
+    assert engine.current_node == "high_degree_node"
+
+def test_slugify():
+    assert slugify("Attention Mechanism") == "attention-mechanism"
+    assert slugify("Longformer (2020)") == "longformer-2020"
+    assert len(slugify("x" * 100)) == 50
+```
+
+### 7.8 验收标准
+
+| 编号 | 标准 | 验证方式 |
+|------|------|---------|
+| V1.1 | `run_loop()` 启动后持续运行，不中断 | 后台启动，观察 10 分钟 |
+| V1.2 | `should_continue` 返回 False 时跳转 | mock controller.should_continue，观察日志 |
+| V1.3 | 连续 3 次低收益时强制跳转到 `get_high_degree_unexplored()` | mock `should_continue` 持续返回 False |
+| V1.4 | frontier 为空时从 KG 选择节点 | 清空 frontier，观察 current_node |
+| V1.5 | `explorer.explore()` 传 dict 参数 | 检查源码调用方式 |
+| V1.6 | `decomposer.decompose()` 使用 await | 检查源码调用方式 |
+
+---
+
+## 八、F3: 边际收益驱动（P0，集成在 F1 中）
+
+### 8.1 需求描述
+
+基于边际收益决定继续深入还是跳转。
+
+### 8.2 设计目的
+
+实现内在动机驱动，让蜘蛛自主判断探索方向。
+
+### 8.3 实际 API（与文档旧版不同）
+
+**重要纠正**：很多人以为 `should_continue` 需要外部传入 findings 来比较。
+实际上 v0.2.2 的实现是**内部计算**：
+
+```python
+# MetaCognitiveController.should_continue(topic) 内部：
+def should_continue(self, topic: str) -> tuple[bool, str]:
+    returns = self.monitor.get_marginal_returns(topic)  # 历史列表
+    # ↓ 这里不需要外部传 findings
+    if not returns:
+        return True, "First exploration, continue"
+    last_return = returns[-1]
+    if last_return < self.thresholds["min_marginal_return"]:  # 0.3
+        return False, f"Marginal return ({last_return:.2f}) below threshold"
+    return True, f"Marginal return healthy ({last_return:.2f})"
+```
+
+`monitor.get_marginal_returns(topic)` 返回历史 marginal return 列表。
+Explorer 探索完成后，monitor 会自动更新这个列表（由 v0.2.2 框架管理）。
+
+### 8.4 复用已有模块
+
+| 模块 | 复用方式 |
+|------|---------|
+| `MetaCognitiveController.should_continue(topic)` | 直接调用，返回 `(bool, str)` |
+| `MetaCognitiveMonitor.get_marginal_returns(topic)` | 用于日志/调试输出 |
+
+### 8.5 主流程集成点
+
+```python
+# spider_engine.py run_once() 中：
+should_continue, reason = self.controller.should_continue(self.current_node)
+print(f"[Spider] should_continue={should_continue}, reason={reason}")
+```
+
+### 8.6 测试方式
+
+```python
+def test_should_continue_calls_internal_monitor():
+    """验证 should_continue 不需要外部传 findings"""
+    from core.meta_cognitive_controller import MetaCognitiveController
+    from core.meta_cognitive_monitor import MetaCognitiveMonitor
+
+    monitor = MetaCognitiveMonitor()
+    controller = MetaCognitiveController(monitor)
+
+    # 第一次调用（无历史）→ True
+    ok, reason = controller.should_continue("test_topic")
+    assert ok == True
+
+    # 模拟低收益：直接操作 monitor 的边际收益
+    # （实际由 explorer.explore() 后自动更新，这里测试接口契约）
+    # 只要 marginal_return < 0.3 就返回 False
+```
+
+### 8.7 验收标准
+
+| 编号 | 标准 | 验证方式 |
+|------|------|---------|
+| V3.1 | `should_continue(topic)` 返回 `tuple[bool, str]` | 单元测试 |
+| V3.2 | 无历史数据时返回 `(True, ...)` | 单元测试 |
+| V3.3 | marginal_return < 0.3 时返回 `(False, ...)` | mock monitor |
+
+### 8.8 已知限制
+
+- 边际收益阈值 0.3 是固定值（来自 DEFAULT_THRESHOLDS），Spider 不修改
+- 阈值的动态调整是未来优化方向（v0.2.x 之外的课题）
+
+---
+
+## 九、F5: R1D3 命题感知（P1，并行开发）
+
+### 9.1 需求描述
+
+感知 R1D3 写入的命题文件，初始化蜘蛛 frontier。
+
+### 9.2 设计目的
+
+让 R1D3 能通过文件系统触发蜘蛛探索，实现"R1D3 命题 → CA 执行"的单向驱动。
+
+### 9.3 实现逻辑（core/r1d3_watcher.py）
+
+```python
+import json
+import os
+from typing import Optional
+
+class R1D3Watcher:
+    """
+    感知 shared_knowledge/r1d3/propositions/ 下的新命题文件。
+    命题文件格式：
+        shared_knowledge/r1d3/propositions/{timestamp}_{slug}.json
+    """
+
+    PROPOSITIONS_DIR = "shared_knowledge/r1d3/propositions"
+
+    def __init__(self, propositions_dir: str = None):
+        self.propositions_dir = propositions_dir or self.PROPOSITIONS_DIR
+        self._processed: set[str] = set()  # 已处理过的文件名
+
+    def scan_new_propositions(self) -> list[dict]:
+        """
+        扫描新命题文件。
+        返回新增命题列表（每次调用只返回一次）。
+        """
+        if not os.path.exists(self.propositions_dir):
+            return []
+
+        propositions = []
+        for filename in sorted(os.listdir(self.propositions_dir)):
+            if not filename.endswith(".json"):
+                continue
+            if filename in self._processed:
+                continue
+
+            filepath = os.path.join(self.propositions_dir, filename)
+            try:
+                with open(filepath, encoding="utf-8") as f:
+                    prop = json.load(f)
+                    propositions.append(prop)
+                    self._processed.add(filename)
+            except Exception as e:
+                print(f"[R1D3Watcher] Failed to read {filename}: {e}")
+        return propositions
+
+    def get_seed_topics(self, proposition: dict) -> list[str]:
+        """
+        从命题中提取 seed_topics。
+        如果没有 seed_topics 字段，
+        则用 LLM 从 proposition 文本中提取关键词。
+        """
+        topics = proposition.get("seed_topics", [])
+        if topics:
+            return topics
+
+        # TODO: 如果没有 seed_topics，调用 LLM 提取
+        # 目前先返回空列表
+        return []
+```
+
+### 9.4 复用已有模块
+
+无。
+
+### 9.5 主流程集成点
+
+```python
+# spider_engine.py 的 observe() 方法：
+def observe(self):
+    propositions = self.watcher.scan_new_propositions()
+    for prop in propositions:
+        seed_topics = self.watcher.get_seed_topics(prop)
+        for topic in seed_topics:
+            self.frontier.append(topic)
+```
+
+### 9.6 测试方式
+
+```python
+import pytest, tempfile, os, json
+from core.r1d3_watcher import R1D3Watcher
+
+@pytest.fixture
+def watcher(tmp_path):
+    prop_dir = tmp_path / "propositions"
+    prop_dir.mkdir()
+    return R1D3Watcher(str(prop_dir))
+
+def test_scans_new_proposition(watcher, tmp_path):
+    prop_file = tmp_path / "propositions" / "123456_test.json"
+    prop_file.write_text(json.dumps({
+        "proposition": "我对 Agent 架构感兴趣",
+        "seed_topics": ["agent", "autonomous"]
+    }))
+
+    props = watcher.scan_new_propositions()
+    assert len(props) == 1
+    assert props[0]["seed_topics"] == ["agent", "autonomous"]
+
+def test_no_duplicate_scan(watcher, tmp_path):
+    prop_file = tmp_path / "propositions" / "test.json"
+    prop_file.write_text(json.dumps({"seed_topics": ["x"]}))
+
+    first = watcher.scan_new_propositions()
+    second = watcher.scan_new_propositions()
+    assert len(first) == 1
+    assert len(second) == 0  # 不重复返回
+
+def test_ignores_non_json(watcher, tmp_path):
+    txt_file = tmp_path / "propositions" / "readme.txt"
+    txt_file.write_text("not json")
+    assert watcher.scan_new_propositions() == []
+```
+
+### 9.7 验收标准
+
+| 编号 | 标准 | 验证方式 |
+|------|------|---------|
+| V5.1 | R1D3 写入命题后能被检测到 | 手动写入文件，调用 scan_new_propositions |
+| V5.2 | `get_seed_topics` 正确提取 | 单元测试 |
+| V5.3 | 同一命题不会重复返回 | 单元测试 `test_no_duplicate_scan` |
+| V5.4 | 非 .json 文件被忽略 | 单元测试 `test_ignores_non_json` |
+
+### 9.8 已知限制
+
+- 如果命题文件没有 `seed_topics` 字段，目前返回空列表（未来用 LCM 提取）
+- 不处理命题的删除（processed 集合只增不减，重启后清空）
+
+---
+
+## 十、F4: 惊异检测（P1，依赖 F1）
+
+### 10.1 需求描述
+
+探索前生成假设，探索后检测"意外发现"。
+
+### 10.2 设计目的
+
+让蜘蛛能感知"预期之外"（surprise），这是内在动机的增强。
+
+### 10.3 实现逻辑（core/surprise_detector.py）
+
+```python
+import json
+from core.llm_manager import LLMManager
+
+class SurpriseDetector:
+    """
+    惊异检测：
+    探索前生成假设，探索后与 findings 对比。
+    """
+
+    def __init__(self):
+        self.llm = LLMManager()
+
+    def generate_assumptions(self, topic: str) -> list[str]:
+        """
+        探索前：生成 3 条假设。
+        返回格式：["我以为：...", "我以为：...", "我以为：..."]
+        """
+        prompt = f"""关于「{topic}」，请列出 3 条你认为最可能正确的假设。
+每行一条，格式必须为：我以为：{具体内容}
+不要有其他格式，不要编号。"""
+        try:
+            response = self.llm.chat(prompt, task_type="insights")
+            lines = [l.strip() for l in response.split("\n") if l.strip()]
+            # 过滤掉明显不是假设的行
+            assumptions = [l for l in lines if "我以为：" in l]
+            return assumptions[:3]
+        except Exception as e:
+            print(f"[SurpriseDetector] Failed to generate assumptions: {e}")
+            return []
+
+    def check_surprise(self, findings: dict, assumptions: list[str]) -> dict:
+        """
+        探索后：对比 findings 和假设，判断是否有惊异。
+        返回：{"is_surprise": bool, "surprise_level": float}
+        """
+        if not assumptions:
+            return {"is_surprise": False, "surprise_level": 0.0}
+
+        findings_text = findings.get("summary", str(findings)[:1000])
+        assumptions_text = "\n".join(assumptions)
+
+        prompt = f"""给定探索结论：
+{findings_text}
+
+检验以下假设是否被推翻或出乎意料：
+{assumptions_text}
+
+请仔细判断：
+- 如果结论完全符合假设 → is_surprise=false, surprise_level=0.0
+- 如果结论部分出乎意料 → is_surprise=true, surprise_level=0.3~0.6
+- 如果结论完全出乎意料/颠覆认知 → is_surprise=true, surprise_level=0.7~1.0
+
+输出 JSON（不要有其他内容）：
+{{"is_surprise": true/false, "surprise_level": 0.0~1.0}}"""
+
+        try:
+            response = self.llm.chat(prompt, task_type="insights")
+            # 尝试从响应中提取 JSON
+            import re
+            match = re.search(r'\{.*\}', response, re.DOTALL)
+            if match:
+                return json.loads(match.group())
+        except Exception as e:
+            print(f"[SurpriseDetector] Failed to check surprise: {e}")
+
+        return {"is_surprise": False, "surprise_level": 0.0}
+```
+
+### 10.4 复用已有模块
+
+| 模块 | 复用方式 |
+|------|---------|
+| `core.llm_manager.LLMManager` | `llm.chat(prompt, task_type="insights")` |
+
+### 10.5 主流程集成点
+
+```python
+# spider_engine.py 的 _reflect() 方法中：
+def _reflect(self, node: str, findings: dict):
+    assumptions = self.detector.generate_assumptions(node)
+    surprise = self.detector.check_surprise(findings, assumptions)
+    self._write_discoveries(node, findings, surprise, quality)
+```
+
+### 10.6 测试方式
+
+```python
+import pytest
+from core.surprise_detector import SurpriseDetector
+
+def test_generate_assumptions_format(monkeypatch):
+    detector = SurpriseDetector()
+
+    def mock_chat(prompt, task_type):
+        return "我以为：attention 是 O(n²)\n我以为：transformer 很高效\n我以为：需要大量数据"
+
+    monkeypatch.setattr(detector.llm, "chat", mock_chat)
+    assumptions = detector.generate_assumptions("attention")
+    assert len(assumptions) == 3
+    assert all("我以为：" in a for a in assumptions)
+
+def test_check_surprise_returns_json(monkeypatch):
+    detector = SurpriseDetector()
+
+    def mock_chat(prompt, task_type):
+        return '{"is_surprise": true, "surprise_level": 0.8}'
+
+    monkeypatch.setattr(detector.llm, "chat", mock_chat)
+    result = detector.check_surprise({"summary": "xxx"}, ["我以为：x"])
+    assert result["is_surprise"] == True
+    assert result["surprise_level"] == 0.8
+```
+
+### 10.7 验收标准
+
+| 编号 | 标准 | 验证方式 |
+|------|------|---------|
+| V4.1 | 每个 topic 生成 3 条假设 | mock LLM，检查返回数量 |
+| V4.2 | findings 与假设不符时 is_surprise=True | mock LLM 返回 `{"is_surprise": true, ...}` |
+| V4.3 | surprise_level 在 0.0~1.0 范围 | 边界测试 |
+| V4.4 | LLM 异常时优雅降级返回默认值 | monkeypatch 抛异常，验证返回值 |
+
+### 10.8 已知限制
+
+- 依赖 LLM 生成假设和判断惊异，有 token 消耗
+- 假设质量取决于 LLM 对 topic 的预训练知识
+- surprise_level 是 LLM 主观判断，不是精确指标
+
+---
+
+## 十一、F7: discoveries 写入（P1，依赖 F1）
+
+### 11.1 需求描述
+
+每次探索完成后写入 discoveries/ 目录，供 R1D3 感知。
+
+### 11.2 设计目的
+
+建立 CA → R1D3 的信息通道（R1D3 心跳时扫描此目录）。
+
+### 11.3 实现逻辑
+
+已集成在 `spider_engine.py` 的 `_write_discoveries()` 方法中（见 F1 章节）。
+如需独立测试：
+
+```python
+def write_discoveries(topic: str, findings: dict, surprise: dict, quality: float):
+    os.makedirs(DISCOVERIES_DIR, exist_ok=True)
+    import time, re
+    filename = f"{int(time.time())}_{slugify(topic)}.json"
+    filepath = os.path.join(DISCOVERIES_DIR, filename)
+
+    data = {
+        "topic": topic,
+        "findings_summary": findings.get("summary", str(findings)[:500]),
+        "is_surprise": surprise.get("is_surprise", False),
+        "surprise_level": surprise.get("surprise_level", 0.0),
+        "quality_score": quality,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S")
+    }
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return filepath
+```
+
+### 11.4 复用已有模块
+
+无。
+
+### 11.5 主流程集成点
+
+```
+SpiderEngine._reflect() 末尾调用 self._write_discoveries(...)
+```
+
+### 11.6 测试方式
+
+```python
+import pytest, tempfile, os, json
+from spider_engine import slugify
+
+def test_write_discovers_creates_file(tmp_path):
+    disc_dir = tmp_path / "discoveries"
+    disc_dir.mkdir()
+
+    topic = "test_topic"
+    findings = {"summary": "测试发现内容"}
+    surprise = {"is_surprise": True, "surprise_level": 0.8}
+    quality = 7.5
+
+    import time
+    filename = f"{int(time.time())}_{slugify(topic)}.json"
+    filepath = disc_dir / filename
+    with open(filepath, "w") as f:
+        json.dump({
+            "topic": topic,
+            "findings_summary": findings["summary"],
+            "is_surprise": surprise["is_surprise"],
+            "surprise_level": surprise["surprise_level"],
+            "quality_score": quality,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S")
+        }, f)
+
+    files = list(disc_dir.glob("*.json"))
+    assert len(files) == 1
+    data = json.loads(files[0].read_text())
+    assert data["is_surprise"] == True
+    assert data["quality_score"] == 7.5
+```
+
+### 11.7 验收标准
+
+| 编号 | 标准 | 验证方式 |
+|------|------|---------|
+| V7.1 | 每次探索完成写入 discoveries/ | 检查文件数量变化 |
+| V7.2 | 文件包含 `is_surprise`, `quality_score`, `timestamp` | 检查文件内容 |
+| V7.3 | R1D3 心跳能感知新文件（v0.2.5 验证） | 后续集成测试 |
+
+### 11.8 已知限制
+
+- 文件名用时间戳，同一秒内多次探索会覆盖（实际概率极低）
+- discoveries 文件只追加不删除，长期运行会积累（未来加清理策略）
+
+---
+
+## 十二、F8: KG 图谱共享（P1，基础设施）
+
+### 12.1 需求描述
+
+KG 图谱作为 R1D3 和 CA 的共享知识源。
+
+### 12.2 设计目的
+
+为 v0.2.5 的 KG Search Skill 奠定基础。
+
+### 12.3 实现逻辑
+
+KG 图谱存储在 `shared_knowledge/ca/kg/kg_graph.json`。
+格式见 F2 章节的"节点数据结构"。
+
+### 12.4 主流程集成点
+
+```
+SpiderEngine.run_once() 末尾：
+    self.kg.save()  # 每次探索后自动保存
+
+R1D3 心跳（v0.2.5 KG Search Skill）：
+    KGGraph("shared_knowledge/ca/kg/kg_graph.json").load()
+    # 然后做多跳推理查询
+```
+
+### 12.5 验收标准
+
+| 编号 | 标准 | 验证方式 |
+|------|------|---------|
+| V8.1 | kg_graph.json 格式符合 F2 数据结构 | cat 验证 |
+| V8.2 | R1D3 进程可读取 kg_graph.json | `open().read()` 不报错 |
+| V8.3 | v0.2.5 KG Search Skill 可查询（后续验证） | v0.2.5 里程碑 |
+
+### 12.6 已知限制
+
+- KG 图谱无访问控制，任何能读 shared_knowledge 的进程都可修改
+- v0.2.5 需要考虑读写锁或版本管理
+
+---
+
+## 十三、接口协议汇总
+
+### 13.1 R1D3 → CA：命题
+
+**路径**：`shared_knowledge/r1d3/propositions/{timestamp}_{slug}.json`
 
 ```json
 {
-  "id": "ins_20260325_001",
-  "topic": "agent",
-  "sub_topic": "memory",
-  "hypothesis": "Agent 的短期记忆容量受限于 context window，但可以通过优先级过滤实现'有效记忆压缩'",
-  "type": "causal",
-  "reasoning": "从 memory 相关片段中发现：(1) context window 有固定上限；(2) 多个框架提到 importance scoring；(3) 优先级过滤在多个方案中反复出现。推断：受限窗口下，优先级过滤是实现有效记忆的核心手段。",
-  "confidence": 0.78,
-  "supporting_snippets": [
-    "GPT-4 Turbo: 128k context window (OpenAI)",
-    "Importance-weighted memory retrieval (Reflexion paper)",
-    "Priority-based context compression (HiporedReader)"
-  ],
-  "level": "proficient",
-  "generated_by": "InsightSynthesizer",
-  "timestamp": "2026-03-25T07:00:00Z"
+  "proposition": "我对 Agent 架构感兴趣",
+  "seed_topics": ["agent", "autonomous agent"],
+  "depth_preference": "deep",
+  "timestamp": "2026-03-25T18:00:00"
 }
 ```
 
-### 14.5 与 R1D3 回答流程的整合
+### 13.2 CA → R1D3：discoveries
 
-```
-R1D3 收到用户提问
-    ↓
-memory_search(topic) → 查 KG
-    ↓
-如果 KG 有 Insight → 直接用（level=expert，详细展开）
-    ↓
-如果 KG 没有但有探索碎片 → 
-    ↓
-    用 InsightSynthesizer 实时合成（Layer 3）← 新增能力
-    ↓
-基于合成结果回答，置信度 = Insight.confidence
-    ↓
-必然触发 curious_agent_inject(topic) 补充探索
+**路径**：`shared_knowledge/ca/discoveries/{timestamp}_{topic}.json`
+
+```json
+{
+  "topic": "attention mechanism",
+  "findings_summary": "Longformer 使用滑动窗口...",
+  "is_surprise": true,
+  "surprise_level": 0.85,
+  "quality_score": 8.2,
+  "timestamp": "2026-03-25T18:05:00"
+}
 ```
 
-### 14.6 与现有模块的关系
+### 13.3 KG 图谱
 
-| 模块 | 复用/新建 | 关系 |
-|------|---------|------|
-| CuriosityDecomposer | 复用 | Layer 1，提供 sub-topic 树 |
-| Multi-Provider Search | 复用 | Layer 2，提供原始搜索结果 |
-| **InsightSynthesizer** | **新建** | **Layer 3，核心新增能力** |
-| CompetenceTracker | 复用 | 置信度校准 |
-| QualityAssessor | 复用 | 探索结果质量评估 |
+**路径**：`shared_knowledge/ca/kg/kg_graph.json`
 
-### 14.7 实现任务
+```json
+{
+  "nodes": {
+    "attention mechanism": {
+      "parents": ["transformer"],
+      "children": ["self-attention"],
+      "explored": true,
+      "fully_explored": false,
+      "explored_at": "2026-03-25T18:00:00",
+      "explored_by": ["transformer"],
+      "findings_summary": "..."
+    }
+  },
+  "edges": [
+    {"from": "transformer", "to": "attention mechanism", "relation": "uses"}
+  ]
+}
+```
 
-| 优先级 | 任务 | 说明 |
-|-------|------|------|
-| P0 | InsightSynthesizer 类 | 核心合成逻辑 |
-| P0 | cross_topic_patterns() | 跨维度模式识别 |
-| P0 | generate_hypotheses() | 原创假设生成 |
-| P1 | compute_confidence() | 假设置信度评分 |
-| P1 | R1D3 实时合成调用 | memory_search 失败时触发 Layer 3 |
-| P2 | 合成结果缓存 | 避免重复合成，KG 持久化 |
-| P2 | 合成质量评估 | 人工标注 + 自动评估 |
+### 13.4 checkpoint
+
+**路径**：`state/spider_checkpoint.json`
+
+```json
+{
+  "last_loop_time": "2026-03-25T18:00:00",
+  "current_node": "attention mechanism",
+  "frontier": ["self-attention", "multi-head"],
+  "visited": ["transformer", "attention mechanism"],
+  "consecutive_low_gain": 0,
+  "step_count": 42,
+  "kg_path": "shared_knowledge/ca/kg/kg_graph.json"
+}
+```
+
+---
+
+## 十四、运行手册
+
+### 14.1 启动
+
+```bash
+# 方式1：从命令行传入初始命题
+python3 spider_engine.py --proposition "我对 Agent 架构感兴趣"
+
+# 方式2：后台运行
+nohup python3 spider_engine.py > logs/spider.log 2>&1 &
+
+# 方式3：从 curious_agent.py 调用（可选）
+subprocess.Popen(["python3", "spider_engine.py"])
+```
+
+### 14.2 停止
+
+```bash
+kill -TERM $(pgrep -f "spider_engine.py")
+```
+
+### 14.3 查看状态
+
+```bash
+# KG 图谱
+cat shared_knowledge/ca/kg/kg_graph.json | python3 -m json.tool
+
+# checkpoint
+cat state/spider_checkpoint.json
+
+# discoveries
+ls -lt shared_knowledge/ca/discoveries/ | head -10
+```
+
+### 14.4 配置
+
+| 常量 | 默认值 | 说明 |
+|------|--------|------|
+| `LOOP_INTERVAL` | 30 秒 | 主循环间隔 |
+| `MIN_MARGINAL_RETURN` | 0.3 | 边际收益阈值（复用 v0.2.2） |
+| `MAX_CONSECUTIVE_LOW` | 3 | 连续低收益次数上限 |
+| `DEFAULT_DEPTH` | 2 | 探索深度（medium） |
+
+---
+
+## 十五、验收标准总览
+
+| 验收项 | 对应特性 | 标准 |
+|--------|---------|------|
+| V2.1~V2.5 | F2 KG 图 | 多父节点、去重、持久化 |
+| V6.1~V6.4 | F6 Checkpoint | kill 恢复、格式正确 |
+| V1.1~V1.6 | F1 Spider | 持续运行、跳转、force jump |
+| V3.1~V3.3 | F3 边际收益 | should_continue 接口契约 |
+| V5.1~V5.4 | F5 Watcher | 命题扫描、去重 |
+| V4.1~V4.4 | F4 Surprise | 假设生成、惊异判断 |
+| V7.1~V7.3 | F7 Discov. | discoveries 文件正确 |
+| V8.1~V8.3 | F8 共享 | kg_graph.json 可读 |
+
+---
+
+## 十六、已知限制汇总
+
+| 特性 | 限制 |
+|------|------|
+| F1 Spider | KG 所有节点已探索且 frontier 为空时等待新命题 |
+| F2 KG | 度相同时按字母顺序选择（不保证最优） |
+| F3 边际收益 | 阈值 0.3 固定，不动态调整 |
+| F4 Surprise | 依赖 LLM，token 消耗 |
+| F5 Watcher | 无 seed_topics 时返回空列表 |
+| F7 Discov. | 同秒多次探索可能覆盖文件 |
+| F8 共享 | 无访问控制，v0.2.5 需加读写锁 |
+
+---
+
+## 十七、下一步
+
+- **v0.2.4 实现**：完成 Spider Engine + KG Graph（本文）
+- **v0.2.5**：R1D3 KG Search Skill，支持多跳推理查询 kg_graph.json
+
+---
+
+_文档版本: v0.2.4_
+_创建时间: 2026-03-25_
+_最后更新: 2026-03-25 19:00_
