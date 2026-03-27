@@ -242,10 +242,12 @@ curl -s "http://localhost:4848/api/kg/roots" | python3 -c "import json,sys; d=js
 
 ## 修复顺序
 
-1. **Bug #7（P0）** — 在 `curious_agent.py` 第 155 行附近，`update_curiosity_status(topic, "exploring")` 之后立即调用 `_update_parent_relation(parent, topic)`（仅当 `original_topic` 存在时）
-2. **Bug #6（P1）** — 兼容 `children = None` 的情况
-3. **Bug #4（P1）** — 异步路径确认是否需要 parent 写入
-4. **Bug #1-5** — 已修复或随 Bug #7 自动解决
+1. **Bug #7（P0）** — decomposition 分支写入父子关系 ✅ 已修复
+2. **Bug #8（P1）** — `_update_parent_relation` 初始化完整 topic 结构
+3. **Bug #9（P1）** — 迁移脚本处理 `children=None`
+4. **Bug #10（P0）** — 所有真实 topic 零连线（系统性问题，需重新探索产生 KG 连线）
+5. **Bug #11（P1）** — 根技术池无浮现（依赖 Bug #10 解决）
+6. **Bug #4（P1）** — 异步路径确认是否需要 parent 写入
 
 ---
 
@@ -493,4 +495,82 @@ incomplete = [n for n, t in topics.items() if t.get('known') is None]
 print(f'Incomplete topics: {incomplete}')
 # 期望：无输出（所有 topic 都有 known 字段）
 ```
+
+---
+
+## Bug #9: 迁移脚本遗漏了某些 topic（children=None）
+
+**严重程度**: P1
+**发现时间**: 2026-03-27 by R1D3
+**状态**: 未修复
+
+**问题**: `curiosity-driven reinforcement learning` 的 `children=None`（字符串），不是空列表 `[]`。
+
+**根因**: 迁移脚本 `scripts/migrate_kg_parents.py` 假设 `children` 要么不存在要么是列表，但这个 topic 的 `children` 字段被写成了 `None`（字符串）或被漏掉。
+
+**验证**：
+```bash
+python3 -c "
+from core.knowledge_graph import get_state
+s = get_state()
+topics = s['knowledge']['topics']
+children_none = [n for n, t in topics.items() if t.get('children') is None]
+print(f'children=None: {children_none}')
+"
+```
+
+**修复**: 在 `migrate_kg_parents.py` 中处理 `children=None` 的情况：
+```python
+if node.get("children") is None:
+    node["children"] = []
+```
+
+---
+
+## Bug #10: 所有真实 topic 之间零连线（系统性问题）
+
+**严重程度**: P0
+**发现时间**: 2026-03-27 by R1D3
+**状态**: 已知，是系统设计问题
+
+**问题**: KG 里有 15 个 topics，但只有 1 条边（测试数据的 parent_test→child_test）。所有真实 topic（metacognitive monitoring、self-reflection、ReAct 等）之间**完全没有连线**。
+
+**根因**: 这些 topic 都是在 decomposition 功能集成之前探索的，探索流程没有经过 `add_child()` 调用，所以没有父子关系写入 KG。
+
+**验证**：
+```bash
+curl -s http://localhost:4848/api/kg/overview | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+print(f'Nodes: {d["total"]}, Edges: {len(d["edges"])}')
+print(f'Edge types: {sum(1 for e in d["edges"] if e["type"]=="explains")} explains, {sum(1 for e in d["edges"] if e["type"]=="child_of")} child_of')
+"
+```
+
+**影响**: 扩散激活算法无法工作——从一个 topic 出发只有它自己，跨子图连接永远无法浮现。
+
+**修复方案**:
+1. 重新探索一批话题，让 decomposition 路径真正产生父子关系
+2. 或者：人工建立初始 KG 拓扑（例如从已知的 topic 关系手动写入）
+
+---
+
+## Bug #11: 根技术池没有从真实探索中浮现（系统性问题）
+
+**严重程度**: P1
+**发现时间**: 2026-03-27 by R1D3
+**状态**: 已知，是系统设计问题
+
+**问题**: `root_technology_pool` 里有 6 个根技术，全是 manual_seed（初始种子），没有一个是从真实探索中浮现的。
+
+**根因**: 根技术的浮现依赖 `cross_domain_count >= 3`，但当前 KG 几乎没有边（Bug #10），所以 `cross_domain_count` 永远无法累积。
+
+**验证**：
+```bash
+curl -s http://localhost:4848/api/kg/roots | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+for r in d['roots']:
+    print(f'{r["name"]}: score={r["root_score"]}, sources={r["sources"]}')"
+```
+
+**修复**: 先解决 Bug #10，重新探索产生 KG 连线后，根技术自然会在多 topic 引用时浮现。
 
