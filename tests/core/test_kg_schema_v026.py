@@ -601,3 +601,168 @@ class TestNodeLifecycleFunctions:
         assert "recent_dreamed_2" in recent
         assert "old_dreamed" not in recent
         assert "never_dreamed" not in recent
+
+
+class TestConnectionFunctions:
+    """Tests for v0.2.6 connection functions."""
+
+    def test_strengthen_connection_increases_weight(self, mock_state_file):
+        """Test that strengthen_connection increases connection weight."""
+        from core.knowledge_graph import add_knowledge, strengthen_connection, get_state
+        
+        # Add two topics
+        add_knowledge("topic_a", depth=5, summary="Topic A")
+        add_knowledge("topic_b", depth=5, summary="Topic B")
+        
+        # Strengthen connection
+        strengthen_connection("topic_a", "topic_b", delta=0.2)
+        
+        # Verify connection weight increased
+        state = get_state()
+        topics = state["knowledge"]["topics"]
+        
+        # Check both directions
+        assert "topic_b" in topics["topic_a"]["connections"]
+        assert topics["topic_a"]["connections"]["topic_b"]["weight"] == pytest.approx(0.2)
+        
+        assert "topic_a" in topics["topic_b"]["connections"]
+        assert topics["topic_b"]["connections"]["topic_a"]["weight"] == pytest.approx(0.2)
+    
+    def test_strengthen_connection_creates_nodes_if_missing(self, mock_state_file):
+        """Test that strengthen_connection creates nodes if they don't exist."""
+        from core.knowledge_graph import strengthen_connection, get_state
+        
+        # Strengthen connection between non-existent topics
+        strengthen_connection("new_topic_x", "new_topic_y", delta=0.15)
+        
+        # Verify both topics were created
+        state = get_state()
+        topics = state["knowledge"]["topics"]
+        
+        assert "new_topic_x" in topics
+        assert "new_topic_y" in topics
+        assert topics["new_topic_x"]["connections"]["new_topic_y"]["weight"] == pytest.approx(0.15)
+    
+    def test_strengthen_connection_caps_at_1_0(self, mock_state_file):
+        """Test that connection weight is capped at 1.0."""
+        from core.knowledge_graph import add_knowledge, strengthen_connection, get_state
+        
+        add_knowledge("topic_cap_a", depth=5, summary="A")
+        add_knowledge("topic_cap_b", depth=5, summary="B")
+        
+        # Strengthen multiple times to exceed 1.0
+        strengthen_connection("topic_cap_a", "topic_cap_b", delta=0.6)
+        strengthen_connection("topic_cap_a", "topic_cap_b", delta=0.6)
+        
+        state = get_state()
+        weight = state["knowledge"]["topics"]["topic_cap_a"]["connections"]["topic_cap_b"]["weight"]
+        
+        # Should be capped at 1.0
+        assert weight == pytest.approx(1.0)
+    
+    def test_get_directly_connected_returns_parents_and_children(self, mock_state_file):
+        """Test that get_directly_connected returns both parents and children."""
+        from core.knowledge_graph import add_child, get_directly_connected
+        
+        # Create parent-child relationships
+        add_child("parent_topic", "child_1")
+        add_child("parent_topic", "child_2")
+        add_child("grandparent", "parent_topic")
+        
+        # Get directly connected to parent_topic
+        connected = get_directly_connected("parent_topic")
+        
+        # Should include both children and parents
+        assert "child_1" in connected
+        assert "child_2" in connected
+        assert "grandparent" in connected
+    
+    def test_get_shortest_path_length_direct_connection(self, mock_state_file):
+        """Test get_shortest_path_length for directly connected nodes."""
+        from core.knowledge_graph import add_child, get_shortest_path_length
+        
+        add_child("path_a", "path_b")
+        
+        # Direct connection should return 1
+        length = get_shortest_path_length("path_a", "path_b")
+        assert length == 1
+        
+        # Reverse direction should also work
+        length = get_shortest_path_length("path_b", "path_a")
+        assert length == 1
+    
+    def test_get_shortest_path_length_multi_hop(self, mock_state_file):
+        """Test get_shortest_path_length for multi-hop paths."""
+        from core.knowledge_graph import add_child, get_shortest_path_length
+        
+        # Create a chain: a -> b -> c -> d
+        add_child("chain_a", "chain_b")
+        add_child("chain_b", "chain_c")
+        add_child("chain_c", "chain_d")
+        
+        # Path from a to d should be 3 hops
+        length = get_shortest_path_length("chain_a", "chain_d")
+        assert length == 3
+    
+    def test_get_shortest_path_length_no_path_returns_inf(self, mock_state_file):
+        """Test get_shortest_path_length returns inf when no path exists."""
+        from core.knowledge_graph import add_knowledge, get_shortest_path_length
+        import math
+        
+        # Add two disconnected topics
+        add_knowledge("isolated_a", depth=5, summary="Isolated A")
+        add_knowledge("isolated_b", depth=5, summary="Isolated B")
+        
+        # No path should return infinity
+        length = get_shortest_path_length("isolated_a", "isolated_b")
+        assert length == math.inf
+    
+    def test_get_all_nodes_includes_all_topics(self, mock_state_file):
+        """Test that get_all_nodes returns all topics."""
+        from core.knowledge_graph import add_knowledge, get_all_nodes
+        
+        add_knowledge("node_1", depth=5, summary="Node 1")
+        add_knowledge("node_2", depth=5, summary="Node 2")
+        add_knowledge("node_3", depth=5, summary="Node 3")
+        
+        nodes = get_all_nodes()
+        node_names = [name for name, _ in nodes]
+        
+        assert "node_1" in node_names
+        assert "node_2" in node_names
+        assert "node_3" in node_names
+        assert len(nodes) >= 3
+    
+    def test_get_all_nodes_active_only_excludes_dormant(self, mock_state_file):
+        """Test that get_all_nodes with active_only excludes dormant nodes."""
+        from core.knowledge_graph import add_knowledge, mark_dormant, get_all_nodes
+        
+        add_knowledge("active_node", depth=5, summary="Active")
+        add_knowledge("dormant_node", depth=5, summary="Dormant")
+        
+        mark_dormant("dormant_node")
+        
+        # Get all nodes
+        all_nodes = get_all_nodes(active_only=False)
+        all_names = [name for name, _ in all_nodes]
+        assert "dormant_node" in all_names
+        
+        # Get active only
+        active_nodes = get_all_nodes(active_only=True)
+        active_names = [name for name, _ in active_nodes]
+        assert "active_node" in active_names
+        assert "dormant_node" not in active_names
+    
+    def test_get_root_pool_names(self, mock_state_file):
+        """Test that get_root_pool_names returns names from root technology pool."""
+        from core.knowledge_graph import init_root_pool, get_root_pool_names
+        
+        # Initialize root pool with seeds
+        init_root_pool(["transformer attention", "gradient descent", "backpropagation"])
+        
+        # Get root pool names
+        names = get_root_pool_names()
+        
+        assert "transformer attention" in names
+        assert "gradient descent" in names
+        assert "backpropagation" in names
