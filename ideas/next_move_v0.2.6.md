@@ -185,17 +185,18 @@ class DreamAgent:
         all_nodes = self.kg.get_all_nodes()
         recently_processed = self.kg.get_recently_dreamed(within_days=7)
 
+        # build candidates as list of (name, node) tuples
         candidates = [
-            n for n in all_nodes
-            if n not in recently_processed
-            and n.get("status") != STATUS_DORMANT
+            (name, node) for name, node in all_nodes
+            if name not in recently_processed
+            and node.get("status") != STATUS_DORMANT
         ]
 
         # quality 低的优先（"快要遗忘"的值得做梦）
-        candidates.sort(key=lambda n: n.get("quality", 0))
+        candidates.sort(key=lambda item: item[1].get("quality", 0))
 
-        for node in candidates:
-            self.low_queue.put(node)
+        for name, _ in candidates:
+            self.low_queue.put(name)
 ```
 
 **触发条件**：低优先级队列为空时，自动触发 fill_low_priority_queue。
@@ -289,12 +290,18 @@ DreamAgent:  监听高优先级队列 + 低优先级轮流队列
 
 ### 4.2 降级标准（含权重）
 
+**核心原则**：pruning 只对 explains 连接检查权重，不对 parent/child 做权重判断。
+
+- parent/child 是结构性的，二元存在性（有无），不区分强弱
+- explains 是创意连接，有权重，可以被判定为"弱"
+
 ```
 节点同时满足以下条件 → 降级为 dormant：
-1. 所有连接的平均 weight < 0.3（弱连接）
-2. quality < 7.0
-3. 非 root_technology_pool 候选
-4. 非最近 7 天内有过 explains 新建连接的节点
+1. parents = [] 且 children = []（结构上真正孤立）
+2. explains 的平均 weight < 0.3（创意连接也弱）
+3. quality < 7.0
+4. 非 root_technology_pool 候选
+5. 非最近 7 天内有过 explains 新建连接的节点
 ```
 
 ### 4.3 运行逻辑
@@ -320,14 +327,29 @@ class SleepPruner:
             if node_name in pool_names:
                 continue
 
-            # 检查所有连接的权重
-            connections = self.kg.get_all_connections(node_name)
-            avg_weight = sum(c["weight"] for c in connections) / len(connections) if connections else 0.0
+            # 1. 检查结构性连接：parents + children
+            parents = self.kg.get_parents(node_name)
+            children = self.kg.get_children(node_name)
+            has_structural = (len(parents) > 0 or len(children) > 0)
 
-            # 最近 7 天有新连接，保留
+            if has_structural:
+                # 有结构性连接，不修剪
+                continue
+
+            # 2. 检查 explains 连接的权重
+            explains = self.kg.get_explains(node_name)
+            if not explains:
+                # 既无结构性连接，也无 explains → 真正孤立
+                avg_weight = 0.0
+            else:
+                weights = [e.get("weight", 0.0) for e in explains]
+                avg_weight = sum(weights) / len(weights)
+
+            # 3. 最近 7 天有新连接，保留
             if self.kg.has_recent_explains(node_name, within_days=7):
                 continue
 
+            # 4. 判断是否降级
             if avg_weight < 0.3 and node.get("quality", 0) < 7.0:
                 self.kg.mark_dormant(node_name)
                 count += 1
@@ -384,11 +406,45 @@ def get_all_connections(topic: str) -> list[dict]:
     - parents, children, explains 统一格式
     """
 
+def get_all_nodes(active_only: bool = False) -> list[tuple[str, dict]]:
+    """
+    返回 KG 中所有节点
+    active_only=True: 排除 dormant 节点
+    Returns: list of (node_name, node_data)
+    """
+
+def get_directly_connected(topic: str) -> set[str]:
+    """
+    返回与 topic 直接相连的所有节点（parents + children + explains）
+    用于 find_distant_pairs 时过滤已有连接的节点
+    """
+
+def get_shortest_path_length(topic_a: str, topic_b: str) -> int | float:
+    """
+    返回 topic_a 到 topic_b 的最短路径长度
+    如果不存在路径，返回 inf
+    """
+
+def get_parents(topic: str) -> list[dict]:
+    """返回 topic 的 parents 连接（无权重字段）"""
+
+def get_children(topic: str) -> list[dict]:
+    """返回 topic 的 children 连接（无权重字段）"""
+
+def get_explains(topic: str) -> list[dict]:
+    """返回 topic 的 explains 连接（含 weight 字段）"""
+
 def has_recent_explains(topic: str, within_days: int) -> bool:
     """检查节点最近 N 天是否有新的 explains 连接"""
 
 def get_root_pool_names() -> set[str]:
     """返回 root_technology_pool 中所有候选名称"""
+
+def get_recently_dreamed(within_days: int) -> set[str]:
+    """
+    返回最近 within_days 天内被 DreamAgent 处理过的节点名称
+    用于 fill_low_priority_queue 时排除近期已处理的节点
+    """
 ```
 
 ### 5.3 节点级锁实现
