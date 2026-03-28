@@ -1,618 +1,247 @@
 # SPEC v0.2.6 — 持续做梦 & 记忆巩固
 
 > **核心目标**: 让 CA 从"探索引擎"进化为"持续学习的数字生命体"
-> **架构原则**: 探索和做梦同时运行，共享同一张 KG，无全局锁，节点级协调
-> **更新**: 2026-03-28 16:36（并发架构 + 节点级锁 + 做梦公平性 + 权重修剪 + P0/P1 修复 + Claude Code 对比）
+> **架构原则**: 三个独立进程并发运行，共享同一张 KG，节点级协调，无全局锁
+> **更新**: 2026-03-28 17:03（按特性重组 + 实现顺序 + 进程边界修正）
+> **设计原则**: SpiderAgent 和 DreamAgent 是完全独立的进程，不合并；两者的 LLM 用途不同
 
 ---
 
-## 变更概览
+## 特性概览（Features）
 
-| 文件 | 操作 | 说明 |
-|------|------|------|
-| `core/spider_agent.py` | 新增 | 持续探索进程（重构自现有探索逻辑） |
-| `core/dream_agent.py` | 新增 | 持续做梦重组进程（含 consolidation + reorganization） |
-| `core/sleep_pruner.py` | 新增 | 突触修剪器（权重感知） |
-| `core/knowledge_graph.py` | 修改 | 新增 dormant 状态、dream_insights、last_consolidated、connection_weight、节点级锁、confidence 字段 |
-| `core/meta_cognitive_monitor.py` | 修改 | 扩展 MetaCognitiveMonitor（新增 5 个方法） |
-| `core/consolidation_engine.py` | 删除 | 合并入 dream_agent |
-| `core/reorganization_engine.py` | 删除 | 合并入 dream_agent |
-| `curious_agent.py` | 修改 | 启动四个并发进程 |
-| `curious_api.py` | 修改 | 新增控制 API |
-
-**核心变化**: 合并 consolidation + reorganization → dream_agent；定时调度 → 事件驱动并发；新增做梦公平性机制；新增权重感知修剪；新增元认知监控（知道自己不知道什么——扩展 MetaCognitiveMonitor，非新建模块）
-
----
-
-## 一、核心概念
-
-### 1.1 三层梦境体系
-
-| 层次 | 人类梦境 | CA 对应 | 特征 |
-|------|---------|---------|------|
-| **浅层** | 浅睡时的记忆激活 | SpiderAgent 探索 | 队列驱动，持续 |
-| **中层** | REM 睡眠的创意做梦 | DreamAgent 重组 | 双队列驱动，持续，公平 |
-| **深层** | 记忆巩固 & 突触修剪 | DreamAgent + SleepPruner | Hebbian 强化 + 权重感知修剪 |
-
-### 1.2 进程间协调原则
-
-**核心洞察**: 冲突只在两进程操作**同一节点**时发生。
-
-- SpiderAgent 写入: `children`, `quality`, `status`, `sources`, `explored_children`
-- DreamAgent 写入: `dream_insights`（新洞察节点）、`parents`（探索关系）
-- 两者写入**不同字段**，即使同一节点也语义独立
-
-**协调策略**: 节点级锁，非全局锁。
-
-**死锁预防**: 按节点名字排序锁顺序后再获取。
-
-### 1.3 做梦公平性
-
-**问题**: 当前设计只对"新探索的节点"触发关联重组，老节点永远没有做梦机会。
-
-**解决方案**: DreamAgent 使用双队列：
-
-```
-高优先级队列: SpiderAgent 通知的新节点（立即处理）
-低优先级队列: KG 中所有节点轮流加入（确保公平）
-
-→ 每个 KG 节点都有机会被做梦处理
-→ 不依赖新节点触发
-```
-
-### 1.4 记忆时效性
-
-**新增字段**: `last_consolidated` — 节点最近一次被巩固的时间戳
-
-- 未巩固的节点：可以参与强化（刚探索完）
-- 已巩固的节点：降低强化频率，避免重复巩固
-
-### 1.5 连接权重
-
-**新增字段**: `connection_weight` — 连接强度（0.0-1.0）
-
-- 新建的 dream_insight：初始 weight = 0.5
-- 被多次共现强化：weight 逐渐上升
-- SleepPruner 基于权重而非二元判断（有无连接）
+| 特性 | 名称 | 优先级 | 类型 |
+|------|------|--------|------|
+| F1 | 三进程架构 | P0 | 架构 |
+| F2 | KG Schema 扩展 | P0 | 数据 |
+| F3 | 节点级锁 | P0 | 基础设施 |
+| F4 | ExplorationHistory（线程安全） | P0 | 基础设施 |
+| F5 | SpiderAgent（独立探索进程） | P0 | 新模块 |
+| F6 | SleepPruner（定时修剪进程） | P0 | 新模块 |
+| F7 | 双队列 + 轮询指针 | P0 | 新模块 |
+| F8 | DreamAgent（独立做梦进程） | P0 | 新模块 |
+| F9 | 创意做梦引擎（生成式） | P0 | 功能 |
+| F10 | 洞察验证回路 | P1 | 功能 |
+| F11 | SharedInbox（Dream→Spider 通信） | P0 | 通信 |
+| F12 | MetaCognitiveMonitor 增强 | P1 | 功能 |
+| F13 | API 扩展 | P2 | 接口 |
+| F14 | R1D3 Skill 同步 | P2 | 集成 |
 
 ---
 
-## 二、SpiderAgent（持续探索进程）
+## 实现顺序（Implementation Order）
 
-### 2.1 职责
-
-- 持续从 curiosity_queue 选择 topic 执行探索
-- 探索结果写入 KG
-- 探索完成后，唤醒 DreamAgent（通过高优先级队列）
-
-### 2.2 运行逻辑
-
-```python
-class SpiderAgent:
-    def __init__(self, to_dreamer_queue):
-        self.to_dreamer_queue = to_dreamer_queue  # 高优先级队列
-
-    def run(self):
-        """主循环：选择 → 探索 → 写入 KG → 通知 DreamAgent"""
-        while True:
-            topic = self.engine.select_next()
-
-            if topic is None:
-                topic = self.engine.generate_new()
-
-            result = self.explorer.explore(topic)
-
-            # 写入 KG（带节点级锁）
-            self.kg_add_with_lock(topic, result)
-
-            # 通知 DreamAgent 处理新节点（高优先级）
-            self.to_dreamer_queue.put(("high", topic))
-
-            # consolidation：强化共现连接（无锁，纯数据写）
-            self.strengthen_co_occurring(topic)
-
-            yield_to_other_process()
 ```
+第一阶段：基础设施（必须先完成）
+├── F2: KG Schema 扩展         ← 数据结构先行
+├── F3: 节点级锁              ← 并发安全基础
+└── F4: ExplorationHistory 线程安全 ← 共享数据安全
 
-### 2.3 consolidation：强化共现连接
+第二阶段：核心进程（三个独立进程）
+├── F1: 三进程架构             ← 进程骨架
+├── F5: SpiderAgent            ← 探索进程
+├── F6: SleepPruner           ← 修剪进程
+└── F8: DreamAgent            ← 做梦进程
 
-> ⚠️ 注意：`ExplorationHistory` 内部已加锁，此处调用不需要额外加锁。
+第三阶段：进程间通信
+├── F7: 双队列 + 轮询指针      ← DreamAgent 的输入
+└── F11: SharedInbox         ← Dream→Spider 的单向通信
 
-```python
-def strengthen_co_occurring(self, topic: str):
-    """
-    基于 Hebbian 原则：一起激活过的连接应强化
+第四阶段：核心功能
+├── F9: 创意做梦引擎          ← DreamAgent 的核心逻辑
+└── F10: 洞察验证回路         ← DreamAgent 的验证机制
 
-    规则：
-    - 只强化 last_updated 在 24 小时内的连接
-    - 每次共现，weight += 0.1，上限 1.0
-    """
-    related = self.kg.get_related_nodes(topic)
+第五阶段：增强功能
+├── F12: MetaCognitiveMonitor 增强
+└── F13: API 扩展
 
-    for node in related:
-        # 检查 topic 和 node 是否在最近 24h 内共同出现
-        if self.exploration_history.co_occurred(topic, node, within_hours=24):
-            # 强化连接权重
-            self.kg.strengthen_connection(topic, node, delta=0.1)
-
-    # 更新 last_consolidated
-    self.kg.set_consolidated(topic)
+第六阶段：集成
+└── F14: R1D3 Skill 同步
 ```
 
 ---
 
-## 三、DreamAgent（持续做梦重组进程）
+## F1: 三进程架构
 
-### 3.1 职责
+### 1.1 架构原则
 
-- 持续监听高优先级队列（新节点）和低优先级队列（轮流节点）
-- 对每个节点，扫描远距离节点的关联
-- 强制 LLM 判断关联是否存在
-- 生成新洞察 → 写入 dream_insights（新知识节点）
+```
+三个独立进程并发运行，共享同一张 KG（knowledge/state.json）：
 
-### 3.2 双队列设计
+┌─────────────────────────────────────────────┐
+│           KG (shared file)                    │
+│     knowledge/state.json + dream_insights/     │
+└─────────────────────────────────────────────┘
+         ↑                   ↑                  ↑
+   节点级锁保护         节点级锁保护         节点级锁保护
+         ↑                   ↑                  ↑
+┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+│ SpiderAgent  │   │  DreamAgent  │   │ SleepPruner │
+│  (探索进程)  │   │  (做梦进程)   │   │  (修剪进程)   │
+│  独立进程 PID │   │  独立进程 PID │   │  独立进程 PID │
+└──────────────┘   └──────────────┘   └──────────────┘
+```
+
+**关键约束**：
+- SpiderAgent 和 DreamAgent 是**完全独立的进程**，不合并
+- 每个进程有自己的 Python 解释器实例
+- 进程间通过队列和 KG 文件通信，不共享内存
+
+### 1.2 LLM 使用区分
+
+| 进程 | LLM 用途 | 说明 |
+|------|---------|------|
+| SpiderAgent → Explorer | 理解 + 总结外部信息 | 分析搜索结果、生成摘要 |
+| DreamAgent → LLMClient | 创造全新内容 | 从 A+B 生成新洞察 |
+| SleepPruner | 不使用 LLM | 纯规则计算 |
+
+### 1.3 主进程入口
 
 ```python
-class DreamAgent:
-    def __init__(self, high_priority_queue, low_priority_queue):
-        self.high_queue = high_priority_queue  # SpiderAgent 通知的新节点
-        self.low_queue = low_priority_queue    # 所有节点轮流
+# curious_agent.py 的 daemon_mode 重构
+def daemon_mode():
+    from core.spider_agent import SpiderAgent
+    from core.dream_agent import DreamAgent
+    from core.sleep_pruner import SleepPruner
+    from multiprocessing import Queue
 
-    def run(self):
-        while True:
-            # 高优先级队列有内容 → 立即处理
-            # 高优先级队列空 → 用轮询指针从 KG 主动取
-            if not self.high_queue.empty():
-                priority, topic = self.high_queue.get()
-            else:
-                topic = self.get_next_from_low_priority()  # ⚠️ P1：主动轮询，不阻塞
+    high_priority_queue = Queue()   # SpiderAgent → DreamAgent
+    low_priority_queue = Queue()    # DreamAgent 内部轮询用
 
-            # 获取与 topic 配对的远距离节点
-            distant_pairs = self.find_distant_pairs(topic)
+    spider = SpiderAgent(high_priority_queue)
+    dreamer = DreamAgent(high_priority_queue, low_priority_queue)
+    pruner = SleepPruner(interval_minutes=60)
 
-            # 对每对节点执行创意做梦
-            for distant_node, distance in distant_pairs:
-                self.process_creative_dreaming(topic, distant_node)
+    spider.start()   # 进程1
+    dreamer.start()  # 进程2
+    pruner.start()    # 进程3
 
-            yield_to_other_process()
+    spider.join()
+    dreamer.join()
+    pruner.join()
 ```
 
-### 3.3 低优先级队列的填充策略
+---
+
+## F2: KG Schema 扩展
+
+### 2.1 topics 节点新增字段
 
 ```python
-class DreamAgent:
-    def __init__(self, high_priority_queue, low_priority_queue):
-        ...
-        self.dream_pointer = 0  # ⚠️ P1 修复：轮询指针，确保公平性
-
-    def get_next_from_low_priority(self):
-        """
-        ⚠️ P1 修复：从被动触发 → 主动轮询
-
-        人类睡眠时是所有记忆都有机会被重组，不是"队列空了才处理"。
-        用轮询指针确保每个节点定期做梦，不依赖新节点入队触发。
-
-        逻辑：
-        1. 从指针位置开始遍历 KG 所有节点
-        2. 找第一个 7 天内未做过梦的节点
-        3. 指针前移
-        4. 所有节点都处理过了 → 重置指针，等待新节点加入
-        """
-        all_nodes = self.kg.get_all_nodes(active_only=True)
-        if not all_nodes:
-            return None
-
-        n = len(all_nodes)
-        for i in range(n):
-            idx = (self.dream_pointer + i) % n
-            node_name = all_nodes[idx]
-
-            if not self.kg.has_recent_dreams(node_name, within_days=7):
-                self.dream_pointer = (idx + 1) % n
-                return node_name
-
-        # 所有节点都在 7 天内处理过了 → 重置指针
-        self.dream_pointer = 0
-        return None  # 队列空，等待新节点
-
-    def fill_low_priority_queue(self):
-        """
-        旧逻辑（保留用于批量初始化）
-
-        策略：
-        1. 扫描 KG 中所有节点
-        2. 排除最近 7 天内已处理过的节点
-        3. 剩余节点按 quality 排序（低 quality 优先，接近"遗忘"的知识优先做梦）
-        4. 全部加入低优先级队列
-        """
-        all_nodes = self.kg.get_all_nodes()
-        recently_processed = self.kg.get_recently_dreamed(within_days=7)
-
-        candidates = [
-            (name, node) for name, node in all_nodes
-            if name not in recently_processed
-            and node.get("status") != STATUS_DORMANT
-        ]
-
-        candidates.sort(key=lambda item: item[1].get("quality", 0))
-
-        for name, _ in candidates:
-            self.low_queue.put(name)
-```
-
-### 3.4 创意做梦运行逻辑（生成器模式）
-
-**核心转变**：DreamAgent 从"关联判断器"变为"洞察生成器"。
-
-- 判断器：判断 A 和 B 有没有关联 → 产出关系标签
-- 生成器：基于 A 和 B 生成全新洞察 → 产出新知识节点
-
-**为什么这个区别重要**：如果只是建关联，KG 只是变得更密集；如果生成新洞察，KG 会真正生长出新的知识维度。
-
-```python
-    def process_creative_dreaming(self, topic_a: str, topic_b: str):
-        """
-        创意做梦：对两个远距离节点，生成新洞察
-
-        流程：
-        1. LLM 生成创意洞察（新内容，不是判断关联）
-        2. 洞察写入 KG 为新节点
-        3. 洞察的 trigger_topic 进入探索队列
-        """
-        result = self.llm_creative_dream(topic_a, topic_b)
-
-        # 写入条件：surprise >= 0.5（洞察够意外）
-        if result["has_insight"] and result["surprise"] >= 0.5:
-            # 写入 KG：新增洞察节点
-            insight_node = self.kg.add_dream_insight(
-                content=result["insight"],
-                insight_type=result["insight_type"],
-                source_topics=[topic_a, topic_b],
-                surprise=result["surprise"],
-                novelty=result["novelty"],
-                trigger_topic=result["trigger_topic"]
-            )
-
-            # 新洞察进入探索候选队列
-            if result["trigger_topic"]:
-                self.engine.add_to_queue(result["trigger_topic"])
-
-            # 记录探索历史（用于后续价值验证）
-            self.exploration_history.record_insight_generation(
-                insight_node=insight_node,
-                source_pair=(topic_a, topic_b),
-                timestamp=datetime.now(timezone.utc)
-            )
-
-        # 标记为已做梦处理
-        self.kg.mark_dreamed(topic_a)
-
-        # === 洞察价值验证回路 ===
-        self.verify_existing_insights(topic_a)
-```
-
-### 3.5 洞察价值验证回路
-
-```python
-    def verify_existing_insights(self, topic: str):
-        """
-        检查 topic 的已有洞察是否被后续探索验证过
-
-        规则：
-        - 如果洞察在过去 7 天内被 SpiderAgent 触发探索过 → quality += 1
-        - 如果洞察在过去 7 天内未被触发 → weight -= 0.05
-        - weight < 0.2 的洞察 → 标记为 stale
-        """
-        insights = self.kg.get_insights_generated_from(topic)
-
-        for insight in insights:
-            if insight.get("verified"):
-                continue
-
-            was_triggered = self.exploration_history.was_insight_triggered(
-                insight["node_id"], within_days=7
-            )
-
-            if was_triggered:
-                self.kg.update_insight_quality(insight["node_id"], delta=1.0)
-                insight["verified"] = True
-            else:
-                self.kg.update_insight_weight(insight["node_id"], delta=-0.05)
-```
-
-### 3.6 远距离节点选取（含神经噪声）
-
-```python
-    def find_distant_pairs(self, topic: str, max_pairs: int = 5) -> list:
-        """
-        选取与 topic 距离远且无连接的节点
-
-        策略（三层随机）：
-        1. 70%：按距离筛选（distance > 3 且 quality >= 4）
-        2. 20%：跨 domain 优先（不同探索分支的远距离节点）
-        3. 10%：神经噪声模式——强制随机选取，不考虑距离
-           → 模拟人类做梦时的神经元随机激活，产生最意外的连接
-        """
-        import random
-        all_nodes = self.kg.get_all_nodes(active_only=True)
-
-        # 过滤已有连接的节点
-        connected = self.kg.get_directly_connected(topic)
-        distant_candidates = [n for n in all_nodes if n not in connected]
-
-        def distance(node):
-            return self.kg.get_shortest_path_length(topic, node)
-
-        # 距离 > 3 的候选
-        distant = [n for n in distant_candidates if distance(n) > 3]
-
-        # 按 quality 过滤（至少有一定探索深度）
-        meaningful = [n for n in distant if n.get("quality", 0) >= 4]
-
-        results = []
-        for i in range(max_pairs):
-            rand = random.random()
-
-            if rand < 0.1:
-                # 10%：神经噪声模式——完全随机，不管距离
-                candidates_noise = [n for n in all_nodes if n not in connected and n != topic]
-                if candidates_noise:
-                    chosen = random.choice(candidates_noise)
-                    results.append((chosen, -1))  # -1 表示神经噪声模式
-                    continue
-
-            elif rand < 0.3:
-                # 20%：跨 domain 优先
-                # 选和 topic 不在同一探索分支的节点
-                topic_domain = self.kg.get_node_domain(topic)
-                cross_domain = [n for n in meaningful if self.kg.get_node_domain(n) != topic_domain]
-                if cross_domain:
-                    chosen = random.choice(cross_domain)
-                    results.append((chosen, distance(chosen)))
-                    continue
-
-            # 70%：正常按距离筛选
-            if meaningful:
-                chosen = random.choice(meaningful)
-                results.append((chosen, distance(chosen)))
-            elif distant:
-                chosen = random.choice(distant)
-                results.append((chosen, distance(chosen)))
-
-        return results
-```
-
-### 3.6 LLM 创意洞察生成（生成器模式）
-
-**核心转变**：DreamAgent 从"关联判断器"变为"洞察生成器"。
-
-- 判断器：判断 A 和 B 有没有关联 → 产出关系标签（关联生成器）
-- 生成器：基于 A 和 B 生成全新洞察 → 产出新知识节点（创意做梦引擎）
-
-**为什么这个区别决定演进的必要性**：
-
-| | 关联生成器 | 创意做梦引擎 |
-|--|---------|------------|
-| 产出 | 关系标签 | 新知识节点 |
-| KG 变化 | 变得更密集 | 真正生长 |
-| 演进必要 | 低（只是更精确） | 高（创造新维度） |
-
-```python
-    def llm_creative_dream(self, topic_a: str, topic_b: str) -> dict:
-        """
-        创意做梦：对两个完全无关的知识领域，生成全新的洞察
-
-        Returns: {
-            has_insight: bool,                    # 是否生成了有价值的洞察
-            insight: str,                          # 生成的洞察内容（全新的，不是 A 也不是 B）
-            insight_type: str,                    # "hypothesis" | "analogy" | "prediction" | "question"
-            surprise: float,                       # 0.0-1.0 意外程度
-            novelty: float,                        # 0.0-1.0 新颖程度
-            trigger_topic: str | None,            # 这个洞察能触发哪个新探索方向
-        }
-        """
-```
-
-**LLM Prompt（生成式）**：
-
-```
-你是创意做梦引擎。不是判断两个领域有没有关联，而是从它们的组合中生成全新的洞察。
-
-Topic A: {topic_a}
-Topic B: {topic_b}
-
-要求：
-1. 洞察必须是从 A+B 组合中**新生成的**，不是 A 也不是 B
-2. 生成的内容必须有认知价值（新的假设、类比、预测、问题）
-3. trigger_topic 是指：这个洞察能指向哪个新的探索方向？
-
-生成类型（选最合适的）：
-- hypothesis: "如果 A，那么可能 B"（新假设）
-- analogy: "A 就像 B 中的 X"（新类比）
-- prediction: "基于 A 和 B，X 可能发生"（新预测）
-- question: "A 和 B 暗示了一个新问题：X"（新问题）
-
-输出格式（JSON）：
+# topics[topic] 新增字段
 {
-  "has_insight": true/false,
-  "insight": "具体的新洞察内容（必须是从 A+B 生成的）",
-  "insight_type": "hypothesis/analogy/prediction/question",
-  "surprise": 0.0-1.0,
-  "novelty": 0.0-1.0,
-  "trigger_topic": "这个洞察指向的新探索方向（string 或 null）"
+    "known": bool,
+    "depth": float,
+    "summary": str,
+    "sources": list[str],
+    "children": list[str],
+    "parents": list[str],
+    "explains": list[dict],
+
+    # === v0.2.6 新增 ===
+    "status": str,                 # "complete" | "dormant"
+    "last_consolidated": str,      # ISO 时间戳
+    "dreamed_at": str,             # ISO 时间戳
+    "confidence_low": float,       # [F12] 置信度下限，默认 0.3
+    "confidence_high": float,      # [F12] 置信度上限，默认 0.7
+    "evidence_count": int,        # [F12] 支持证据数
+    "contradiction_count": int,    # [F12] 矛盾证据数
 }
 ```
 
-### 3.7 与 SpiderAgent 的协调### 3.7 与 SpiderAgent 的协调
-
-```
-SpiderAgent: 写新节点 → 高优先级队列
-DreamAgent:  监听高优先级队列 + 低优先级轮流队列
-```
-
-两者操作**不同节点时**：零冲突。
-两者操作**同一节点时**：节点级锁保护。
-
----
-
-## 四、SleepPruner（突触修剪器）
-
-### 4.1 职责
-
-- 定时扫描 KG，识别弱连接节点
-- 基于 connection_weight 降级低价值节点为 dormant
-
-### 4.2 降级标准（含 verified + stale）
-
-**核心原则**：pruning 只对 dream_insights 检查权重，不对 parent/child 做权重判断。
-
-- parent/child 是结构性的，二元存在性（有无），不区分强弱
-- dream_insights 是创意产出，有权重，可以被判定为"弱"
-
-**新增逻辑**：
-- verified=False 且 created_at > 7 天前 → 说明从未被 SpiderAgent 验证 → 直接删除这条 explains
-- verified=True 的连接 → 不会被 SleepPruner 删除
-- stale=True 的连接 → weight 已经很低，等待被修剪
-
-```
-节点同时满足以下条件 → 降级为 dormant：
-1. parents = [] 且 children = []（结构上真正孤立）
-2. 所有 explains 连接均为 stale=True（weight < 0.2）
-3. quality < 7.0
-4. 非 root_technology_pool 候选
-5. 非最近 7 天内产生过 dream_insight 的节点
-```
-
-### 4.3 运行逻辑
+### 2.2 dream_insights 独立存储
 
 ```python
-class SleepPruner:
-    def __init__(self, interval_minutes=60):
-        self.interval = interval_minutes
-
-    def run(self):
-        while True:
-            dormant_count = self.scan_and_prune()
-            print(f"[SleepPruner] {dormant_count} nodes → dormant")
-            sleep(self.interval * 60)
-
-    def scan_and_prune(self) -> int:
-        """扫描弱连接节点，降级为 dormant"""
-        all_nodes = self.kg.get_all_nodes(active_only=True)
-        pool_names = self.kg.get_root_pool_names()
-
-        count = 0
-        for node_name, node in all_nodes:
-            if node_name in pool_names:
-                continue
-
-            # 1. 检查结构性连接：parents + children
-            parents = self.kg.get_parents(node_name)
-            children = self.kg.get_children(node_name)
-            has_structural = (len(parents) > 0 or len(children) > 0)
-
-            if has_structural:
-                # 有结构性连接，不修剪
-                continue
-
-            # 2. 检查 dream_insights
-            insights = self.kg.get_dream_insights(node_name)
-            if not insights:
-                all_stale = True
-                has_verified = False
-            else:
-                # 先清理：删除从未被验证且已创建超过 7 天的 dream_insights
-                for entry in explains:
-                    if not entry.get("verified") and self.kg.is_insight_stale(entry["node_id"]):
-                        # 从未被验证且超过 7 天 → 删除这个洞察
-                        self.kg.remove_dream_insight(entry["node_id"])
-
-                # 重新检查
-                remaining = self.kg.get_dream_insights(node_name)
-                has_verified = any(e.get("verified") for e in remaining)
-                all_stale = all(e.get("stale", False) for e in remaining)
-
-            # 3. 有已验证的连接，不修剪
-            if has_verified:
-                continue
-
-            # 4. 所有连接都已 stal 且节点质量低 → 降级
-            if all_stale and node.get("quality", 0) < 7.0:
-                self.kg.mark_dormant(node_name)
-                count += 1
-
-        return count
+# knowledge/dream_insights/{node_id}.json
+{
+    "node_id": str,
+    "content": str,
+    "insight_type": str,          # "hypothesis" | "analogy" | "prediction" | "question"
+    "source_topics": list[str],
+    "surprise": float,
+    "novelty": float,
+    "trigger_topic": str | None,
+    "weight": float,               # 默认 0.5
+    "verified": bool,
+    "quality": float,
+    "created_at": str,
+}
 ```
 
----
-
-## 五、知识图谱修改
-
-### 5.1 新增字段
+### 2.3 dream_topic_inbox（SharedInbox）
 
 ```python
-# 节点状态
-STATUS_DORMANT = "dormant"  # 不参与活跃探索
-
-# 节点字段（新增）
-last_consolidated: str | None   # ISO 时间戳，最近一次被巩固
-dreamed_at: str | None          # ISO 时间戳，最近一次做梦处理
-
-# 连接字段（新增）
-connection_weight: float        # 连接强度 0.0-1.0，default 0.5
+# knowledge/dream_topic_inbox.json
+{
+    "inbox": [
+        {
+            "topic": str,
+            "timestamp": str,
+            "source_insight": str
+        }
+    ]
+}
 ```
 
-### 5.2 新增 API
+### 2.4 exploration_log 扩展
 
 ```python
+# state["exploration_log"][] 新增字段
+{
+    "topic": str,
+    "action": str,
+    "findings": str,
+    "notified_user": bool,
+    "timestamp": str,
+    # === v0.2.6 新增 ===
+    "predicted_confidence": float | None,  # [F12]
+    "actual_outcome": bool | None,         # [F12]
+    "is_hypothesis": bool,                # [F12]
+}
+```
+
+### 2.5 KG 新增 API
+
+```python
+# === Dream Insights ===
+
 def add_dream_insight(content: str, insight_type: str, source_topics: list[str],
                          surprise: float, novelty: float, trigger_topic: str | None) -> str:
-    """
-    添加梦境洞察节点（创意做梦引擎的核心产出）
-
-    新洞察作为 KG 的独立节点存在，不是边的属性
-
-    Returns: 新节点的 node_id
-    """
+    """写入 knowledge/dream_insights/{node_id}.json"""
     node_id = f"insight_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')}"
-    entry = {
-        "node_id": node_id,
-        "content": content,
-        "insight_type": insight_type,  # hypothesis/analogy/prediction/question
-        "source_topics": source_topics,
-        "surprise": surprise,
-        "novelty": novelty,
-        "trigger_topic": trigger_topic,
-        "weight": 0.5,
-        "verified": False,
-        "quality": 0.0,  # 被探索触发后提升
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    state["knowledge"]["dream_insights"][node_id] = entry
-    _save_state(state)
+    entry = {...}  # 见 2.2
+    path = os.path.join(os.path.dirname(STATE_FILE), "dream_insights", f"{node_id}.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(entry, f, ensure_ascii=False, indent=2)
     return node_id
 
+def get_dream_insights(topic: str = None) -> list[dict]:
+    """读取所有或指定 topic 相关的 dream_insights"""
+
+def get_all_dream_insights() -> list[dict]:
+    """返回所有 dream_insight 节点"""
+
+def remove_dream_insight(node_id: str):
+    """删除 dream_insight"""
+
+def is_insight_stale(node_id: str) -> bool:
+    """检查洞察是否已过期（从未被验证且超过 7 天）"""
+
+def update_insight_weight(node_id: str, delta: float):
+    """更新洞察权重"""
+
+def update_insight_quality(node_id: str, delta: float):
+    """更新洞察质量"""
+
+# === Connection Weight ===
+
 def strengthen_connection(topic_a: str, topic_b: str, delta: float = 0.1):
-    """
-    强化两节点连接（consolidation 使用）
-    - 如果连接存在：weight += delta，上限 1.0
-    - 如果连接不存在：不操作（consolidation 只强化已有连接）
-    """
+    """强化两节点连接，weight += delta，上限 1.0"""
 
-def mark_explains_verified(from_topic: str, to_topic: str):
-    """
-    标记某条 explains 连接已被 SpiderAgent 验证过（价值验证回路使用）
-    """
+def update_connection_weight(topic_a: str, topic_b: str, delta: float):
+    """更新连接权重，weight < 0.2 时标记 stale"""
 
-def update_explains_weight(from_topic: str, to_topic: str, delta: float):
-    """
-    更新 explains 连接权重（价值验证回路使用）
-    - 如果 weight < 0.2，标记为 stale=True
-    - weight 下限 0.0，上限 1.0
-    """
-
-def set_consolidated(topic: str):
-    """标记节点已巩固"""
+# === Node Status ===
 
 def mark_dormant(topic: str):
     """标记为 dormant"""
@@ -623,122 +252,72 @@ def reactivate(topic: str):
 def mark_dreamed(topic: str):
     """标记节点已做过梦处理"""
 
-def mark_explains_verified(from_topic: str, to_topic: str):
-    """
-    标记某条 explains 连接已被 SpiderAgent 验证过（价值验证回路使用）
-    """
+def set_consolidated(topic: str):
+    """标记节点已巩固"""
 
-def get_all_connections(topic: str) -> list[dict]:
-    """
-    返回 topic 的所有连接（含 weight）
-    - parents, children, explains 统一格式
-    """
+def get_dormant_nodes() -> list[str]:
+    """返回所有 dormant 节点"""
+
+# === Node Queries ===
 
 def get_all_nodes(active_only: bool = False) -> list[tuple[str, dict]]:
-    """
-    返回 KG 中所有节点
-    active_only=True: 排除 dormant 节点
-    Returns: list of (node_name, node_data)
-    """
-
-def get_node_domain(topic: str) -> str:
-    """
-    返回 topic 所属的探索分支（domain）
-
-    实现：沿着 parent 链向上追溯，找到最近的 root，
-    以 root 作为 domain 标识
-
-    用于跨 domain 连接发现（20% 概率优先跨 domain）
-    """
+    """返回 KG 中所有节点"""
 
 def get_directly_connected(topic: str) -> set[str]:
-    """
-    返回与 topic 直接相连的所有节点（parents + children + explains）
-    用于 find_distant_pairs 时过滤已有连接的节点
-    """
+    """返回与 topic 直接相连的所有节点"""
 
 def get_shortest_path_length(topic_a: str, topic_b: str) -> int | float:
-    """
-    返回 topic_a 到 topic_b 的最短路径长度
-    如果不存在路径，返回 inf
-    """
+    """返回两节点最短路径长度，不通返回 inf"""
 
-def get_parents(topic: str) -> list[dict]:
-    """返回 topic 的 parents 连接（无权重字段）"""
-
-def get_children(topic: str) -> list[dict]:
-    """返回 topic 的 children 连接（无权重字段）"""
-
-def get_dream_insights(topic: str) -> list[dict]:
-    """
-    返回 topic 相关的所有 dream_insight 节点
-    （source_topics 中包含 topic 的洞察）
-    """
-
-def get_all_dream_insights() -> list[dict]:
-    """返回 KG 中所有 dream_insight 节点"""
-
-def remove_dream_insight(node_id: str):
-    """删除某个 dream_insight 节点（SleepPruner 使用）"""
-
-def is_insight_stale(node_id: str) -> bool:
-    """检查某个洞察是否已过期（从未被验证且超过 7 天）"""
-
-def get_root_pool_names() -> set[str]:
-    """返回 root_technology_pool 中所有候选名称"""
-
-def get_recently_dreamed(within_days: int) -> set[str]:
-    """
-    返回最近 within_days 天内被 DreamAgent 处理过的节点名称
-    用于 fill_low_priority_queue 时排除近期已处理的节点
-    """
+def get_node_domain(topic: str) -> str:
+    """返回 topic 所属的探索分支（domain）"""
 
 def has_recent_dreams(topic: str, within_days: int) -> bool:
-    """
-    检查 topic 是否在 within_days 天内做过梦
-    用于轮询指针跳过近期已处理的节点
-    """
+    """检查 topic 是否在 N 天内做过梦"""
+
+def get_recently_dreamed(within_days: int) -> set[str]:
+    """返回最近 N 天内被 DreamAgent 处理过的节点"""
+
+def get_root_pool_names() -> set[str]:
+    """返回 root_technology_pool 中所有候选"""
+
+def get_related_nodes(topic: str) -> list[str]:
+    """返回与 topic 相关的所有节点（parents + children）"""
+
+# === SharedInbox [F11] ===
+
+def add_to_dream_inbox(topic: str, source_insight: str):
+    """DreamAgent 调用，把 trigger_topic 写入 shared inbox"""
+    inbox_path = os.path.join(os.path.dirname(STATE_FILE), "dream_topic_inbox.json")
+    inbox = {"inbox": []}
+    if os.path.exists(inbox_path):
+        with open(inbox_path) as f:
+            inbox = json.load(f)
+    inbox["inbox"].append({
+        "topic": topic,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "source_insight": source_insight
+    })
+    with open(inbox_path, "w") as f:
+        json.dump(inbox, f, ensure_ascii=False, indent=2)
+
+def fetch_and_clear_dream_inbox() -> list[dict]:
+    """SpiderAgent 调用，读取并清空 inbox，返回 inbox 列表"""
+    inbox_path = os.path.join(os.path.dirname(STATE_FILE), "dream_topic_inbox.json")
+    if not os.path.exists(inbox_path):
+        return []
+    with open(inbox_path) as f:
+        inbox = json.load(f)
+    with open(inbox_path, "w") as f:
+        json.dump({"inbox": []}, f)
+    return inbox.get("inbox", [])
 ```
 
-### 5.3 ExplorationHistory（探索历史记录）
+---
 
-**职责**：记录每次探索的事件，用于 consolidation 和价值验证回路。
+## F3: 节点级锁
 
-```python
-class ExplorationHistory:
-    """
-    探索历史记录器
-    - SpiderAgent 每次探索完成时记录事件
-    - DreamAgent 的 consolidation 和价值验证回路依赖此数据
-
-    ⚠️ P0 修复：ExplorationHistory 所有方法必须加锁
-    原因：SpiderAgent 写（strengthen_co_occurring）的同时 DreamAgent 读（co_occurred），
-          存在 race condition。ExplorationHistory 是共享数据结构，必须线程安全。
-    """
-    _lock = threading.Lock()
-
-    def record_exploration(self, topic: str, related_nodes: list[str], timestamp: datetime):
-        """记录一次探索事件"""
-        with self._lock:
-            ...
-
-    def co_occurred(self, topic_a: str, topic_b: str, within_hours: int) -> bool:
-        """检查 topic_a 和 topic_b 是否在 within_hours 小时内共同出现过"""
-        with self._lock:
-            ...
-
-    def was_insight_triggered(self, topic_a: str, topic_b: str, within_days: int) -> bool:
-        """检查 topic_b 是否在 topic_a 的探索过程中被触发过"""
-        with self._lock:
-            ...
-
-    def get_recent_explorations(self, within_hours: int) -> list[dict]:
-        """返回最近 N 小时的探索记录（用于调试）"""
-        with self._lock:
-            ...
-```
-
-### 5.4 节点级锁实现
+### 3.1 NodeLockRegistry
 
 ```python
 import threading
@@ -749,6 +328,7 @@ class NodeLockRegistry:
     节点级锁注册表
     - 同一节点用同一把锁
     - 节点销毁时锁自动释放（WeakValueDictionary）
+    - 死锁预防：所有调用方必须按节点名字排序后再获取锁
     """
     _locks = WeakValueDictionary()
 
@@ -758,71 +338,662 @@ class NodeLockRegistry:
             cls._locks[node_name] = threading.Lock()
         return cls._locks[node_name]
 
+    @classmethod
+    def get_lock_pair(cls, name_a: str, name_b: str) -> tuple:
+        """返回排序后的锁对（防死锁）"""
+        lock_a = cls.get_lock(name_a)
+        lock_b = cls.get_lock(name_b)
+        return sorted([lock_a, lock_b], key=lambda l: id(l))
+```
 
-## 六、curious_agent.py 修改
-
-### 6.1 主程序
+### 3.2 使用规范
 
 ```python
-def daemon_mode(interval_minutes=30):
-    from core.spider_agent import SpiderAgent
-    from core.dream_agent import DreamAgent
-    from core.sleep_pruner import SleepPruner
-    from queue import Queue
+# ✅ 正确：按名字排序后再获取
+def kg_write_with_lock(from_topic: str, to_topic: str, result: dict):
+    locks = NodeLockRegistry.get_lock_pair(from_topic, to_topic)
+    with locks[0], locks[1]:
+        add_explains(from_topic, to_topic, result)
 
-    # 双队列：SpiderAgent → DreamAgent
-    high_priority_queue = Queue()    # 新节点（高优先级）
-    low_priority_queue = Queue()    # 轮流队列（低优先级）
-
-    # 初始化并启动三个并发进程
-    spider = SpiderAgent(high_priority_queue)
-    dreamer = DreamAgent(high_priority_queue, low_priority_queue)
-    pruner = SleepPruner(interval_minutes=60)
-
-    spider.start()
-    dreamer.start()
-    pruner.start()
-
-    print(f"[v0.2.6] Concurrent processes started:")
-    print(f"  - SpiderAgent: continuous exploration")
-    print(f"  - DreamAgent: continuous dreaming (high + low priority queues)")
-    print(f"  - SleepPruner: pruning every {pruner.interval} min")
-
-    spider.join()
-    dreamer.join()
-    pruner.join()
+# ❌ 错误：可能导致死锁
+with lock_a:
+    with lock_b:  # 另一个线程以相反顺序获取就会死锁
+        ...
 ```
 
 ---
 
-## 七、API 修改
+## F4: ExplorationHistory（线程安全）
+
+### 4.1 职责
+
+记录每次探索事件，供 consolidation 和价值验证回路使用。
+
+> ⚠️ P0 修复：ExplorationHistory 所有方法必须加锁，因为 SpiderAgent 写的同时 DreamAgent 可能在读。
+
+### 4.2 数据存储
+
+存储在 `state["exploration_history"]` 中（与 `exploration_log` 分开）：
 
 ```python
-# === v0.2.6 新增 ===
+# state["exploration_history"] = {
+#     "co_occurrence": {
+#         "topic_a|topic_b": {"count": int, "last_time": str, "timestamps": [str]}
+#     },
+#     "insight_generation": {
+#         "insight_node_id": {
+#             "source_pair": [topic_a, topic_b],
+#             "timestamp": str,
+#             "triggered": bool
+#         }
+#     },
+#     "predictions": {
+#         "topic": {
+#             "predicted_confidence": float,
+#             "is_hypothesis": bool,
+#             "timestamp": str,
+#             "actual_outcome": bool | None
+#         }
+#     }
+# }
+```
 
-@app.route("/api/kg/dormant", methods=["GET"])
+### 4.3 API
+
+```python
+class ExplorationHistory:
+    _lock = threading.Lock()
+
+    def record_exploration(self, topic: str, related_nodes: list[str], timestamp: datetime):
+        with self._lock:
+            # 更新 co_occurrence 计数
+            ...
+
+    def record_insight_generation(self, insight_node_id: str, source_pair: tuple, timestamp: datetime):
+        with self._lock:
+            ...
+
+    def co_occurred(self, topic_a: str, topic_b: str, within_hours: int) -> bool:
+        with self._lock:
+            ...
+
+    def was_insight_triggered(self, insight_node_id: str, within_days: int) -> bool:
+        with self._lock:
+            ...
+
+    def record_prediction(self, topic: str, predicted_confidence: float, is_hypothesis: bool):
+        """[F12] 记录一次预测"""
+        with self._lock:
+            ...
+
+    def record_outcome(self, topic: str, actual_correct: bool):
+        """[F12] 记录预测结果"""
+        with self._lock:
+            ...
+
+    def get_recent_explorations(self, within_hours: int) -> list[dict]:
+        with self._lock:
+            ...
+
+    def get_all_predictions(self) -> list[dict]:
+        """[F12] 返回所有预测记录"""
+        with self._lock:
+            ...
+
+    def get_prediction(self, topic: str) -> dict | None:
+        """[F12] 返回特定 topic 的预测记录"""
+        with self._lock:
+            ...
+```
+
+---
+
+## F5: SpiderAgent（独立探索进程）
+
+### 5.1 职责
+
+- 持续从 curiosity_queue 选择 topic 执行探索
+- 探索结果写入 KG
+- 探索完成后，通知 DreamAgent（通过高优先级队列）
+- 定期消费 DreamInbox（将 trigger_topic 合并到 curiosity_queue）
+
+### 5.2 组成模块
+
+```
+SpiderAgent（独立进程）
+    │
+    ├── CuriosityEngine ← 纯规则（不需要 LLM）
+    │       └── select_next() → 纯排序/过滤
+    │
+    ├── Explorer ← 包含 LLM（理解 + 总结外部信息）
+    │       ├── search() → Bocha/Serper/ArXiv
+    │       ├── analyze() → LLM 分析
+    │       └── synthesize() → LLM 总结
+    │
+    ├── ExplorationHistory ← 共享数据（线程安全）
+    │
+    └── KG ← 节点级锁保护
+```
+
+### 5.3 运行逻辑
+
+```python
+class SpiderAgent:
+    def __init__(self, to_dreamer_queue):
+        self.high_priority_queue = to_dreamer_queue
+        self.engine = CuriosityEngine()
+        self.explorer = Explorer()
+        self.history = ExplorationHistory()
+
+    def run(self):
+        while True:
+            # [F11] 每次选择前先消费 DreamInbox
+            self.sync_dream_inbox()
+
+            # 选择下一个 topic
+            topic = self.engine.select_next()
+            if topic is None:
+                topic = self.engine.generate_new()
+
+            # 执行探索
+            result = self.explorer.explore(topic)
+
+            # 写入 KG（节点级锁）
+            self.kg_add_with_lock(topic, result)
+
+            # 通知 DreamAgent（高优先级队列）
+            self.high_priority_queue.put(("high", topic))
+
+            # consolidation：强化共现连接
+            self.strengthen_co_occurring(topic)
+
+            # [F12] 记录探索结果用于校准
+            self.history.record_outcome(topic, actual_correct=True)
+
+            yield_to_other_process()
+
+    def sync_dream_inbox(self):
+        """[F11] 消费 DreamInbox，将 trigger_topic 加入 curiosity_queue"""
+        inbox_items = kg.fetch_and_clear_dream_inbox()
+        for item in inbox_items:
+            topic = item["topic"]
+            if not kg.is_topic_known(topic):
+                kg.add_curiosity(
+                    topic=topic,
+                    reason=f"Dream insight trigger: {item['source_insight']}",
+                    relevance=7.0,
+                    depth=6.0
+                )
+
+    def strengthen_co_occurring(self, topic: str):
+        """基于 Hebbian 原则强化共现连接"""
+        related = kg.get_related_nodes(topic)
+        for node in related:
+            if self.history.co_occurred(topic, node, within_hours=24):
+                kg.strengthen_connection(topic, node, delta=0.1)
+        kg.set_consolidated(topic)
+```
+
+### 5.4 与 DreamAgent 的边界
+
+| | SpiderAgent | DreamAgent |
+|--|--|--|
+| 进程 | 独立进程 | 独立进程 |
+| LLM 用途 | 理解和总结外部信息 | 创造全新内容 |
+| 写入 KG | children, quality, sources | dream_insights, parents |
+| 管理 | curiosity_queue | 无（只写 KG + 队列） |
+
+---
+
+## F6: SleepPruner（定时修剪进程）
+
+### 6.1 职责
+
+- 每 60 分钟扫描一次 KG
+- 识别弱连接节点，降级为 dormant
+
+### 6.2 降级标准
+
+```
+节点同时满足以下条件 → 降级为 dormant：
+1. parents = [] 且 children = []（结构上真正孤立）
+2. 所有 dream_insights 连接均为 stale=True（weight < 0.2）
+3. quality < 7.0
+4. 非 root_technology_pool 候选
+5. 非最近 7 天内产生过 dream_insight 的节点
+```
+
+### 6.3 运行逻辑
+
+```python
+class SleepPruner:
+    def __init__(self, interval_minutes=60):
+        self.interval = interval_minutes
+
+    def run(self):
+        while True:
+            count = self.scan_and_prune()
+            print(f"[SleepPruner] {count} nodes → dormant")
+            sleep(self.interval * 60)
+
+    def scan_and_prune(self) -> int:
+        all_nodes = kg.get_all_nodes(active_only=True)
+        pool_names = kg.get_root_pool_names()
+        count = 0
+        for node_name, node in all_nodes:
+            if node_name in pool_names:
+                continue
+            if not self._is_structurally_isolated(node_name):
+                continue
+            if not self._all_insights_stale(node_name):
+                continue
+            if node.get("quality", 0) >= 7.0:
+                continue
+            if kg.has_recent_dreams(node_name, within_days=7):
+                continue
+            kg.mark_dormant(node_name)
+            count += 1
+        return count
+
+    def _is_structurally_isolated(self, node_name: str) -> bool:
+        parents = kg.get_parents(node_name)
+        children = kg.get_children(node_name)
+        return len(parents) == 0 and len(children) == 0
+
+    def _all_insights_stale(self, node_name: str) -> bool:
+        insights = kg.get_dream_insights(node_name)
+        if not insights:
+            return True
+        return all(i.get("stale", False) or kg.is_insight_stale(i["node_id"])
+                   for i in insights)
+```
+
+---
+
+## F7: 双队列 + 轮询指针
+
+### 7.1 设计原因
+
+DreamAgent 需要处理两类输入：
+1. **高优先级队列**：SpiderAgent 通知的新节点（立即处理）
+2. **低优先级队列**：KG 中老节点轮流处理（确保公平）
+
+### 7.2 轮询指针（不是被动填充）
+
+低优先级不用"队列空才填充"的被动模式，而是用**轮询指针**主动遍历：
+
+```python
+class DreamAgent:
+    def __init__(self, high_priority_queue, low_priority_queue):
+        self.high_queue = high_priority_queue
+        self.low_queue = low_priority_queue
+        self.dream_pointer = 0  # 轮询指针
+
+    def get_next_low_priority(self):
+        """主动轮询，不阻塞"""
+        all_nodes = kg.get_all_nodes(active_only=True)
+        if not all_nodes:
+            return None
+        n = len(all_nodes)
+        for i in range(n):
+            idx = (self.dream_pointer + i) % n
+            node_name = all_nodes[idx]
+            if not kg.has_recent_dreams(node_name, within_days=7):
+                self.dream_pointer = (idx + 1) % n
+                return node_name
+        self.dream_pointer = 0
+        return None  # 所有节点近期都处理过了
+
+    def run(self):
+        while True:
+            if not self.high_queue.empty():
+                _, topic = self.high_queue.get()
+            else:
+                topic = self.get_next_low_priority()
+                if topic is None:
+                    sleep(1)  # 等待新节点
+                    continue
+            self.process_creative_dreaming(topic)
+```
+
+---
+
+## F8: DreamAgent（独立做梦进程）
+
+### 8.1 职责
+
+- 持续监听高优先级队列和轮询指针
+- 对每个节点执行创意做梦（生成新洞察）
+- 生成的新洞察通过 SharedInbox 传递给 SpiderAgent
+
+### 8.2 组成模块
+
+```
+DreamAgent（独立进程）
+    │
+    ├── LLMClient ← 直接使用（创意生成，不是 Explorer）
+    │       └── llm_creative_dream(topic_a, topic_b) → 新洞察
+    │
+    ├── ExplorationHistory ← 共享数据（线程安全）
+    │
+    └── KG ← 节点级锁保护
+```
+
+### 8.3 运行逻辑
+
+```python
+class DreamAgent:
+    def __init__(self, high_priority_queue, low_priority_queue):
+        self.high_queue = high_priority_queue
+        self.llm = LLMClient()  # 创意生成专用
+        self.history = ExplorationHistory()
+
+    def run(self):
+        while True:
+            if not self.high_queue.empty():
+                _, topic = self.high_queue.get()
+            else:
+                topic = self.get_next_low_priority()
+                if topic is None:
+                    sleep(1)
+                    continue
+
+            distant_pairs = self.find_distant_pairs(topic, max_pairs=5)
+            for distant_node, distance in distant_pairs:
+                self.process_creative_dreaming(topic, distant_node)
+
+            kg.mark_dreamed(topic)
+            self.verify_existing_insights(topic)
+```
+
+---
+
+## F9: 创意做梦引擎（生成式）
+
+### 9.1 核心转变
+
+DreamAgent 从"关联判断器"变为"洞察生成器"：
+
+| | 关联判断器 | 洞察生成器 |
+|--|--|--|
+| 输入 | topic_a, topic_b | topic_a, topic_b |
+| 输出 | has_association=True/False | 新洞察内容 + trigger_topic |
+| KG 变化 | 边更多，节点不变 | 节点增加，真正生长 |
+| 演进必要 | 低 | 高 |
+
+### 9.2 process_creative_dreaming
+
+```python
+def process_creative_dreaming(self, topic_a: str, topic_b: str):
+    """
+    创意做梦：对两个远距离节点，生成新洞察
+    """
+    result = self.llm.creative_dream(topic_a, topic_b)
+
+    if result["has_insight"] and result["surprise"] >= 0.5:
+        # 写入 KG：新增洞察节点
+        insight_node = kg.add_dream_insight(
+            content=result["insight"],
+            insight_type=result["insight_type"],
+            source_topics=[topic_a, topic_b],
+            surprise=result["surprise"],
+            novelty=result["novelty"],
+            trigger_topic=result["trigger_topic"]
+        )
+
+        # [F11] 通过 SharedInbox 通知 SpiderAgent
+        if result["trigger_topic"]:
+            kg.add_to_dream_inbox(
+                topic=result["trigger_topic"],
+                source_insight=insight_node
+            )
+
+        # 记录探索历史（用于价值验证）
+        self.history.record_insight_generation(
+            insight_node_id=insight_node,
+            source_pair=(topic_a, topic_b),
+            timestamp=datetime.now(timezone.utc)
+        )
+
+        # [F12] 记录预测（洞察 = 假设）
+        self.history.record_prediction(
+            topic=insight_node,
+            predicted_confidence=result["surprise"],
+            is_hypothesis=True
+        )
+```
+
+### 9.3 llm.creative_dream prompt
+
+```
+你是创意做梦引擎。不是判断两个领域有没有关联，而是从它们的组合中生成全新的洞察。
+
+Topic A: {topic_a}
+Topic B: {topic_b}
+
+要求：
+1. 洞察必须是从 A+B 组合中**新生成的**，不是 A 也不是 B
+2. 生成的内容必须有认知价值（新的假设、类比、预测、问题）
+3. trigger_topic：这个洞察能指向哪个新的探索方向？
+
+生成类型（选最合适的）：
+- hypothesis: "如果 A，那么可能 B"（新假设）
+- analogy: "A 就像 B 中的 X"（新类比）
+- prediction: "基于 A 和 B，X 可能发生"（新预测）
+- question: "A 和 B 暗示了一个新问题：X"（新问题）
+
+输出格式（JSON）：
+{
+  "has_insight": true/false,
+  "insight": "具体的新洞察内容",
+  "insight_type": "hypothesis/analogy/prediction/question",
+  "surprise": 0.0-1.0,
+  "novelty": 0.0-1.0,
+  "trigger_topic": "string 或 null"
+}
+```
+
+### 9.4 find_distant_pairs（含神经噪声）
+
+```python
+def find_distant_pairs(self, topic: str, max_pairs: int = 5) -> list:
+    """
+    选取远距离无连接的节点
+
+    策略（三层随机）：
+    1. 70%：按距离筛选（distance > 3 且 quality >= 4）
+    2. 20%：跨 domain 优先
+    3. 10%：神经噪声——完全随机，模拟生物大脑的随机激活
+    """
+    import random
+    all_nodes = kg.get_all_nodes(active_only=True)
+    connected = kg.get_directly_connected(topic)
+    candidates = [n for n in all_nodes if n not in connected and n != topic]
+
+    distant = [n for n in candidates if kg.get_shortest_path_length(topic, n) > 3]
+    meaningful = [n for n in distant if n.get("quality", 0) >= 4]
+
+    results = []
+    for _ in range(max_pairs):
+        rand = random.random()
+        if rand < 0.1:
+            # 10%：神经噪声
+            if candidates:
+                results.append((random.choice(candidates), -1))
+        elif rand < 0.3:
+            # 20%：跨 domain
+            topic_domain = kg.get_node_domain(topic)
+            cross = [n for n in meaningful if kg.get_node_domain(n) != topic_domain]
+            if cross:
+                results.append((random.choice(cross), kg.get_shortest_path_length(topic, cross[0])))
+        else:
+            # 70%：按距离
+            if meaningful:
+                chosen = random.choice(meaningful)
+                results.append((chosen, kg.get_shortest_path_length(topic, chosen)))
+    return results
+```
+
+---
+
+## F10: 洞察验证回路
+
+### 10.1 逻辑
+
+```python
+def verify_existing_insights(self, topic: str):
+    """
+    检查 topic 相关的已有洞察是否被后续探索验证过
+
+    规则：
+    - 7 天内被触发 → verified=True，quality += 1
+    - 7 天内未被触发 → weight -= 0.05
+    - weight < 0.2 → stale=True
+    """
+    insights = kg.get_dream_insights(topic)
+    for insight in insights:
+        if insight.get("verified"):
+            continue
+        was_triggered = self.history.was_insight_triggered(
+            insight["node_id"], within_days=7
+        )
+        if was_triggered:
+            kg.update_insight_quality(insight["node_id"], delta=1.0)
+            insight["verified"] = True
+        else:
+            kg.update_insight_weight(insight["node_id"], delta=-0.05)
+            if insight.get("weight", 0.5) < 0.2:
+                insight["stale"] = True
+```
+
+---
+
+## F11: SharedInbox（Dream→Spider 通信）
+
+### 11.1 通信方向
+
+```
+DreamAgent → KG (dream_topic_inbox.json) → SpiderAgent
+
+注意：这是单向通信
+- DreamAgent 写 inbox
+- SpiderAgent 读并清空 inbox
+- 没有反向通道（SpiderAgent 通过高优先级队列通知 DreamAgent）
+```
+
+### 11.2 为什么不直接写 curiosity_queue？
+
+因为 curiosity_queue 是 SpiderAgent 的内部数据结构，DreamAgent 作为独立进程不应该直接操作 SpiderAgent 的内部状态。SharedInbox 是明确的进程间协议接口。
+
+---
+
+## F12: MetaCognitiveMonitor 增强
+
+### 12.1 设计决策
+
+**增强现有 `core/meta_cognitive_monitor.py`，不新建独立模块**。
+
+理由：
+- 现有 MetaCognitiveMonitor 已有 assess_quality / compute_marginal_return / record_exploration 等方法
+- 新建独立模块会导致功能分散、代码重复
+- KG 已有 topic 字段，只需扩展字段
+
+### 12.2 新增方法
+
+```python
+# core/meta_cognitive_monitor.py 新增
+
+class MetaCognitiveMonitor:
+    # === 节点置信区间 [F12-1] ===
+    def get_confidence_interval(self, topic: str) -> tuple[float, float]:
+        """返回 (confidence_low, confidence_high)"""
+
+    def update_node_confidence(self, topic: str, delta_evidence: int,
+                                delta_contradiction: int):
+        """更新节点的置信度"""
+
+    # === 知识前沿检测 [F12-2] ===
+    def detect_frontier(self) -> list[dict]:
+        """
+        知识前沿 = 已探索节点指向未探索候选的边
+        前沿类型：explicit | cross_domain | contradiction
+        """
+
+    def recommend_exploration_from_frontier(self) -> list[str]:
+        """从前沿推荐优先探索方向（矛盾 > 跨域 > 显式）"""
+
+    # === 校准评估 [F12-3] ===
+    def record_prediction(self, topic: str, predicted_confidence: float, is_hypothesis: bool):
+        """记录预测（DreamAgent 生成洞察时调用）"""
+
+    def record_outcome(self, topic: str, actual_correct: bool):
+        """记录预测结果（SpiderAgent 验证后调用）"""
+
+    def get_calibration_error(self) -> float:
+        """返回 Brier score（越低越好，0=完美校准）"""
+
+    def get_topic_calibration(self, topic: str) -> dict:
+        """返回特定 topic 的校准详情"""
+```
+
+### 12.3 MetaCognitiveController 扩展
+
+```python
+# core/meta_cognitive_controller.py 新增
+
+class MetaCognitiveController:
+    def should_explore_frontier(self) -> tuple[bool, list[str]]:
+        """推荐基于知识前沿的探索方向"""
+        recommendations = self.monitor.recommend_exploration_from_frontier()
+        return (len(recommendations) > 0, recommendations)
+```
+
+---
+
+## F13: API 扩展
+
+### 13.1 新增路由
+
+```python
+# curious_api.py
+
+# === Dream Insights ===
+@app.route("/api/kg/dream_insights")
+def api_kg_dream_insights():
+    """返回所有 dream_insight"""
+    return jsonify({"insights": kg.get_all_dream_insights()})
+
+@app.route("/api/kg/dream_insights/<topic>")
+def api_kg_dream_insights_topic(topic: str):
+    """返回与 topic 相关的所有 dream_insight"""
+    return jsonify({"insights": kg.get_dream_insights(topic)})
+
+@app.route("/api/kg/dream_insights/remove/<node_id>", methods=["POST"])
+def api_kg_remove_insight(node_id: str):
+    """删除 dream_insight（SleepPruner 使用）"""
+    kg.remove_dream_insight(node_id)
+    return jsonify({"status": "ok"})
+
+# === [F6] Dormant ===
+@app.route("/api/kg/dormant")
 def api_kg_dormant():
     """返回所有 dormant 节点"""
-    from core.knowledge_graph import get_dormant_nodes
-    return jsonify({"dormant_nodes": get_dormant_nodes()})
-
+    return jsonify({"dormant_nodes": kg.get_dormant_nodes()})
 
 @app.route("/api/kg/reactivate", methods=["POST"])
 def api_kg_reactivate():
     """恢复 dormant 节点"""
-    from core.knowledge_graph import reactivate
     data = request.get_json()
     topic = data.get("topic", "").strip()
     if not topic:
         return jsonify({"error": "topic is required"}), 400
-    reactivate(topic)
+    kg.reactivate(topic)
     return jsonify({"status": "ok", "topic": topic})
 
-
+# === [F8] Dream Agent ===
 @app.route("/api/dreamer/force", methods=["POST"])
 def api_dreamer_force():
     """强制 DreamAgent 对指定 topic 执行一次创意做梦"""
-    from core.dream_agent import force_dream_topic
     data = request.get_json()
     topic = data.get("topic", "").strip()
     if not topic:
@@ -830,372 +1001,20 @@ def api_dreamer_force():
     result = force_dream_topic(topic)
     return jsonify({"status": "ok", "insight_created": result["insight_created"]})
 
-
-@app.route("/api/kg/insights/<path:topic>", methods=["GET"])
-def api_kg_insights(topic: str):
-    """获取节点相关的所有 dream_insight"""
-    from core.knowledge_graph import get_dream_insights
-    return jsonify({"topic": topic, "insights": get_dream_insights(topic)})
-```
-
----
-
-## 八、验收标准
-
-```bash
-# 1. 三个进程正常启动
-curl http://localhost:4848/api/curious/state
-
-# 2. 注入话题后，DreamAgent 高优先级处理
-curl -X POST http://localhost:4848/api/curious/inject \
-  -H "Content-Type: application/json" \
-  -d '{"topic":"test dreaming","score":7.0,"depth":6.0}'
-
-# 3. 手动触发 DreamAgent 处理
-curl -X POST http://localhost:4848/api/dreamer/force \
-  -H "Content-Type: application/json" \
-  -d '{"topic":"metacognitive monitoring"}'
-
-# 4. 检查 dormant 节点
-curl http://localhost:4848/api/kg/dormant
-
-# 5. 恢复 dormant 节点
-curl -X POST http://localhost:4848/api/kg/reactivate \
-  -H "Content-Type: application/json" \
-  -d '{"topic":"某个dormant节点"}'
-
-# 6. 检查节点连接权重
-curl http://localhost:4848/api/kg/connection/metacognitive\ monitoring
-
-# 7. 验证低优先级队列填充（观察日志）
-# 当高优先级队列为空时，应自动从 KG 填充低优先级队列
-```
-
----
-
-## 九、三层做梦能力 vs 人类梦境
-
-| 层次 | 人类做梦 | CA 实现 | 满足程度 |
-|------|---------|---------|---------|
-| 浅层探索 | 队列驱动探索 | SpiderAgent 持续运行 | ✅ 完全满足 |
-| 浅层巩固 | Hebbian（共现强化） | strengthen_co_occurring() + last_consolidated | ✅ 完全满足 |
-| 中层做梦 | 创意生成 + 公平对待所有记忆 | DreamAgent 双队列 + 轮流队列 | ✅ 完全满足 |
-| 中层做梦 | 意外洞察发现 | surprise >= 0.5，生成而非判断 | ✅ 完全满足 |
-| 中层做梦 | 价值验证反馈 | verified + stale + 洞察验证回路 | ✅ 完全满足 |
-| 中层做梦 | 神经噪声模拟 | 10% 神经噪声模式（强制随机） | ✅ 完全满足 |
-| 深层修剪 | 弱洞察清理（权重感知） | SleepPruner + dream_insights 清理 | ✅ 完全满足 |
-
----
-
-## 十、模块依赖关系
-
-```
-curious_agent.py (入口)
-    ├── SpiderAgent
-    │   ├── CuriosityEngine
-    │   ├── Explorer
-    │   └── KnowledgeGraph (with node-level locks)
-    ├── DreamAgent
-    │   ├── LLMClient (creative_dream)
-    │   ├── high_priority_queue (来自 SpiderAgent)
-    │   ├── low_priority_queue (轮流填充)
-    │   └── KnowledgeGraph
-    ├── SleepPruner
-    │   └── KnowledgeGraph
-    └── MetaCognitiveMonitor（扩展现有模块，不是独立进程）
-        └── KnowledgeGraph
-```
-
----
-
-## 十一、已知问题 & 改进计划
-
-### P0：必须修复（实现前）
-
-**1. ExplorationHistory race condition**
-- **问题**：`strengthen_co_occurring` 在 SpiderAgent 里写 `connection_weight`，同时 `co_occurred()` 在 DreamAgent 里读。存在数据不一致风险。
-- **修复**：ExplorationHistory 所有方法加 `threading.Lock()`。
-- **状态**：✅ 已在 5.3 节修复。
-
-**2. LLM 创意生成质量控制**
-- **问题**：两个随机 topic 进去，LLM 一定能编出一个看起来合理的 insight。可能是幻觉，不是真正有价值的连接。
-- **修复**：prompt 里加约束（"必须是 A+B 都没提到的全新洞察"），或加验证步骤。
-- **状态**：待实现。
-
-### P1：应该改进（实现后优化）
-
-**3. 低优先级队列轮询指针**
-- **问题**：被动触发（队列空才填充）导致老节点永久没有做梦机会。
-- **修复**：用 `dream_pointer` 主动轮询，每个节点定期都有机会。
-- **状态**：✅ 已在 3.3 节修复。
-
-**4. 双门控触发条件**
-- **问题**：现在只有新节点入队才触发做梦，没有"时间+次数"门控。
-- **修复**：参考 Claude Code Auto Dream，距上次 consolidation ≥24h 且新节点 ≥5 才触发。
-- **状态**：待实现。
-
-### P2：可以增强（数字生命体核心能力）
-
-**5. 元认知监控（MetacognitiveMonitor）**
-- **问题**：CA 不知道自己知识边界在哪，只知道"不知道"，不知道"自己知道多少"。
-- **差距**：数字生命体需要有置信度校准能力。
-- **建议实现**：见第十三节。
-- **状态**：✅ 已写入 v0.2.6 spec（section 13）。
-
-**6. 内部动机系统**
-- **问题**：ICM 是外部知识探索的驱动，但数字生命体需要"这件事对我有意义"的情感锚点。
-- **建议实现**：给 KG 节点增加"主观重要性"评分，不只是 quality/quality。
-- **状态**：待探索。
-
-**7. 自我模型更新**
-- **问题**：dream_insight 生成后 KG 变了，但"CA 这个人"没有变。
-- **建议实现**：每次做梦后更新自我表征——"我擅长什么、我缺什么能力"。
-- **状态**：待探索。
-
----
-
-## 十二、与 Claude Code Auto Dream 的对比
-
-> 来源：Serper 搜索（2026-03-28）
-
-| 维度 | Claude Code Auto Dream | CA DreamAgent v0.2.6 |
-|------|----------------------|---------------------|
-| **目标** | 记忆整理/整理 | 创意生成新知识 |
-| **触发** | 双门控（时间+次数） | 新节点入队 + 轮询指针 |
-| **产出** | 整理后的索引（MEMORY.md ≤200行） | 新洞察节点（KG 生长） |
-| **Session 分析** | Targeted grep JSONL | N/A（CA 无 session JSONL） |
-| **矛盾检测** | ✅ 有（主动删除矛盾事实） | ⚠️  可加入（4.5 节） |
-| **修剪** | 删除矛盾/过时条目 | 弱 explains 清理 + dormant |
-| **并发控制** | 锁文件 | 节点级锁 |
-
-**关键差异**：Claude Code Auto Dream 是"整理已有知识"，CA DreamAgent 是"创造新知识"。两个方向互补，不竞争。
-
----
-
-## 十三、MetacognitiveMonitor（知道自己不知道什么）
-
-### 13.1 架构决策：增强现有模块，非新建独立模块
-
-> **决策时间**：2026-03-28 16:46
-> **决策依据**：代码分析表明现有 MetaCognitiveMonitor + MetaCognitiveController + KG 已有监控基础设施，应扩展而非重建
-
-**决策**：扩展现有 `MetaCognitiveMonitor`，不新建独立进程或文件。
-
-**理由**：
-- 现有 MetaCognitiveMonitor 已有 assess_quality / compute_marginal_return / record_exploration 等监控方法
-- MetaCognitiveController 已有 should_explore / should_continue / should_notify 决策链
-- KG 已有 topic 字段和 exploration_log，只需扩展字段
-- 新建独立模块会导致功能分散、代码重复、维护困难
-
-### 13.2 核心问题
-
-CA 当前只知道自己"不知道"，不知道自己"不知道多少"：
-
-```
-用户问："你对 attention 机制有多确定？"
-CA：我探索过，quality=7.5，我可以详细解释...
-
-但 CA 不知道：
-1. 我的理解是否和最新论文一致？
-2. 我的 explanation 里有没有 subtle misconception？
-3. 还有哪些相关的 paper/technique 我完全没有覆盖？
-```
-
-**知道自己知道** ≠ **知道自己不知道**
-
-元认知监控让 CA 具备：
-- 知道自己对每个 topic 的置信区间
-- 知道自己的知识边界在哪（Knowledge Frontier）
-- 知道自己的自信程度是否准确（Calibration）
-
-### 13.3 节点置信度（NodeConfidence）
-
-每个 KG 节点新增置信区间字段：
-
-```python
-# KG topics[topic] 新增字段
-confidence_low: float = 0.3    # 置信度下限
-confidence_high: float = 0.7   # 置信度上限
-evidence_count: int = 0         # 支持证据数
-contradiction_count: int = 0    # 矛盾证据数
-last_verified: str | None     # ISO 时间戳
-```
-
-**置信度更新规则**：
-
-```
-初始：confidence_low=0.3, confidence_high=0.7（不确定性高）
-
-每次探索结果验证：
-  - 有新证据支持 → confidence_low += 0.1, confidence_high += 0.05
-  - 有矛盾证据 → confidence_high -= 0.2, confidence_low -= 0.1
-  - 时间超过 30 天未验证 → confidence_low -= 0.05, confidence_high -= 0.05
-
-每次价值验证回路（explains 被触发）：
-  - 被触发且正确 → confidence_low += 0.1
-  - 被触发但错误 → confidence_low -= 0.3, confidence_high -= 0.3
-```
-
-### 13.4 知识前沿（Knowledge Frontier）
-
-**定义**：前沿 = 已探索节点指向未探索节点的边
-
-```
-     [metacognitive monitoring] ──→ [?] （未探索）
-           │
-           └── explored
-           
-"metacognitive monitoring" 是已知节点
-"?" 是前沿——我们知道这个方向存在，但我们不知道它是什么
-```
-
-```python
-# MetaCognitiveMonitor 新增方法
-
-def detect_frontier(self) -> list[dict]:
-    """
-    知识前沿 = 已探索节点指向未探索候选的边
-
-    前沿类型：
-    1. 显式前沿：已知节点的 children 为空，但有候选
-    2. 隐式前沿：跨 domain 连接的目标 domain 完全未被探索
-    3. 矛盾前沿：两个节点互相矛盾，但都没有足够证据判定哪个正确
-
-    Returns: list of {"from_node", "to_node", "frontier_type", "uncertainty"}
-    """
-
-def recommend_exploration_from_frontier(self) -> list[str]:
-    """
-    从前沿推荐优先探索方向
-
-    策略：
-    1. 矛盾前沿优先（两个矛盾认知，必须判定哪个正确）
-    2. 跨 domain 前沿次之（全新领域，不确定性最高）
-    3. 显式前沿最后（已有结构的叶节点）
-    """
-```
-
-### 13.5 校准评估（Calibration Tracker）
-
-**核心问题**：CA 说"我很确定"的时候，实际上有多确定？
-
-```
-CA self-assessment: "我对 attention 机制的置信度是 0.85"
-实际验证：正确率只有 0.6
-→ calibration error = 0.25（严重高估）
-```
-
-```python
-# exploration_log[] 新增字段
-predicted_confidence: float | None  # 探索前 CA 预测的置信度
-actual_outcome: bool | None          # 探索后的实际验证结果
-is_hypothesis: bool = False         # 这个探索是否是 DreamAgent 生成的假设
-
-# MetaCognitiveMonitor 新增方法
-
-def record_prediction(self, topic: str, predicted_confidence: float, is_hypothesis: bool):
-    """
-    记录一次预测（DreamAgent 生成洞察时调用）
-
-    每次 DreamAgent llm_creative_dream() 生成洞察，都是一次"预测"：
-    "基于 A+B，我认为会出现 X"——这是假设，需要后续验证
-    """
-
-def record_outcome(self, topic: str, actual_correct: bool):
-    """
-    记录预测结果（SpiderAgent 探索验证后调用）
-    用于计算 calibration error
-    """
-
-def get_calibration_error(self) -> float:
-    """
-    计算整体校准误差
-
-    方法：Brier score（predicted vs actual）
-    越低越好，0=完美校准
-    """
-
-def get_topic_calibration(self, topic: str) -> dict:
-    """
-    返回特定 topic 的校准详情
-    {
-        "topic": "attention mechanism",
-        "self_assessment": 0.85,
-        "actual_accuracy": 0.6,
-        "calibration_error": 0.25,
-        "verdict": "CA is overconfident"
-    }
-    """
-```
-
-### 13.6 整合到 v0.2.6 架构
-
-```
-SpiderAgent（持续探索进程）
-    │
-    ├→ CuriosityEngine.select_next()
-    │       └→ 考虑 competence_tracker + frontier recommendations
-    │
-    ├→ MetaCognitiveMonitor  # 扩展版（不新建进程）
-    │   ├→ assess_quality()                [已有]
-    │   ├→ compute_marginal_return()       [已有]
-    │   ├→ get_confidence_interval()        [新增]
-    │   ├→ detect_frontier()               [新增]
-    │   ├→ record_prediction()             [新增]
-    │   └→ record_outcome()                [新增]
-    │
-    └→ KnowledgeGraph
-            ├→ topics{} (新增 confidence_low/high/evidence/contradiction)
-            └→ exploration_log{} (新增 predicted/outcome/is_hypothesis)
-
-DreamAgent（持续做梦重组进程）
-    │
-    ├→ llm_creative_dream()          # 生成洞察 = 一次预测
-    │       └→ MetaCognitiveMonitor.record_prediction(is_hypothesis=True)
-    │
-    └→ verify_existing_insights()    # 验证洞察 = 记录 outcome
-            └→ MetaCognitiveMonitor.record_outcome()
-```
-
-### 13.7 与 ICM（内在动机）的区别
-
-| | ICM（内在动机） | 元认知监控 |
-|--|--|--|
-| 问的问题 | "什么 topic 最值得探索？" | "我对这个 topic 到底有多确定？" |
-| 驱动 | curiosity gap | calibration awareness |
-| 产出 | exploration priority | confidence interval + frontier |
-| 类比 | "我想去哪里" | "我知道我现在的位置和目的地之间的距离" |
-
-**ICM + MetaCognitiveMonitor = 完整的自主意识系统**
-- ICM 驱动"去哪里探索"
-- MetaCognitiveMonitor 监控"我知道什么、不知道什么"
-
-### 13.8 代码修改清单
-
-| 文件 | 修改类型 | 说明 |
-|------|---------|------|
-| `core/knowledge_graph.py` | 扩展字段 | topics{} 新增 confidence_low/high/evidence/contradiction；exploration_log{} 新增 predicted/outcome/is_hypothesis |
-| `core/meta_cognitive_monitor.py` | 扩展方法 | 新增 5 个方法：get_confidence_interval / update_node_confidence / detect_frontier / recommend_exploration_from_frontier / record_prediction / record_outcome / get_calibration_error / get_topic_calibration |
-| `core/meta_cognitive_controller.py` | 扩展决策 | should_explore 增加 frontier 感知 |
-
-### 13.9 新增 API
-
-```python
+# === [F12] MetaCognitive ===
 @app.route("/api/kg/confidence/<path:topic>", methods=["GET"])
 def api_kg_confidence(topic: str):
     """获取节点置信区间"""
-    confidence = meta_monitor.get_confidence_interval(topic)
+    low, high = meta_monitor.get_confidence_interval(topic)
     return jsonify({
         "topic": topic,
-        "confidence_low": confidence.low,
-        "confidence_high": confidence.high,
-        "evidence_count": confidence.evidence_count,
-        "contradiction_count": confidence.contradiction_count
+        "confidence_low": low,
+        "confidence_high": high
     })
 
 @app.route("/api/kg/frontier", methods=["GET"])
 def api_kg_frontier():
-    """获取知识前沿（知道自己不知道什么）"""
+    """获取知识前沿"""
     frontiers = meta_monitor.detect_frontier()
     return jsonify({"frontiers": frontiers})
 
@@ -1203,11 +1022,155 @@ def api_kg_frontier():
 def api_kg_calibration():
     """获取整体校准误差"""
     error = meta_monitor.get_calibration_error()
-    return jsonify({"calibration_error": error, "verdict": "well_calibrated" if error < 0.1 else "overconfident"})
+    return jsonify({
+        "calibration_error": error,
+        "verdict": "well_calibrated" if error < 0.1 else "overconfident"
+    })
 ```
 
 ---
 
-_Last updated: 2026-03-28 16:46 by R1D3_
-_v0.2.6: Creative DreamAgent + SpiderAgent + SleepPruner + MetaCognitiveMonitor enhanced (knowing what you don't know)_
+## F14: R1D3 Skill 同步
 
+### 14.1 当前 curious skill 的同步路径
+
+```
+CA: knowledge/state.json / knowledge/dream_insights/
+    ↓
+skills/curious-agent/scripts/sync_discoveries.py
+    ↓
+R1D3: memory/curious-discoveries.md
+```
+
+### 14.2 v0.2.6 需要新增的同步
+
+| 新增
+| 新增同步 | 源路径 | 目的路径 | 触发条件 |
+|---------|--------|---------|---------|
+| Dream insights | `knowledge/dream_insights/*.json` | `shared_knowledge/ca/dream_insights/` | 新洞察生成时 |
+| Confidence 更新 | KG topics{} | `shared_knowledge/ca/confidence/` | Confidence 显著变化时 |
+| Frontier | MetaCognitiveMonitor | `shared_knowledge/ca/frontier/` | 每小时一次 |
+| Calibration | MetaCognitiveMonitor | `shared_knowledge/ca/calibration/` | 每小时一次 |
+
+### 14.3 新增 skill 文件
+
+```
+skills/curious-agent/scripts/
+    ├── sync_dream_insights.py     ← 新增：同步 dream insights
+    └── sync_metacognitive.py     ← 新增：同步 confidence/frontier/calibration
+```
+
+### 14.4 同步逻辑
+
+```python
+# sync_dream_insights.py
+def sync_new_insights():
+    """同步新生成的 dream insights 到 shared_knowledge"""
+    insights = kg.get_all_dream_insights()
+    # 读取上次同步位置，只同步新增的
+    for insight in insights:
+        if not insight.get("_synced"):
+            write_to_shared(insight)
+            insight["_synced"] = True
+    kg.save_dream_insights(insights)
+
+# sync_metacognitive.py
+def sync_metacognitive():
+    """同步 meta cognitive 状态"""
+    # frontier
+    frontiers = meta_monitor.detect_frontier()
+    # calibration
+    error = meta_monitor.get_calibration_error()
+    # 写入 shared_knowledge/ca/
+```
+
+---
+
+## 模块依赖关系
+
+```
+curious_agent.py (入口)
+    ├── SpiderAgent (进程1)
+    │   ├── CuriosityEngine
+    │   ├── Explorer
+    │   ├── ExplorationHistory (线程安全, F4)
+    │   └── KG (节点级锁, F3)
+    ├── DreamAgent (进程2)
+    │   ├── LLMClient (creative_dream, F9)
+    │   ├── ExplorationHistory (线程安全, F4)
+    │   ├── KG (节点级锁, F3)
+    │   └── SharedInbox (F11)
+    └── SleepPruner (进程3)
+        └── KG (节点级锁, F3)
+
+MetaCognitiveMonitor（增强现有模块，不是独立进程）
+    ├── ExplorationHistory (F4)
+    └── KG (F3)
+```
+
+---
+
+## 文件变更清单
+
+| 文件 | 操作 | 说明 |
+|------|------|------|
+| `core/spider_agent.py` | 新增 | 持续探索进程（F5） |
+| `core/dream_agent.py` | 新增 | 持续做梦进程（F8） |
+| `core/sleep_pruner.py` | 新增 | 定时修剪进程（F6） |
+| `core/knowledge_graph.py` | 修改 | KG Schema 扩展（F2）+ 新增 API |
+| `core/meta_cognitive_monitor.py` | 修改 | 新增方法（F12） |
+| `core/meta_cognitive_controller.py` | 修改 | 新增决策方法（F12） |
+| `core/exploration_history.py` | 新增 | ExplorationHistory 独立文件（F4） |
+| `core/node_lock_registry.py` | 新增 | 节点级锁（F3） |
+| `curious_agent.py` | 修改 | 启动三个独立进程（F1） |
+| `curious_api.py` | 修改 | 新增 API 路由（F13） |
+| `skills/curious-agent/scripts/sync_dream_insights.py` | 新增 | R1D3 同步（F14） |
+| `skills/curious-agent/scripts/sync_metacognitive.py` | 新增 | R1D3 同步（F14） |
+
+---
+
+## 验收标准
+
+```bash
+# === 进程启动 ===
+# 1. 三个进程正常启动
+curl http://localhost:4848/api/curious/state
+
+# === Dream Insights ===
+# 2. 注入话题后，DreamAgent 高优先级处理
+curl -X POST http://localhost:4848/api/curious/inject \
+  -H "Content-Type: application/json" \
+  -d '{"topic":"test dreaming","score":7.0,"depth":6.0}'
+
+# 3. 手动触发 DreamAgent
+curl -X POST http://localhost:4848/api/dreamer/force \
+  -H "Content-Type: application/json" \
+  -d '{"topic":"metacognitive monitoring"}'
+
+# 4. 查看 dream_insights
+curl http://localhost:4848/api/kg/dream_insights
+
+# === Dormant & Pruning ===
+# 5. 查看 dormant 节点
+curl http://localhost:4848/api/kg/dormant
+
+# 6. 恢复 dormant 节点
+curl -X POST http://localhost:4848/api/kg/reactivate \
+  -H "Content-Type: application/json" \
+  -d '{"topic":"某个dormant节点"}'
+
+# === MetaCognitive [F12] ===
+# 7. 查看置信区间
+curl http://localhost:4848/api/kg/confidence/metacognitive%20monitoring
+
+# 8. 查看知识前沿
+curl http://localhost:4848/api/kg/frontier
+
+# 9. 查看校准误差
+curl http://localhost:4848/api/kg/calibration
+```
+
+---
+
+_Last updated: 2026-03-28 17:03 by R1D3_
+_v0.2.6: Three independent processes + Creative DreamAgent + SpiderAgent + SleepPruner + MetaCognitiveMonitor enhanced_
