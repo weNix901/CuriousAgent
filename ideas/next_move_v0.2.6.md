@@ -201,7 +201,7 @@ class DreamAgent:
 
 **触发条件**：低优先级队列为空时，自动触发 fill_low_priority_queue。
 
-### 3.4 运行逻辑
+### 3.4 运行逻辑（含价值验证回路）
 
 ```python
     def process_associations(self, topic: str):
@@ -211,62 +211,199 @@ class DreamAgent:
         for distant_node, distance in distant_pairs:
             result = self.llm_ask_association(topic, distant_node)
 
-            if result["has_association"] and result["confidence"] >= 0.7:
+            # 写入条件：surprise >= 0.5（意外度够高）
+            # 取消 confidence >= 0.7 的门控——避免过滤最意外的连接
+            if result["has_association"] and result["surprise"] >= 0.5:
                 self.kg_write_with_lock(topic, distant_node, result)
 
         # 标记为已做梦处理
         self.kg.mark_dreamed(topic)
+
+        # === 价值验证回路：检查已有连接是否被验证 ===
+        self.verify_existing_connections(topic)
 ```
 
-### 3.5 远距离节点选取
+**价值验证回路逻辑**：
+
+```python
+    def verify_existing_connections(self, topic: str):
+        """
+        检查 topic 的已有 explains 连接是否被 SpiderAgent 触发验证过
+
+        规则：
+        - 如果 explains 连接在过去 7 天内被 SpiderAgent 触发过 → verified=True, weight += 0.1
+        - 如果 explains 连接在过去 7 天内未被触发 → weight -= 0.05
+        - weight < 0.2 的连接 → 标记为 stale，后续可被 SleepPruner 清理
+        """
+        explains = self.kg.get_explains(topic)
+        now = datetime.now(timezone.utc)
+
+        for entry in explains:
+            if entry.get("verified"):
+                continue  # 已验证过，跳过
+
+            # 检查是否在最近探索中被触发
+            was_triggered = self.exploration_history.was_ever_triggered(
+                topic, entry["target"], within_days=7
+            )
+
+            if was_triggered:
+                # 被验证了，强化权重
+                self.kg.update_explains_weight(
+                    topic, entry["target"], delta=0.1
+                )
+                entry["verified"] = True
+            else:
+                # 未被验证，缓慢衰减
+                self.kg.update_explains_weight(
+                    topic, entry["target"], delta=-0.05
+                )
+```
+
+### 3.5 远距离节点选取（含神经噪声）
 
 ```python
     def find_distant_pairs(self, topic: str, max_pairs: int = 5) -> list:
         """
         选取与 topic 距离远且无连接的节点
 
-        标准：
-        - 两节点间不存在 path（或 length > 3）
-        - 两节点 quality >= 4
-        - 优先跨 domain（不同探索分支）
-        - 随机性：加入随机采样，不总是选最近/最远的
+        策略（三层随机）：
+        1. 70%：按距离筛选（distance > 3 且 quality >= 4）
+        2. 20%：跨 domain 优先（不同探索分支的远距离节点）
+        3. 10%：神经噪声模式——强制随机选取，不考虑距离
+           → 模拟人类做梦时的神经元随机激活，产生最意外的连接
         """
+        import random
         all_nodes = self.kg.get_all_nodes(active_only=True)
 
         # 过滤已有连接的节点
         connected = self.kg.get_directly_connected(topic)
         distant_candidates = [n for n in all_nodes if n not in connected]
 
-        # 过滤距离近的（path length <= 3）
         def distance(node):
             return self.kg.get_shortest_path_length(topic, node)
 
+        # 距离 > 3 的候选
         distant = [n for n in distant_candidates if distance(n) > 3]
 
-        # 随机选取 + quality 过滤
-        import random
-        sampled = random.sample(
-            [n for n in distant if n.get("quality", 0) >= 4],
-            min(max_pairs, len(distant))
-        )
+        # 按 quality 过滤（至少有一定探索深度）
+        meaningful = [n for n in distant if n.get("quality", 0) >= 4]
 
-        return [(n, distance(n)) for n in sampled]
+        results = []
+        for i in range(max_pairs):
+            rand = random.random()
+
+            if rand < 0.1:
+                # 10%：神经噪声模式——完全随机，不管距离
+                candidates_noise = [n for n in all_nodes if n not in connected and n != topic]
+                if candidates_noise:
+                    chosen = random.choice(candidates_noise)
+                    results.append((chosen, -1))  # -1 表示神经噪声模式
+                    continue
+
+            elif rand < 0.3:
+                # 20%：跨 domain 优先
+                # 选和 topic 不在同一探索分支的节点
+                topic_domain = self.kg.get_node_domain(topic)
+                cross_domain = [n for n in meaningful if self.kg.get_node_domain(n) != topic_domain]
+                if cross_domain:
+                    chosen = random.choice(cross_domain)
+                    results.append((chosen, distance(chosen)))
+                    continue
+
+            # 70%：正常按距离筛选
+            if meaningful:
+                chosen = random.choice(meaningful)
+                results.append((chosen, distance(chosen)))
+            elif distant:
+                chosen = random.choice(distant)
+                results.append((chosen, distance(chosen)))
+
+        return results
 ```
 
-### 3.6 LLM 关联判断
+### 3.6 LLM 关联判断（意外度 + 新颖性）
+
+**核心改进**：从"置信度"改为"意外度+新颖性"，解决最意外连接被过滤的问题。
 
 ```python
     def llm_ask_association(self, topic_a: str, topic_b: str) -> dict:
         """
         强制 LLM 判断两个节点是否有意外关联
 
-        Returns: {
-            has_association: bool,
-            relation_type: "causal" | "analogical" | "shared_foundation" | "hierarchical" | "none",
-            description: str,
-            confidence: float  # 0.0-1.0
-        }
+        输出四个维度（不再是单一置信度）：
+        1. has_association: bool - 是否存在关联
+        2. relation_type: str - 关联类型
+        3. surprise: float  # 0.0-1.0 意外度——建立这个连接需要多创新的推理？
+                             #   0.0 = 常识（不需要推理）
+                             #   0.5 = 需要跨领域类比
+                             #   1.0 = 完全原创假设
+        4. novelty: float   # 0.0-1.0 新颖度——这个关联在知识图谱中是否已知？
+                             #   0.0 = 已有连接（重复）
+                             #   0.5 = 部分已知，有新角度
+                             #   1.0 = 全新组合
+
+        写入条件：has_association=True AND surprise >= 0.5（取消置信度门控）
         """
+```
+
+**LLM Prompt**：
+
+```
+你是一个知识关联分析器，专注于发现"意外但有价值"的跨领域连接。
+
+Topic A: {topic_a}
+Topic B: {topic_b}
+
+请分析这两个知识点的关系，输出四个维度的判断：
+
+1. **has_association**: 这两个 topic 之间是否存在可建立的关联？（yes/no）
+
+2. **relation_type**: 关联类型
+   - causal: 因果关系（A 导致 B）
+   - analogical: 类比关系（A 像 B）
+   - shared_foundation: 共同基础（A 和 B 共享底层原理）
+   - hierarchical: 层级关系（A 是 B 的上层/下层概念）
+   - none: 无关联
+
+3. **surprise（意外度）**: 建立这个关联需要多创新的推理？
+   - 0.0-0.3: 常识关联，不需要推理（e.g. "transformer → attention"）
+   - 0.4-0.6: 需要跨领域类比（e.g. "transformer → brain regionalization"）
+   - 0.7-1.0: 需要完全原创的假设（e.g. "curiosity → circuit breaker"）
+
+4. **novelty（新颖度）**: 这个关联在知识图谱中是否已知？
+   - 0.0-0.3: 已有连接，重复（知识图谱中很可能已存在）
+   - 0.4-0.6: 部分已知，有新角度
+   - 0.7-1.0: 全新组合，极为罕见
+
+注意：**即使 has_association=no，如果 surprise >= 0.7，也请说明这两个 topic 为什么意外地没有关联——这本身就是有价值的洞察。**
+
+输出格式（JSON）：
+{
+  "has_association": true/false,
+  "relation_type": "causal/analogical/shared_foundation/hierarchical/none",
+  "surprise": 0.0-1.0,
+  "novelty": 0.0-1.0,
+  "description": "一段话描述关联内容"
+}
+```
+
+**写入决策逻辑**：
+
+```python
+    def should_write_connection(self, result: dict) -> bool:
+        """
+        写入条件：
+        - has_association=True
+        - surprise >= 0.5（意外度够高，不被过滤）
+
+        不再要求 confidence >= 0.7——这是关键改变
+        """
+        return (
+            result["has_association"]
+            and result["surprise"] >= 0.5
+        )
+```
 ```
 
 ### 3.7 与 SpiderAgent 的协调
@@ -288,17 +425,22 @@ DreamAgent:  监听高优先级队列 + 低优先级轮流队列
 - 定时扫描 KG，识别弱连接节点
 - 基于 connection_weight 降级低价值节点为 dormant
 
-### 4.2 降级标准（含权重）
+### 4.2 降级标准（含 verified + stale）
 
 **核心原则**：pruning 只对 explains 连接检查权重，不对 parent/child 做权重判断。
 
 - parent/child 是结构性的，二元存在性（有无），不区分强弱
 - explains 是创意连接，有权重，可以被判定为"弱"
 
+**新增逻辑**：
+- verified=False 且 created_at > 7 天前 → 说明从未被 SpiderAgent 验证 → 直接删除这条 explains
+- verified=True 的连接 → 不会被 SleepPruner 删除
+- stale=True 的连接 → weight 已经很低，等待被修剪
+
 ```
 节点同时满足以下条件 → 降级为 dormant：
 1. parents = [] 且 children = []（结构上真正孤立）
-2. explains 的平均 weight < 0.3（创意连接也弱）
+2. 所有 explains 连接均为 stale=True（weight < 0.2）
 3. quality < 7.0
 4. 非 root_technology_pool 候选
 5. 非最近 7 天内有过 explains 新建连接的节点
@@ -336,21 +478,30 @@ class SleepPruner:
                 # 有结构性连接，不修剪
                 continue
 
-            # 2. 检查 explains 连接的权重
+            # 2. 检查 explains 连接
             explains = self.kg.get_explains(node_name)
             if not explains:
                 # 既无结构性连接，也无 explains → 真正孤立
-                avg_weight = 0.0
+                all_stale = True
+                has_verified = False
             else:
-                weights = [e.get("weight", 0.0) for e in explains]
-                avg_weight = sum(weights) / len(weights)
+                # 先清理：删除从未被验证且已创建超过 7 天的 explains
+                for entry in explains:
+                    if not entry.get("verified") and self.kg.is_explains_stale(node_name, entry["target"]):
+                        # 从未被验证且超过 7 天 → 删除这条 explains
+                        self.kg.remove_explains(node_name, entry["target"])
 
-            # 3. 最近 7 天有新连接，保留
-            if self.kg.has_recent_explains(node_name, within_days=7):
+                # 重新检查
+                remaining = self.kg.get_explains(node_name)
+                has_verified = any(e.get("verified") for e in remaining)
+                all_stale = all(e.get("stale", False) for e in remaining)
+
+            # 3. 有已验证的连接，不修剪
+            if has_verified:
                 continue
 
-            # 4. 判断是否降级
-            if avg_weight < 0.3 and node.get("quality", 0) < 7.0:
+            # 4. 所有连接都已 stal 且节点质量低 → 降级
+            if all_stale and node.get("quality", 0) < 7.0:
                 self.kg.mark_dormant(node_name)
                 count += 1
 
@@ -378,14 +529,40 @@ connection_weight: float        # 连接强度 0.0-1.0，default 0.5
 ### 5.2 新增 API
 
 ```python
-def add_explains(from_topic: str, to_topic: str, relation: str, confidence: float, weight: float = 0.5):
-    """添加 explains 连接，含权重"""
+def add_explains(from_topic: str, to_topic: str, relation: str, surprise: float, novelty: float, weight: float = 0.5):
+    """
+    添加 explains 连接（含意外度、新颖度、验证状态）
+
+    初始 weight = 0.5（新建连接的默认权重）
+    verified = False（待 SpiderAgent 探索触发后验证）
+    """
+    entry = {
+        "target": to_topic,
+        "relation": relation,
+        "surprise": surprise,
+        "novelty": novelty,
+        "weight": weight,
+        "verified": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
 
 def strengthen_connection(topic_a: str, topic_b: str, delta: float = 0.1):
     """
-    强化两节点连接
+    强化两节点连接（consolidation 使用）
     - 如果连接存在：weight += delta，上限 1.0
     - 如果连接不存在：不操作（consolidation 只强化已有连接）
+    """
+
+def mark_explains_verified(from_topic: str, to_topic: str):
+    """
+    标记某条 explains 连接已被 SpiderAgent 验证过（价值验证回路使用）
+    """
+
+def update_explains_weight(from_topic: str, to_topic: str, delta: float):
+    """
+    更新 explains 连接权重（价值验证回路使用）
+    - 如果 weight < 0.2，标记为 stale=True
+    - weight 下限 0.0，上限 1.0
     """
 
 def set_consolidated(topic: str):
@@ -400,6 +577,11 @@ def reactivate(topic: str):
 def mark_dreamed(topic: str):
     """标记节点已做过梦处理"""
 
+def mark_explains_verified(from_topic: str, to_topic: str):
+    """
+    标记某条 explains 连接已被 SpiderAgent 验证过（价值验证回路使用）
+    """
+
 def get_all_connections(topic: str) -> list[dict]:
     """
     返回 topic 的所有连接（含 weight）
@@ -411,6 +593,16 @@ def get_all_nodes(active_only: bool = False) -> list[tuple[str, dict]]:
     返回 KG 中所有节点
     active_only=True: 排除 dormant 节点
     Returns: list of (node_name, node_data)
+    """
+
+def get_node_domain(topic: str) -> str:
+    """
+    返回 topic 所属的探索分支（domain）
+
+    实现：沿着 parent 链向上追溯，找到最近的 root，
+    以 root 作为 domain 标识
+
+    用于跨 domain 连接发现（20% 概率优先跨 domain）
     """
 
 def get_directly_connected(topic: str) -> set[str]:
@@ -437,6 +629,16 @@ def get_explains(topic: str) -> list[dict]:
 def has_recent_explains(topic: str, within_days: int) -> bool:
     """检查节点最近 N 天是否有新的 explains 连接"""
 
+def is_explains_stale(from_topic: str, to_topic: str) -> bool:
+    """
+    检查某条 explains 连接是否已过期（从未被验证且超过 7 天）
+    """
+
+def remove_explains(from_topic: str, to_topic: str):
+    """
+    删除某条 explains 连接（价值验证回路使用）
+    """
+
 def get_root_pool_names() -> set[str]:
     """返回 root_technology_pool 中所有候选名称"""
 
@@ -447,7 +649,48 @@ def get_recently_dreamed(within_days: int) -> set[str]:
     """
 ```
 
-### 5.3 节点级锁实现
+### 5.3 ExplorationHistory（探索历史记录）
+
+**职责**：记录每次探索的事件，用于 consolidation 和价值验证回路。
+
+```python
+class ExplorationHistory:
+    """
+    探索历史记录器
+    - SpiderAgent 每次探索完成时记录事件
+    - DreamAgent 的 consolidation 和价值验证回路依赖此数据
+    """
+
+    def record_exploration(self, topic: str, related_nodes: list[str], timestamp: datetime):
+        """
+        记录一次探索事件
+
+        Args:
+            topic: 本次探索的 topic
+            related_nodes: 本次探索中同时涉及的节点列表
+            timestamp: 探索时间
+        """
+
+    def co_occurred(self, topic_a: str, topic_b: str, within_hours: int) -> bool:
+        """
+        检查 topic_a 和 topic_b 是否在 within_hours 小时内共同出现过
+        （用于 consolidation 的 Hebbian 强化）
+        """
+
+    def was_ever_triggered(self, topic_a: str, topic_b: str, within_days: int) -> bool:
+        """
+        检查 topic_b 是否在 topic_a 的探索过程中被触发过
+        （用于价值验证回路：explains 连接是否被实际使用）
+
+        触发定义：topic_a 的探索结果中涉及了 topic_b，
+        或者 SpiderAgent 基于 topic_a→topic 的 explains 连接进行了后续探索
+        """
+
+    def get_recent_explorations(self, within_hours: int) -> list[dict]:
+        """返回最近 N 小时的探索记录（用于调试）"""
+```
+
+### 5.4 节点级锁实现
 
 ```python
 import threading
@@ -474,6 +717,8 @@ def kg_write_with_lock(from_topic: str, to_topic: str, result: dict):
     确保和 SpiderAgent 不会同时写同一节点
 
     死锁预防：按节点名字排序锁顺序后再获取
+
+    result 格式：{has_association, relation_type, surprise, novelty, description}
     """
     lock_a = NodeLockRegistry.get_lock(from_topic)
     lock_b = NodeLockRegistry.get_lock(to_topic)
@@ -484,7 +729,9 @@ def kg_write_with_lock(from_topic: str, to_topic: str, result: dict):
     with locks[0], locks[1]:
         add_explains(
             from_topic, to_topic,
-            result["relation_type"], result["confidence"],
+            result["relation_type"],
+            result["surprise"],
+            result["novelty"],
             weight=0.5  # 新建连接默认权重 0.5
         )
 ```
@@ -612,7 +859,10 @@ curl http://localhost:4848/api/kg/connection/metacognitive\ monitoring
 | 浅层探索 | 队列驱动探索 | SpiderAgent 持续运行 | ✅ 完全满足 |
 | 浅层巩固 | Hebbian（共现强化） | strengthen_co_occurring() + last_consolidated | ✅ 完全满足 |
 | 中层做梦 | 创意关联重组 + 公平对待所有记忆 | DreamAgent 双队列 + 轮流队列 | ✅ 完全满足 |
-| 深层修剪 | 弱连接清理（权重感知） | SleepPruner + connection_weight | ✅ 完全满足 |
+| 中层做梦 | 意外连接发现 | surprise >= 0.5 替代 confidence >= 0.7 | ✅ 完全满足 |
+| 中层做梦 | 价值验证反馈 | verified + stale + 价值验证回路 | ✅ 完全满足 |
+| 中层做梦 | 神经噪声模拟 | 10% 神经噪声模式（强制随机） | ✅ 完全满足 |
+| 深层修剪 | 弱连接清理（权重感知） | SleepPruner + verified/stale | ✅ 完全满足 |
 
 ---
 
