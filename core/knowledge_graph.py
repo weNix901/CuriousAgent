@@ -1144,3 +1144,124 @@ def get_recently_dreamed(within_days: int) -> set[str]:
                 except (ValueError, TypeError):
                     continue
         return result
+
+
+# === v0.2.6 Connection Functions ===
+
+def strengthen_connection(topic_a: str, topic_b: str, delta: float = 0.1):
+    """Strengthen connection between two topics by delta (default 0.1)."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    with NodeLockRegistry.global_write_lock():
+        lock_a = NodeLockRegistry.get_lock(topic_a)
+        lock_b = NodeLockRegistry.get_lock(topic_b)
+        locks = tuple(sorted([lock_a, lock_b], key=lambda l: id(l)))
+        
+        with locks[0], locks[1]:
+            state = _load_state()
+            topics = state["knowledge"]["topics"]
+            
+            for topic in [topic_a, topic_b]:
+                if topic not in topics:
+                    topics[topic] = {"known": False, "depth": 0, "parents": [], 
+                                   "explains": [], "children": [], "status": "partial"}
+                if "connections" not in topics[topic]:
+                    topics[topic]["connections"] = {}
+            
+            for a, b in [(topic_a, topic_b), (topic_b, topic_a)]:
+                if b not in topics[a]["connections"]:
+                    topics[a]["connections"][b] = {"weight": 0.0}
+                topics[a]["connections"][b]["weight"] = min(
+                    1.0, topics[a]["connections"][b]["weight"] + delta
+                )
+            
+            _save_state(state)
+
+
+def get_directly_connected(topic: str) -> set[str]:
+    """Get all nodes directly connected to topic (parents + children)."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        
+        if topic not in topics:
+            return set()
+        
+        node = topics[topic]
+        connected = set()
+        
+        for parent in node.get("parents", []):
+            connected.add(parent)
+        
+        for child in node.get("children", []):
+            connected.add(child)
+        
+        return connected
+
+
+def get_shortest_path_length(topic_a: str, topic_b: str) -> int | float:
+    """Get shortest path length between topics using BFS. Returns inf if no path."""
+    from core.node_lock_registry import NodeLockRegistry
+    from collections import deque
+    import math
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        
+        if topic_a == topic_b:
+            return 0
+        
+        if topic_a not in topics or topic_b not in topics:
+            return math.inf
+        
+        visited = {topic_a}
+        queue = deque([(topic_a, 0)])
+        
+        while queue:
+            current, distance = queue.popleft()
+            
+            if current == topic_b:
+                return distance
+            
+            node = topics.get(current, {})
+            neighbors = set()
+            
+            for parent in node.get("parents", []):
+                neighbors.add(parent)
+            for child in node.get("children", []):
+                neighbors.add(child)
+            
+            for neighbor in neighbors:
+                if neighbor not in visited and neighbor in topics:
+                    visited.add(neighbor)
+                    queue.append((neighbor, distance + 1))
+        
+        return math.inf
+
+
+def get_all_nodes(active_only: bool = False) -> list[tuple[str, dict]]:
+    """Get all nodes, optionally filtering to active only (non-dormant)."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        
+        if active_only:
+            return [(name, data) for name, data in topics.items() 
+                    if data.get("status") != "dormant"]
+        
+        return list(topics.items())
+
+
+def get_root_pool_names() -> set[str]:
+    """Get all names in root technology pool."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        pool = state.get(ROOT_POOL_KEY, {}).get("candidates", [])
+        return {r.get("name") for r in pool if r.get("name")}
