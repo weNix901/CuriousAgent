@@ -336,7 +336,131 @@ def print_status():
 
 
 def daemon_mode(interval_minutes: int = 30):
-    """守护进程模式"""
+    """
+    Three-Agent Daemon Mode (v0.2.6).
+    
+    Starts SpiderAgent, DreamAgent, and SleepPruner in dedicated threads.
+    Agents communicate via queue for inter-agent messaging.
+    
+    Features:
+    - F1: Three-agent architecture (SpiderAgent, DreamAgent, SleepPruner)
+    - F7: High-priority queue with 5s timeout
+    - F8: Three-layer randomization for distant pair selection
+    - Graceful shutdown on Ctrl+C
+    - Feature toggle support via config
+    """
+    import queue
+    import signal
+    
+    from core.spider_agent import SpiderAgent
+    from core.dream_agent import DreamAgent
+    from core.sleep_pruner import SleepPruner
+    
+    from core.config import get_config
+    cfg = get_config()
+    feature_flags = getattr(cfg, 'feature_flags', {})
+    three_agent_enabled = feature_flags.get('three_agent_daemon', True)
+    
+    if not three_agent_enabled:
+        print("[v0.2.6] Three-agent daemon disabled, falling back to legacy mode")
+        _daemon_mode_legacy(interval_minutes)
+        return
+    
+    print(f"🚀 Curious Agent 进入三代理守护进程模式 (v0.2.6)")
+    print("   SpiderAgent: 持续探索代理")
+    print("   DreamAgent: 创意洞察代理")
+    print("   SleepPruner: 周期修剪代理")
+    print("   按 Ctrl+C 停止")
+    print()
+    
+    seeds = getattr(cfg, 'root_technology_seeds', [
+        "transformer attention",
+        "gradient descent",
+        "backpropagation",
+        "softmax",
+        "RL reward signal",
+        "uncertainty quantification"
+    ])
+    kg.init_root_pool(seeds)
+    print(f"[v0.2.6] Root pool initialized with {len(seeds)} seeds")
+    
+    notification_queue = queue.Queue(maxsize=100)
+    
+    spider_agent = SpiderAgent(
+        name="SpiderAgent",
+        notification_queue=notification_queue,
+        exploration_depth="medium",
+        poll_interval=1.0
+    )
+    
+    dream_agent = DreamAgent(
+        name="DreamAgent",
+        high_priority_queue=notification_queue,
+        poll_interval=1.0
+    )
+    
+    sleep_pruner = SleepPruner(
+        name="SleepPruner",
+        initial_interval_minutes=240,
+        max_interval_minutes=1440
+    )
+    
+    agents = [spider_agent, dream_agent, sleep_pruner]
+    
+    shutdown_requested = False
+    
+    def handle_shutdown(signum, frame):
+        nonlocal shutdown_requested
+        print("\n[v0.2.6] Shutdown signal received, stopping agents...")
+        shutdown_requested = True
+        for agent in agents:
+            agent.stop()
+    
+    signal.signal(signal.SIGINT, handle_shutdown)
+    signal.signal(signal.SIGTERM, handle_shutdown)
+    
+    print("[v0.2.6] Starting agents...")
+    for agent in agents:
+        agent.start()
+        print(f"[v0.2.6]   ✓ {agent.name} started")
+    
+    print("[v0.2.6] All agents running. Monitoring status...")
+    print()
+    
+    cycle_count = 0
+    while not shutdown_requested:
+        cycle_count += 1
+        
+        alive_agents = [a.name for a in agents if a.is_alive()]
+        dead_agents = [a.name for a in agents if not a.is_alive()]
+        
+        if dead_agents:
+            print(f"[v0.2.6] ⚠️ Dead agents detected: {dead_agents}")
+        
+        if cycle_count % 10 == 0:
+            print(f"\n{'='*50}")
+            print(f"🔄 监控循环 #{cycle_count // 10} @ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"{'='*50}")
+            print(f"[v0.2.6] Active agents: {', '.join(alive_agents)}")
+            print(f"[v0.2.6] SpiderAgent explored: {len(spider_agent.get_recently_explored())} topics")
+            print(f"[v0.2.6] DreamAgent status: {dream_agent.get_status()}")
+            print(f"[v0.2.6] SleepPruner status: {sleep_pruner.get_status()}")
+        
+        time.sleep(1.0)
+    
+    print("[v0.2.6] Waiting for agents to stop...")
+    for agent in agents:
+        agent.join(timeout=5.0)
+        if agent.is_alive():
+            print(f"[v0.2.6]   ⚠️ {agent.name} did not stop gracefully")
+        else:
+            print(f"[v0.2.6]   ✓ {agent.name} stopped")
+    
+    print("[v0.2.6] All agents stopped. Exiting.")
+
+
+def _daemon_mode_legacy(interval_minutes: int = 30):
+    """Legacy daemon mode (pre-v0.2.6) for fallback."""
     print(f"🚀 Curious Agent 进入守护进程模式 (每 {interval_minutes} 分钟探索一次)")
     print("   按 Ctrl+C 停止")
     print()
