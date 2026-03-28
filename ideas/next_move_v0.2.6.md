@@ -560,18 +560,42 @@ class ExplorationHistory:
             ...
 
     def get_recent_explorations(self, within_hours: int) -> list[dict]:
+        """返回最近 N 小时的探索记录"""
         with self._lock:
-            ...
+            from datetime import datetime, timezone, timedelta
+            cutoff = (datetime.now(timezone.utc) - timedelta(hours=within_hours)).isoformat()
+            history = self._get_history()
+            return [e for e in history.get("explorations", [])
+                    if e.get("timestamp", "") >= cutoff]
 
     def get_all_predictions(self) -> list[dict]:
         """[F12] 返回所有预测记录"""
         with self._lock:
-            ...
+            history = self._get_history()
+            return list(history.get("predictions", {}).values())
 
     def get_prediction(self, topic: str) -> dict | None:
         """[F12] 返回特定 topic 的预测记录"""
         with self._lock:
-            ...
+            history = self._get_history()
+            return history.get("predictions", {}).get(topic)
+
+    # === 内部辅助方法 ===
+
+    def _get_history(self) -> dict:
+        """从 state 读取 exploration_history"""
+        state = kg.get_state()
+        return state.get("exploration_history", {
+            "co_occurrence": {},
+            "insight_generation": {},
+            "predictions": {}
+        })
+
+    def _save_history(self, history: dict):
+        """保存 exploration_history 到 state"""
+        state = kg.get_state()
+        state["exploration_history"] = history
+        kg._save_state(state)
 ```
 
 ---
@@ -994,6 +1018,160 @@ def find_distant_pairs(self, topic: str, max_pairs: int = 5) -> list:
 
 ---
 
+## F9-Supp: LLMClient.creative_dream() 设计补充
+
+### 设计目的
+
+为 DreamAgent 提供"从两个无关知识领域生成新洞察"的 LLM 调用能力。
+
+### 业务逻辑
+
+```
+输入：topic_a, topic_b（两个完全无关的知识节点）
+处理：
+1. 构造 prompt（包含领域 A 和 B 的信息）
+2. 调用 LLM 生成洞察
+3. 解析 LLM 返回的 JSON
+4. 验证返回格式，过滤不合规的响应
+输出：dict {
+    has_insight: bool,
+    insight: str,
+    insight_type: str,
+    surprise: float,
+    novelty: float,
+    trigger_topic: str | None
+}
+```
+
+### 初步实现
+
+```python
+# core/llm_client.py 新增方法
+
+def creative_dream(self, topic_a: str, topic_b: str,
+                   temperature: float = 0.9,
+                   max_tokens: int = 800,
+                   timeout: int = 60) -> dict:
+    """
+    创意做梦：对两个领域生成新洞察
+
+    Args:
+        topic_a: 领域 A
+        topic_b: 领域 B
+        temperature: 0.9（高随机性，鼓励创意）
+        max_tokens: 800（足够生成一段洞察）
+        timeout: 60 秒
+
+    Returns:
+        {
+            "has_insight": bool,
+            "insight": str,
+            "insight_type": str,
+            "surprise": float,
+            "novelty": float,
+            "trigger_topic": str | None
+        }
+
+    错误处理：
+        - LLM 返回非 JSON → 返回 has_insight=False，insight=""
+        - LLM 超时 → 返回 has_insight=False
+        - JSON 解析失败 → 返回 has_insight=False
+    """
+    prompt = CREATIVE_DREAM_PROMPT.format(topic_a=topic_a, topic_b=topic_b)
+
+    try:
+        response = self.manager.chat(
+            prompt,
+            model_name="default",  # 或选择能力强的模型
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout
+        )
+    except Exception as e:
+        print(f"[LLMClient] creative_dream failed: {e}")
+        return {"has_insight": False, "insight": "", "insight_type": "",
+                "surprise": 0.0, "novelty": 0.0, "trigger_topic": None}
+
+    # 解析 JSON
+    try:
+        import json, re
+        # 尝试提取 JSON 代码块
+        match = re.search(r"\{[\s\S]*\}", response)
+        if match:
+            result = json.loads(match.group())
+        else:
+            result = json.loads(response)
+
+        # 验证必要字段
+        if not isinstance(result.get("has_insight"), bool):
+            return {"has_insight": False, "insight": "", "insight_type": "",
+                    "surprise": 0.0, "novelty": 0.0, "trigger_topic": None}
+
+        return {
+            "has_insight": result.get("has_insight", False),
+            "insight": result.get("insight", ""),
+            "insight_type": result.get("insight_type", "hypothesis"),
+            "surprise": float(result.get("surprise", 0.0)),
+            "novelty": float(result.get("novelty", 0.0)),
+            "trigger_topic": result.get("trigger_topic")
+        }
+    except (json.JSONDecodeError, ValueError, TypeError) as e:
+        print(f"[LLMClient] creative_dream parse failed: {e}, response={response[:200]}")
+        return {"has_insight": False, "insight": "", "insight_type": "",
+                "surprise": 0.0, "novelty": 0.0, "trigger_topic": None}
+```
+
+### CREATIVE_DREAM_PROMPT
+
+```python
+CREATIVE_DREAM_PROMPT = """你是创意做梦引擎。不是判断两个领域有没有关联，而是从它们的组合中生成全新的洞察。
+
+Topic A: {topic_a}
+Topic B: {topic_b}
+
+要求：
+1. 洞察必须是从 A+B 组合中**新生成的**，不是 A 也不是 B
+2. 生成的内容必须有认知价值（新的假设、类比、预测、问题）
+3. trigger_topic：这个洞察能指向哪个新的探索方向？
+
+生成类型（选最合适的）：
+- hypothesis: "如果 A，那么可能 B"（新假设）
+- analogy: "A 就像 B 中的 X"（新类比）
+- prediction: "基于 A 和 B，X 可能发生"（新预测）
+- question: "A 和 B 暗示了一个新问题：X"（新问题）
+
+输出格式（JSON）：
+{{
+  "has_insight": true/false,
+  "insight": "具体的新洞察内容",
+  "insight_type": "hypothesis/analogy/prediction/question",
+  "surprise": 0.0-1.0,
+  "novelty": 0.0-1.0,
+  "trigger_topic": "string 或 null"
+}}"""
+```
+
+### 验收方法
+
+```python
+# 测试代码
+def test_creative_dream():
+    llm = LLMClient()
+    result = llm.creative_dream(
+        "transformer attention mechanism",
+        "neurotransmitter release in brain"
+    )
+    assert isinstance(result["has_insight"], bool)
+    assert isinstance(result["insight"], str)
+    assert result["surprise"] in [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    assert result["insight_type"] in ["hypothesis", "analogy", "prediction", "question"]
+    print(f"has_insight={result['has_insight']}, type={result['insight_type']}, surprise={result['surprise']}")
+    print(f"insight={result['insight'][:100]}...")
+    return result
+```
+
+---
+
 ## F10: 洞察验证回路
 
 ### 10.1 逻辑
@@ -1056,42 +1234,145 @@ DreamAgent → KG (dream_topic_inbox.json) → SpiderAgent
 - 新建独立模块会导致功能分散、代码重复
 - KG 已有 topic 字段，只需扩展字段
 
-### 12.2 新增方法
+### 12.2 新增方法（含初步实现）
 
 ```python
-# core/meta_cognitive_monitor.py 新增
+# core/meta_cognitive_monitor.py 新增方法
 
 class MetaCognitiveMonitor:
     # === 节点置信区间 [F12-1] ===
+
     def get_confidence_interval(self, topic: str) -> tuple[float, float]:
         """返回 (confidence_low, confidence_high)"""
+        state = kg.get_state()
+        topic_data = state["knowledge"]["topics"].get(topic, {})
+        low = topic_data.get("confidence_low", 0.3)
+        high = topic_data.get("confidence_high", 0.7)
+        return (low, high)
 
-    def update_node_confidence(self, topic: str, delta_evidence: int,
-                                delta_contradiction: int):
-        """更新节点的置信度"""
+    def update_node_confidence(self, topic: str, delta_evidence: int = 0,
+                                delta_contradiction: int = 0):
+        """
+        更新节点的置信度
+
+        置信度更新规则：
+        - 新证据支持：confidence_low += delta_evidence * 0.1
+        - 矛盾证据：confidence_high -= delta_contradiction * 0.2
+        """
+        state = kg.get_state()
+        topic_data = state["knowledge"]["topics"].setdefault(topic, {})
+
+        # 初始化默认值
+        if "confidence_low" not in topic_data:
+            topic_data["confidence_low"] = 0.3
+        if "confidence_high" not in topic_data:
+            topic_data["confidence_high"] = 0.7
+        if "evidence_count" not in topic_data:
+            topic_data["evidence_count"] = 0
+        if "contradiction_count" not in topic_data:
+            topic_data["contradiction_count"] = 0
+
+        # 更新
+        topic_data["confidence_low"] = min(1.0, topic_data["confidence_low"] + delta_evidence * 0.1)
+        topic_data["confidence_high"] = max(0.0, topic_data["confidence_high"] - delta_contradiction * 0.2)
+        topic_data["evidence_count"] = topic_data.get("evidence_count", 0) + delta_evidence
+        topic_data["contradiction_count"] = topic_data.get("contradiction_count", 0) + delta_contradiction
+
+        kg._save_state(state)
 
     # === 知识前沿检测 [F12-2] ===
+
     def detect_frontier(self) -> list[dict]:
         """
-        知识前沿 = 已探索节点指向未探索候选的边
-        前沿类型：explicit | cross_domain | contradiction
+        知识前沿 = 已探索节点但无 children 的节点
+
+        前沿类型：
+        - explicit: known=True 但 children = []（有探索但无扩展）
+        - cross_domain: 跨 domain 连接但目标 domain 未探索
+        - contradiction: 互相矛盾的节点对
         """
+        frontiers = []
+        state = kg.get_state()
+        for topic, data in state["knowledge"]["topics"].items():
+            if not data.get("known"):
+                continue
+
+            children = data.get("children", [])
+            if not children:
+                frontiers.append({
+                    "from_node": topic,
+                    "frontier_type": "explicit",
+                    "uncertainty": "high"  # 有探索但无扩展 = 高不确定性
+                })
+
+        return frontiers
 
     def recommend_exploration_from_frontier(self) -> list[str]:
-        """从前沿推荐优先探索方向（矛盾 > 跨域 > 显式）"""
+        """
+        从前沿推荐优先探索方向
+
+        策略：按 uncertainty 排序，高不确定性优先
+        """
+        frontiers = self.detect_frontier()
+        sorted_frontiers = sorted(frontiers, key=lambda f: (
+            {"high": 0, "medium": 1, "low": 2}.get(f["uncertainty"], 2)
+        ))
+        return [f["from_node"] for f in sorted_frontiers]
 
     # === 校准评估 [F12-3] ===
+
     def record_prediction(self, topic: str, predicted_confidence: float, is_hypothesis: bool):
-        """记录预测（DreamAgent 生成洞察时调用）"""
+        """
+        记录预测（DreamAgent 生成洞察时调用）
+
+        存储到 ExplorationHistory.predictions
+        """
+        self.history.record_prediction(topic, predicted_confidence, is_hypothesis)
 
     def record_outcome(self, topic: str, actual_correct: bool):
-        """记录预测结果（SpiderAgent 验证后调用）"""
+        """
+        记录预测结果（SpiderAgent 验证后调用）
+
+        用于计算 calibration error
+        """
+        self.history.record_outcome(topic, actual_correct)
 
     def get_calibration_error(self) -> float:
-        """返回 Brier score（越低越好，0=完美校准）"""
+        """
+        返回 Brier score（越低越好，0=完美校准）
+
+        Brier score = mean((predicted - actual)^2)
+        """
+        predictions = self.history.get_all_predictions()
+        if not predictions:
+            return 0.0
+
+        scored = [p for p in predictions if p.get("actual_outcome") is not None]
+        if not scored:
+            return 0.0
+
+        brier = sum(
+            (p["predicted_confidence"] - (1.0 if p["actual_outcome"] else 0.0)) ** 2
+            for p in scored
+        ) / len(scored)
+        return round(brier, 4)
 
     def get_topic_calibration(self, topic: str) -> dict:
         """返回特定 topic 的校准详情"""
+        pred = self.history.get_prediction(topic)
+        if not pred:
+            return {"topic": topic, "verdict": "no_prediction_recorded"}
+
+        error = abs(pred["predicted_confidence"] - (1.0 if pred["actual_outcome"] else 0.0))
+        verdict = "well_calibrated" if error < 0.2 else ("overconfident" if pred["predicted_confidence"] > 0.7 else "underconfident")
+
+        return {
+            "topic": topic,
+            "predicted": pred["predicted_confidence"],
+            "actual_outcome": pred["actual_outcome"],
+            "error": round(error, 3),
+            "verdict": verdict
+        }
 ```
 
 ### 12.3 MetaCognitiveController 扩展
@@ -1101,9 +1382,72 @@ class MetaCognitiveMonitor:
 
 class MetaCognitiveController:
     def should_explore_frontier(self) -> tuple[bool, list[str]]:
-        """推荐基于知识前沿的探索方向"""
+        """
+        基于知识前沿推荐探索方向
+
+        Returns:
+            (should_explore, list_of_frontier_topics)
+        """
         recommendations = self.monitor.recommend_exploration_from_frontier()
-        return (len(recommendations) > 0, recommendations)
+        if not recommendations:
+            return (False, [])
+        return (True, recommendations[:3])  # 最多返回 3 个
+```
+
+### 12.4 验收方法
+
+```python
+# 测试代码
+def test_metacognitive_monitor():
+    monitor = MetaCognitiveMonitor()
+
+    # 测试置信区间
+    low, high = monitor.get_confidence_interval("transformer attention")
+    assert 0 <= low <= high <= 1.0
+    print(f"confidence: [{low:.2f}, {high:.2f}]")
+
+    # 测试前沿检测
+    frontiers = monitor.detect_frontier()
+    print(f"frontiers: {len(frontiers)} nodes")
+    for f in frontiers[:3]:
+        print(f"  - {f['from_node']} ({f['frontier_type']})")
+
+    # 测试校准误差
+    error = monitor.get_calibration_error()
+    print(f"calibration error: {error:.4f}")
+
+    # 测试前沿推荐
+    recs = monitor.recommend_exploration_from_frontier()
+    print(f"recommendations: {recs[:3]}")
+```
+
+### 12.5 与 CuriosityEngine 的集成
+
+```python
+# CuriosityEngine.select_next() 中增加 frontier 感知
+
+def select_next(self):
+    # 1. 从前沿中采样（10% 概率）
+    if random.random() < 0.1:
+        recs = self.meta_monitor.recommend_exploration_from_frontier()
+        if recs:
+            return random.choice(recs)
+
+    # 2. 原有逻辑...
+    candidates = kg.get_top_curiosities(k=10)
+    ...
+```
+
+### 12.6 与 SpiderAgent 的集成
+
+```python
+# SpiderAgent 探索完成后，更新置信度
+
+def strengthen_co_occurring(self, topic: str):
+    # ...原有逻辑...
+
+    # 更新置信度（新证据支持）
+    self.meta_monitor.update_node_confidence(topic, delta_evidence=+1)
 ```
 
 ---
