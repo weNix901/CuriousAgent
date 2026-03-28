@@ -13,14 +13,14 @@
 | `core/spider_agent.py` | 新增 | 持续探索进程（重构自现有探索逻辑） |
 | `core/dream_agent.py` | 新增 | 持续做梦重组进程（含 consolidation + reorganization） |
 | `core/sleep_pruner.py` | 新增 | 突触修剪器（权重感知） |
-| `core/metacognitive_monitor.py` | 新增 | 元认知监控（知道自己不知道什么） |
-| `core/knowledge_graph.py` | 修改 | 新增 dormant 状态、dream_insights、last_consolidated、connection_weight、节点级锁 |
+| `core/knowledge_graph.py` | 修改 | 新增 dormant 状态、dream_insights、last_consolidated、connection_weight、节点级锁、confidence 字段 |
+| `core/meta_cognitive_monitor.py` | 修改 | 扩展 MetaCognitiveMonitor（新增 5 个方法） |
 | `core/consolidation_engine.py` | 删除 | 合并入 dream_agent |
 | `core/reorganization_engine.py` | 删除 | 合并入 dream_agent |
 | `curious_agent.py` | 修改 | 启动四个并发进程 |
 | `curious_api.py` | 修改 | 新增控制 API |
 
-**核心变化**: 合并 consolidation + reorganization → dream_agent；定时调度 → 事件驱动并发；新增做梦公平性机制；新增权重感知修剪；新增元认知监控（知道自己不知道什么）
+**核心变化**: 合并 consolidation + reorganization → dream_agent；定时调度 → 事件驱动并发；新增做梦公平性机制；新增权重感知修剪；新增元认知监控（知道自己不知道什么——扩展 MetaCognitiveMonitor，非新建模块）
 
 ---
 
@@ -902,10 +902,7 @@ curious_agent.py (入口)
     │   └── KnowledgeGraph
     ├── SleepPruner
     │   └── KnowledgeGraph
-    └── MetacognitiveMonitor
-        ├── NodeConfidenceTracker
-        ├── KnowledgeFrontierDetector
-        ├── CalibrationTracker
+    └── MetaCognitiveMonitor（扩展现有模块，不是独立进程）
         └── KnowledgeGraph
 ```
 
@@ -977,7 +974,20 @@ curious_agent.py (入口)
 
 ## 十三、MetacognitiveMonitor（知道自己不知道什么）
 
-### 13.1 核心问题
+### 13.1 架构决策：增强现有模块，非新建独立模块
+
+> **决策时间**：2026-03-28 16:46
+> **决策依据**：代码分析表明现有 MetaCognitiveMonitor + MetaCognitiveController + KG 已有监控基础设施，应扩展而非重建
+
+**决策**：扩展现有 `MetaCognitiveMonitor`，不新建独立进程或文件。
+
+**理由**：
+- 现有 MetaCognitiveMonitor 已有 assess_quality / compute_marginal_return / record_exploration 等监控方法
+- MetaCognitiveController 已有 should_explore / should_continue / should_notify 决策链
+- KG 已有 topic 字段和 exploration_log，只需扩展字段
+- 新建独立模块会导致功能分散、代码重复、维护困难
+
+### 13.2 核心问题
 
 CA 当前只知道自己"不知道"，不知道自己"不知道多少"：
 
@@ -998,23 +1008,17 @@ CA：我探索过，quality=7.5，我可以详细解释...
 - 知道自己的知识边界在哪（Knowledge Frontier）
 - 知道自己的自信程度是否准确（Calibration）
 
-### 13.2 节点置信度（NodeConfidence）
+### 13.3 节点置信度（NodeConfidence）
 
-每个 KG 节点不只有 quality，还有置信区间：
+每个 KG 节点新增置信区间字段：
 
 ```python
-@dataclass
-class NodeConfidence:
-    node_id: str
-    confidence_low: float   # 0.0-1.0，低估
-    confidence_high: float  # 0.0-1.0，高估
-    calibration: float     # 校准度
-    last_verified: str | None  # ISO 时间戳
-    evidence_count: int        # 支持这个认知的证据数量
-    contradiction_count: int   # 否定这个认知的证据数量
-
-# 初始：uncertain
-# confidence_low=0.3, confidence_high=0.7
+# KG topics[topic] 新增字段
+confidence_low: float = 0.3    # 置信度下限
+confidence_high: float = 0.7   # 置信度上限
+evidence_count: int = 0         # 支持证据数
+contradiction_count: int = 0    # 矛盾证据数
+last_verified: str | None     # ISO 时间戳
 ```
 
 **置信度更新规则**：
@@ -1032,7 +1036,7 @@ class NodeConfidence:
   - 被触发但错误 → confidence_low -= 0.3, confidence_high -= 0.3
 ```
 
-### 13.3 知识前沿（Knowledge Frontier）
+### 13.4 知识前沿（Knowledge Frontier）
 
 **定义**：前沿 = 已探索节点指向未探索节点的边
 
@@ -1046,29 +1050,32 @@ class NodeConfidence:
 ```
 
 ```python
-class KnowledgeFrontierDetector:
-    def detect_frontier(self) -> list[FrontierEdge]:
-        """
-        知识前沿 = 已探索节点指向未探索候选的边
+# MetaCognitiveMonitor 新增方法
 
-        前沿类型：
-        1. 显式前沿：已知节点的 children 为空，但有 "?" 候选
-        2. 隐式前沿：跨 domain 连接的目标 domain 完全未被探索
-        3. 矛盾前沿：两个节点互相矛盾，但都没有足够证据判定哪个正确
-        """
+def detect_frontier(self) -> list[dict]:
+    """
+    知识前沿 = 已探索节点指向未探索候选的边
 
-    def recommend_exploration_from_frontier(self) -> list[str]:
-        """
-        从前沿推荐优先探索方向
+    前沿类型：
+    1. 显式前沿：已知节点的 children 为空，但有候选
+    2. 隐式前沿：跨 domain 连接的目标 domain 完全未被探索
+    3. 矛盾前沿：两个节点互相矛盾，但都没有足够证据判定哪个正确
 
-        策略：
-        1. 矛盾前沿优先（两个矛盾认知，必须判定哪个正确）
-        2. 跨 domain 前沿次之（全新领域，不确定性最高）
-        3. 显式前沿最后（已有结构的叶节点）
-        """
+    Returns: list of {"from_node", "to_node", "frontier_type", "uncertainty"}
+    """
+
+def recommend_exploration_from_frontier(self) -> list[str]:
+    """
+    从前沿推荐优先探索方向
+
+    策略：
+    1. 矛盾前沿优先（两个矛盾认知，必须判定哪个正确）
+    2. 跨 domain 前沿次之（全新领域，不确定性最高）
+    3. 显式前沿最后（已有结构的叶节点）
+    """
 ```
 
-### 13.4 校准评估（Calibration Tracker）
+### 13.5 校准评估（Calibration Tracker）
 
 **核心问题**：CA 说"我很确定"的时候，实际上有多确定？
 
@@ -1079,58 +1086,78 @@ CA self-assessment: "我对 attention 机制的置信度是 0.85"
 ```
 
 ```python
-class CalibrationTracker:
+# exploration_log[] 新增字段
+predicted_confidence: float | None  # 探索前 CA 预测的置信度
+actual_outcome: bool | None          # 探索后的实际验证结果
+is_hypothesis: bool = False         # 这个探索是否是 DreamAgent 生成的假设
+
+# MetaCognitiveMonitor 新增方法
+
+def record_prediction(self, topic: str, predicted_confidence: float, is_hypothesis: bool):
     """
-    跟踪 CA 的置信度校准质量
+    记录一次预测（DreamAgent 生成洞察时调用）
 
-    每次 DreamAgent 的 insight 生成都是一次假设。
-    每次 SpiderAgent 的探索验证都是一次校准。
+    每次 DreamAgent llm_creative_dream() 生成洞察，都是一次"预测"：
+    "基于 A+B，我认为会出现 X"——这是假设，需要后续验证
     """
 
-    def record_prediction(self, topic: str, predicted_confidence: float):
-        """记录 CA 对某个 topic 的自信程度"""
+def record_outcome(self, topic: str, actual_correct: bool):
+    """
+    记录预测结果（SpiderAgent 探索验证后调用）
+    用于计算 calibration error
+    """
 
-    def record_outcome(self, topic: str, actual_correct: bool):
-        """记录实际验证结果 → 更新 calibration curve"""
+def get_calibration_error(self) -> float:
+    """
+    计算整体校准误差
 
-    def get_calibration_error(self) -> float:
-        """
-        计算整体校准误差
+    方法：Brier score（predicted vs actual）
+    越低越好，0=完美校准
+    """
 
-        方法：Brier score（predicted vs actual）
-        越低越好，0=完美校准
-        """
-
-    def get_topic_calibration(self, topic: str) -> dict:
-        """
-        返回特定 topic 的校准详情
-        {
-            "topic": "attention mechanism",
-            "self_assessment": 0.85,
-            "actual_accuracy": 0.6,
-            "calibration_error": 0.25,
-            "verdict": "CA is overconfident"
-        }
-        """
+def get_topic_calibration(self, topic: str) -> dict:
+    """
+    返回特定 topic 的校准详情
+    {
+        "topic": "attention mechanism",
+        "self_assessment": 0.85,
+        "actual_accuracy": 0.6,
+        "calibration_error": 0.25,
+        "verdict": "CA is overconfident"
+    }
+    """
 ```
 
-### 13.5 整合到 v0.2.6 架构
+### 13.6 整合到 v0.2.6 架构
 
 ```
-DreamAgent
-    ├→ process_creative_dreaming()  # 生成假设 → 记录到 CalibrationTracker
-    └→ verify_existing_insights()    # 验证结果 → 更新 calibration
+SpiderAgent（持续探索进程）
+    │
+    ├→ CuriosityEngine.select_next()
+    │       └→ 考虑 competence_tracker + frontier recommendations
+    │
+    ├→ MetaCognitiveMonitor  # 扩展版（不新建进程）
+    │   ├→ assess_quality()                [已有]
+    │   ├→ compute_marginal_return()       [已有]
+    │   ├→ get_confidence_interval()        [新增]
+    │   ├→ detect_frontier()               [新增]
+    │   ├→ record_prediction()             [新增]
+    │   └→ record_outcome()                [新增]
+    │
+    └→ KnowledgeGraph
+            ├→ topics{} (新增 confidence_low/high/evidence/contradiction)
+            └→ exploration_log{} (新增 predicted/outcome/is_hypothesis)
 
-SpiderAgent
-    └→ strengthen_co_occurring()     # 更新 NodeConfidence
-
-MetacognitiveMonitor（新增进程）
-    ├→ NodeConfidenceTracker        # 节点置信区间
-    ├→ KnowledgeFrontierDetector   # 知识前沿检测
-    └→ CalibrationTracker          # 校准评估
+DreamAgent（持续做梦重组进程）
+    │
+    ├→ llm_creative_dream()          # 生成洞察 = 一次预测
+    │       └→ MetaCognitiveMonitor.record_prediction(is_hypothesis=True)
+    │
+    └→ verify_existing_insights()    # 验证洞察 = 记录 outcome
+            └→ MetaCognitiveMonitor.record_outcome()
 ```
 
-### 13.6 与 ICM（内在动机）的区别
+### 13.7 与 ICM（内在动机）的区别
 
 | | ICM（内在动机） | 元认知监控 |
 |--|--|--|
@@ -1139,48 +1166,48 @@ MetacognitiveMonitor（新增进程）
 | 产出 | exploration priority | confidence interval + frontier |
 | 类比 | "我想去哪里" | "我知道我现在的位置和目的地之间的距离" |
 
-**ICM + MetacognitiveMonitor = 完整的自主意识系统**
+**ICM + MetaCognitiveMonitor = 完整的自主意识系统**
 - ICM 驱动"去哪里探索"
-- MetacognitiveMonitor 监控"我知道什么、不知道什么"
+- MetaCognitiveMonitor 监控"我知道什么、不知道什么"
 
-### 13.7 新增文件
+### 13.8 代码修改清单
 
-```
-core/metacognitive_monitor.py  ← 新增
-├── NodeConfidenceTracker        # 节点置信区间
-├── KnowledgeFrontierDetector   # 知识前沿检测
-└── CalibrationTracker         # 校准评估
-```
+| 文件 | 修改类型 | 说明 |
+|------|---------|------|
+| `core/knowledge_graph.py` | 扩展字段 | topics{} 新增 confidence_low/high/evidence/contradiction；exploration_log{} 新增 predicted/outcome/is_hypothesis |
+| `core/meta_cognitive_monitor.py` | 扩展方法 | 新增 5 个方法：get_confidence_interval / update_node_confidence / detect_frontier / recommend_exploration_from_frontier / record_prediction / record_outcome / get_calibration_error / get_topic_calibration |
+| `core/meta_cognitive_controller.py` | 扩展决策 | should_explore 增加 frontier 感知 |
 
-### 13.8 新增 API
+### 13.9 新增 API
 
 ```python
 @app.route("/api/kg/confidence/<path:topic>", methods=["GET"])
 def api_kg_confidence(topic: str):
     """获取节点置信区间"""
-    confidence = metacognitive_monitor.get_confidence_interval(topic)
+    confidence = meta_monitor.get_confidence_interval(topic)
     return jsonify({
         "topic": topic,
         "confidence_low": confidence.low,
         "confidence_high": confidence.high,
-        "calibration": confidence.calibration
+        "evidence_count": confidence.evidence_count,
+        "contradiction_count": confidence.contradiction_count
     })
 
 @app.route("/api/kg/frontier", methods=["GET"])
 def api_kg_frontier():
     """获取知识前沿（知道自己不知道什么）"""
-    frontiers = knowledge_frontier_detector.detect_frontier()
+    frontiers = meta_monitor.detect_frontier()
     return jsonify({"frontiers": frontiers})
 
 @app.route("/api/kg/calibration", methods=["GET"])
 def api_kg_calibration():
     """获取整体校准误差"""
-    error = calibration_tracker.get_calibration_error()
-    return jsonify({"calibration_error": error})
+    error = meta_monitor.get_calibration_error()
+    return jsonify({"calibration_error": error, "verdict": "well_calibrated" if error < 0.1 else "overconfident"})
 ```
 
 ---
 
-_Last updated: 2026-03-28 16:40 by R1D3_
-_v0.2.6: Creative DreamAgent + SpiderAgent + SleepPruner + MetacognitiveMonitor (knowing what you don't know)_
+_Last updated: 2026-03-28 16:46 by R1D3_
+_v0.2.6: Creative DreamAgent + SpiderAgent + SleepPruner + MetaCognitiveMonitor enhanced (knowing what you don't know)_
 
