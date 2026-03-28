@@ -556,5 +556,62 @@ def main():
     app.run(host=args.host, port=args.port, debug=False, threaded=True)
 
 
+@app.route("/api/kg/trace/<path:topic>")
+def api_kg_trace(topic: str):
+    """使用扩散激活算法向上追溯 topic 的因果链到根技术"""
+    from core.knowledge_graph import get_spreading_activation_trace, get_root_technologies
+
+    topic = topic.strip()
+
+    result = get_spreading_activation_trace(topic)
+
+    root_technologies = get_root_technologies()
+
+    return jsonify({
+        "topic": topic,
+        "origin": result["origin"],
+        "activation_map": result["activation_map"],
+        "ordered_trace": result["ordered_trace"],
+        "root_technologies": result["root_technologies"],
+        "cross_subgraph_connections": result["cross_subgraph_connections"]
+    })
+
+
+@app.route("/api/kg/roots")
+def api_kg_roots():
+    """返回所有根技术，按 root_score 降序"""
+    from core.knowledge_graph import get_root_technologies
+
+    roots = get_root_technologies()
+    return jsonify({
+        "roots": roots,
+        "total": len(roots)
+    })
+
+
+@app.route("/api/kg/overview")
+def api_kg_overview():
+    """返回 KG 全局视图数据（节点+边）"""
+    from core.knowledge_graph import get_kg_overview
+
+    return jsonify(get_kg_overview())
+
+
+@app.route("/api/kg/promote", methods=["POST"])
+def api_kg_promote():
+    """手动将 topic 升为根候选（R1D3 或人工调用）"""
+    from core.knowledge_graph import promote_to_root_candidate
+
+    data = request.get_json()
+    topic = data.get("topic", "").strip()
+    domains = data.get("domains", [])
+
+    if not topic:
+        return jsonify({"error": "topic is required"}), 400
+
+    promote_to_root_candidate(topic, domains)
+    return jsonify({"status": "ok", "topic": topic})
+
+
 if __name__ == "__main__":
     main()

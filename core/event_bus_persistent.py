@@ -4,6 +4,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable, Optional
 
+# v0.2.5 root tracing events
+EVENT_ROOT_CANDIDATE_ELEVATED = "root_candidate_elevated"
+
 
 @dataclass
 class Event:
