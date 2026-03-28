@@ -1,9 +1,9 @@
 # SPEC v0.2.6 — 持续做梦 & 记忆巩固
 
 > **核心目标**: 让 CA 从"探索引擎"进化为"持续学习的数字生命体"
-> **架构原则**: 三个独立进程并发运行，共享同一张 KG，节点级协调，无全局锁
-> **更新**: 2026-03-28 17:03（按特性重组 + 实现顺序 + 进程边界修正）
-> **设计原则**: SpiderAgent 和 DreamAgent 是完全独立的进程，不合并；两者的 LLM 用途不同
+> **架构原则**: 三个独立执行流并发运行，共享同一张 KG，线程级协调，无全局锁
+> **更新**: 2026-03-28 17:13（基于代码分析修正：threading 模型 + 两层锁 + F7/F8 修正）
+> **设计原则**: SpiderAgent 和 DreamAgent 是完全独立的执行流，不合并；两者的 LLM 用途不同
 
 ---
 
@@ -60,65 +60,131 @@
 
 ---
 
-## F1: 三进程架构
+## F1: 三执行流架构
 
-### 1.1 架构原则
+### 1.1 架构决策：基于 threading 而非 multiprocessing
+
+> **决策依据**：基于现有代码分析
+> - LLMManager 是单例（`get_instance()`），同一进程内自然共享
+> - KG 是 JSON 文件，threading 下 GIL 保护文件读写
+> - 当前代码无 multiprocessing 基础，改动成本低
+> - 未来可升级为 multiprocessing 做更强隔离
+
+**实现选择**：`threading.Thread`（同一进程内的独立执行流）
+
+**为什么不选 multiprocessing**：
+- 每个进程有独立 LLMManager 实例，token 配额各自消耗
+- JSON 文件共享需要额外文件锁机制
+- 当前阶段 threading 已满足并发需求
+
+### 1.2 架构原则
 
 ```
-三个独立进程并发运行，共享同一张 KG（knowledge/state.json）：
+同一个 Python 进程内，三个独立执行流共享 KG + LLMManager：
 
 ┌─────────────────────────────────────────────┐
-│           KG (shared file)                    │
-│     knowledge/state.json + dream_insights/     │
-└─────────────────────────────────────────────┘
-         ↑                   ↑                  ↑
-   节点级锁保护         节点级锁保护         节点级锁保护
-         ↑                   ↑                  ↑
-┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-│ SpiderAgent  │   │  DreamAgent  │   │ SleepPruner │
-│  (探索进程)  │   │  (做梦进程)   │   │  (修剪进程)   │
-│  独立进程 PID │   │  独立进程 PID │   │  独立进程 PID │
-└──────────────┘   └──────────────┘   └──────────────┘
+│            Python 进程 (curious_agent.py)     │
+│                                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │ SpiderAgent  │  │  DreamAgent  │  │ SleepPruner │  │
+│  │  (Thread)   │  │  (Thread)    │  │  (Thread)   │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  │
+│         ↑                  ↑                 ↑         │
+│         └──────────────────┴─────────────────┘         │
+│                    threading.Lock (F3)                  │
+│                          ↓                              │
+│         ┌─────────────────────────────────┐            │
+│         │  KG (knowledge/state.json)      │            │
+│         │  LLMManager (singleton)         │            │
+│         │  queue.Queue (thread-safe)      │            │
+│         └─────────────────────────────────┘            │
+└─────────────────────────────────────────────────────┘
 ```
 
 **关键约束**：
-- SpiderAgent 和 DreamAgent 是**完全独立的进程**，不合并
-- 每个进程有自己的 Python 解释器实例
-- 进程间通过队列和 KG 文件通信，不共享内存
+- 三个 Thread 共享同一个 LLMManager 实例（单例）
+- 共享同一个 KG JSON 文件（通过 threading.Lock 保护）
+- 线程间通过 `queue.Queue` 通信，不跨进程
 
-### 1.2 LLM 使用区分
+### 1.3 LLM 使用区分
 
-| 进程 | LLM 用途 | 说明 |
-|------|---------|------|
+| 执行流 | LLM 用途 | 说明 |
+|--------|---------|------|
 | SpiderAgent → Explorer | 理解 + 总结外部信息 | 分析搜索结果、生成摘要 |
 | DreamAgent → LLMClient | 创造全新内容 | 从 A+B 生成新洞察 |
 | SleepPruner | 不使用 LLM | 纯规则计算 |
 
-### 1.3 主进程入口
+### 1.4 主进程入口
 
 ```python
 # curious_agent.py 的 daemon_mode 重构
+import threading
+import queue
+
 def daemon_mode():
     from core.spider_agent import SpiderAgent
     from core.dream_agent import DreamAgent
     from core.sleep_pruner import SleepPruner
-    from multiprocessing import Queue
 
-    high_priority_queue = Queue()   # SpiderAgent → DreamAgent
-    low_priority_queue = Queue()    # DreamAgent 内部轮询用
+    # SpiderAgent → DreamAgent 的通知队列
+    high_priority_queue = queue.Queue()
 
-    spider = SpiderAgent(high_priority_queue)
-    dreamer = DreamAgent(high_priority_queue, low_priority_queue)
+    spider = SpiderAgent(high_priority_queue, name="SpiderAgent")
+    dreamer = DreamAgent(high_priority_queue, name="DreamAgent")
     pruner = SleepPruner(interval_minutes=60)
 
-    spider.start()   # 进程1
-    dreamer.start()  # 进程2
-    pruner.start()    # 进程3
+    spider.start()   # Thread 1
+    dreamer.start()  # Thread 2
+    pruner.start()   # Thread 3
 
+    # 等待所有线程（实际上不会退出）
     spider.join()
     dreamer.join()
     pruner.join()
 ```
+
+### 1.5 基础类定义
+
+```python
+# 所有 Agent 继承自 threading.Thread
+import threading
+import queue
+import time
+
+class BaseAgent(threading.Thread):
+    """所有 Agent 的基础类"""
+    def __init__(self, name: str):
+        super().__init__(name=name, daemon=True)  # daemon=True: 主进程退出时自动终止
+        self.running = True
+
+    def stop(self):
+        self.running = False
+
+    def yield_to_other(self):
+        """给其他线程让出执行权"""
+        time.sleep(0)  # 让出 GIL，允许其他线程运行
+```
+
+---
+
+## F2: KG Schema 扩展
+
+### 2.1 topics 节点新增字段
+
+```python
+# topics[topic] 新增字段
+{
+    "known": bool,
+    "depth": float,
+    "summary": str,
+    "sources": list[str],
+    "children": list[str],
+    "parents": list[str],
+    "explains": list[dict],
+
+    # === v0.2.6 新增 ===
+    "status": str,                 # "complete" | "dormant"
+    "last_consolidated": str,      # ISO 时间戳
 
 ---
 
@@ -317,7 +383,15 @@ def fetch_and_clear_dream_inbox() -> list[dict]:
 
 ## F3: 节点级锁
 
-### 3.1 NodeLockRegistry
+### 3.1 两层锁机制
+
+**问题**：KG 是 JSON 文件，每次操作是"读→修改→写"。如果两个线程同时读、分别写，后写的会覆盖先写的。
+
+**解决方案**：两层锁：
+1. **全局写锁**：保护 KG 文件的读-改-写原子性
+2. **节点级锁**：保护同节点操作的互斥
+
+### 3.2 NodeLockRegistry（节点级锁）
 
 ```python
 import threading
@@ -331,6 +405,7 @@ class NodeLockRegistry:
     - 死锁预防：所有调用方必须按节点名字排序后再获取锁
     """
     _locks = WeakValueDictionary()
+    _global_write_lock = threading.RLock()  # 全局写锁
 
     @classmethod
     def get_lock(cls, node_name: str) -> threading.Lock:
@@ -344,21 +419,74 @@ class NodeLockRegistry:
         lock_a = cls.get_lock(name_a)
         lock_b = cls.get_lock(name_b)
         return sorted([lock_a, lock_b], key=lambda l: id(l))
+
+    @classmethod
+    def global_write_lock(cls) -> threading.RLock:
+        """全局写锁，保护 KG 文件的读-改-写原子性"""
+        return cls._global_write_lock
 ```
 
-### 3.2 使用规范
+### 3.3 KG 操作的锁使用规范
 
 ```python
-# ✅ 正确：按名字排序后再获取
+# ✅ 正确：全局写锁 + 节点级锁
 def kg_write_with_lock(from_topic: str, to_topic: str, result: dict):
-    locks = NodeLockRegistry.get_lock_pair(from_topic, to_topic)
-    with locks[0], locks[1]:
-        add_explains(from_topic, to_topic, result)
+    # 1. 获取全局写锁（保护文件读写）
+    with NodeLockRegistry.global_write_lock():
+        # 2. 获取节点级锁（保护同节点互斥）
+        locks = NodeLockRegistry.get_lock_pair(from_topic, to_topic)
+        with locks[0], locks[1]:
+            state = _load_state()
+            # 修改 state
+            ...
+            _save_state(state)
 
-# ❌ 错误：可能导致死锁
-with lock_a:
-    with lock_b:  # 另一个线程以相反顺序获取就会死锁
+# ✅ 只修改单个节点
+def kg_update_node(topic: str, updates: dict):
+    with NodeLockRegistry.global_write_lock():
+        lock = NodeLockRegistry.get_lock(topic)
+        with lock:
+            state = _load_state()
+            state["knowledge"]["topics"].setdefault(topic, {}).update(updates)
+            _save_state(state)
+
+# ❌ 错误：先获取节点锁，再获取全局锁（可能导致死锁）
+# 因为另一个线程可能先拿了全局锁，再拿节点锁
+with node_lock:  # A 线程拿到节点锁
+    with global_lock:  # A 等待全局锁
         ...
+
+# ✅ 正确顺序：总是先全局锁，再节点锁
+with global_lock:
+    with node_lock:
+        ...
+```
+
+### 3.4 现有 KG 函数的改造策略
+
+> ⚠️ 重要：现有 KG 函数（如 `_load_state`/`_save_state`/`add_knowledge`）在单线程下运行，没有锁。
+> 升级为多线程时，需要逐个改造。
+
+**改造策略**：
+1. 读取操作：直接读，不需要锁（GIL 保证 Python 对象读取是原子的）
+2. 写入操作：必须用全局写锁 + 节点锁（原子性保证）
+
+**不需要锁的读取**：
+```python
+def kg_read(topic: str) -> dict:
+    state = _load_state()  # GIL 保证读取完成
+    return state["knowledge"]["topics"].get(topic, {})
+```
+
+**需要锁的写入**：
+```python
+def kg_write(topic: str, data: dict):
+    with NodeLockRegistry.global_write_lock():
+        lock = NodeLockRegistry.get_lock(topic)
+        with lock:
+            state = _load_state()
+            state["knowledge"]["topics"][topic] = data
+            _save_state(state)
 ```
 
 ---
@@ -448,7 +576,7 @@ class ExplorationHistory:
 
 ---
 
-## F5: SpiderAgent（独立探索进程）
+## F5: SpiderAgent（独立探索执行流）
 
 ### 5.1 职责
 
@@ -460,7 +588,7 @@ class ExplorationHistory:
 ### 5.2 组成模块
 
 ```
-SpiderAgent（独立进程）
+SpiderAgent（Thread，与 DreamAgent/SleepPruner 同进程）
     │
     ├── CuriosityEngine ← 纯规则（不需要 LLM）
     │       └── select_next() → 纯排序/过滤
@@ -478,15 +606,17 @@ SpiderAgent（独立进程）
 ### 5.3 运行逻辑
 
 ```python
-class SpiderAgent:
+class SpiderAgent(BaseAgent):
     def __init__(self, to_dreamer_queue):
+        super().__init__(name="SpiderAgent")
         self.high_priority_queue = to_dreamer_queue
         self.engine = CuriosityEngine()
         self.explorer = Explorer()
         self.history = ExplorationHistory()
 
     def run(self):
-        while True:
+        """主循环：选择 → 探索 → 写入 KG → 通知 DreamAgent"""
+        while self.running:
             # [F11] 每次选择前先消费 DreamInbox
             self.sync_dream_inbox()
 
@@ -499,7 +629,7 @@ class SpiderAgent:
             result = self.explorer.explore(topic)
 
             # 写入 KG（节点级锁）
-            self.kg_add_with_lock(topic, result)
+            self.kg_write_with_lock(topic, result)
 
             # 通知 DreamAgent（高优先级队列）
             self.high_priority_queue.put(("high", topic))
@@ -510,14 +640,15 @@ class SpiderAgent:
             # [F12] 记录探索结果用于校准
             self.history.record_outcome(topic, actual_correct=True)
 
-            yield_to_other_process()
+            time.sleep(0)  # 让出 GIL，允许 DreamAgent 运行
 
     def sync_dream_inbox(self):
         """[F11] 消费 DreamInbox，将 trigger_topic 加入 curiosity_queue"""
         inbox_items = kg.fetch_and_clear_dream_inbox()
         for item in inbox_items:
             topic = item["topic"]
-            if not kg.is_topic_known(topic):
+            # 使用 kg.is_topic_completed 而非 is_topic_known（后者不存在）
+            if not kg.is_topic_completed(topic):
                 kg.add_curiosity(
                     topic=topic,
                     reason=f"Dream insight trigger: {item['source_insight']}",
@@ -532,20 +663,29 @@ class SpiderAgent:
             if self.history.co_occurred(topic, node, within_hours=24):
                 kg.strengthen_connection(topic, node, delta=0.1)
         kg.set_consolidated(topic)
+
+    def kg_write_with_lock(self, topic: str, result: dict):
+        """写入 KG，带全局写锁 + 节点锁"""
+        with NodeLockRegistry.global_write_lock():
+            lock = NodeLockRegistry.get_lock(topic)
+            with lock:
+                kg.add_knowledge(topic, depth=result.get("depth", 5),
+                                 summary=result.get("findings", ""),
+                                 sources=result.get("sources", []))
 ```
 
 ### 5.4 与 DreamAgent 的边界
 
 | | SpiderAgent | DreamAgent |
 |--|--|--|
-| 进程 | 独立进程 | 独立进程 |
+| 执行模型 | Thread（与另两者同进程） | Thread（与另两者同进程） |
 | LLM 用途 | 理解和总结外部信息 | 创造全新内容 |
 | 写入 KG | children, quality, sources | dream_insights, parents |
 | 管理 | curiosity_queue | 无（只写 KG + 队列） |
 
 ---
 
-## F6: SleepPruner（定时修剪进程）
+## F6: SleepPruner（定时修剪执行流）
 
 ### 6.1 职责
 
@@ -566,15 +706,16 @@ class SpiderAgent:
 ### 6.3 运行逻辑
 
 ```python
-class SleepPruner:
+class SleepPruner(BaseAgent):
     def __init__(self, interval_minutes=60):
+        super().__init__(name="SleepPruner")
         self.interval = interval_minutes
 
     def run(self):
-        while True:
+        while self.running:
             count = self.scan_and_prune()
             print(f"[SleepPruner] {count} nodes → dormant")
-            sleep(self.interval * 60)
+            time.sleep(self.interval * 60)
 
     def scan_and_prune(self) -> int:
         all_nodes = kg.get_all_nodes(active_only=True)
@@ -606,6 +747,7 @@ class SleepPruner:
             return True
         return all(i.get("stale", False) or kg.is_insight_stale(i["node_id"])
                    for i in insights)
+                   for i in insights)
 ```
 
 ---
@@ -616,21 +758,21 @@ class SleepPruner:
 
 DreamAgent 需要处理两类输入：
 1. **高优先级队列**：SpiderAgent 通知的新节点（立即处理）
-2. **低优先级队列**：KG 中老节点轮流处理（确保公平）
+2. **低优先级轮询**：KG 中老节点轮流处理（确保公平）
 
-### 7.2 轮询指针（不是被动填充）
+### 7.2 轮询指针（不是队列被动填充）
 
-低优先级不用"队列空才填充"的被动模式，而是用**轮询指针**主动遍历：
+低优先级使用**轮询指针**主动遍历，不依赖队列填充：
 
 ```python
-class DreamAgent:
-    def __init__(self, high_priority_queue, low_priority_queue):
+class DreamAgent(BaseAgent):
+    def __init__(self, high_priority_queue):
+        super().__init__(name="DreamAgent")
         self.high_queue = high_priority_queue
-        self.low_queue = low_priority_queue
         self.dream_pointer = 0  # 轮询指针
 
     def get_next_low_priority(self):
-        """主动轮询，不阻塞"""
+        """主动轮询，不阻塞，返回一个待做梦的节点"""
         all_nodes = kg.get_all_nodes(active_only=True)
         if not all_nodes:
             return None
@@ -645,20 +787,33 @@ class DreamAgent:
         return None  # 所有节点近期都处理过了
 
     def run(self):
-        while True:
-            if not self.high_queue.empty():
-                _, topic = self.high_queue.get()
-            else:
+        while self.running:
+            try:
+                # 高优先级队列：等待通知（阻塞，最多等 60 秒）
+                item = self.high_queue.get(timeout=60)
+                topic = item[1]  # item = ("high", topic)
+            except queue.Empty:
+                # 超时：主动轮询一个低优先级节点
                 topic = self.get_next_low_priority()
                 if topic is None:
-                    sleep(1)  # 等待新节点
+                    time.sleep(1)  # 没有可处理节点，等待一下
                     continue
+
             self.process_creative_dreaming(topic)
+            time.sleep(0)  # 让出 GIL
 ```
+
+### 7.3 为什么不用 low_priority_queue？
+
+低优先级队列是被动模式（队列空才填充），会导致老节点永久没有做梦机会。
+轮询指针是主动模式，每个节点定期都有机会被处理。
+两者的权衡：指针遍历有 O(n) 开销，但保证了公平性。
 
 ---
 
 ## F8: DreamAgent（独立做梦进程）
+
+## F8: DreamAgent（独立做梦执行流）
 
 ### 8.1 职责
 
@@ -669,7 +824,7 @@ class DreamAgent:
 ### 8.2 组成模块
 
 ```
-DreamAgent（独立进程）
+DreamAgent（Thread，与 SpiderAgent/SleepPruner 同进程）
     │
     ├── LLMClient ← 直接使用（创意生成，不是 Explorer）
     │       └── llm_creative_dream(topic_a, topic_b) → 新洞察
@@ -682,20 +837,22 @@ DreamAgent（独立进程）
 ### 8.3 运行逻辑
 
 ```python
-class DreamAgent:
-    def __init__(self, high_priority_queue, low_priority_queue):
+class DreamAgent(BaseAgent):
+    def __init__(self, high_priority_queue):
+        super().__init__(name="DreamAgent")
         self.high_queue = high_priority_queue
         self.llm = LLMClient()  # 创意生成专用
         self.history = ExplorationHistory()
 
     def run(self):
-        while True:
-            if not self.high_queue.empty():
-                _, topic = self.high_queue.get()
-            else:
+        while self.running:
+            try:
+                item = self.high_queue.get(timeout=60)
+                topic = item[1]  # item = ("high", topic_name)
+            except queue.Empty:
                 topic = self.get_next_low_priority()
                 if topic is None:
-                    sleep(1)
+                    time.sleep(1)
                     continue
 
             distant_pairs = self.find_distant_pairs(topic, max_pairs=5)
@@ -704,6 +861,7 @@ class DreamAgent:
 
             kg.mark_dreamed(topic)
             self.verify_existing_insights(topic)
+            time.sleep(0)  # 让出 GIL
 ```
 
 ---
@@ -1089,19 +1247,30 @@ def sync_metacognitive():
 ## 模块依赖关系
 
 ```
-curious_agent.py (入口)
-    ├── SpiderAgent (进程1)
+curious_agent.py (入口，同一 Python 进程)
+    │
+    ├── BaseAgent (基础类，threading.Thread)
+    │
+    ├── SpiderAgent (Thread)
     │   ├── CuriosityEngine
     │   ├── Explorer
     │   ├── ExplorationHistory (线程安全, F4)
     │   └── KG (节点级锁, F3)
-    ├── DreamAgent (进程2)
+    │
+    ├── DreamAgent (Thread)
     │   ├── LLMClient (creative_dream, F9)
     │   ├── ExplorationHistory (线程安全, F4)
     │   ├── KG (节点级锁, F3)
     │   └── SharedInbox (F11)
-    └── SleepPruner (进程3)
+    │
+    └── SleepPruner (Thread)
         └── KG (节点级锁, F3)
+
+共享资源（同一进程内）：
+    ├── LLMManager (singleton)
+    ├── KG (knowledge/state.json)
+    ├── NodeLockRegistry (threading.Lock)
+    └── high_priority_queue (queue.Queue)
 
 MetaCognitiveMonitor（增强现有模块，不是独立进程）
     ├── ExplorationHistory (F4)
@@ -1172,5 +1341,5 @@ curl http://localhost:4848/api/kg/calibration
 
 ---
 
-_Last updated: 2026-03-28 17:03 by R1D3_
-_v0.2.6: Three independent processes + Creative DreamAgent + SpiderAgent + SleepPruner + MetaCognitiveMonitor enhanced_
+_Last updated: 2026-03-28 17:13 by R1D3_
+_v0.2.6: Threading-based (not multiprocessing) - F1 threaded model, F3 two-layer locking, F7 no low_queue param, F8 no engine_
