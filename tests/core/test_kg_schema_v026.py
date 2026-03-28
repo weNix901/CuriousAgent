@@ -444,3 +444,160 @@ class TestThreadSafety:
         remove_dream_insight(node_id)
         insights = get_dream_insights()
         assert len(insights) == 0
+
+
+class TestNodeLifecycleFunctions:
+    """Tests for v0.2.6 node lifecycle functions."""
+    
+    def test_mark_dormant_changes_status(self, mock_state_file):
+        """Test that mark_dormant sets status to 'dormant'."""
+        from core.knowledge_graph import add_knowledge, mark_dormant, get_state
+        
+        # Add a topic first
+        add_knowledge("test_topic_dormant", depth=5, summary="Test summary")
+        
+        # Mark as dormant
+        mark_dormant("test_topic_dormant")
+        
+        # Verify status changed
+        state = get_state()
+        assert state["knowledge"]["topics"]["test_topic_dormant"]["status"] == "dormant"
+    
+    def test_reactivate_changes_status(self, mock_state_file):
+        """Test that reactivate sets status to 'complete'."""
+        from core.knowledge_graph import add_knowledge, mark_dormant, reactivate, get_state
+        
+        # Add a topic and mark as dormant
+        add_knowledge("test_topic_reactivate", depth=5, summary="Test summary")
+        mark_dormant("test_topic_reactivate")
+        
+        # Reactivate
+        reactivate("test_topic_reactivate")
+        
+        # Verify status changed back to complete
+        state = get_state()
+        assert state["knowledge"]["topics"]["test_topic_reactivate"]["status"] == "complete"
+    
+    def test_mark_dreamed_sets_timestamp(self, mock_state_file):
+        """Test that mark_dreamed sets dreamed_at timestamp."""
+        from core.knowledge_graph import add_knowledge, mark_dreamed, get_state
+        from datetime import datetime, timezone
+        
+        # Add a topic
+        add_knowledge("test_topic_dreamed", depth=5, summary="Test summary")
+        
+        # Mark as dreamed
+        mark_dreamed("test_topic_dreamed")
+        
+        # Verify timestamp was set
+        state = get_state()
+        topic_data = state["knowledge"]["topics"]["test_topic_dreamed"]
+        assert "dreamed_at" in topic_data
+        # Verify it's a valid ISO timestamp
+        dreamed_at = datetime.fromisoformat(topic_data["dreamed_at"])
+        assert dreamed_at.year == datetime.now(timezone.utc).year
+    
+    def test_set_consolidated_sets_timestamp(self, mock_state_file):
+        """Test that set_consolidated sets last_consolidated timestamp."""
+        from core.knowledge_graph import add_knowledge, set_consolidated, get_state
+        from datetime import datetime, timezone
+        
+        # Add a topic
+        add_knowledge("test_topic_consolidated", depth=5, summary="Test summary")
+        
+        # Mark as consolidated
+        set_consolidated("test_topic_consolidated")
+        
+        # Verify timestamp was set
+        state = get_state()
+        topic_data = state["knowledge"]["topics"]["test_topic_consolidated"]
+        assert "last_consolidated" in topic_data
+        # Verify it's a valid ISO timestamp
+        consolidated_at = datetime.fromisoformat(topic_data["last_consolidated"])
+        assert consolidated_at.year == datetime.now(timezone.utc).year
+    
+    def test_get_dormant_nodes(self, mock_state_file):
+        """Test that get_dormant_nodes returns only dormant topics."""
+        from core.knowledge_graph import add_knowledge, mark_dormant, get_dormant_nodes
+        
+        # Add multiple topics
+        add_knowledge("active_topic", depth=5, summary="Active")
+        add_knowledge("dormant_topic_1", depth=5, summary="Dormant 1")
+        add_knowledge("dormant_topic_2", depth=5, summary="Dormant 2")
+        
+        # Mark some as dormant
+        mark_dormant("dormant_topic_1")
+        mark_dormant("dormant_topic_2")
+        
+        # Get dormant nodes
+        dormant = get_dormant_nodes()
+        
+        assert "dormant_topic_1" in dormant
+        assert "dormant_topic_2" in dormant
+        assert "active_topic" not in dormant
+    
+    def test_has_recent_dreams(self, mock_state_file):
+        """Test that has_recent_dreams correctly checks dream recency."""
+        from core.knowledge_graph import add_knowledge, mark_dreamed, has_recent_dreams
+        from datetime import datetime, timezone, timedelta
+        import json
+        
+        # Add a topic
+        add_knowledge("test_recent_dreams", depth=5, summary="Test")
+        
+        # Mark as dreamed now
+        mark_dreamed("test_recent_dreams")
+        
+        # Should have recent dreams within 7 days
+        assert has_recent_dreams("test_recent_dreams", within_days=7) is True
+        
+        # Manually set dreamed_at to 10 days ago
+        state_file = mock_state_file + "/state.json"
+        with open(state_file, "r") as f:
+            state = json.load(f)
+        
+        old_date = datetime.now(timezone.utc) - timedelta(days=10)
+        state["knowledge"]["topics"]["test_recent_dreams"]["dreamed_at"] = old_date.isoformat()
+        
+        with open(state_file, "w") as f:
+            json.dump(state, f)
+        
+        # Should NOT have recent dreams within 7 days
+        assert has_recent_dreams("test_recent_dreams", within_days=7) is False
+        # But should have within 14 days
+        assert has_recent_dreams("test_recent_dreams", within_days=14) is True
+    
+    def test_get_recently_dreamed(self, mock_state_file):
+        """Test that get_recently_dreamed returns topics dreamed within window."""
+        from core.knowledge_graph import add_knowledge, mark_dreamed, get_recently_dreamed
+        from datetime import datetime, timezone, timedelta
+        import json
+        
+        # Add topics
+        add_knowledge("recent_dreamed_1", depth=5, summary="Recent 1")
+        add_knowledge("recent_dreamed_2", depth=5, summary="Recent 2")
+        add_knowledge("old_dreamed", depth=5, summary="Old")
+        add_knowledge("never_dreamed", depth=5, summary="Never")
+        
+        # Mark some as dreamed
+        mark_dreamed("recent_dreamed_1")
+        mark_dreamed("recent_dreamed_2")
+        
+        # Manually set old_dreamed to 10 days ago
+        state_file = mock_state_file + "/state.json"
+        with open(state_file, "r") as f:
+            state = json.load(f)
+        
+        old_date = datetime.now(timezone.utc) - timedelta(days=10)
+        state["knowledge"]["topics"]["old_dreamed"]["dreamed_at"] = old_date.isoformat()
+        
+        with open(state_file, "w") as f:
+            json.dump(state, f)
+        
+        # Get recently dreamed within 7 days
+        recent = get_recently_dreamed(within_days=7)
+        
+        assert "recent_dreamed_1" in recent
+        assert "recent_dreamed_2" in recent
+        assert "old_dreamed" not in recent
+        assert "never_dreamed" not in recent
