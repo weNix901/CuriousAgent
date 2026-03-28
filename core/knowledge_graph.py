@@ -1265,3 +1265,54 @@ def get_root_pool_names() -> set[str]:
         state = _load_state()
         pool = state.get(ROOT_POOL_KEY, {}).get("candidates", [])
         return {r.get("name") for r in pool if r.get("name")}
+
+
+# === v0.2.6 SharedInbox Functions (Commit 4) ===
+
+def add_to_dream_inbox(topic: str, source_insight: str):
+    """Add topic to dream inbox for SpiderAgent."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    inbox_path = os.path.join(os.path.dirname(STATE_FILE), "dream_topic_inbox.json")
+    
+    with NodeLockRegistry.global_write_lock():
+        inbox = {"inbox": []}
+        if os.path.exists(inbox_path):
+            try:
+                with open(inbox_path, "r", encoding="utf-8") as f:
+                    inbox = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                pass
+        
+        inbox["inbox"].append({
+            "topic": topic,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "source_insight": source_insight
+        })
+        
+        with open(inbox_path, "w", encoding="utf-8") as f:
+            json.dump(inbox, f, ensure_ascii=False, indent=2)
+
+
+def fetch_and_clear_dream_inbox() -> list[dict]:
+    """Fetch and clear dream inbox. Called by SpiderAgent."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    inbox_path = os.path.join(os.path.dirname(STATE_FILE), "dream_topic_inbox.json")
+    
+    with NodeLockRegistry.global_write_lock():
+        inbox = {"inbox": []}
+        if os.path.exists(inbox_path):
+            try:
+                with open(inbox_path, "r", encoding="utf-8") as f:
+                    inbox = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                pass
+        
+        items = inbox.get("inbox", [])
+        
+        inbox["inbox"] = []
+        with open(inbox_path, "w", encoding="utf-8") as f:
+            json.dump(inbox, f, ensure_ascii=False, indent=2)
+        
+        return items
