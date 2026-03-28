@@ -36,6 +36,12 @@
 探索完成后，你的 AI 里多了一张知识网
          不是十条摘要，是一张有结构的图
          agent memory 在这里，self-reflection 在那里，中间怎么连的，一目了然
+    ↓
+更重要的是：它能告诉你任意节点的"根"在哪里
+         从 metacognitive monitoring 出发
+         → 扩散激活追溯 → transformer attention
+         → "这个能力的底层，是 Attention 机制"
+         → 根技术浮现，跨领域的底层逻辑被打通
 ```
 
 **最大的区别：**
@@ -43,6 +49,10 @@
 普通 AI 的知识是**散的**，每次搜索都是独立的点。
 
 Curious Agent 的知识是**织出来的网**——探索越多，网越密，越能发现那些"两个完全不同方向居然共享同一个底层机制"。
+
+更重要的是，**这张网有根**。v0.2.5 的扩散激活算法让 Curious Agent 能从任意知识点向上追溯到根技术——不只是知道"这个知识点连接了什么"，更知道"这个知识点的底层根是什么"。metacognitive monitoring 和 planning 看起来毫无关系，但追溯到根层才发现，它们共享同一个底层机制：`transformer attention`。
+
+**这就是织网的真正价值：发现连接，追溯根技术，打通跨领域的底层逻辑。**
 
 ---
 
@@ -184,6 +194,8 @@ Curious Agent 的知识是**树状结构**：
 
 **树状结构让"理解"成为可能。列表只能存储，结构才能推理。**
 
+更进一步：v0.2.5 的扩散激活算法让这棵树**有了根**。从任意节点出发向上追溯，能找到这棵树的根技术——那些跨多个探索分支、解释了众多上层知识的底层机制。metacognitive monitoring 是叶子，transformer attention 才是根。
+
 ---
 
 ### 🎯 特点三：知道什么时候停，不钻牛角尖
@@ -217,6 +229,40 @@ Curious Agent 有严格的质量门控：
 不是所有发现都有资格被记住。只有**真正有价值的发现**才会进入知识图谱和共享知识层。
 
 **这保证了接入 Curious Agent 的 AI，拿到的都是经过筛选的高质量洞察，不是搜索结果的大杂烩。**
+
+---
+
+### 🧬 特点五：知道任何知识的根在哪里
+
+这是 v0.2.5 带来的全新能力维度。
+
+大多数 AI 只能告诉你"这个话题下面有哪些子话题"—— Curious Agent 还能告诉你"这个话题的底层根技术是什么"。
+
+```
+你问它: "metacognitive monitoring 是什么？"
+    ↓
+它探索完成，在知识图谱中建立了一条链路
+    ↓
+扩散激活追溯启动：从 metacognitive monitoring 出发
+    ↓
+沿父子关系扩散，激活值沿路径向上传递
+    ↓
+多条路径在 transformer attention 处汇聚
+    ↓
+它告诉你:
+"metacognitive monitoring 的底层根技术是 transformer attention。
+  它被 3 个探索分支共同引用，解释了 12 个上层知识点。"
+```
+
+**扩散激活算法（Collins & Loftus, 1975）的核心机制**：
+- 从起点激活值 = 1.0，每跳衰减 0.5
+- 多条路径汇聚时激活值累加——**能自然发现跨子图的根**
+- `paths >= 2` 或命中根技术池 → 标记为候选根技术
+- root_score = cross_domain_count × 0.4 + explains_count × 0.6
+
+**根技术池**会在持续探索中自动浮现新根：cross_domain_count ≥ 3 时自动升为根候选，confidence 随 explains_count 增长。初始种子包括 transformer attention、gradient descent、backpropagation 等基础机制。
+
+**这个能力的价值**：不只是"知道更多"，而是"知道更深"——看清知识点之间的层级关系，理解表层现象背后的根机制。
 
 ---
 
