@@ -13,7 +13,7 @@
 | `core/spider_agent.py` | 新增 | 持续探索进程（重构自现有探索逻辑） |
 | `core/dream_agent.py` | 新增 | 持续做梦重组进程（含 consolidation + reorganization） |
 | `core/sleep_pruner.py` | 新增 | 突触修剪器（权重感知） |
-| `core/knowledge_graph.py` | 修改 | 新增 dormant 状态、explains、last_consolidated、connection_weight、节点级锁 |
+| `core/knowledge_graph.py` | 修改 | 新增 dormant 状态、dream_insights、last_consolidated、connection_weight、节点级锁 |
 | `core/consolidation_engine.py` | 删除 | 合并入 dream_agent |
 | `core/reorganization_engine.py` | 删除 | 合并入 dream_agent |
 | `curious_agent.py` | 修改 | 启动三个并发进程 |
@@ -38,7 +38,7 @@
 **核心洞察**: 冲突只在两进程操作**同一节点**时发生。
 
 - SpiderAgent 写入: `children`, `quality`, `status`, `sources`, `explored_children`
-- DreamAgent 写入: `explains`, `parents`（新增连接）
+- DreamAgent 写入: `dream_insights`（新洞察节点）、`parents`（探索关系）
 - 两者写入**不同字段**，即使同一节点也语义独立
 
 **协调策略**: 节点级锁，非全局锁。
@@ -70,7 +70,7 @@
 
 **新增字段**: `connection_weight` — 连接强度（0.0-1.0）
 
-- 新建的 explains 连接：初始 weight = 0.5
+- 新建的 dream_insight：初始 weight = 0.5
 - 被多次共现强化：weight 逐渐上升
 - SleepPruner 基于权重而非二元判断（有无连接）
 
@@ -145,7 +145,7 @@ def strengthen_co_occurring(self, topic: str):
 - 持续监听高优先级队列（新节点）和低优先级队列（轮流节点）
 - 对每个节点，扫描远距离节点的关联
 - 强制 LLM 判断关联是否存在
-- 发现有意义连接 → 写入 explains（含 connection_weight）
+- 生成新洞察 → 写入 dream_insights（新知识节点）
 
 ### 3.2 双队列设计
 
@@ -164,7 +164,13 @@ class DreamAgent:
             else:
                 topic = self.low_queue.get()  # 阻塞等待
 
-            self.process_associations(topic)
+            # 获取与 topic 配对的远距离节点
+            distant_pairs = self.find_distant_pairs(topic)
+
+            # 对每对节点执行创意做梦
+            for distant_node, distance in distant_pairs:
+                self.process_creative_dreaming(topic, distant_node)
+
             yield_to_other_process()
 ```
 
@@ -201,66 +207,87 @@ class DreamAgent:
 
 **触发条件**：低优先级队列为空时，自动触发 fill_low_priority_queue。
 
-### 3.4 运行逻辑（含价值验证回路）
+### 3.4 创意做梦运行逻辑（生成器模式）
+
+**核心转变**：DreamAgent 从"关联判断器"变为"洞察生成器"。
+
+- 判断器：判断 A 和 B 有没有关联 → 产出关系标签
+- 生成器：基于 A 和 B 生成全新洞察 → 产出新知识节点
+
+**为什么这个区别重要**：如果只是建关联，KG 只是变得更密集；如果生成新洞察，KG 会真正生长出新的知识维度。
 
 ```python
-    def process_associations(self, topic: str):
-        """对单个 topic 扫描远距离关联"""
-        distant_pairs = self.find_distant_pairs(topic)
+    def process_creative_dreaming(self, topic_a: str, topic_b: str):
+        """
+        创意做梦：对两个远距离节点，生成新洞察
 
-        for distant_node, distance in distant_pairs:
-            result = self.llm_ask_association(topic, distant_node)
+        流程：
+        1. LLM 生成创意洞察（新内容，不是判断关联）
+        2. 洞察写入 KG 为新节点
+        3. 洞察的 trigger_topic 进入探索队列
+        """
+        result = self.llm_creative_dream(topic_a, topic_b)
 
-            # 写入条件：surprise >= 0.5（意外度够高）
-            # 取消 confidence >= 0.7 的门控——避免过滤最意外的连接
-            if result["has_association"] and result["surprise"] >= 0.5:
-                self.kg_write_with_lock(topic, distant_node, result)
+        # 写入条件：surprise >= 0.5（洞察够意外）
+        if result["has_insight"] and result["surprise"] >= 0.5:
+            # 写入 KG：新增洞察节点
+            insight_node = self.kg.add_dream_insight(
+                content=result["insight"],
+                insight_type=result["insight_type"],
+                source_topics=[topic_a, topic_b],
+                surprise=result["surprise"],
+                novelty=result["novelty"],
+                trigger_topic=result["trigger_topic"]
+            )
+
+            # 新洞察进入探索候选队列
+            if result["trigger_topic"]:
+                self.engine.add_to_queue(result["trigger_topic"])
+
+            # 记录探索历史（用于后续价值验证）
+            self.exploration_history.record_insight_generation(
+                insight_node=insight_node,
+                source_pair=(topic_a, topic_b),
+                timestamp=datetime.now(timezone.utc)
+            )
 
         # 标记为已做梦处理
-        self.kg.mark_dreamed(topic)
+        self.kg.mark_dreamed(topic_a)
 
-        # === 价值验证回路：检查已有连接是否被验证 ===
-        self.verify_existing_connections(topic)
+        # === 洞察价值验证回路 ===
+        self.verify_existing_insights(topic_a)
 ```
 
-**价值验证回路逻辑**：
+### 3.5 洞察价值验证回路
 
 ```python
-    def verify_existing_connections(self, topic: str):
+    def verify_existing_insights(self, topic: str):
         """
-        检查 topic 的已有 explains 连接是否被 SpiderAgent 触发验证过
+        检查 topic 的已有洞察是否被后续探索验证过
 
         规则：
-        - 如果 explains 连接在过去 7 天内被 SpiderAgent 触发过 → verified=True, weight += 0.1
-        - 如果 explains 连接在过去 7 天内未被触发 → weight -= 0.05
-        - weight < 0.2 的连接 → 标记为 stale，后续可被 SleepPruner 清理
+        - 如果洞察在过去 7 天内被 SpiderAgent 触发探索过 → quality += 1
+        - 如果洞察在过去 7 天内未被触发 → weight -= 0.05
+        - weight < 0.2 的洞察 → 标记为 stale
         """
-        explains = self.kg.get_explains(topic)
-        now = datetime.now(timezone.utc)
+        insights = self.kg.get_insights_generated_from(topic)
 
-        for entry in explains:
-            if entry.get("verified"):
-                continue  # 已验证过，跳过
+        for insight in insights:
+            if insight.get("verified"):
+                continue
 
-            # 检查是否在最近探索中被触发
-            was_triggered = self.exploration_history.was_ever_triggered(
-                topic, entry["target"], within_days=7
+            was_triggered = self.exploration_history.was_insight_triggered(
+                insight["node_id"], within_days=7
             )
 
             if was_triggered:
-                # 被验证了，强化权重
-                self.kg.update_explains_weight(
-                    topic, entry["target"], delta=0.1
-                )
-                entry["verified"] = True
+                self.kg.update_insight_quality(insight["node_id"], delta=1.0)
+                insight["verified"] = True
             else:
-                # 未被验证，缓慢衰减
-                self.kg.update_explains_weight(
-                    topic, entry["target"], delta=-0.05
-                )
+                self.kg.update_insight_weight(insight["node_id"], delta=-0.05)
 ```
 
-### 3.5 远距离节点选取（含神经噪声）
+### 3.6 远距离节点选取（含神经噪声）
 
 ```python
     def find_distant_pairs(self, topic: str, max_pairs: int = 5) -> list:
@@ -322,91 +349,68 @@ class DreamAgent:
         return results
 ```
 
-### 3.6 LLM 关联判断（意外度 + 新颖性）
+### 3.6 LLM 创意洞察生成（生成器模式）
 
-**核心改进**：从"置信度"改为"意外度+新颖性"，解决最意外连接被过滤的问题。
+**核心转变**：DreamAgent 从"关联判断器"变为"洞察生成器"。
+
+- 判断器：判断 A 和 B 有没有关联 → 产出关系标签（关联生成器）
+- 生成器：基于 A 和 B 生成全新洞察 → 产出新知识节点（创意做梦引擎）
+
+**为什么这个区别决定演进的必要性**：
+
+| | 关联生成器 | 创意做梦引擎 |
+|--|---------|------------|
+| 产出 | 关系标签 | 新知识节点 |
+| KG 变化 | 变得更密集 | 真正生长 |
+| 演进必要 | 低（只是更精确） | 高（创造新维度） |
 
 ```python
-    def llm_ask_association(self, topic_a: str, topic_b: str) -> dict:
+    def llm_creative_dream(self, topic_a: str, topic_b: str) -> dict:
         """
-        强制 LLM 判断两个节点是否有意外关联
+        创意做梦：对两个完全无关的知识领域，生成全新的洞察
 
-        输出四个维度（不再是单一置信度）：
-        1. has_association: bool - 是否存在关联
-        2. relation_type: str - 关联类型
-        3. surprise: float  # 0.0-1.0 意外度——建立这个连接需要多创新的推理？
-                             #   0.0 = 常识（不需要推理）
-                             #   0.5 = 需要跨领域类比
-                             #   1.0 = 完全原创假设
-        4. novelty: float   # 0.0-1.0 新颖度——这个关联在知识图谱中是否已知？
-                             #   0.0 = 已有连接（重复）
-                             #   0.5 = 部分已知，有新角度
-                             #   1.0 = 全新组合
-
-        写入条件：has_association=True AND surprise >= 0.5（取消置信度门控）
+        Returns: {
+            has_insight: bool,                    # 是否生成了有价值的洞察
+            insight: str,                          # 生成的洞察内容（全新的，不是 A 也不是 B）
+            insight_type: str,                    # "hypothesis" | "analogy" | "prediction" | "question"
+            surprise: float,                       # 0.0-1.0 意外程度
+            novelty: float,                        # 0.0-1.0 新颖程度
+            trigger_topic: str | None,            # 这个洞察能触发哪个新探索方向
+        }
         """
 ```
 
-**LLM Prompt**：
+**LLM Prompt（生成式）**：
 
 ```
-你是一个知识关联分析器，专注于发现"意外但有价值"的跨领域连接。
+你是创意做梦引擎。不是判断两个领域有没有关联，而是从它们的组合中生成全新的洞察。
 
 Topic A: {topic_a}
 Topic B: {topic_b}
 
-请分析这两个知识点的关系，输出四个维度的判断：
+要求：
+1. 洞察必须是从 A+B 组合中**新生成的**，不是 A 也不是 B
+2. 生成的内容必须有认知价值（新的假设、类比、预测、问题）
+3. trigger_topic 是指：这个洞察能指向哪个新的探索方向？
 
-1. **has_association**: 这两个 topic 之间是否存在可建立的关联？（yes/no）
-
-2. **relation_type**: 关联类型
-   - causal: 因果关系（A 导致 B）
-   - analogical: 类比关系（A 像 B）
-   - shared_foundation: 共同基础（A 和 B 共享底层原理）
-   - hierarchical: 层级关系（A 是 B 的上层/下层概念）
-   - none: 无关联
-
-3. **surprise（意外度）**: 建立这个关联需要多创新的推理？
-   - 0.0-0.3: 常识关联，不需要推理（e.g. "transformer → attention"）
-   - 0.4-0.6: 需要跨领域类比（e.g. "transformer → brain regionalization"）
-   - 0.7-1.0: 需要完全原创的假设（e.g. "curiosity → circuit breaker"）
-
-4. **novelty（新颖度）**: 这个关联在知识图谱中是否已知？
-   - 0.0-0.3: 已有连接，重复（知识图谱中很可能已存在）
-   - 0.4-0.6: 部分已知，有新角度
-   - 0.7-1.0: 全新组合，极为罕见
-
-注意：**即使 has_association=no，如果 surprise >= 0.7，也请说明这两个 topic 为什么意外地没有关联——这本身就是有价值的洞察。**
+生成类型（选最合适的）：
+- hypothesis: "如果 A，那么可能 B"（新假设）
+- analogy: "A 就像 B 中的 X"（新类比）
+- prediction: "基于 A 和 B，X 可能发生"（新预测）
+- question: "A 和 B 暗示了一个新问题：X"（新问题）
 
 输出格式（JSON）：
 {
-  "has_association": true/false,
-  "relation_type": "causal/analogical/shared_foundation/hierarchical/none",
+  "has_insight": true/false,
+  "insight": "具体的新洞察内容（必须是从 A+B 生成的）",
+  "insight_type": "hypothesis/analogy/prediction/question",
   "surprise": 0.0-1.0,
   "novelty": 0.0-1.0,
-  "description": "一段话描述关联内容"
+  "trigger_topic": "这个洞察指向的新探索方向（string 或 null）"
 }
 ```
 
-**写入决策逻辑**：
-
-```python
-    def should_write_connection(self, result: dict) -> bool:
-        """
-        写入条件：
-        - has_association=True
-        - surprise >= 0.5（意外度够高，不被过滤）
-
-        不再要求 confidence >= 0.7——这是关键改变
-        """
-        return (
-            result["has_association"]
-            and result["surprise"] >= 0.5
-        )
-```
-```
-
-### 3.7 与 SpiderAgent 的协调
+### 3.7 与 SpiderAgent 的协调### 3.7 与 SpiderAgent 的协调
 
 ```
 SpiderAgent: 写新节点 → 高优先级队列
@@ -427,10 +431,10 @@ DreamAgent:  监听高优先级队列 + 低优先级轮流队列
 
 ### 4.2 降级标准（含 verified + stale）
 
-**核心原则**：pruning 只对 explains 连接检查权重，不对 parent/child 做权重判断。
+**核心原则**：pruning 只对 dream_insights 检查权重，不对 parent/child 做权重判断。
 
 - parent/child 是结构性的，二元存在性（有无），不区分强弱
-- explains 是创意连接，有权重，可以被判定为"弱"
+- dream_insights 是创意产出，有权重，可以被判定为"弱"
 
 **新增逻辑**：
 - verified=False 且 created_at > 7 天前 → 说明从未被 SpiderAgent 验证 → 直接删除这条 explains
@@ -443,7 +447,7 @@ DreamAgent:  监听高优先级队列 + 低优先级轮流队列
 2. 所有 explains 连接均为 stale=True（weight < 0.2）
 3. quality < 7.0
 4. 非 root_technology_pool 候选
-5. 非最近 7 天内有过 explains 新建连接的节点
+5. 非最近 7 天内产生过 dream_insight 的节点
 ```
 
 ### 4.3 运行逻辑
@@ -478,21 +482,20 @@ class SleepPruner:
                 # 有结构性连接，不修剪
                 continue
 
-            # 2. 检查 explains 连接
-            explains = self.kg.get_explains(node_name)
-            if not explains:
-                # 既无结构性连接，也无 explains → 真正孤立
+            # 2. 检查 dream_insights
+            insights = self.kg.get_dream_insights(node_name)
+            if not insights:
                 all_stale = True
                 has_verified = False
             else:
-                # 先清理：删除从未被验证且已创建超过 7 天的 explains
+                # 先清理：删除从未被验证且已创建超过 7 天的 dream_insights
                 for entry in explains:
-                    if not entry.get("verified") and self.kg.is_explains_stale(node_name, entry["target"]):
-                        # 从未被验证且超过 7 天 → 删除这条 explains
-                        self.kg.remove_explains(node_name, entry["target"])
+                    if not entry.get("verified") and self.kg.is_insight_stale(entry["node_id"]):
+                        # 从未被验证且超过 7 天 → 删除这个洞察
+                        self.kg.remove_dream_insight(entry["node_id"])
 
                 # 重新检查
-                remaining = self.kg.get_explains(node_name)
+                remaining = self.kg.get_dream_insights(node_name)
                 has_verified = any(e.get("verified") for e in remaining)
                 all_stale = all(e.get("stale", False) for e in remaining)
 
@@ -529,22 +532,32 @@ connection_weight: float        # 连接强度 0.0-1.0，default 0.5
 ### 5.2 新增 API
 
 ```python
-def add_explains(from_topic: str, to_topic: str, relation: str, surprise: float, novelty: float, weight: float = 0.5):
+def add_dream_insight(content: str, insight_type: str, source_topics: list[str],
+                         surprise: float, novelty: float, trigger_topic: str | None) -> str:
     """
-    添加 explains 连接（含意外度、新颖度、验证状态）
+    添加梦境洞察节点（创意做梦引擎的核心产出）
 
-    初始 weight = 0.5（新建连接的默认权重）
-    verified = False（待 SpiderAgent 探索触发后验证）
+    新洞察作为 KG 的独立节点存在，不是边的属性
+
+    Returns: 新节点的 node_id
     """
+    node_id = f"insight_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')}"
     entry = {
-        "target": to_topic,
-        "relation": relation,
+        "node_id": node_id,
+        "content": content,
+        "insight_type": insight_type,  # hypothesis/analogy/prediction/question
+        "source_topics": source_topics,
         "surprise": surprise,
         "novelty": novelty,
-        "weight": weight,
+        "trigger_topic": trigger_topic,
+        "weight": 0.5,
         "verified": False,
+        "quality": 0.0,  # 被探索触发后提升
         "created_at": datetime.now(timezone.utc).isoformat()
     }
+    state["knowledge"]["dream_insights"][node_id] = entry
+    _save_state(state)
+    return node_id
 
 def strengthen_connection(topic_a: str, topic_b: str, delta: float = 0.1):
     """
@@ -623,21 +636,20 @@ def get_parents(topic: str) -> list[dict]:
 def get_children(topic: str) -> list[dict]:
     """返回 topic 的 children 连接（无权重字段）"""
 
-def get_explains(topic: str) -> list[dict]:
-    """返回 topic 的 explains 连接（含 weight 字段）"""
-
-def has_recent_explains(topic: str, within_days: int) -> bool:
-    """检查节点最近 N 天是否有新的 explains 连接"""
-
-def is_explains_stale(from_topic: str, to_topic: str) -> bool:
+def get_dream_insights(topic: str) -> list[dict]:
     """
-    检查某条 explains 连接是否已过期（从未被验证且超过 7 天）
+    返回 topic 相关的所有 dream_insight 节点
+    （source_topics 中包含 topic 的洞察）
     """
 
-def remove_explains(from_topic: str, to_topic: str):
-    """
-    删除某条 explains 连接（价值验证回路使用）
-    """
+def get_all_dream_insights() -> list[dict]:
+    """返回 KG 中所有 dream_insight 节点"""
+
+def remove_dream_insight(node_id: str):
+    """删除某个 dream_insight 节点（SleepPruner 使用）"""
+
+def is_insight_stale(node_id: str) -> bool:
+    """检查某个洞察是否已过期（从未被验证且超过 7 天）"""
 
 def get_root_pool_names() -> set[str]:
     """返回 root_technology_pool 中所有候选名称"""
@@ -677,7 +689,7 @@ class ExplorationHistory:
         （用于 consolidation 的 Hebbian 强化）
         """
 
-    def was_ever_triggered(self, topic_a: str, topic_b: str, within_days: int) -> bool:
+    def was_insight_triggered(self, topic_a: str, topic_b: str, within_days: int) -> bool:
         """
         检查 topic_b 是否在 topic_a 的探索过程中被触发过
         （用于价值验证回路：explains 连接是否被实际使用）
@@ -710,33 +722,6 @@ class NodeLockRegistry:
             cls._locks[node_name] = threading.Lock()
         return cls._locks[node_name]
 
-
-def kg_write_with_lock(from_topic: str, to_topic: str, result: dict):
-    """
-    带节点级锁的写入（DreamAgent 使用）
-    确保和 SpiderAgent 不会同时写同一节点
-
-    死锁预防：按节点名字排序锁顺序后再获取
-
-    result 格式：{has_association, relation_type, surprise, novelty, description}
-    """
-    lock_a = NodeLockRegistry.get_lock(from_topic)
-    lock_b = NodeLockRegistry.get_lock(to_topic)
-
-    # 按名字排序，确保全局顺序一致
-    locks = sorted([lock_a, lock_b], key=lambda l: id(l))
-
-    with locks[0], locks[1]:
-        add_explains(
-            from_topic, to_topic,
-            result["relation_type"],
-            result["surprise"],
-            result["novelty"],
-            weight=0.5  # 新建连接默认权重 0.5
-        )
-```
-
----
 
 ## 六、curious_agent.py 修改
 
@@ -800,21 +785,21 @@ def api_kg_reactivate():
 
 @app.route("/api/dreamer/force", methods=["POST"])
 def api_dreamer_force():
-    """强制 DreamAgent 处理指定 topic"""
-    from core.dream_agent import force_process_topic
+    """强制 DreamAgent 对指定 topic 执行一次创意做梦"""
+    from core.dream_agent import force_dream_topic
     data = request.get_json()
     topic = data.get("topic", "").strip()
     if not topic:
         return jsonify({"error": "topic is required"}), 400
-    associations = force_process_topic(topic)
-    return jsonify({"status": "ok", "associations_created": len(associations)})
+    result = force_dream_topic(topic)
+    return jsonify({"status": "ok", "insight_created": result["insight_created"]})
 
 
-@app.route("/api/kg/connection/<path:topic>", methods=["GET"])
-def api_kg_connection(topic: str):
-    """获取节点所有连接（含权重）"""
-    from core.knowledge_graph import get_all_connections
-    return jsonify({"topic": topic, "connections": get_all_connections(topic)})
+@app.route("/api/kg/insights/<path:topic>", methods=["GET"])
+def api_kg_insights(topic: str):
+    """获取节点相关的所有 dream_insight"""
+    from core.knowledge_graph import get_dream_insights
+    return jsonify({"topic": topic, "insights": get_dream_insights(topic)})
 ```
 
 ---
@@ -858,11 +843,11 @@ curl http://localhost:4848/api/kg/connection/metacognitive\ monitoring
 |------|---------|---------|---------|
 | 浅层探索 | 队列驱动探索 | SpiderAgent 持续运行 | ✅ 完全满足 |
 | 浅层巩固 | Hebbian（共现强化） | strengthen_co_occurring() + last_consolidated | ✅ 完全满足 |
-| 中层做梦 | 创意关联重组 + 公平对待所有记忆 | DreamAgent 双队列 + 轮流队列 | ✅ 完全满足 |
-| 中层做梦 | 意外连接发现 | surprise >= 0.5 替代 confidence >= 0.7 | ✅ 完全满足 |
-| 中层做梦 | 价值验证反馈 | verified + stale + 价值验证回路 | ✅ 完全满足 |
+| 中层做梦 | 创意生成 + 公平对待所有记忆 | DreamAgent 双队列 + 轮流队列 | ✅ 完全满足 |
+| 中层做梦 | 意外洞察发现 | surprise >= 0.5，生成而非判断 | ✅ 完全满足 |
+| 中层做梦 | 价值验证反馈 | verified + stale + 洞察验证回路 | ✅ 完全满足 |
 | 中层做梦 | 神经噪声模拟 | 10% 神经噪声模式（强制随机） | ✅ 完全满足 |
-| 深层修剪 | 弱连接清理（权重感知） | SleepPruner + verified/stale | ✅ 完全满足 |
+| 深层修剪 | 弱洞察清理（权重感知） | SleepPruner + dream_insights 清理 | ✅ 完全满足 |
 
 ---
 
@@ -875,10 +860,10 @@ curious_agent.py (入口)
     │   ├── Explorer
     │   └── KnowledgeGraph (with node-level locks)
     ├── DreamAgent
-    │   ├── LLMClient
+    │   ├── LLMClient (creative_dream)
     │   ├── high_priority_queue (来自 SpiderAgent)
     │   ├── low_priority_queue (轮流填充)
-    │   └── KnowledgeGraph (with node-level locks)
+    │   └── KnowledgeGraph
     └── SleepPruner
         └── KnowledgeGraph
 ```
@@ -886,4 +871,4 @@ curious_agent.py (入口)
 ---
 
 _Last updated: 2026-03-28 by R1D3_
-_v0.2.6: concurrent SpiderAgent + DreamAgent + SleepPruner, node-level locking, dual-queue fairness, weight-aware pruning_
+_v0.2.6: Creative DreamAgent (insight generator) + SpiderAgent + SleepPruner, dual-queue fairness, value verification_
