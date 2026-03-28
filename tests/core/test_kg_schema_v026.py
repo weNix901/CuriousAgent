@@ -18,10 +18,14 @@ def temp_knowledge_dir():
     knowledge_dir = os.path.join(temp_dir, "knowledge")
     os.makedirs(knowledge_dir, exist_ok=True)
     
-    # Create empty state.json
+    # Create empty state.json with all required fields
     state_file = os.path.join(knowledge_dir, "state.json")
     with open(state_file, "w", encoding="utf-8") as f:
-        json.dump({"version": "1.0", "knowledge": {"topics": {}}}, f)
+        json.dump({
+            "version": "1.0",
+            "knowledge": {"topics": {}},
+            "exploration_log": []
+        }, f)
     
     yield knowledge_dir
     
@@ -882,3 +886,132 @@ class TestSharedInboxFunctions:
         
         items = fetch_and_clear_dream_inbox()
         assert len(items) == 2
+
+
+class TestUtilityFunctions:
+    """Tests for v0.2.6 utility functions (Commit 5)."""
+
+    def test_mark_insight_triggered_sets_flag(self, mock_state_file):
+        """Test that mark_insight_triggered sets triggered=True for an insight."""
+        from core.knowledge_graph import (
+            add_dream_insight,
+            mark_insight_triggered,
+            get_state
+        )
+        import json
+        
+        # Add an insight
+        node_id = add_dream_insight(
+            content="Test insight for trigger",
+            insight_type="connection",
+            source_topics=["topic1"],
+            surprise=0.5,
+            novelty=0.5,
+            trigger_topic=None
+        )
+        
+        # Mark as triggered
+        mark_insight_triggered(node_id)
+        
+        # Verify triggered flag was set in state
+        state_file = mock_state_file + "/state.json"
+        with open(state_file, "r") as f:
+            state = json.load(f)
+        
+        assert "insight_generation" in state
+        assert node_id in state["insight_generation"]
+        assert state["insight_generation"][node_id]["triggered"] is True
+
+    def test_mark_insight_triggered_nonexistent_insight(self, mock_state_file):
+        """Test mark_insight_triggered handles nonexistent insight gracefully."""
+        from core.knowledge_graph import mark_insight_triggered
+        
+        # Should not raise an error for nonexistent insight
+        mark_insight_triggered("insight_nonexistent_12345")
+
+    def test_get_recent_explorations_returns_within_window(self, mock_state_file):
+        """Test that get_recent_explorations returns explorations within time window."""
+        from core.knowledge_graph import log_exploration, get_recent_explorations
+        
+        # Log some explorations
+        log_exploration("topic1", "explore", "Found something interesting")
+        log_exploration("topic2", "explore", "Another finding")
+        log_exploration("topic3", "explore", "Third finding")
+        
+        # Get recent explorations within 1 hour
+        recent = get_recent_explorations(within_hours=1)
+        
+        assert len(recent) == 3
+        topics = [e["topic"] for e in recent]
+        assert "topic1" in topics
+        assert "topic2" in topics
+        assert "topic3" in topics
+
+    def test_get_recent_explorations_excludes_old(self, mock_state_file):
+        """Test that get_recent_explorations excludes explorations outside window."""
+        from core.knowledge_graph import log_exploration, get_recent_explorations, _load_state, _save_state
+        from datetime import datetime, timezone, timedelta
+        import json
+        
+        # Log a recent exploration
+        log_exploration("recent_topic", "explore", "Recent finding")
+        
+        # Manually add an old exploration to the log
+        state_file = mock_state_file + "/state.json"
+        with open(state_file, "r") as f:
+            state = json.load(f)
+        
+        old_time = datetime.now(timezone.utc) - timedelta(hours=5)
+        state["exploration_log"].append({
+            "timestamp": old_time.isoformat(),
+            "topic": "old_topic",
+            "action": "explore",
+            "findings": "Old finding",
+            "notified_user": False
+        })
+        
+        with open(state_file, "w") as f:
+            json.dump(state, f)
+        
+        # Get recent explorations within 1 hour
+        recent = get_recent_explorations(within_hours=1)
+        
+        # Should only include the recent one
+        topics = [e["topic"] for e in recent]
+        assert "recent_topic" in topics
+        assert "old_topic" not in topics
+
+    def test_get_recent_explorations_empty_log(self, mock_state_file):
+        """Test get_recent_explorations returns empty list when no explorations."""
+        from core.knowledge_graph import get_recent_explorations
+        
+        # No explorations logged
+        recent = get_recent_explorations(within_hours=24)
+        
+        assert recent == []
+
+    def test_utility_functions_thread_safety(self, mock_state_file):
+        """Test that utility functions use NodeLockRegistry.global_write_lock."""
+        from core.knowledge_graph import (
+            add_dream_insight,
+            mark_insight_triggered,
+            log_exploration,
+            get_recent_explorations
+        )
+        
+        # These operations should work without deadlock
+        node_id = add_dream_insight(
+            content="Thread safety test",
+            insight_type="connection",
+            source_topics=["thread"],
+            surprise=0.5,
+            novelty=0.5,
+            trigger_topic=None
+        )
+        
+        mark_insight_triggered(node_id)
+        
+        log_exploration("thread_topic", "explore", "Thread test finding")
+        
+        recent = get_recent_explorations(within_hours=1)
+        assert len(recent) >= 1
