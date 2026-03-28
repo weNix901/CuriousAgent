@@ -2,7 +2,7 @@
 
 > **核心目标**: 让 CA 从"探索引擎"进化为"持续学习的数字生命体"
 > **架构原则**: 探索和做梦同时运行，共享同一张 KG，无全局锁，节点级协调
-> **更新**: 2026-03-28（并发架构 + 节点级锁 + 做梦公平性 + 权重修剪）
+> **更新**: 2026-03-28 16:36（并发架构 + 节点级锁 + 做梦公平性 + 权重修剪 + P0/P1 修复 + Claude Code 对比）
 
 ---
 
@@ -115,6 +115,8 @@ class SpiderAgent:
 
 ### 2.3 consolidation：强化共现连接
 
+> ⚠️ 注意：`ExplorationHistory` 内部已加锁，此处调用不需要额外加锁。
+
 ```python
 def strengthen_co_occurring(self, topic: str):
     """
@@ -158,11 +160,11 @@ class DreamAgent:
     def run(self):
         while True:
             # 高优先级队列有内容 → 立即处理
-            # 高优先级队列空 → 从低优先级队列取
+            # 高优先级队列空 → 用轮询指针从 KG 主动取
             if not self.high_queue.empty():
                 priority, topic = self.high_queue.get()
             else:
-                topic = self.low_queue.get()  # 阻塞等待
+                topic = self.get_next_from_low_priority()  # ⚠️ P1：主动轮询，不阻塞
 
             # 获取与 topic 配对的远距离节点
             distant_pairs = self.find_distant_pairs(topic)
@@ -178,9 +180,43 @@ class DreamAgent:
 
 ```python
 class DreamAgent:
+    def __init__(self, high_priority_queue, low_priority_queue):
+        ...
+        self.dream_pointer = 0  # ⚠️ P1 修复：轮询指针，确保公平性
+
+    def get_next_from_low_priority(self):
+        """
+        ⚠️ P1 修复：从被动触发 → 主动轮询
+
+        人类睡眠时是所有记忆都有机会被重组，不是"队列空了才处理"。
+        用轮询指针确保每个节点定期做梦，不依赖新节点入队触发。
+
+        逻辑：
+        1. 从指针位置开始遍历 KG 所有节点
+        2. 找第一个 7 天内未做过梦的节点
+        3. 指针前移
+        4. 所有节点都处理过了 → 重置指针，等待新节点加入
+        """
+        all_nodes = self.kg.get_all_nodes(active_only=True)
+        if not all_nodes:
+            return None
+
+        n = len(all_nodes)
+        for i in range(n):
+            idx = (self.dream_pointer + i) % n
+            node_name = all_nodes[idx]
+
+            if not self.kg.has_recent_dreams(node_name, within_days=7):
+                self.dream_pointer = (idx + 1) % n
+                return node_name
+
+        # 所有节点都在 7 天内处理过了 → 重置指针
+        self.dream_pointer = 0
+        return None  # 队列空，等待新节点
+
     def fill_low_priority_queue(self):
         """
-        确保 KG 中所有未处理的节点轮流进入低优先级队列
+        旧逻辑（保留用于批量初始化）
 
         策略：
         1. 扫描 KG 中所有节点
@@ -191,21 +227,17 @@ class DreamAgent:
         all_nodes = self.kg.get_all_nodes()
         recently_processed = self.kg.get_recently_dreamed(within_days=7)
 
-        # build candidates as list of (name, node) tuples
         candidates = [
             (name, node) for name, node in all_nodes
             if name not in recently_processed
             and node.get("status") != STATUS_DORMANT
         ]
 
-        # quality 低的优先（"快要遗忘"的值得做梦）
         candidates.sort(key=lambda item: item[1].get("quality", 0))
 
         for name, _ in candidates:
             self.low_queue.put(name)
 ```
-
-**触发条件**：低优先级队列为空时，自动触发 fill_low_priority_queue。
 
 ### 3.4 创意做梦运行逻辑（生成器模式）
 
@@ -659,6 +691,12 @@ def get_recently_dreamed(within_days: int) -> set[str]:
     返回最近 within_days 天内被 DreamAgent 处理过的节点名称
     用于 fill_low_priority_queue 时排除近期已处理的节点
     """
+
+def has_recent_dreams(topic: str, within_days: int) -> bool:
+    """
+    检查 topic 是否在 within_days 天内做过梦
+    用于轮询指针跳过近期已处理的节点
+    """
 ```
 
 ### 5.3 ExplorationHistory（探索历史记录）
@@ -671,35 +709,32 @@ class ExplorationHistory:
     探索历史记录器
     - SpiderAgent 每次探索完成时记录事件
     - DreamAgent 的 consolidation 和价值验证回路依赖此数据
+
+    ⚠️ P0 修复：ExplorationHistory 所有方法必须加锁
+    原因：SpiderAgent 写（strengthen_co_occurring）的同时 DreamAgent 读（co_occurred），
+          存在 race condition。ExplorationHistory 是共享数据结构，必须线程安全。
     """
+    _lock = threading.Lock()
 
     def record_exploration(self, topic: str, related_nodes: list[str], timestamp: datetime):
-        """
-        记录一次探索事件
-
-        Args:
-            topic: 本次探索的 topic
-            related_nodes: 本次探索中同时涉及的节点列表
-            timestamp: 探索时间
-        """
+        """记录一次探索事件"""
+        with self._lock:
+            ...
 
     def co_occurred(self, topic_a: str, topic_b: str, within_hours: int) -> bool:
-        """
-        检查 topic_a 和 topic_b 是否在 within_hours 小时内共同出现过
-        （用于 consolidation 的 Hebbian 强化）
-        """
+        """检查 topic_a 和 topic_b 是否在 within_hours 小时内共同出现过"""
+        with self._lock:
+            ...
 
     def was_insight_triggered(self, topic_a: str, topic_b: str, within_days: int) -> bool:
-        """
-        检查 topic_b 是否在 topic_a 的探索过程中被触发过
-        （用于价值验证回路：explains 连接是否被实际使用）
-
-        触发定义：topic_a 的探索结果中涉及了 topic_b，
-        或者 SpiderAgent 基于 topic_a→topic 的 explains 连接进行了后续探索
-        """
+        """检查 topic_b 是否在 topic_a 的探索过程中被触发过"""
+        with self._lock:
+            ...
 
     def get_recent_explorations(self, within_hours: int) -> list[dict]:
         """返回最近 N 小时的探索记录（用于调试）"""
+        with self._lock:
+            ...
 ```
 
 ### 5.4 节点级锁实现
@@ -870,5 +905,81 @@ curious_agent.py (入口)
 
 ---
 
-_Last updated: 2026-03-28 by R1D3_
-_v0.2.6: Creative DreamAgent (insight generator) + SpiderAgent + SleepPruner, dual-queue fairness, value verification_
+## 十一、已知问题 & 改进计划
+
+### P0：必须修复（实现前）
+
+**1. ExplorationHistory race condition**
+- **问题**：`strengthen_co_occurring` 在 SpiderAgent 里写 `connection_weight`，同时 `co_occurred()` 在 DreamAgent 里读。存在数据不一致风险。
+- **修复**：ExplorationHistory 所有方法加 `threading.Lock()`。
+- **状态**：✅ 已在 5.3 节修复。
+
+**2. LLM 创意生成质量控制**
+- **问题**：两个随机 topic 进去，LLM 一定能编出一个看起来合理的 insight。可能是幻觉，不是真正有价值的连接。
+- **修复**：prompt 里加约束（"必须是 A+B 都没提到的全新洞察"），或加验证步骤。
+- **状态**：待实现。
+
+### P1：应该改进（实现后优化）
+
+**3. 低优先级队列轮询指针**
+- **问题**：被动触发（队列空才填充）导致老节点永久没有做梦机会。
+- **修复**：用 `dream_pointer` 主动轮询，每个节点定期都有机会。
+- **状态**：✅ 已在 3.3 节修复。
+
+**4. 双门控触发条件**
+- **问题**：现在只有新节点入队才触发做梦，没有"时间+次数"门控。
+- **修复**：参考 Claude Code Auto Dream，距上次 consolidation ≥24h 且新节点 ≥5 才触发。
+- **状态**：待实现。
+
+### P2：可以增强（数字生命体核心能力）
+
+**5. 元认知监控（MetacognitiveMonitor）**
+- **问题**：CA 不知道自己知识边界在哪，只知道"不知道"，不知道"自己知道多少"。
+- **差距**：数字生命体需要有置信度校准能力。
+- **建议实现**：
+  ```python
+  class MetacognitiveMonitor:
+      def get_confidence_interval(self, topic: str) -> tuple[float, float]:
+          """返回对 topic 认知的置信区间"""
+
+      def detect_contradictions(self) -> list[Contradiction]:
+          """检测 KG 中互相矛盾的认知"""
+
+      def recommend_exploration_priority(self) -> list[str]:
+          """推荐应该优先探索的方向（最大不确定性减少）"""
+  ```
+- **状态**：待规划。
+
+**6. 内部动机系统**
+- **问题**：ICM 是外部知识探索的驱动，但数字生命体需要"这件事对我有意义"的情感锚点。
+- **建议实现**：给 KG 节点增加"主观重要性"评分，不只是 quality/quality。
+- **状态**：待探索。
+
+**7. 自我模型更新**
+- **问题**：dream_insight 生成后 KG 变了，但"CA 这个人"没有变。
+- **建议实现**：每次做梦后更新自我表征——"我擅长什么、我缺什么能力"。
+- **状态**：待探索。
+
+---
+
+## 十二、与 Claude Code Auto Dream 的对比
+
+> 来源：Serper 搜索（2026-03-28）
+
+| 维度 | Claude Code Auto Dream | CA DreamAgent v0.2.6 |
+|------|----------------------|---------------------|
+| **目标** | 记忆整理/整理 | 创意生成新知识 |
+| **触发** | 双门控（时间+次数） | 新节点入队 + 轮询指针 |
+| **产出** | 整理后的索引（MEMORY.md ≤200行） | 新洞察节点（KG 生长） |
+| **Session 分析** | Targeted grep JSONL | N/A（CA 无 session JSONL） |
+| **矛盾检测** | ✅ 有（主动删除矛盾事实） | ⚠️  可加入（4.5 节） |
+| **修剪** | 删除矛盾/过时条目 | 弱 explains 清理 + dormant |
+| **并发控制** | 锁文件 | 节点级锁 |
+
+**关键差异**：Claude Code Auto Dream 是"整理已有知识"，CA DreamAgent 是"创造新知识"。两个方向互补，不竞争。
+
+---
+
+_Last updated: 2026-03-28 16:36 by R1D3_
+_v0.2.6: Creative DreamAgent (insight generator) + SpiderAgent + SleepPruner, dual-queue fairness, value verification, P0/P1 fixes_
+
