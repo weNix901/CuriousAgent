@@ -878,3 +878,168 @@ def promote_to_root_candidate(topic: str, domains: list) -> None:
 
     pool["last_updated"] = datetime.now(timezone.utc).isoformat()
     _save_state(state)
+
+
+# === v0.2.6 Dream Insights Functions ===
+
+def add_dream_insight(
+    content: str,
+    insight_type: str,
+    source_topics: list[str],
+    surprise: float,
+    novelty: float,
+    trigger_topic: str | None
+) -> str:
+    """Create a dream insight node."""
+    from core.node_lock_registry import NodeLockRegistry
+
+    node_id = f"insight_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')}"
+
+    entry = {
+        "node_id": node_id,
+        "content": content,
+        "insight_type": insight_type,
+        "source_topics": source_topics,
+        "surprise": surprise,
+        "novelty": novelty,
+        "trigger_topic": trigger_topic,
+        "weight": 0.5,
+        "verified": False,
+        "quality": 0.0,
+        "stale": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    with NodeLockRegistry.global_write_lock():
+        insight_dir = os.path.join(os.path.dirname(STATE_FILE), "dream_insights")
+        os.makedirs(insight_dir, exist_ok=True)
+
+        filepath = os.path.join(insight_dir, f"{node_id}.json")
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(entry, f, ensure_ascii=False, indent=2)
+
+    return node_id
+
+
+def get_dream_insights(topic: str | None = None) -> list[dict]:
+    """Get all dream insights or insights related to a specific topic."""
+    from core.node_lock_registry import NodeLockRegistry
+
+    insights = []
+
+    with NodeLockRegistry.global_write_lock():
+        insight_dir = os.path.join(os.path.dirname(STATE_FILE), "dream_insights")
+
+        if not os.path.exists(insight_dir):
+            return insights
+
+        for filename in os.listdir(insight_dir):
+            if filename.endswith(".json"):
+                filepath = os.path.join(insight_dir, filename)
+                try:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    if topic is None:
+                        insights.append(data)
+                    elif topic in data.get("source_topics", []):
+                        insights.append(data)
+                except (json.JSONDecodeError, IOError):
+                    continue
+
+    return insights
+
+
+def get_all_dream_insights() -> list[dict]:
+    """Get all dream insights (wrapper around get_dream_insights)."""
+    return get_dream_insights(topic=None)
+
+
+def remove_dream_insight(node_id: str) -> None:
+    """Remove a dream insight file."""
+    from core.node_lock_registry import NodeLockRegistry
+
+    with NodeLockRegistry.global_write_lock():
+        insight_dir = os.path.join(os.path.dirname(STATE_FILE), "dream_insights")
+        filepath = os.path.join(insight_dir, f"{node_id}.json")
+
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
+
+def is_insight_stale(node_id: str) -> bool:
+    """Check if insight is stale (> 7 days old and never verified)."""
+    from core.node_lock_registry import NodeLockRegistry
+
+    with NodeLockRegistry.global_write_lock():
+        insight_dir = os.path.join(os.path.dirname(STATE_FILE), "dream_insights")
+        filepath = os.path.join(insight_dir, f"{node_id}.json")
+
+        if not os.path.exists(filepath):
+            return False
+
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return False
+
+        if data.get("verified", False):
+            return False
+
+        created_at_str = data.get("created_at")
+        if not created_at_str:
+            return False
+
+        try:
+            created_at = datetime.fromisoformat(created_at_str)
+            age = datetime.now(timezone.utc) - created_at
+            return age.days > 7
+        except (ValueError, TypeError):
+            return False
+
+
+def update_insight_weight(node_id: str, delta: float) -> None:
+    """Update insight weight by delta."""
+    from core.node_lock_registry import NodeLockRegistry
+
+    with NodeLockRegistry.global_write_lock():
+        insight_dir = os.path.join(os.path.dirname(STATE_FILE), "dream_insights")
+        filepath = os.path.join(insight_dir, f"{node_id}.json")
+
+        if not os.path.exists(filepath):
+            return
+
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            data["weight"] = data.get("weight", 0.5) + delta
+
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except (json.JSONDecodeError, IOError):
+            return
+
+
+def update_insight_quality(node_id: str, delta: float) -> None:
+    """Update insight quality by delta."""
+    from core.node_lock_registry import NodeLockRegistry
+
+    with NodeLockRegistry.global_write_lock():
+        insight_dir = os.path.join(os.path.dirname(STATE_FILE), "dream_insights")
+        filepath = os.path.join(insight_dir, f"{node_id}.json")
+
+        if not os.path.exists(filepath):
+            return
+
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            data["quality"] = data.get("quality", 0.0) + delta
+
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except (json.JSONDecodeError, IOError):
+            return
