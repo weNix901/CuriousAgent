@@ -1316,3 +1316,37 @@ def fetch_and_clear_dream_inbox() -> list[dict]:
             json.dump(inbox, f, ensure_ascii=False, indent=2)
         
         return items
+
+
+# === v0.2.6 Utility Functions (Commit 5) ===
+
+def mark_insight_triggered(insight_node_id: str):
+    """Mark an insight as having triggered follow-up exploration."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        if "insight_generation" not in state:
+            state["insight_generation"] = {}
+        if insight_node_id not in state["insight_generation"]:
+            state["insight_generation"][insight_node_id] = {}
+        state["insight_generation"][insight_node_id]["triggered"] = True
+        _save_state(state)
+
+
+def get_recent_explorations(within_hours: int) -> list:
+    """Get explorations within time window."""
+    from core.node_lock_registry import NodeLockRegistry
+    from datetime import timedelta
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        exploration_log = state.get("exploration_log", [])
+        
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=within_hours)
+        cutoff_str = cutoff.isoformat()
+        
+        return [
+            entry for entry in exploration_log
+            if entry.get("timestamp", "") > cutoff_str
+        ]
