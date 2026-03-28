@@ -3,7 +3,7 @@
 > 不是等待提问的搜索引擎，而是**主动构建知识图谱**、**持续追踪知识缺口**、**把发现内化为行为**的自主 Agent。
 > 把 Curious Agent 接入你的 AI，它就变成了你的数字研究伙伴——越用越懂你，越探索越聪明。
 
-[![Status](https://img.shields.io/badge/status-v0.2.4-blue)](#)
+[![Status](https://img.shields.io/badge/status-v0.2.5-blue)](#)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](#)
 [![OpenClaw](https://img.shields.io/badge/openclaw-2026.3+-green)](#)
 [![Tests](https://img.shields.io/badge/tests-45%20modules-brightgreen)](#)
@@ -239,7 +239,7 @@ Curious Agent 有严格的质量门控：
 │         │ 心跳同步 (每30秒)                                           │
 │         ▼                                                            │
 │  ┌────────────────────────────────────────────────────────────────┐  │
-│  │                    Curious Agent v0.2.4                          │  │
+│  │                    Curious Agent v0.2.5                          │  │
 │  │                                                                │  │
 │  │  ┌─────────────────────────────────────────────────────────┐   │  │
 │  │  │              核心能力层                                  │   │  │
@@ -248,12 +248,13 @@ Curious Agent 有严格的质量门控：
 │  │  │  • 能力调度器: 缺口驱动 + 动态调度 + 三阶段探索          │   │  │
 │  │  │  • 行为写入器: 质量门槛 + 安全设计 + 双写机制            │   │  │
 │  │  │  • InsightSynthesizer: 跨话题洞察合成 + 假设生成         │   │  │
+│  │  │  • KG根技术追溯: 扩散激活算法 + 根技术池 + 因果链路      │   │  │
 │  │  └─────────────────────────────────────────────────────────┘   │  │
 │  │                                                                │  │
 │  │  ┌─────────────────────────────────────────────────────────┐   │  │
 │  │  │              基础能力层                                  │   │  │
-│  │  │  ICM评分 · 好奇心队列 · 知识图谱 · 分层探索 · 事件总线    │   │  │
-│  │  │  SpiderEngine · KGGraph · R1D3Watcher · 检查点机制       │   │  │
+│  │  │  ICM评分 · 好奇心队列 · 知识图谱 · Spider引擎 · 事件总线  │   │  │
+│  │  │  SpiderEngine · KGGraph · R1D3Watcher · 检查点机制      │   │  │
 │  │  └─────────────────────────────────────────────────────────┘   │  │
 │  │                                                                │  │
 │  │  ┌─────────────────────────────────────────────────────────┐   │  │
@@ -262,11 +263,19 @@ Curious Agent 有严格的质量门控：
 │  │  │  • R1D3Sync: 发现双向同步 + 共享状态管理                 │   │  │
 │  │  │  • R1D3Watcher: 学习需求监听 + 命题扫描                  │   │  │
 │  │  └─────────────────────────────────────────────────────────┘   │  │
+│  │                                                                │  │
+│  │  ┌─────────────────────────────────────────────────────────┐   │  │
+│  │  │              KG根技术追溯层 (v0.2.5新增)                   │   │  │
+│  │  │  • 扩散激活算法: Collins & Loftus 激活传播模型         │   │  │
+│  │  │  • 根技术池: 跨领域根技术浮现 + root_score 排序        │   │  │
+│  │  │  • 因果链路: 从任意知识点追溯根技术的激活路径           │   │  │
+│  │  │  • Cross-Subgraph: 多路径汇聚检测根技术                │   │  │
+│  │  └─────────────────────────────────────────────────────────┘   │  │
 │  └────────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-**数据流：从发现到行为改变 (v0.2.4)**
+**数据流：从发现到行为改变 (v0.2.5)**
 
 ```
 [探索发现] / [R1D3注入话题]
@@ -286,6 +295,10 @@ Curious Agent 有严格的质量门控：
 [双写] → 行为文件 + memory/curious/ + shared_knowledge/
     ↓
 [R1D3Sync] → 双向同步发现到外部Agent
+    ↓
+[扩散激活追溯] → 从发现追溯根技术 → 生成因果链路
+    ↓
+[根技术池更新] → 跨域连接累计 → 根技术浮现
     ↓
 [Agent 检索] → memory_search() → 应用行为规则
     ↓
@@ -364,6 +377,20 @@ curl http://localhost:4848/api/curious/queue/pending
 curl -X DELETE http://localhost:4848/api/curious/queue \
   -H "Content-Type: application/json" \
   -d '{"topic":"过时话题"}'
+
+# v0.2.5 新增: KG根技术追溯
+curl "http://localhost:4848/api/kg/trace/metacognitive%20monitoring"
+
+# v0.2.5 新增: 查询根技术池
+curl http://localhost:4848/api/kg/roots
+
+# v0.2.5 新增: KG全局视图
+curl http://localhost:4848/api/kg/overview
+
+# v0.2.5 新增: 手动升权根候选
+curl -X POST http://localhost:4848/api/kg/promote \
+  -H "Content-Type: application/json" \
+  -d '{"topic":"your_topic","domains":["LLM","RL"]}'
 ```
 
 ---
@@ -375,16 +402,17 @@ curl -X DELETE http://localhost:4848/api/curious/queue \
 | **话题分解** | Python 3.11+ asyncio | CuriosityDecomposer, ProviderRegistry, ProviderHeatmap |
 | **质量评估** | Python + LLM | QualityV2, CompetenceTracker, ThreePhaseExplorer |
 | **行为闭环** | Python + Markdown | AgentBehaviorWriter, 行为规则生成 |
-| **Spider引擎** | Python + 检查点机制 | SpiderEngine, SpiderRuntimeState, SpiderCheckpoint (v0.2.4) |
-| **洞察合成** | Python + LLM | InsightSynthesizer, 跨话题模式发现, 假设生成 (v0.2.4) |
-| **R1D3集成** | Python + REST API | R1D3ToolHandler, R1D3Sync, R1D3Watcher (v0.2.4) |
-| **知识图谱** | Python | KGGraph, 多父节点支持, 高优先级未探索节点发现 (v0.2.4) |
-| **存储层** | Repository模式 | JSONKnowledgeRepository, Topic模型, 迁移机制 (v0.2.4) |
+| **Spider引擎** | Python + 检查点机制 | SpiderEngine, SpiderRuntimeState, SpiderCheckpoint |
+| **洞察合成** | Python + LLM | InsightSynthesizer, 跨话题模式发现, 假设生成 |
+| **KG根技术追溯** | Python | 扩散激活算法, 根技术池, 因果链路追溯 (v0.2.5) |
+| **R1D3集成** | Python + REST API | R1D3ToolHandler, R1D3Sync, R1D3Watcher |
+| **知识图谱** | Python | KGGraph, 多父节点支持, 高优先级未探索节点发现 |
+| **存储层** | Repository模式 | JSONKnowledgeRepository, Topic模型, 迁移机制 |
 | **基础层** | Flask 3.x | API + Web UI |
 | **搜索** | Bocha + Serper | 双 Provider 验证架构 |
 | **LLM** | minimax API | 语义评估、规则生成 |
 | **前端** | Vanilla JS + D3.js | 知识图谱可视化 |
-| **存储** | JSON + Markdown | state.json + 行为规则文件 + shared_knowledge/ (v0.2.4) |
+| **存储** | JSON + Markdown | state.json + 行为规则文件 + shared_knowledge/ |
 
 ---
 
@@ -440,7 +468,7 @@ FinalScore = HumanScore × α + IntrinsicScore × (1 - α)
 curious-agent/
 ├── curious_agent.py              # CLI 入口（集成所有能力）
 ├── curious_api.py                # Flask API + Web 服务器
-├── spider_engine.py              # Spider Engine 主引擎 (v0.2.4)
+├── spider_engine.py              # Spider Engine 主引擎
 ├── run_curious.sh                # 一键启动脚本
 ├── core/
 │   ├── curiosity_decomposer.py   # 话题分解引擎（四级级联验证）
@@ -450,48 +478,92 @@ curious-agent/
 │   ├── competence_tracker.py     # 能力追踪器
 │   ├── three_phase_explorer.py   # 三阶段探索循环
 │   ├── agent_behavior_writer.py  # 行为规则生成
-│   ├── knowledge_graph.py        # 知识图谱（含父子关系）
+│   ├── knowledge_graph.py        # 知识图谱（含父子关系 + 根技术追溯）
 │   ├── curiosity_engine.py       # ICM 评分引擎
 │   ├── explorer.py               # 分层探索器
-│   ├── insight_synthesizer.py    # 洞察合成器 Layer 3 (v0.2.4)
-│   ├── kg_graph.py               # KG Graph 结构管理 (v0.2.4)
-│   ├── r1d3_watcher.py          # R1D3 学习需求监听 (v0.2.4)
+│   ├── insight_synthesizer.py    # 洞察合成器 Layer 3
+│   ├── kg_graph.py               # KG Graph 结构管理（Repository 封装）
+│   ├── r1d3_watcher.py          # R1D3 学习需求监听
+│   ├── reasoning_compressor.py   # 推理压缩器
+│   ├── surprise_detector.py      # 惊喜检测器
+│   ├── discovery_writer.py       # 发现写入器
 │   ├── api/
-│   │   └── r1d3_tools.py         # R1D3 Tool Handler (v0.2.4)
+│   │   └── r1d3_tools.py         # R1D3 Tool Handler
 │   ├── sync/
-│   │   └── r1d3_sync.py         # R1D3 双向同步 (v0.2.4)
+│   │   └── r1d3_sync.py         # R1D3 双向同步
 │   ├── spider/
-│   │   ├── state.py              # Spider 运行时状态 (v0.2.4)
-│   │   └── checkpoint.py         # Spider 检查点机制 (v0.2.4)
+│   │   ├── state.py              # Spider 运行时状态
+│   │   └── checkpoint.py         # Spider 检查点机制
 │   ├── repository/
-│   │   ├── base.py              # Repository 抽象基类 (v0.2.4)
-│   │   └── json_repository.py    # JSON Repository 实现 (v0.2.4)
+│   │   ├── base.py              # Repository 抽象基类
+│   │   └── json_repository.py    # JSON Repository 实现
 │   ├── models/
-│   │   └── topic.py             # Topic 数据模型 (v0.2.4)
+│   │   └── topic.py             # Topic 数据模型
 │   └── providers/               # Provider 插件目录
 │       ├── bocha_provider.py
 │       └── serper_provider.py
+├── scripts/
+│   ├── migrate_kg_parents.py    # v0.2.5 KG schema 迁移脚本
+│   └── sync_kg_to_r1d3.py       # v0.2.5 KG→R1D3 同步脚本
 ├── ui/
 │   └── index.html                # Web UI（D3.js 力导向图）
 ├── knowledge/
 │   └── state.json               # 持久化状态（含 competence_state）
-├── shared_knowledge/            # 共享知识层 (v0.2.4)
+├── shared_knowledge/            # 共享知识层
 │   ├── r1d3/learning_needs/    # R1D3 学习需求
 │   ├── curious/                 # Curious Agent 发现
 │   └── cross_validation/        # 交叉校验记录
 ├── tests/                       # 45+ 测试模块
 │   ├── api/                    # API 测试
 │   ├── core/                   # 核心模块测试
-│   ├── spider/                 # Spider Engine 测试 (v0.2.4)
-│   ├── repository/             # Repository 测试 (v0.2.4)
-│   └── models/                 # 模型测试 (v0.2.4)
+│   ├── spider/                 # Spider Engine 测试
+│   ├── repository/             # Repository 测试
+│   └── models/                 # 模型测试
 └── docs/
+    ├── curious-agent-installation-guide.md  # 接入手册
+    ├── 参考架构设计.md          # 架构参考设计
     └── plans/                  # 详细设计文档
 ```
 
 ---
 
 ## 九、更新日志
+
+### v0.2.5 — KG根技术追溯能力 (2026-03-28)
+
+**🌐 KG根技术追溯**
+- ✅ **扩散激活算法**: Collins & Loftus 激活传播模型，从任意知识点追溯根技术
+- ✅ **根技术池**: 跨领域根技术浮现，root_score 排序，初始种子注入
+- ✅ **因果链路**: `get_spreading_activation_trace()` 返回激活路径和根技术列表
+- ✅ **Cross-Subgraph检测**: 多路径汇聚自动识别根候选（paths >= 2）
+- ✅ **根技术池初始化**: `init_root_pool(seeds)` 支持 6 个初始种子
+
+**📊 Topic Schema 扩展**
+- ✅ **parents字段**: List[str]，记录 topic 的父节点
+- ✅ **explains字段**: List[dict]，记录 topic 解释了哪些子节点
+- ✅ **cross_domain_count**: 跨域计数，触发根候选升权
+- ✅ **is_root_candidate / root_score**: 根候选标记和评分
+- ✅ **first_observed**: 首次观察时间戳
+
+**🔗 双向父子关系写入**
+- ✅ **_update_parent_relation()**: 内部函数，双向写入 parents + explains
+- ✅ **add_child() 集成**: 末尾追加 `_update_parent_relation()` 调用
+- ✅ **mark_topic_done() 集成**: 末尾追加父 topic 查找逻辑
+
+**🛠️ 新增脚本**
+- ✅ **scripts/migrate_kg_parents.py**: v0.2.4 → v0.2.5 schema 迁移
+- ✅ **scripts/sync_kg_to_r1d3.py**: KG 数据同步到 R1D3 可读格式（trace/roots/overview）
+
+**📡 新增API端点**
+- ✅ `GET /api/kg/trace/<topic>`: 扩散激活追溯，返回因果链路
+- ✅ `GET /api/kg/roots`: 查询根技术池
+- ✅ `GET /api/kg/overview`: KG 全局视图（节点+边）
+- ✅ `POST /api/kg/promote`: 手动升权根候选
+
+**🔔 事件总线增强**
+- ✅ 新增事件类型: `root_candidate_elevated`
+
+---
 
 ### v0.2.4 — R1D3集成与架构升级 (2026-03-26)
 
@@ -590,7 +662,7 @@ curious-agent/
 
 ---
 
-_最后更新：2026-03-27 | v0.2.4_
+_最后更新：2026-03-28 | v0.2.5_
 _设计理念：**好奇驱动，主动探索，元认知调控，自我进化，以我为名**_
 
 📄 **Release Notes**: [v0.2.4](./RELEASE_NOTE_v0.2.4.md) | [v0.2.3](./RELEASE_NOTE_v0.2.3.md) | [v0.2.2](./RELEASE_NOTE_v0.2.2.md) | [v0.2.1](./RELEASE_NOTE_v0.2.1.md) | [v0.2.0](./RELEASE_NOTE_v0.2.0.md)

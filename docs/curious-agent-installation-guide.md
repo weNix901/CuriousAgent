@@ -1,7 +1,7 @@
 # Curious Agent × OpenClaw 心跳集成接入手册
 
-> 适用版本：**Curious Agent v0.2.3** | OpenClaw 2026.3+
-> 测试状态：**320 测试全部通过** | 最后更新：2026-03-23
+> 适用版本：**Curious Agent v0.2.5** | OpenClaw 2026.3+
+> 测试状态：**45+ 测试模块** | 最后更新：2026-03-28
 > 让 Curious Agent 成为你的 AI 研究员的"好奇心内核"，通过 OpenClaw 心跳自动运行
 
 ---
@@ -74,7 +74,7 @@ Curious Agent v0.2.3 后台服务
          └── Web UI ──▶ 实时查看探索状态
 ```
 
-**v0.2.3 核心新特性**：
+**v0.2.5 核心新特性**：
 
 | 特性 | 说明 |
 |------|------|
@@ -82,7 +82,9 @@ Curious Agent v0.2.3 后台服务
 | **元认知监控** | MGV 循环（Monitor-Generate-Verify），自动检测边际收益递减 |
 | **行为闭环** | quality ≥ 7.0 自动写入行为规则，Agent 自我进化 |
 | **双 Provider 架构** | Bocha (中文) + Serper (学术)，2+ 通过才算验证 |
-| **完整测试覆盖** | 320 个测试全部通过，质量有保障 |
+| **KG根技术追溯** | 扩散激活算法，从任意知识点追溯根技术（v0.2.5新增） |
+| **根技术池** | 跨领域根技术浮现，root_score 排序，初始种子注入（v0.2.5新增） |
+| **完整测试覆盖** | 45+ 测试模块，质量有保障 |
 
 ---
 
@@ -103,23 +105,40 @@ Curious Agent v0.2.3 后台服务
 ```
 /root/dev/curious-agent/          ← Curious Agent 安装目录
 ├── curious_agent.py              ← 主程序（CLI 入口）
-├── curious_api.py                ← API 服务（Web UI）
+├── curious_api.py                ← API 服务（Web UI + 所有 v0.2.5 端点）
+├── spider_engine.py              ← Spider Engine 主引擎
 ├── core/
-│   ├── curiosity_decomposer.py   ← 话题分解引擎（v0.2.3 新增）
-│   ├── meta_cognitive_monitor.py ← 元认知监控（v0.2.3 新增）
-│   ├── agent_behavior_writer.py  ← 行为写入器（v0.2.3 新增）
+│   ├── curiosity_decomposer.py   ← 话题分解引擎
+│   ├── quality_v2.py             ← 质量评估
+│   ├── meta_cognitive_monitor.py ← 元认知监控
+│   ├── meta_cognitive_controller.py ← 元认知控制器
+│   ├── agent_behavior_writer.py  ← 行为写入器
+│   ├── knowledge_graph.py        ← 知识图谱（含根技术追溯 v0.2.5）
+│   ├── kg_graph.py              ← KG Graph 结构管理
+│   ├── spider/                   ← Spider 状态与检查点
+│   │   ├── state.py
+│   │   └── checkpoint.py
+│   ├── repository/               ← Repository 模式
+│   │   ├── base.py
+│   │   └── json_repository.py
+│   ├── models/topic.py          ← Topic 数据模型
 │   └── provider_*.py             ← 双 Provider 实现
+├── scripts/
+│   ├── migrate_kg_parents.py    ← v0.2.5 KG schema 迁移
+│   └── sync_kg_to_r1d3.py       ← v0.2.5 KG→R1D3 同步
 ├── knowledge/
 │   └── state.json                ← 探索状态文件
-├── logs/                         ← 日志目录
-├── memory/curious/               ← 发现存储（sync_discoveries.py 写入）
-├── tests/                        ← 320 个测试用例
+├── ui/                           ← Web UI
+├── tests/                        ← 45+ 测试模块
 └── run_curious.sh                ← 一键启动脚本
 
 /root/.openclaw/workspace-researcher/  ← OpenClaw Agent 工作空间
 ├── HEARTBEAT.md                  ← 心跳任务清单（关键！）
-├── scripts/
-│   └── sync_discoveries.py       ← 同步脚本（从 Curious Agent 同步到记忆）
+├── skills/curious-agent/scripts/
+│   ├── sync_discoveries.py       ← 同步脚本（CA→R1D3 记忆）
+│   ├── share_new_discoveries.py  ← 分享未读发现
+│   ├── trigger_explore.sh        ← 触发探索 + 写 learning_need
+│   └── write_learning_need.py    ← 写 R1D3 学习需求
 └── memory/
     └── curious/                  ← 发现的永久存储
 ```
@@ -671,6 +690,45 @@ openclaw cron add \
 
 ---
 
+## 六、v0.2.5 KG根技术追溯 API（新增）
+
+v0.2.5 新增 4 个 KG 根技术追溯 API：
+
+```bash
+# 扩散激活追溯：从任意 topic 向上追溯根技术
+curl "http://localhost:4848/api/kg/trace/metacognitive%20monitoring"
+
+# 查询根技术池
+curl http://localhost:4848/api/kg/roots
+
+# KG 全局视图（节点+边）
+curl http://localhost:4848/api/kg/overview
+
+# 手动升权根候选
+curl -X POST http://localhost:4848/api/kg/promote \
+  -H "Content-Type: application/json" \
+  -d '{"topic":"your_topic","domains":["LLM","RL"]}'
+```
+
+**完整 API 端点列表（v0.2.5）**：
+
+| 方法 | 端点 | 功能 | 版本 |
+|------|------|------|------|
+| GET | `/api/curious/state` | 查询系统状态 | - |
+| POST | `/api/curious/run` | 触发一轮探索 | - |
+| POST | `/api/curious/inject` | 注入新话题 | - |
+| DELETE | `/api/curious/queue` | 删除指定话题 | - |
+| GET | `/api/curious/queue/pending` | 获取待探索队列 | - |
+| GET | `/api/metacognitive/check` | 检查 topic 状态 | - |
+| GET | `/api/metacognitive/topics/completed` | 获取已完成 topics | - |
+| GET | `/api/r1d3/confidence` | R1D3 置信度查询 | v0.2.4 |
+| GET | `/api/kg/trace/<topic>` | 扩散激活追溯因果链 | **v0.2.5** |
+| GET | `/api/kg/roots` | 查询根技术池 | **v0.2.5** |
+| GET | `/api/kg/overview` | KG 全局视图 | **v0.2.5** |
+| POST | `/api/kg/promote` | 手动升权根候选 | **v0.2.5** |
+
+---
+
 ## 七、验证与测试
 
 ### 7.1 验证 Curious Agent 服务
@@ -1066,27 +1124,21 @@ openclaw system event --text "heartbeat check" --mode now
 # === 运行测试套件 ===
 cd /root/dev/curious-agent && python3 -m pytest tests/ --tb=no -q
 
-# === Bug 修复验证 ===
-# Bug #1: Topic 注入
-curl -X POST http://localhost:4848/api/curious/run \
-  -H "Content-Type: application/json" \
-  -d '{"topic": "测试", "depth": "medium"}'
+# === v0.2.5 KG根技术追溯 ===
+# 扩散激活追溯
+curl "http://localhost:4848/api/kg/trace/metacognitive%20monitoring"
 
-# Bug #3: 字符串 depth
-curl -X POST http://localhost:4848/api/curious/inject \
-  -H "Content-Type: application/json" \
-  -d '{"topic": "测试", "depth": "medium"}'
+# 查询根技术池
+curl http://localhost:4848/api/kg/roots
 
-# Bug #4: DELETE JSON body
-curl -X DELETE http://localhost:4848/api/curious/queue \
-  -H "Content-Type: application/json" \
-  -d '{"topic": "测试"}'
+# KG 全局视图
+curl http://localhost:4848/api/kg/overview
 
-# Bug #6: 中文 URL
-curl "http://localhost:4848/api/metacognitive/check?topic=中文测试"
+# KG schema 迁移（升级 v0.2.5 时运行一次）
+cd /root/dev/curious-agent && python3 scripts/migrate_kg_parents.py
 
-# Bug #7: completed_topics
-curl http://localhost:4848/api/metacognitive/topics/completed
+# KG 数据同步到 R1D3
+cd /root/dev/curious-agent && python3 scripts/sync_kg_to_r1d3.py --all
 ```
 
 ---
@@ -1096,13 +1148,5 @@ curl http://localhost:4848/api/metacognitive/topics/completed
 - [OpenClaw 心跳文档](file:///root/.nvm/versions/node/v24.13.1/lib/node_modules/openclaw/docs/gateway/heartbeat.md)
 - [OpenClaw Cron vs Heartbeat](file:///root/.nvm/versions/node/v24.13.1/lib/node_modules/openclaw/docs/automation/cron-vs-heartbeat.md)
 - [Curious Agent README](file:///root/dev/curious-agent/README.md)
-- [Curious Agent Bug List](file:///root/dev/curious-agent/ideas/buglist_v0.2.3.md)
-- [Curious Agent Release Notes v0.2.3](file:///root/dev/curious-agent/RELEASE_NOTE_v0.2.3.md)
-
----
-
-_文档版本：v1.2_
-_更新时间：2026-03-24_
-_新增：第十章 OpenClaw Agent 标准配置（AGENTS.md）_
-_适用：Curious Agent v0.2.3 × OpenClaw 2026.3+_
-_测试状态：320 测试全部通过_
+- [Curious Agent Bug List](file:///root/dev/curious-agent/ideas/buglist_v0.2.5.md)
+- [Curious Agent v0.2.5 Spec](file:///root/dev/curious-agent/docs/SPEC_v0.2.5.md)
