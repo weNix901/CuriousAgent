@@ -2,7 +2,7 @@
 
 > **核心目标**: 让 CA 从"探索引擎"进化为"持续学习的数字生命体"
 > **架构原则**: 三个独立执行流并发运行，共享同一张 KG，线程级协调，无全局锁
-> **更新**: 2026-03-28 17:13（基于代码分析修正：threading 模型 + 两层锁 + F7/F8 修正）
+> **更新**: 2026-03-28 17:23（补充：F9-Supp LLMClient.creative_dream 实现 + F12 MetaCognitiveMonitor 完整实现 + 验收方法）
 > **设计原则**: SpiderAgent 和 DreamAgent 是完全独立的执行流，不合并；两者的 LLM 用途不同
 
 ---
@@ -1685,5 +1685,5 @@ curl http://localhost:4848/api/kg/calibration
 
 ---
 
-_Last updated: 2026-03-28 17:13 by R1D3_
+_Last updated: 2026-03-28 17:23 by R1D3_
 _v0.2.6: Threading-based (not multiprocessing) - F1 threaded model, F3 two-layer locking, F7 no low_queue param, F8 no engine_
