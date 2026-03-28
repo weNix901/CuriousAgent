@@ -766,3 +766,119 @@ class TestConnectionFunctions:
         assert "transformer attention" in names
         assert "gradient descent" in names
         assert "backpropagation" in names
+
+
+class TestSharedInboxFunctions:
+    """Tests for v0.2.6 SharedInbox functions (Commit 4)."""
+
+    def test_add_to_dream_inbox_creates_file(self, mock_state_file):
+        """Test that add_to_dream_inbox creates dream_topic_inbox.json."""
+        from core.knowledge_graph import add_to_dream_inbox
+        import os
+        
+        # Add an item to the inbox
+        add_to_dream_inbox(
+            topic="test_topic_inbox",
+            source_insight="Test insight for inbox"
+        )
+        
+        # Verify file was created
+        inbox_path = os.path.join(mock_state_file, "dream_topic_inbox.json")
+        assert os.path.exists(inbox_path)
+        
+        # Verify content
+        with open(inbox_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        
+        assert "inbox" in data
+        assert len(data["inbox"]) == 1
+        assert data["inbox"][0]["topic"] == "test_topic_inbox"
+        assert data["inbox"][0]["source_insight"] == "Test insight for inbox"
+        assert "timestamp" in data["inbox"][0]
+
+    def test_add_to_dream_inbox_appends_to_existing(self, mock_state_file):
+        """Test that add_to_dream_inbox appends to existing inbox."""
+        from core.knowledge_graph import add_to_dream_inbox
+        import os
+        
+        # Add first item
+        add_to_dream_inbox(
+            topic="topic_1",
+            source_insight="First insight"
+        )
+        
+        # Add second item
+        add_to_dream_inbox(
+            topic="topic_2",
+            source_insight="Second insight"
+        )
+        
+        # Verify both items exist
+        inbox_path = os.path.join(mock_state_file, "dream_topic_inbox.json")
+        with open(inbox_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        
+        assert len(data["inbox"]) == 2
+        topics = [item["topic"] for item in data["inbox"]]
+        assert "topic_1" in topics
+        assert "topic_2" in topics
+
+    def test_fetch_and_clear_dream_inbox_returns_items(self, mock_state_file):
+        """Test that fetch_and_clear_dream_inbox returns inbox items."""
+        from core.knowledge_graph import add_to_dream_inbox, fetch_and_clear_dream_inbox
+        
+        # Add items to inbox
+        add_to_dream_inbox(topic="fetch_topic_1", source_insight="Insight 1")
+        add_to_dream_inbox(topic="fetch_topic_2", source_insight="Insight 2")
+        
+        # Fetch and clear
+        items = fetch_and_clear_dream_inbox()
+        
+        # Verify items returned
+        assert len(items) == 2
+        topics = [item["topic"] for item in items]
+        assert "fetch_topic_1" in topics
+        assert "fetch_topic_2" in topics
+
+    def test_fetch_and_clear_dream_inbox_clears_file(self, mock_state_file):
+        """Test that fetch_and_clear_dream_inbox clears the inbox file."""
+        from core.knowledge_graph import add_to_dream_inbox, fetch_and_clear_dream_inbox
+        import os
+        
+        # Add items to inbox
+        add_to_dream_inbox(topic="clear_topic", source_insight="To be cleared")
+        
+        # Fetch and clear
+        items = fetch_and_clear_dream_inbox()
+        assert len(items) == 1
+        
+        # Verify inbox is now empty
+        inbox_path = os.path.join(mock_state_file, "dream_topic_inbox.json")
+        with open(inbox_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        
+        assert data["inbox"] == []
+        
+        # Second fetch should return empty list
+        items2 = fetch_and_clear_dream_inbox()
+        assert items2 == []
+
+    def test_fetch_and_clear_dream_inbox_empty_inbox(self, mock_state_file):
+        """Test fetch_and_clear_dream_inbox returns empty list when no inbox exists."""
+        from core.knowledge_graph import fetch_and_clear_dream_inbox
+        
+        # Fetch from non-existent inbox
+        items = fetch_and_clear_dream_inbox()
+        
+        assert items == []
+
+    def test_shared_inbox_thread_safety(self, mock_state_file):
+        """Test that SharedInbox functions use NodeLockRegistry.global_write_lock."""
+        from core.knowledge_graph import add_to_dream_inbox, fetch_and_clear_dream_inbox
+        
+        # These operations should work without deadlock
+        add_to_dream_inbox(topic="thread_test_1", source_insight="Thread 1")
+        add_to_dream_inbox(topic="thread_test_2", source_insight="Thread 2")
+        
+        items = fetch_and_clear_dream_inbox()
+        assert len(items) == 2
