@@ -96,7 +96,7 @@
 │         ┌─────────────────────────────────┐            │
 │         │  KG (knowledge/state.json)      │            │
 │         │  LLMManager (singleton)         │            │
-│         │  queue.Queue (thread-safe)      │            │
+│         │  queue.Queue (thread-safe)     │            │
 │         └─────────────────────────────────┘            │
 └─────────────────────────────────────────────────────┘
 ```
@@ -106,13 +106,94 @@
 - 共享同一个 KG JSON 文件（通过 threading.Lock 保护）
 - 线程间通过 `queue.Queue` 通信，不跨进程
 
-### 1.3 LLM 使用区分
+### 1.3 LLMClient：通用模块，所有 Agent 共享
 
-| 执行流 | LLM 用途 | 说明 |
-|--------|---------|------|
-| SpiderAgent → Explorer | 理解 + 总结外部信息 | 分析搜索结果、生成摘要 |
-| DreamAgent → LLMClient | 创造全新内容 | 从 A+B 生成新洞察 |
-| SleepPruner | 不使用 LLM | 纯规则计算 |
+**核心设计原则**：LLMClient 是通用 LLM 调用模块，**不专属于任何 Agent**。所有 Agent（SpiderAgent、DreamAgent、DexterousAgent 等）统一使用 LLMClient，只是传入的 prompt 和模型配置不同。
+
+```
+LLMClient（通用模块）
+    │
+    └── LLMManager（单例，支持多 Provider + 多 Model）
+            │
+            ├── Provider: volcengine
+            │       └── Model: minimax-m2.7
+            │
+            ├── Provider: openai
+            │       └── Model: gpt-4o
+            │
+            └── Provider: anthropic
+                    └── Model: claude-3-5-sonnet
+```
+
+**LLMManager 的职责**（现有代码）：
+- 单例模式，整个进程只有一个实例
+- 统一管理所有 Provider 和 Model 配置
+- 根据 task_type 或显式指定选择 Provider/Model
+- 管理 API key、timeout、重试等
+
+**不同 Agent 的 LLM 调用方式**：
+
+```python
+# SpiderAgent：用理解能力强的模型（分析+总结外部信息）
+llm = LLMClient()
+result = llm.chat(prompt, model_name="claude-3-5-sonnet", temperature=0.3)
+# 或通过 LLMManager 的能力路由：
+result = llm.manager.chat(prompt, task_type="analysis")
+
+# DreamAgent：用高随机性模型（创意生成）
+llm = LLMClient()
+result = llm.creative_dream(topic_a, topic_b, temperature=0.9, model_name="gpt-4o")
+
+# DexterousAgent（未来）：用代码能力强的模型
+llm = LLMClient()
+result = llm.chat(code_prompt, model_name="claude-3-5-sonnet", temperature=0.5)
+```
+
+**模型配置示例**（`core/config.py` 或 `config.json`）：
+
+```python
+LLM_PROVIDERS = [
+    {
+        "name": "volcengine",
+        "models": [
+            {"model": "minimax-m2.7", "capabilities": ["general", "fast"]},
+            {"model": "minimax-m2.1", "capabilities": ["general"]}
+        ]
+    },
+    {
+        "name": "openai",
+        "models": [
+            {"model": "gpt-4o", "capabilities": ["creative", "reasoning"]}
+        ]
+    },
+    {
+        "name": "anthropic",
+        "models": [
+            {"model": "claude-3-5-sonnet", "capabilities": ["analysis", "code", "creative"]}
+        ]
+    }
+]
+
+# Agent 的模型推荐：
+# - SpiderAgent（探索分析）：claude-3-5-sonnet（强分析能力）
+# - DreamAgent（创意生成）：gpt-4o（高随机性）或 claude-3-5-sonnet
+# - DexterousAgent（代码任务）：claude-3-5-sonnet（强代码能力）
+```
+
+**LLMClient.creative_dream 的模型选择**（F9 实现时使用）：
+
+```python
+# core/llm_client.py 的 creative_dream 方法
+def creative_dream(self, topic_a: str, topic_b: str, ...):
+    # 使用创意能力强的模型，temperature=0.9
+    return self.manager.chat(
+        prompt,
+        model_name="gpt-4o",       # 或 "claude-3-5-sonnet"
+        temperature=0.9,
+        max_tokens=800,
+        timeout=60
+    )
+```
 
 ### 1.4 主进程入口
 
