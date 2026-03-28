@@ -119,6 +119,82 @@ Scoring criteria:
         
         return {"pred_error": 5.0, "graph_density": 5.0, "novelty": 5.0}
 
+    def creative_dream(self, topic1: str, topic2: str) -> Dict:
+        """
+        Generate creative insights by combining two topics using high temperature (0.9).
+        
+        Args:
+            topic1: First topic for creative combination
+            topic2: Second topic for creative combination
+            
+        Returns:
+            Dict with keys: has_insight, insight, insight_type, surprise, novelty, trigger_topic
+        """
+        import json
+        import random
+        
+        prompt = f"""You are a creative insight generator. Combine these two topics to discover unexpected connections:
+
+Topic 1: {topic1}
+Topic 2: {topic2}
+
+Think creatively and unconventionally. What surprising insight might emerge from combining these seemingly unrelated concepts?
+
+Return a JSON object with exactly this structure:
+{{
+  "has_insight": true or false,
+  "insight": "the creative insight or connection discovered",
+  "insight_type": "analogy|cross_domain|synthesis|question|unknown",
+  "surprise": 0.0-1.0,
+  "novelty": 0.0-1.0,
+  "trigger_topic": "which topic triggered this insight"
+}}
+
+Rules:
+- has_insight: true if a meaningful connection was found, false otherwise
+- insight: a specific, concrete insight or connection (empty string if has_insight=false)
+- insight_type: the type of insight (use "unknown" if unclear)
+- surprise: how unexpected this connection is (0=none, 1=very surprising)
+- novelty: how original/fresh this insight is (0=obvious, 1=highly original)
+- trigger_topic: which of the two topics triggered the insight (topic1, topic2, or "combination")
+
+Be creative but grounded. Generate genuinely surprising connections."""
+        
+        try:
+            response = self.manager.chat(
+                prompt,
+                task_type="creative",
+                provider_override=self.provider_override,
+                model_override=self.model_override,
+                temperature=0.9
+            )
+            
+            start = response.find('{')
+            end = response.rfind('}')
+            if start >= 0 and end > start:
+                result = json.loads(response[start:end+1])
+                
+                return {
+                    "has_insight": bool(result.get("has_insight", False)),
+                    "insight": str(result.get("insight", "")),
+                    "insight_type": str(result.get("insight_type", "unknown")),
+                    "surprise": float(result.get("surprise", 0.5)),
+                    "novelty": float(result.get("novelty", 0.5)),
+                    "trigger_topic": str(result.get("trigger_topic", "combination"))
+                }
+        except json.JSONDecodeError as e:
+            print(f"[LLMClient] creative_dream JSON parse error: {e}")
+        except Exception as e:
+            print(f"[LLMClient] creative_dream error: {e}")
+        return {
+            "has_insight": False,
+            "insight": "",
+            "insight_type": "unknown",
+            "surprise": 0.0,
+            "novelty": 0.0,
+            "trigger_topic": "combination"
+        }
+
     # === Backward compatibility methods ===
 
     def _call_api(self, prompt: str) -> str:
