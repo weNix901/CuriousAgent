@@ -878,3 +878,475 @@ def promote_to_root_candidate(topic: str, domains: list) -> None:
 
     pool["last_updated"] = datetime.now(timezone.utc).isoformat()
     _save_state(state)
+
+
+# === v0.2.6 Dream Insights Functions ===
+
+def add_dream_insight(
+    content: str,
+    insight_type: str,
+    source_topics: list[str],
+    surprise: float,
+    novelty: float,
+    trigger_topic: str | None
+) -> str:
+    """Create a dream insight node."""
+    from core.node_lock_registry import NodeLockRegistry
+
+    node_id = f"insight_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S_%f')}"
+
+    entry = {
+        "node_id": node_id,
+        "content": content,
+        "insight_type": insight_type,
+        "source_topics": source_topics,
+        "surprise": surprise,
+        "novelty": novelty,
+        "trigger_topic": trigger_topic,
+        "weight": 0.5,
+        "verified": False,
+        "quality": 0.0,
+        "stale": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    with NodeLockRegistry.global_write_lock():
+        insight_dir = os.path.join(os.path.dirname(STATE_FILE), "dream_insights")
+        os.makedirs(insight_dir, exist_ok=True)
+
+        filepath = os.path.join(insight_dir, f"{node_id}.json")
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(entry, f, ensure_ascii=False, indent=2)
+
+    return node_id
+
+
+def get_dream_insights(topic: str | None = None) -> list[dict]:
+    """Get all dream insights or insights related to a specific topic."""
+    from core.node_lock_registry import NodeLockRegistry
+
+    insights = []
+
+    with NodeLockRegistry.global_write_lock():
+        insight_dir = os.path.join(os.path.dirname(STATE_FILE), "dream_insights")
+
+        if not os.path.exists(insight_dir):
+            return insights
+
+        for filename in os.listdir(insight_dir):
+            if filename.endswith(".json"):
+                filepath = os.path.join(insight_dir, filename)
+                try:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    if topic is None:
+                        insights.append(data)
+                    elif topic in data.get("source_topics", []):
+                        insights.append(data)
+                except (json.JSONDecodeError, IOError):
+                    continue
+
+    return insights
+
+
+def get_all_dream_insights() -> list[dict]:
+    """Get all dream insights (wrapper around get_dream_insights)."""
+    return get_dream_insights(topic=None)
+
+
+def remove_dream_insight(node_id: str) -> None:
+    """Remove a dream insight file."""
+    from core.node_lock_registry import NodeLockRegistry
+
+    with NodeLockRegistry.global_write_lock():
+        insight_dir = os.path.join(os.path.dirname(STATE_FILE), "dream_insights")
+        filepath = os.path.join(insight_dir, f"{node_id}.json")
+
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
+
+def is_insight_stale(node_id: str) -> bool:
+    """Check if insight is stale (> 7 days old and never verified)."""
+    from core.node_lock_registry import NodeLockRegistry
+
+    with NodeLockRegistry.global_write_lock():
+        insight_dir = os.path.join(os.path.dirname(STATE_FILE), "dream_insights")
+        filepath = os.path.join(insight_dir, f"{node_id}.json")
+
+        if not os.path.exists(filepath):
+            return False
+
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return False
+
+        if data.get("verified", False):
+            return False
+
+        created_at_str = data.get("created_at")
+        if not created_at_str:
+            return False
+
+        try:
+            created_at = datetime.fromisoformat(created_at_str)
+            age = datetime.now(timezone.utc) - created_at
+            return age.days > 7
+        except (ValueError, TypeError):
+            return False
+
+
+def update_insight_weight(node_id: str, delta: float) -> None:
+    """Update insight weight by delta."""
+    from core.node_lock_registry import NodeLockRegistry
+
+    with NodeLockRegistry.global_write_lock():
+        insight_dir = os.path.join(os.path.dirname(STATE_FILE), "dream_insights")
+        filepath = os.path.join(insight_dir, f"{node_id}.json")
+
+        if not os.path.exists(filepath):
+            return
+
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            data["weight"] = data.get("weight", 0.5) + delta
+
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except (json.JSONDecodeError, IOError):
+            return
+
+
+def update_insight_quality(node_id: str, delta: float) -> None:
+    """Update insight quality by delta."""
+    from core.node_lock_registry import NodeLockRegistry
+
+    with NodeLockRegistry.global_write_lock():
+        insight_dir = os.path.join(os.path.dirname(STATE_FILE), "dream_insights")
+        filepath = os.path.join(insight_dir, f"{node_id}.json")
+
+        if not os.path.exists(filepath):
+            return
+
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            data["quality"] = data.get("quality", 0.0) + delta
+
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except (json.JSONDecodeError, IOError):
+            return
+
+
+# === v0.2.6 Node Lifecycle Functions ===
+
+def mark_dormant(topic: str) -> None:
+    """Mark topic as dormant (status = 'dormant')."""
+    from core.node_lock_registry import NodeLockRegistry
+    with NodeLockRegistry.global_write_lock():
+        lock = NodeLockRegistry.get_lock(topic)
+        with lock:
+            state = _load_state()
+            if topic in state["knowledge"]["topics"]:
+                state["knowledge"]["topics"][topic]["status"] = "dormant"
+                _save_state(state)
+
+
+def reactivate(topic: str) -> None:
+    """Reactivate a dormant topic (status = 'complete')."""
+    from core.node_lock_registry import NodeLockRegistry
+    with NodeLockRegistry.global_write_lock():
+        lock = NodeLockRegistry.get_lock(topic)
+        with lock:
+            state = _load_state()
+            if topic in state["knowledge"]["topics"]:
+                state["knowledge"]["topics"][topic]["status"] = "complete"
+                _save_state(state)
+
+
+def mark_dreamed(topic: str) -> None:
+    """Mark topic as having been processed by DreamAgent (sets dreamed_at timestamp)."""
+    from core.node_lock_registry import NodeLockRegistry
+    with NodeLockRegistry.global_write_lock():
+        lock = NodeLockRegistry.get_lock(topic)
+        with lock:
+            state = _load_state()
+            if topic in state["knowledge"]["topics"]:
+                state["knowledge"]["topics"][topic]["dreamed_at"] = datetime.now(timezone.utc).isoformat()
+                _save_state(state)
+
+
+def set_consolidated(topic: str) -> None:
+    """Mark topic as consolidated (sets last_consolidated timestamp)."""
+    from core.node_lock_registry import NodeLockRegistry
+    with NodeLockRegistry.global_write_lock():
+        lock = NodeLockRegistry.get_lock(topic)
+        with lock:
+            state = _load_state()
+            if topic in state["knowledge"]["topics"]:
+                state["knowledge"]["topics"][topic]["last_consolidated"] = datetime.now(timezone.utc).isoformat()
+                _save_state(state)
+
+
+def get_dormant_nodes() -> list[str]:
+    """Get all dormant nodes."""
+    from core.node_lock_registry import NodeLockRegistry
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        return [name for name, data in topics.items() if data.get("status") == "dormant"]
+
+
+def has_recent_dreams(topic: str, within_days: int) -> bool:
+    """Check if topic has been dreamed recently."""
+    from core.node_lock_registry import NodeLockRegistry
+    from datetime import timedelta
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        if topic not in topics:
+            return False
+        topic_data = topics[topic]
+        dreamed_at_str = topic_data.get("dreamed_at")
+        if not dreamed_at_str:
+            return False
+        try:
+            dreamed_at = datetime.fromisoformat(dreamed_at_str)
+            age = datetime.now(timezone.utc) - dreamed_at
+            return age.days < within_days
+        except (ValueError, TypeError):
+            return False
+
+
+def get_recently_dreamed(within_days: int) -> set[str]:
+    """Get all topics dreamed within time window."""
+    from core.node_lock_registry import NodeLockRegistry
+    from datetime import timedelta
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        result = set()
+        cutoff = datetime.now(timezone.utc) - timedelta(days=within_days)
+        for name, data in topics.items():
+            dreamed_at_str = data.get("dreamed_at")
+            if dreamed_at_str:
+                try:
+                    dreamed_at = datetime.fromisoformat(dreamed_at_str)
+                    if dreamed_at > cutoff:
+                        result.add(name)
+                except (ValueError, TypeError):
+                    continue
+        return result
+
+
+# === v0.2.6 Connection Functions ===
+
+def strengthen_connection(topic_a: str, topic_b: str, delta: float = 0.1):
+    """Strengthen connection between two topics by delta (default 0.1)."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    with NodeLockRegistry.global_write_lock():
+        lock_a = NodeLockRegistry.get_lock(topic_a)
+        lock_b = NodeLockRegistry.get_lock(topic_b)
+        locks = tuple(sorted([lock_a, lock_b], key=lambda l: id(l)))
+        
+        with locks[0], locks[1]:
+            state = _load_state()
+            topics = state["knowledge"]["topics"]
+            
+            for topic in [topic_a, topic_b]:
+                if topic not in topics:
+                    topics[topic] = {"known": False, "depth": 0, "parents": [], 
+                                   "explains": [], "children": [], "status": "partial"}
+                if "connections" not in topics[topic]:
+                    topics[topic]["connections"] = {}
+            
+            for a, b in [(topic_a, topic_b), (topic_b, topic_a)]:
+                if b not in topics[a]["connections"]:
+                    topics[a]["connections"][b] = {"weight": 0.0}
+                topics[a]["connections"][b]["weight"] = min(
+                    1.0, topics[a]["connections"][b]["weight"] + delta
+                )
+            
+            _save_state(state)
+
+
+def get_directly_connected(topic: str) -> set[str]:
+    """Get all nodes directly connected to topic (parents + children)."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        
+        if topic not in topics:
+            return set()
+        
+        node = topics[topic]
+        connected = set()
+        
+        for parent in node.get("parents", []):
+            connected.add(parent)
+        
+        for child in node.get("children", []):
+            connected.add(child)
+        
+        return connected
+
+
+def get_shortest_path_length(topic_a: str, topic_b: str) -> int | float:
+    """Get shortest path length between topics using BFS. Returns inf if no path."""
+    from core.node_lock_registry import NodeLockRegistry
+    from collections import deque
+    import math
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        
+        if topic_a == topic_b:
+            return 0
+        
+        if topic_a not in topics or topic_b not in topics:
+            return math.inf
+        
+        visited = {topic_a}
+        queue = deque([(topic_a, 0)])
+        
+        while queue:
+            current, distance = queue.popleft()
+            
+            if current == topic_b:
+                return distance
+            
+            node = topics.get(current, {})
+            neighbors = set()
+            
+            for parent in node.get("parents", []):
+                neighbors.add(parent)
+            for child in node.get("children", []):
+                neighbors.add(child)
+            
+            for neighbor in neighbors:
+                if neighbor not in visited and neighbor in topics:
+                    visited.add(neighbor)
+                    queue.append((neighbor, distance + 1))
+        
+        return math.inf
+
+
+def get_all_nodes(active_only: bool = False) -> list[tuple[str, dict]]:
+    """Get all nodes, optionally filtering to active only (non-dormant)."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        
+        if active_only:
+            return [(name, data) for name, data in topics.items() 
+                    if data.get("status") != "dormant"]
+        
+        return list(topics.items())
+
+
+def get_root_pool_names() -> set[str]:
+    """Get all names in root technology pool."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        pool = state.get(ROOT_POOL_KEY, {}).get("candidates", [])
+        return {r.get("name") for r in pool if r.get("name")}
+
+
+# === v0.2.6 SharedInbox Functions (Commit 4) ===
+
+def add_to_dream_inbox(topic: str, source_insight: str):
+    """Add topic to dream inbox for SpiderAgent."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    inbox_path = os.path.join(os.path.dirname(STATE_FILE), "dream_topic_inbox.json")
+    
+    with NodeLockRegistry.global_write_lock():
+        inbox = {"inbox": []}
+        if os.path.exists(inbox_path):
+            try:
+                with open(inbox_path, "r", encoding="utf-8") as f:
+                    inbox = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                pass
+        
+        inbox["inbox"].append({
+            "topic": topic,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "source_insight": source_insight
+        })
+        
+        with open(inbox_path, "w", encoding="utf-8") as f:
+            json.dump(inbox, f, ensure_ascii=False, indent=2)
+
+
+def fetch_and_clear_dream_inbox() -> list[dict]:
+    """Fetch and clear dream inbox. Called by SpiderAgent."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    inbox_path = os.path.join(os.path.dirname(STATE_FILE), "dream_topic_inbox.json")
+    
+    with NodeLockRegistry.global_write_lock():
+        inbox = {"inbox": []}
+        if os.path.exists(inbox_path):
+            try:
+                with open(inbox_path, "r", encoding="utf-8") as f:
+                    inbox = json.load(f)
+            except (json.JSONDecodeError, IOError):
+                pass
+        
+        items = inbox.get("inbox", [])
+        
+        inbox["inbox"] = []
+        with open(inbox_path, "w", encoding="utf-8") as f:
+            json.dump(inbox, f, ensure_ascii=False, indent=2)
+        
+        return items
+
+
+# === v0.2.6 Utility Functions (Commit 5) ===
+
+def mark_insight_triggered(insight_node_id: str):
+    """Mark an insight as having triggered follow-up exploration."""
+    from core.node_lock_registry import NodeLockRegistry
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        if "insight_generation" not in state:
+            state["insight_generation"] = {}
+        if insight_node_id not in state["insight_generation"]:
+            state["insight_generation"][insight_node_id] = {}
+        state["insight_generation"][insight_node_id]["triggered"] = True
+        _save_state(state)
+
+
+def get_recent_explorations(within_hours: int) -> list:
+    """Get explorations within time window."""
+    from core.node_lock_registry import NodeLockRegistry
+    from datetime import timedelta
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        exploration_log = state.get("exploration_log", [])
+        
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=within_hours)
+        cutoff_str = cutoff.isoformat()
+        
+        return [
+            entry for entry in exploration_log
+            if entry.get("timestamp", "") > cutoff_str
+        ]

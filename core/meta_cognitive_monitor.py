@@ -172,3 +172,160 @@ Return only a number."""
 
         score = min(10, summary_len / 200 + sources_count * 2)
         return max(0, min(10, score))
+
+    # === v0.2.6 MetaCognitive Enhancements (F12) ===
+
+    def get_confidence_interval(self, topic: str) -> tuple[float, float]:
+        """Get confidence interval for a topic.
+
+        Returns:
+            (confidence_low, confidence_high) tuple
+        """
+        state = kg.get_state()
+        topic_data = state["knowledge"]["topics"].get(topic, {})
+
+        low = topic_data.get("confidence_low", 0.3)
+        high = topic_data.get("confidence_high", 0.7)
+
+        return (low, high)
+
+    def update_node_confidence(self, topic: str, delta_evidence: int = 0,
+                               delta_contradiction: int = 0):
+        """Update topic confidence based on new evidence.
+
+        Args:
+            topic: Topic to update
+            delta_evidence: Number of supporting evidence (+)
+            delta_contradiction: Number of contradicting evidence (-)
+        """
+        from core.node_lock_registry import NodeLockRegistry
+
+        with NodeLockRegistry.global_write_lock():
+            state = kg.get_state()
+            topic_data = state["knowledge"]["topics"].setdefault(topic, {})
+
+            # Initialize defaults
+            if "confidence_low" not in topic_data:
+                topic_data["confidence_low"] = 0.3
+            if "confidence_high" not in topic_data:
+                topic_data["confidence_high"] = 0.7
+            if "evidence_count" not in topic_data:
+                topic_data["evidence_count"] = 0
+            if "contradiction_count" not in topic_data:
+                topic_data["contradiction_count"] = 0
+
+            # Update
+            topic_data["confidence_low"] = min(
+                1.0, topic_data["confidence_low"] + delta_evidence * 0.1
+            )
+            topic_data["confidence_high"] = max(
+                0.0, topic_data["confidence_high"] - delta_contradiction * 0.2
+            )
+            topic_data["evidence_count"] = topic_data.get("evidence_count", 0) + delta_evidence
+            topic_data["contradiction_count"] = topic_data.get("contradiction_count", 0) + delta_contradiction
+
+            kg._save_state(state)
+
+    def detect_frontier(self) -> list[dict]:
+        """Detect knowledge frontier.
+
+        Frontier nodes are explored nodes with no children
+        (leaf nodes with known=True).
+
+        Returns:
+            List of frontier descriptors
+        """
+        frontiers = []
+        state = kg.get_state()
+
+        for topic, data in state["knowledge"]["topics"].items():
+            if not data.get("known"):
+                continue
+
+            children = data.get("children", [])
+            if not children:
+                frontiers.append({
+                    "from_node": topic,
+                    "frontier_type": "explicit",
+                    "uncertainty": "high"
+                })
+
+        return frontiers
+
+    def recommend_exploration_from_frontier(self) -> list[str]:
+        """Recommend topics to explore from frontier.
+
+        Returns:
+            List of topic names, sorted by priority
+        """
+        frontiers = self.detect_frontier()
+
+        # Sort by uncertainty (high first)
+        sorted_frontiers = sorted(frontiers, key=lambda f: (
+            {"high": 0, "medium": 1, "low": 2}.get(f["uncertainty"], 2)
+        ))
+
+        return [f["from_node"] for f in sorted_frontiers[:3]]
+
+    def get_calibration_error(self) -> float:
+        """Calculate Brier score for predictions.
+
+        Brier score = mean((predicted - actual)^2)
+        Lower is better (0 = perfect calibration).
+
+        Returns:
+            Brier score (0-1)
+        """
+        from core.exploration_history import ExplorationHistory
+
+        history = ExplorationHistory()
+        predictions = history.get_all_predictions()
+
+        if not predictions:
+            return 0.0
+
+        scored = [p for p in predictions if p.get("actual_outcome") is not None]
+
+        if not scored:
+            return 0.0
+
+        brier = sum(
+            (p["predicted_confidence"] - (1.0 if p["actual_outcome"] else 0.0)) ** 2
+            for p in scored
+        ) / len(scored)
+
+        return round(brier, 4)
+
+    def get_topic_calibration(self, topic: str) -> dict:
+        """Get calibration info for specific topic.
+
+        Returns:
+            Calibration details dict
+        """
+        from core.exploration_history import ExplorationHistory
+
+        history = ExplorationHistory()
+        pred = history.get_prediction(topic)
+
+        if not pred:
+            return {"topic": topic, "verdict": "no_prediction_recorded"}
+
+        if pred.get("actual_outcome") is None:
+            return {"topic": topic, "verdict": "pending"}
+
+        error = abs(pred["predicted_confidence"] - (1.0 if pred["actual_outcome"] else 0.0))
+
+        if error < 0.2:
+            verdict = "well_calibrated"
+        elif pred["predicted_confidence"] > 0.7:
+            verdict = "overconfident"
+        else:
+            verdict = "underconfident"
+
+        return {
+            "topic": topic,
+            "predicted": pred["predicted_confidence"],
+            "actual_outcome": pred["actual_outcome"],
+            "error": round(error, 3),
+            "verdict": verdict
+        }

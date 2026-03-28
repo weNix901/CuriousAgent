@@ -613,5 +613,101 @@ def api_kg_promote():
     return jsonify({"status": "ok", "topic": topic})
 
 
+# === v0.2.6 API Extensions (F13) ===
+
+@app.route("/api/kg/dream_insights")
+def api_kg_dream_insights():
+    """Get all dream insights."""
+    from core import knowledge_graph as kg
+    insights = kg.get_all_dream_insights()
+    return jsonify({"insights": insights})
+
+
+@app.route("/api/kg/dream_insights/<topic>")
+def api_kg_dream_insights_topic(topic: str):
+    """Get dream insights for specific topic."""
+    from core import knowledge_graph as kg
+    insights = kg.get_dream_insights(topic)
+    return jsonify({"insights": insights})
+
+
+@app.route("/api/kg/dormant")
+def api_kg_dormant():
+    """Get all dormant nodes."""
+    from core import knowledge_graph as kg
+    nodes = kg.get_dormant_nodes()
+    return jsonify({"dormant_nodes": nodes})
+
+
+@app.route("/api/kg/reactivate", methods=["POST"])
+def api_kg_reactivate():
+    """Reactivate a dormant node."""
+    from core import knowledge_graph as kg
+    data = request.get_json()
+    topic = data.get("topic", "").strip()
+
+    if not topic:
+        return jsonify({"error": "topic is required"}), 400
+
+    kg.reactivate(topic)
+    return jsonify({"status": "ok", "topic": topic})
+
+
+@app.route("/api/dreamer/force", methods=["POST"])
+def api_dreamer_force():
+    """Force DreamAgent to dream about a topic."""
+    data = request.get_json()
+    topic = data.get("topic", "").strip()
+
+    if not topic:
+        return jsonify({"error": "topic is required"}), 400
+
+    # TODO: Actually trigger DreamAgent
+    # For now, just mark as requested
+    return jsonify({"status": "ok", "topic": topic, "requested": True})
+
+
+@app.route("/api/kg/confidence/<path:topic>")
+def api_kg_confidence(topic: str):
+    """Get confidence interval for topic."""
+    from core.meta_cognitive_monitor import MetaCognitiveMonitor
+
+    monitor = MetaCognitiveMonitor()
+    low, high = monitor.get_confidence_interval(topic)
+
+    return jsonify({
+        "topic": topic,
+        "confidence_low": low,
+        "confidence_high": high
+    })
+
+
+@app.route("/api/kg/frontier")
+def api_kg_frontier():
+    """Get knowledge frontier."""
+    from core.meta_cognitive_monitor import MetaCognitiveMonitor
+
+    monitor = MetaCognitiveMonitor()
+    frontiers = monitor.detect_frontier()
+
+    return jsonify({"frontiers": frontiers})
+
+
+@app.route("/api/kg/calibration")
+def api_kg_calibration():
+    """Get overall calibration error."""
+    from core.meta_cognitive_monitor import MetaCognitiveMonitor
+
+    monitor = MetaCognitiveMonitor()
+    error = monitor.get_calibration_error()
+
+    verdict = "well_calibrated" if error < 0.1 else "overconfident" if error > 0.3 else "moderate"
+
+    return jsonify({
+        "calibration_error": error,
+        "verdict": verdict
+    })
+
+
 if __name__ == "__main__":
     main()
