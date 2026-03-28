@@ -1043,3 +1043,104 @@ def update_insight_quality(node_id: str, delta: float) -> None:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except (json.JSONDecodeError, IOError):
             return
+
+
+# === v0.2.6 Node Lifecycle Functions ===
+
+def mark_dormant(topic: str) -> None:
+    """Mark topic as dormant (status = 'dormant')."""
+    from core.node_lock_registry import NodeLockRegistry
+    with NodeLockRegistry.global_write_lock():
+        lock = NodeLockRegistry.get_lock(topic)
+        with lock:
+            state = _load_state()
+            if topic in state["knowledge"]["topics"]:
+                state["knowledge"]["topics"][topic]["status"] = "dormant"
+                _save_state(state)
+
+
+def reactivate(topic: str) -> None:
+    """Reactivate a dormant topic (status = 'complete')."""
+    from core.node_lock_registry import NodeLockRegistry
+    with NodeLockRegistry.global_write_lock():
+        lock = NodeLockRegistry.get_lock(topic)
+        with lock:
+            state = _load_state()
+            if topic in state["knowledge"]["topics"]:
+                state["knowledge"]["topics"][topic]["status"] = "complete"
+                _save_state(state)
+
+
+def mark_dreamed(topic: str) -> None:
+    """Mark topic as having been processed by DreamAgent (sets dreamed_at timestamp)."""
+    from core.node_lock_registry import NodeLockRegistry
+    with NodeLockRegistry.global_write_lock():
+        lock = NodeLockRegistry.get_lock(topic)
+        with lock:
+            state = _load_state()
+            if topic in state["knowledge"]["topics"]:
+                state["knowledge"]["topics"][topic]["dreamed_at"] = datetime.now(timezone.utc).isoformat()
+                _save_state(state)
+
+
+def set_consolidated(topic: str) -> None:
+    """Mark topic as consolidated (sets last_consolidated timestamp)."""
+    from core.node_lock_registry import NodeLockRegistry
+    with NodeLockRegistry.global_write_lock():
+        lock = NodeLockRegistry.get_lock(topic)
+        with lock:
+            state = _load_state()
+            if topic in state["knowledge"]["topics"]:
+                state["knowledge"]["topics"][topic]["last_consolidated"] = datetime.now(timezone.utc).isoformat()
+                _save_state(state)
+
+
+def get_dormant_nodes() -> list[str]:
+    """Get all dormant nodes."""
+    from core.node_lock_registry import NodeLockRegistry
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        return [name for name, data in topics.items() if data.get("status") == "dormant"]
+
+
+def has_recent_dreams(topic: str, within_days: int) -> bool:
+    """Check if topic has been dreamed recently."""
+    from core.node_lock_registry import NodeLockRegistry
+    from datetime import timedelta
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        if topic not in topics:
+            return False
+        topic_data = topics[topic]
+        dreamed_at_str = topic_data.get("dreamed_at")
+        if not dreamed_at_str:
+            return False
+        try:
+            dreamed_at = datetime.fromisoformat(dreamed_at_str)
+            age = datetime.now(timezone.utc) - dreamed_at
+            return age.days < within_days
+        except (ValueError, TypeError):
+            return False
+
+
+def get_recently_dreamed(within_days: int) -> set[str]:
+    """Get all topics dreamed within time window."""
+    from core.node_lock_registry import NodeLockRegistry
+    from datetime import timedelta
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        result = set()
+        cutoff = datetime.now(timezone.utc) - timedelta(days=within_days)
+        for name, data in topics.items():
+            dreamed_at_str = data.get("dreamed_at")
+            if dreamed_at_str:
+                try:
+                    dreamed_at = datetime.fromisoformat(dreamed_at_str)
+                    if dreamed_at > cutoff:
+                        result.add(name)
+                except (ValueError, TypeError):
+                    continue
+        return result
