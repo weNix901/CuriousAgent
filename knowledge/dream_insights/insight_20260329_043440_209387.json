@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_043440_209387",
+  "content": "Just as the linguistic definition of reflexion frames it as both a physical reflection of light and an internal cognitive act of反思, current LLM self-reflection mechanisms are missing the dual core of the concept: they only focus on internal error correction, not 'reflecting' inconsistent external perspectives back to the agent's original reasoning to trigger genuine reflection. This dual framing leads to a new self-reflection framework that combines physical-style reflection of external perspectives with internal cognitive reflection.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:34:40.209410+00:00"
+}

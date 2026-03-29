@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_041728_972207",
+  "content": "We can borrow the language education definition of 'reflexion' as a vocabulary learning exercise to reframe LLM self-reflection: instead of treating LLM self-reflection as only a logical error-correction step, it can be designed as repeated active 'vocabulary building' for the LLM’s internal dynamic memory, where the agent encodes new contextual nuance for problem-solving schemas just as human students memorize and refine the meaning of 'reflexion' across different usage contexts. This creates a new framework for improving Reflexion agents' long-term problem-solving performance.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:17:28.972230+00:00"
+}

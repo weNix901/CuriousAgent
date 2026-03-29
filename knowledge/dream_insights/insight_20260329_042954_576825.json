@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_042954_576825",
+  "content": "Just as human learners in high language arts curricula refine their understanding through structured written reflection anchored to explicit vocabulary of self-assessment, large language models can improve their self-reflection mechanisms by grounding their iterative critique in a fixed, human-curated vocabulary of error types and solution attributes.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:29:54.576847+00:00"
+}

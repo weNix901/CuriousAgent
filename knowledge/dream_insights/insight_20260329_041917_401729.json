@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_041917_401729",
+  "content": "The linguistic double meaning of \"reflexion\" (both the physical optical reflection of light and the cognitive act of deliberate reflection) can serve as a structural metaphor to improve LLM self-reflection mechanisms. Just as physical reflexion bounces light off a surface to generate a visible image of an object from a new angle, multi-perspective LLM self-reflection can bounce the model’s own output off an external frame of reference (a human-defined evaluation metric, another model’s reasoning, or established domain facts) to generate a clearer, more accurate critique of its initial work.",
+  "insight_type": "analogy",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.8,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:19:17.401754+00:00"
+}

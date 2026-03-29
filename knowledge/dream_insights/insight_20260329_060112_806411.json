@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_060112_806411",
+  "content": "The intrinsic reward signal used to rank novel exploratory states in curiosity-driven RL (ICM/RND) can be repurposed as a dynamic memory pruning heuristic for 2024-2025 SOTA active learning agents: only episodic memories that trigger high intrinsic curiosity (i.e., prediction error) are retained for future active learning query selection. This framework discards uninformative redundant memories while prioritizing surprising, high-impact experiences that maximize active learning data efficiency.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:01:12.806433+00:00"
+}

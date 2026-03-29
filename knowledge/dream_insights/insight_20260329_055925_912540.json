@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_055925_912540",
+  "content": "The difference in performance between intrinsic curiosity methods (ICM, RND) and hand-tuned curious agents can be explained by an unaddressed active memory gating mechanism: 2024-2025 SOTA active learning agent memory architectures can be repurposed to dynamically gate which unexpected state prediction errors are stored as reusable curiosity triggers, instead of encoding every prediction error as an intrinsic reward. This solves the longstanding problem of curious agents over-exploring trivial noisy states that do not contribute to long-term task learning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:59:25.912562+00:00"
+}

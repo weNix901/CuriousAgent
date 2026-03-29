@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_050415_383769",
+  "content": "Self-Refine and Reflexion can be combined to form a two-layer self-improvement hierarchy for autonomous agents: Self-Refine handles iterative polishing of individual task outputs, while Reflexion aggregates feedback across multiple iterations into long-term dynamic memory to improve general task performance over time. This turns isolated one-off output refinement into cumulative, agent-wide capability growth.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Self-Refine",
+    "Reflexion"
+  ],
+  "surprise": 0.65,
+  "novelty": 0.7,
+  "trigger_topic": "Self-Refine",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:04:15.383793+00:00"
+}

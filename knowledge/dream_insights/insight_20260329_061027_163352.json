@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061027_163352",
+  "content": "Curiosity-driven RL methods like ICM and RND can be reframed as active memory pruning systems, where intrinsic reward for unexpected states acts as a dynamic selection signal to retain only high-information unexpected memories in the 2024-2025 SOTA active agent memory pipelines. This creates a curious active memory agent that avoids the common problem of catastrophic memory bloat by only encoding and retaining states that trigger the agent's intrinsic curiosity signal.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:10:27.163376+00:00"
+}

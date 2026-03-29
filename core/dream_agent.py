@@ -117,13 +117,13 @@ class DreamAgent(BaseAgent):
         batch = []
         deadline = time.time() + self.HIGH_PRIORITY_TIMEOUT_SECONDS
         
-        while len(batch) < self.HIGH_PRIORITY_BATCH_SIZE:
+        while len(batch) < self.HIGH_PRIORITY_BATCH_SIZE and self.running:
             remaining_time = deadline - time.time()
             if remaining_time <= 0:
                 break
-            
+
             try:
-                item = self.high_priority_queue.get(timeout=min(remaining_time, 1.0))
+                item = self.high_priority_queue.get(timeout=min(remaining_time, 0.1))
                 batch.append(item)
             except queue.Empty:
                 break

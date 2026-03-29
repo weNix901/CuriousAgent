@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_044334_349632",
+  "content": "We can reframe Self-Refine’s single-perspective iterative self-feedback pipeline by integrating multiple inconsistent solving perspectives from LLM self-reflection mechanisms, creating a multi-perspective Self-Refine framework that maintains the original’s core advantage of needing no extra training or supervised data while boosting refinement quality for complex tasks like code generation and reasoning. This framework avoids the stagnation that comes from single-perspective blind spots by prompting the LLM to generate conflicting critiques of its own output each iteration, rather than only feedback aligned with its initial output frame.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Self-Refine",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.68,
+  "novelty": 0.75,
+  "trigger_topic": "Self-Refine",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:43:34.349655+00:00"
+}

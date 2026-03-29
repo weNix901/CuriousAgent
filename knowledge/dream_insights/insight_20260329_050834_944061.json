@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_050834_944061",
+  "content": "The orthographic variant spelling 'reflexion' (older British English form of 'reflection' documented in educational vocabulary materials) can be repurposed as a distinct technical term to label the emergent, out-of-distribution self-reflective states that large language models fall into when their existing self-reflection mechanisms produce inconsistent outputs across different solving perspectives, as studied in papers like Self-Contrast. This reclaimed term creates a clear conceptual boundary between structured, engineered LLM self-reflection mechanisms and the messy, unplanned reflective behaviors that existing techniques are designed to correct.",
+  "insight_type": "connection",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.9,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:08:34.944086+00:00"
+}

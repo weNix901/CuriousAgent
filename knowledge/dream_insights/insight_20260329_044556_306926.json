@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_044556_306926",
+  "content": "The orthographic variant spelling 'reflexion' (an archaic alternate form of the modern 'reflection' widely taught in high school English curricula) can act as a natural 'perturbation seed' to trigger multi-perspective LLM self-reflection. Asking an LLM to first solve a problem using the 'reflexion' spelling framing, then compare it to solutions generated under the standard 'reflection' framing, elicits the inconsistent solving perspectives that current LLM self-reflection techniques rely on to improve output quality.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:45:56.306949+00:00"
+}

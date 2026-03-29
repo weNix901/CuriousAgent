@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_042900_170603",
+  "content": "Just as the double meaning of \"reflexion\" in language education encompasses both passive reflection of existing knowledge and active metacognitive反思 (self-reflection) to revise writing, LLM self-reflection mechanisms can be redesigned to separate these two distinct modes: a \"reflexion\" mode that passively mirrors the model’s existing reasoning trajectory, and a separate \"reflection\" mode that actively critiques that trajectory from inconsistent alternative perspectives. This redefinition unlocks a new framework for improving LLM self-reflection performance.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:29:00.170626+00:00"
+}

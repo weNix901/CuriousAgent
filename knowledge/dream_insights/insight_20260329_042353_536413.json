@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_042353_536413",
+  "content": "Just as English language teaching uses explicit reflection vocabulary exercises to help students internalize the habit of reflecting on their own writing, we can design explicit vocabulary-level prompting schemas for LLM self-reflection mechanisms that frame reflection tasks around the consistent linguistic semantics of 'reflect', 'refine', and 're-evaluate' to help LLMs anchor their self-correction processes more reliably. This turns a passive linguistic entry into an active design principle for AI agent reflection.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:23:53.536434+00:00"
+}

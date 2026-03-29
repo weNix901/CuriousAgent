@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_051052_396644",
+  "content": "The spelling variant 'reflexion' (the less common British English spelling of reflection used in high school vocabulary curricula) can be framed as a natural 'self-contrast' test case for LLM self-reflection mechanisms. LLMs trained primarily on modern American English will often output the more common 'reflection' when asked to proofread text using 'reflexion', creating a low-stakes, accessible test of an LLM's ability to reflect on inconsistent outputs across different linguistic conventions.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:10:52.396666+00:00"
+}

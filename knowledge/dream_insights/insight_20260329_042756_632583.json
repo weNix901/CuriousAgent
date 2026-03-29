@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_042756_632583",
+  "content": "The linguistic double meaning of \"reflexion\" (both the physical act of light reflection and deliberate cognitive self-evaluation in high school English curricula) can be used to design more grounded LLM self-reflection mechanisms that separate the passive \"reflection\" of existing model outputs from active critical self-evaluation. This dual framing reveals that current LLM self-reflection frameworks often only implement the light-reflection sense of the term, mapping existing model biases back to outputs instead of doing the deliberate, evaluative sense of reflection that defines the Reflexion agent framework.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.8,
+  "novelty": 0.85,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:27:56.632607+00:00"
+}

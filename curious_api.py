@@ -110,6 +110,40 @@ def api_run():
             writer = AgentBehaviorWriter()
             writer.process(result["topic"], findings, quality, result.get("sources", []))
 
+        from core.curiosity_decomposer import CuriosityDecomposer
+        from core.llm_manager import LLMManager
+        from core.provider_registry import init_default_providers
+        from core import knowledge_graph as kg
+        from core.config import get_config
+
+        config = get_config()
+        llm_config = {"providers": {}, "selection_strategy": "capability"}
+        for p in config.llm_providers:
+            llm_config["providers"][p.name] = {
+                "api_url": p.api_url,
+                "timeout": p.timeout,
+                "enabled": p.enabled,
+                "models": [
+                    {"model": m.model, "weight": m.weight, "capabilities": m.capabilities, "max_tokens": m.max_tokens}
+                    for m in p.models
+                ]
+            }
+
+        llm_manager = LLMManager.get_instance(llm_config)
+        registry = init_default_providers()
+        state = kg.get_state()
+
+        decomposer = CuriosityDecomposer(
+            llm_client=llm_manager,
+            provider_registry=registry,
+            kg=state
+        )
+        try:
+            subtopics = decomposer.decompose_and_write(result["topic"])
+            print(f"[API] Decomposed '{result['topic']}' into {len(subtopics)} subtopics")
+        except Exception as e:
+            print(f"[API] Decompose failed: {e}")
+
         return jsonify({
             "status": "success",
             "topic": result["topic"],

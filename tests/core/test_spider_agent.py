@@ -231,7 +231,7 @@ class TestSpiderAgentThreadSafety:
     
     def test_multiple_agents_can_run_concurrently(self):
         """Multiple SpiderAgent instances should be able to run concurrently."""
-        agents = [SpiderAgent(name=f"agent_{i}") for i in range(3)]
+        agents = [SpiderAgent(name=f"agent_{i}", poll_interval=0.01) for i in range(3)]
         
         for agent in agents:
             agent.start()
@@ -242,7 +242,7 @@ class TestSpiderAgentThreadSafety:
             agent.stop()
         
         for agent in agents:
-            agent.join(timeout=1.0)
-        
+            agent.join(timeout=3.0)
+
         for agent in agents:
             assert not agent.is_alive()

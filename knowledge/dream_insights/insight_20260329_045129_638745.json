@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_045129_638745",
+  "content": "Just as the linguistic definition of reflexion frames it as both a physical reflection of light and a deliberate cognitive act of反思 (self-examination), LLM self-reflection mechanisms can be redesigned to separate two complementary functions: a passive 'reflection' step that mirrors the model’s existing inconsistent solving perspectives as they are, and an active 'reflexion' step that deliberately interrogates those mirrored inconsistencies to revise outputs, drawing directly on the dual meaning of the term to resolve current limitations of single-perspective reflection.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:51:29.638769+00:00"
+}

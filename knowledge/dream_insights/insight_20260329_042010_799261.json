@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_042010_799261",
+  "content": "We can frame the linguistic teaching of 'reflexion' as a core metacognitive vocabulary term to guide LLM self-reflection mechanisms, where prompting an LLM to explicitly verbalize its reflexion process using the structured layered definitions of the term (reflect, reflect on errors, re-evaluate outputs) improves the consistency of its self-correction. This turns a basic high school English vocabulary definition into a structured prompt template for LLM self-reflection.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:20:10.799285+00:00"
+}

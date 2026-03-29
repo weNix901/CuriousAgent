@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_051345_411636",
+  "content": "Just as the linguistic definition of reflexion frames it as both a passive physical process of light bouncing back (reflection) and an active deliberate cognitive practice of反思 (self-examination) in human learning, LLM self-reflection mechanisms can be split into two under-explored complementary modes: passive residual reflexion that retraces existing inference paths to surface hidden inconsistencies, and active iterative reflexion that explicitly revises reasoning like human deliberate self-examination. This split offers a new framework to design more robust LLM self-reflection systems.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:13:45.411659+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_060335_284298",
+  "content": "A novel hybrid curiosity-driven reinforcement learning agent can be constructed by dynamically selecting between intrinsic reward modules (ICM vs RND) using an active learning memory SOTA gating mechanism that only adds a new module variant to the agent's episodic memory when the agent encounters an environment state that outperforms the prediction error of all stored modules. This hybrid framework leverages the complementary strengths of ICM (which learns feature-based prediction error) and RND (which uses fixed random network prediction error) by adaptively drawing on the best-suited intrinsic reward signal from memory for each new unexplored state.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:03:35.284321+00:00"
+}

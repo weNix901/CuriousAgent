@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_051221_167100",
+  "content": "Self-Refine's coarse-grained iterative self-feedback workflow can be enhanced by integrating LLM self-reflection mechanisms' multiple inconsistent solving perspectives, creating a two-layer self-refinement framework that eliminates the need for both external training data and external test cases. This framework first generates multiple divergent initial outputs from different problem-solving perspectives, then uses Self-Refine's iterative loop to prune inconsistent flaws and converge to a higher-quality final result.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Self-Refine",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.81,
+  "trigger_topic": "Self-Refine",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:12:21.167120+00:00"
+}

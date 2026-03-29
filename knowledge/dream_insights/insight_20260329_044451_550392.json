@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_044451_550392",
+  "content": "Human language learning's explicit reflexion (reflection) vocabulary practice can inform LLM self-reflection mechanism design, where we treat each LLM self-reflection step as a targeted vocabulary-style reinforcement of correct reasoning patterns, analogous to how high school students memorize and practice the definition and usage of 'reflection' to internalize the habit of reflecting on their own writing. By training LLMs to explicitly recognize and label different types of self-reflection outputs as distinct 'reasoning vocabulary units', we can help them better internalize consistent self-correction habits across tasks.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:44:51.550414+00:00"
+}

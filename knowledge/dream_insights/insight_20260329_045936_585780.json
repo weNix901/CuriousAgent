@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_045936_585780",
+  "content": "Just as the linguistic definition of reflexion frames it as both a passive optical reflection of external stimuli and an active cognitive reexamination of experience for learning, LLM self-reflection mechanisms can be redesigned to integrate both modes: a passive 'reflection mode' that mirrors the inconsistent solving perspectives of the model itself to surface gaps, and an active 'reflexion mode' that systematically revisits those gaps to update reasoning patterns. This dual framing borrows directly from the dual semantic meaning of 'reflexion' that is already taught as foundational vocabulary in high school language learning.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:59:36.585802+00:00"
+}

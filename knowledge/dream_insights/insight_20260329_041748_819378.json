@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_041748_819378",
+  "content": "We can reframe Self-Refine as a *single-perspective starting point* to build out multi-perspective LLM self-reflection mechanisms: after an initial Self-Refine iteration converges on a polished output from the model's default perspective, we can inject alternative inconsistent solving perspectives to trigger a second round of structured reflection, rather than starting multi-perspective reflection from a messy unrefined initial output. This combined approach retains Self-Refine's core advantage of requiring no extra training or supervised data while resolving the limitation of single-perspective blind spots that plagues naive self-feedback.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Self-Refine",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.65,
+  "novelty": 0.78,
+  "trigger_topic": "Self-Refine",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:17:48.819401+00:00"
+}

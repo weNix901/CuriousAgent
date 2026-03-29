@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_044311_517969",
+  "content": "Just as the linguistic meaning of 'reflexion' is inherently tied to its dual role as both a physical term (light reflection) and a metacognitive term (critical self-reflection), LLM self-reflection mechanisms can be redesigned to leverage this dual framing: they should first 'reflect' output like a mirror bounces light, capturing inconsistent, divergent solutions from different perspectives, then 'reflect on' those outputs to refine reasoning, turning passive signal reflection into active metacognition.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:43:11.517992+00:00"
+}

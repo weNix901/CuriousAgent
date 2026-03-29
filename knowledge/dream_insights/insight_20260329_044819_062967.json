@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_044819_062967",
+  "content": "Just as language educators teach written reflection as a vocabulary and critical thinking skill to improve student learning outputs, LLM self-reflection mechanisms can be formalized into graduated, skill-based training routines that build up the model's self-reflection ability incrementally, rather than treating it as a static emergent capability. This framing turns LLM self-reflection from a niche agent architecture trick into a teachable skill aligned with how humans master reflective practice.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:48:19.062989+00:00"
+}

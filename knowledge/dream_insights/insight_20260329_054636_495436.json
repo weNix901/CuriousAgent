@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_054636_495436",
+  "content": "test insight",
+  "insight_type": "connection",
+  "source_topics": [
+    "agent_memory",
+    "test_parent"
+  ],
+  "surprise": 0.5,
+  "novelty": 0.5,
+  "trigger_topic": "agent_memory",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:46:36.495454+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_055206_759273",
+  "content": "An agent can be reframed as a recursive collective of nested micro-planning agents, where every step of a top-level agent’s goal trajectory is autonomously planned by a specialized sub-agent that only operates within that single step’s context. This nested structure lets the overall agent adapt locally to unexpected disruptions without overhauling its entire high-level plan.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent_planning",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.82,
+  "trigger_topic": "agent_planning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:52:06.759296+00:00"
+}

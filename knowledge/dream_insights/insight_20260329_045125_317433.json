@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_045125_317433",
+  "content": "Just as the lexical definition of reflexion encompasses both optical reflection of external light and internal deliberate cognitive reflection, LLM self-reflection mechanisms can be redesigned to integrate two complementary modes: \"reflecting\" to map inconsistent external feedback from task environments the way a mirror reflects light, and deliberate \"reflection\" to critique one’s own reasoning outputs. This dual framing unlocks a new structured self-reflection pipeline for LLMs that outperforms single-perspective reflection schemes.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.75,
+  "novelty": 0.8,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:51:25.317456+00:00"
+}

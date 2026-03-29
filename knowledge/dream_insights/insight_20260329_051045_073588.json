@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_051045_073588",
+  "content": "Just as the double meaning of the word 'reflexion' bridges its linguistic definition of reflection as both optical reflection and deliberate metacognitive reflection in human learning, LLM self-reflection mechanisms can be split into two complementary functional modes: a passive 'optical reflection' mode that simply mirrors inconsistent perspectives from the model’s existing outputs to highlight contradictions, and an active 'learning reflection' mode that explicitly revises reasoning based on identified contradictions. This dual split lets us build more efficient self-reflection agents that avoid unnecessary active reflection computation.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:10:45.073612+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_040217_384618",
+  "content": "Just as language learners solidify new vocabulary and correct usage through repeated explicit reflection (as taught in high school English literacy curricula that introduce 'reflexion' as a core learning practice), large language models can improve their factual accuracy and reasoning consistency by integrating graded, vocabulary-like spaced repetition of self-reflection outputs into their dynamic memory systems. This turns episodic self-reflection on incorrect outputs into durable, retrievable cognitive habits that reduce repeated reasoning errors.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.75,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:02:17.384641+00:00"
+}

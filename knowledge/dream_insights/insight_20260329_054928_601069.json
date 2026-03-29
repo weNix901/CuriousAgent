@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_054928_601069",
+  "content": "We can reframe agent planning as an iterative self-refinement process without external supervision: instead of generating a single fixed plan at initialization, an LLM-powered agent can repeatedly self-feedback on its own generated plan against the task's implicit constraints and target, adjusting it step by step to reach a better final outcome. This method inherits Self-Refine's core advantage of requiring no extra training or labeled planning supervision data.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Self-Refine",
+    "agent_planning"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.78,
+  "trigger_topic": "Self-Refine",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:49:28.601093+00:00"
+}

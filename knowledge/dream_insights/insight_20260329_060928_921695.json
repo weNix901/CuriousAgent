@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_060928_921695",
+  "content": "We can reframe the intrinsic reward gap between ICM/RND and generalized curious agents as a direct function of how much uncompressed episodic novelty an active learning agent's memory buffer retains: ICM and RND underperform compared to holistic curious agents because they discard fine-grained novel memory traces that 2024-2025 SOTA active learning memory architectures can preserve to refine intrinsic reward signals. This leads to the testable hypothesis that adding SOTA structured active memory to ICM/RND agents will close the performance gap with general curious agents in sparse reward open-ended environments.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:09:28.921719+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_041015_734854",
+  "content": "Just as human language learners use lexical reflection (the common linguistic understanding of reflexion) to internalize word usage and correct misinterpretations, LLMs can integrate this structured, vocabulary-aligned reflective step into the Self-Refine iterative feedback framework to improve structured output like technical writing or domain-specific documentation. This hybrid framework leverages reflexion’s core function of grounding meaning in learned context to fix the common Self-Refine flaw of drifting away from required domain terminology conventions.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Reflexion",
+    "Self-Refine"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:10:15.734890+00:00"
+}

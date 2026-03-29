@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061206_129928",
+  "content": "A distributed collective of curiosity-driven reinforcement learning agents can use a modified A2A protocol to dynamically offload and share episodic memory of unexplored state-space regions, turning individual curiosity bottlenecks into a collective exploration advantage. Rather than each agent tuning intrinsic reward modules (like ICM or RND) in isolation, agents can trade predictions of surprising unvisited states via the A2A protocol to shape each other's intrinsic reward landscapes.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "A2A (Agent-to-Agent) Protocol"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:12:06.129957+00:00"
+}
