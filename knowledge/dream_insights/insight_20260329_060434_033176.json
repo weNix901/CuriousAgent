@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_060434_033176",
+  "content": "State-of-the-art 2024-2025 active learning agent memory systems can be improved by adding a gated, dynamic coordination mechanism modeled on prefrontal-hippocampal interaction during memory retrieval, where the prefrontal cortex (modeled as an uncertainty-driven active learning query head) selects which episodic memory traces retrieved by the hippocampus (modeled as the agent's raw episodic memory store) are most useful for resolving current task uncertainty. This means active learning agents do not need to store all novel experiences to improve performance, they only need to selectively retrieve and query labeling for the uncertain memory traces aligned to current task goals.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "Prefrontal-hippocampal interaction during memory retrieval"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:04:34.033201+00:00"
+}

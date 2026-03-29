@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_051539_608020",
+  "content": "Just as language learners consolidate and correct implicit knowledge through deliberate written reflexion (spelled as the variant 'reflexion' taught in high school curricula) in writing workshops, large language models can improve their factual accuracy and reasoning consistency by leveraging the human pedagogical principle of iterative guided reflexion. This frames LLM self-reflection not as a novel AI-only trick, but as a computational instantiation of a well-established learning practice that humans have used for decades to refine messy, inconsistent thinking.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:15:39.608044+00:00"
+}

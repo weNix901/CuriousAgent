@@ -71,6 +71,10 @@ def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: list =
             topics[topic]["parents"] = []
         if "explains" not in topics[topic]:
             topics[topic]["explains"] = []
+        if "cites" not in topics[topic]:
+            topics[topic]["cites"] = []
+        if "cited_by" not in topics[topic]:
+            topics[topic]["cited_by"] = []
     else:
         topics[topic] = {
             "known": True,
@@ -81,7 +85,9 @@ def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: list =
             "status": "complete",
             "children": [],
             "parents": [],
-            "explains": []
+            "explains": [],
+            "cites": [],      # 论文引用：该 topic 引用了哪些其他 topic
+            "cited_by": []    # 被引用：该 topic 被哪些 topic 引用
         }
     
     # 限制节点数：保留深度最高的
@@ -102,9 +108,9 @@ def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float 
     state = _load_state()
     now = datetime.now(timezone.utc).isoformat()
     
-    # 去重：如果已存在且未完成，跳过
+    # 去重：如果队列里已存在该 topic（无论什么 status），都跳过
     for item in state["curiosity_queue"]:
-        if item["topic"].lower() == topic.lower() and item["status"] != "done":
+        if item["topic"].lower() == topic.lower():
             return
     
     score = min(10.0, relevance * 0.35 + depth * 0.25 + 5.0 * 0.4)
@@ -320,12 +326,15 @@ def mark_topic_done(topic: str, reason: str) -> None:
     _save_state(state)
 
     state = _load_state()
-    for queue_item in state.get("curiosity_queue", []):
-        if queue_item.get("status") == "exploring":
-            parent_topic = queue_item.get("topic")
-            if parent_topic and parent_topic != topic:
-                _update_parent_relation(parent_topic, topic)
-                break
+
+    parent_topic = None
+    for item in state.get("curiosity_queue", []):
+        if item.get("topic") == topic:
+            parent_topic = item.get("original_topic")
+            break
+
+    if parent_topic:
+        _update_parent_relation(parent_topic, topic)
 
     topics = state["knowledge"]["topics"]
     if topic in topics:
@@ -536,7 +545,9 @@ def add_child(parent: str, child: str) -> None:
             "children": [],
             "explored_children": [],
             "created_at": now,
-            "status": "partial"
+            "status": "partial",
+            "cites": [],
+            "cited_by": []
         }
     
     if not topics[parent].get("children"):
@@ -550,6 +561,77 @@ def add_child(parent: str, child: str) -> None:
     _save_state(state)
     
     _update_parent_relation(parent, child)
+
+
+def add_citation(citing_topic: str, cited_topic: str) -> None:
+    """
+    添加论文引用关系。
+
+    citing_topic cites cited_topic（citing_topic 引用了 cited_topic）。
+    双向写入 cites 和 cited_by 字段。
+
+    引用关系和分解关系（children/parents）是独立的：
+    - children: 分解的子领域（sub-domain/sub-concept）
+    - cites:    论文引用关系（paper citation）
+    """
+    state = _load_state()
+    topics = state["knowledge"]["topics"]
+    now = datetime.now(timezone.utc).isoformat()
+
+    # 确保 citing_topic 存在
+    if citing_topic not in topics:
+        topics[citing_topic] = {
+            "known": False,
+            "depth": 0,
+            "children": [],
+            "parents": [],
+            "explains": [],
+            "cites": [],
+            "cited_by": [],
+            "explored_children": [],
+            "cross_domain_count": 0,
+            "is_root_candidate": False,
+            "root_score": 0.0,
+            "first_observed": now,
+            "last_updated": now,
+            "status": "partial"
+        }
+
+    # 确保 cited_topic 存在
+    if cited_topic not in topics:
+        topics[cited_topic] = {
+            "known": False,
+            "depth": 0,
+            "children": [],
+            "parents": [],
+            "explains": [],
+            "cites": [],
+            "cited_by": [],
+            "explored_children": [],
+            "cross_domain_count": 0,
+            "is_root_candidate": False,
+            "root_score": 0.0,
+            "first_observed": now,
+            "last_updated": now,
+            "status": "partial"
+        }
+
+    # 写入 cites（正向：citing 指向 cited）
+    cites_list = topics[citing_topic].get("cites") or []
+    if cited_topic not in cites_list:
+        cites_list.append(cited_topic)
+        topics[citing_topic]["cites"] = cites_list
+
+    # 写入 cited_by（反向：cited 被 citing 引用）
+    cited_by_list = topics[cited_topic].get("cited_by") or []
+    if citing_topic not in cited_by_list:
+        cited_by_list.append(citing_topic)
+        topics[cited_topic]["cited_by"] = cited_by_list
+
+    topics[citing_topic]["last_updated"] = now
+    topics[cited_topic]["last_updated"] = now
+
+    _save_state(state)
 
 
 def get_children(topic: str) -> list:
@@ -821,6 +903,8 @@ def get_kg_overview() -> dict:
             "children_count": len(node.get("children", [])),
             "parents_count": len(node.get("parents", [])),
             "explains_count": len(node.get("explains", [])),
+            "cites_count": len(node.get("cites", [])),
+            "cited_by_count": len(node.get("cited_by", [])),
             "cross_domain_count": node.get("cross_domain_count", 0)
         })
 
@@ -828,6 +912,8 @@ def get_kg_overview() -> dict:
             edges.append({"from": name, "to": child, "type": "child_of"})
         for explain in node.get("explains", []):
             edges.append({"from": name, "to": explain["target"], "type": "explains"})
+        for cited in node.get("cites", []):
+            edges.append({"from": name, "to": cited, "type": "cites"})
 
     return {"nodes": nodes, "edges": edges, "total": len(nodes)}
 
@@ -1350,3 +1436,59 @@ def get_recent_explorations(within_hours: int) -> list:
             entry for entry in exploration_log
             if entry.get("timestamp", "") > cutoff_str
         ]
+
+
+def get_node_lifecycle(topic: str) -> dict:
+    """Get lifecycle information for a node (status, timestamps, etc.).
+    
+    Returns:
+        dict with: status, created_at, dreamed_at, last_consolidated, etc.
+        Returns empty dict if topic not found.
+    """
+    from core.node_lock_registry import NodeLockRegistry
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        
+        if topic not in topics:
+            return {}
+        
+        node = topics[topic]
+        return {
+            "status": node.get("status", "partial"),
+            "known": node.get("known", False),
+            "created_at": node.get("last_updated"),  # Use last_updated as proxy
+            "dreamed_at": node.get("dreamed_at"),
+            "last_consolidated": node.get("last_consolidated"),
+            "depth": node.get("depth", 0),
+        }
+
+
+def get_connection_strength(topic_a: str, topic_b: str) -> float:
+    """Get connection strength between two topics (0.0 to 1.0).
+    
+    Returns 0.0 if no direct connection exists.
+    """
+    from core.node_lock_registry import NodeLockRegistry
+    
+    with NodeLockRegistry.global_write_lock():
+        state = _load_state()
+        topics = state["knowledge"]["topics"]
+        
+        if topic_a not in topics:
+            return 0.0
+        
+        node = topics[topic_a]
+        connections = node.get("connections", {})
+        
+        if topic_b in connections:
+            return connections[topic_b].get("weight", 0.0)
+        
+        # Check reverse direction (connections are stored bidirectionally)
+        if topic_b in topics:
+            reverse_connections = topics[topic_b].get("connections", {})
+            if topic_a in reverse_connections:
+                return reverse_connections[topic_a].get("weight", 0.0)
+        
+        return 0.0

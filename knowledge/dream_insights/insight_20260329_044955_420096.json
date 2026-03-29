@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_044955_420096",
+  "content": "Just as the linguistic sense of reflexion taught in high school language curricula frames reflection as both a passive reflection of existing input and an active intentional practice of re-examining one’s own thinking to improve communication, LLM self-reflection mechanisms can be re-designed to explicitly leverage this dual core: separating passive mirroring of a model’s initial problem-solving output from active guided re-examination that mirrors how human students refine their writing through iterative self-reflection exercises.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:49:55.420119+00:00"
+}

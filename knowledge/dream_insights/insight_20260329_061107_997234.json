@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061107_997234",
+  "content": "By 2025, self-supervised world model agents can leverage meta-learned memory consolidation mechanisms to selectively prune and reweight episodic curiosity-driven exploration traces, turning raw unsupervised world experience into adaptable task-relevant memory that outperforms static curiosity bonuses.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "self-supervised world model memory agent 2025",
+    "meta-learning memory consolidation agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "self-supervised world model memory agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:11:07.997256+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_060913_588755",
+  "content": "We can frame the intrinsic reward comparison between ICM, RND, and hand-designed curious agents as an active learning problem, where the agent’s episodic memory system actively samples past exploratory trajectories to label which intrinsic reward signals generate more useful, generalizable exploration for new out-of-distribution tasks. SOTA 2024-2025 active memory architectures can dynamically weight intrinsic reward signals based on past performance, rather than fixing the reward framework pre-deployment.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:09:13.588776+00:00"
+}

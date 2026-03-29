@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_040029_871307",
+  "content": "Just as the linguistic definition of reflexion frames it as both a passive physical property (light reflection) and an active metacognitive act (learning reflection), LLM self-reflection mechanisms can be redesigned to integrate both passive and active modes: passive reflection that automatically mirrors inconsistent prior outputs (like light bouncing off a surface) and active reflection that deliberately interrogates those inconsistencies for reasoning improvement.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:00:29.871330+00:00"
+}

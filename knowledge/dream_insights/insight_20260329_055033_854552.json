@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_055033_854552",
+  "content": "Autonomous general-purpose AI agents can evolve open-ended task capabilities by embedding a Self-Refine loop that gives feedback on their own goal-setting and action planning, rather than just refining end outputs like generated code, without needing any external human supervision or pre-labeled training data. This creates a recursive self-improvement dynamic where the agent progressively sharpens both its task execution and its own understanding of what the task actually requires.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Self-Refine",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Self-Refine",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:50:33.854573+00:00"
+}

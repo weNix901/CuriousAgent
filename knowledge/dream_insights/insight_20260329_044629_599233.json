@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_044629_599233",
+  "content": "Just as human language learning explicitly frames reflection as a metacognitive vocabulary and practice to be taught in the high school classroom, current LLM self-reflection mechanisms can be improved by grounding autonomous self-reflexion as a learnable vocabulary of structured prompting templates instead of ad-hoc memory recall steps. This turns the generic ability to self-reflect into a learnable skill that LLMs can explicitly build through practice, just as human students do.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:46:29.599255+00:00"
+}

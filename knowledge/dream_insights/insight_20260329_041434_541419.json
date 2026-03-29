@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_041434_541419",
+  "content": "Both Self-Refine for LLMs and the Reflexion autonomous agent can be unified into a two-layered \"recursive self-improvement stack, where Self-Refine acts as the low-level output polishing step and Reflexion’s dynamic long-form memory acts as the high-level strategic compass for guiding what to refine across tasks. This stack can enable fully autonomous task improvement without any human supervision or external reward signals.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Self-Refine",
+    "Reflexion"
+  ],
+  "surprise": 0.7,
+  "novelty": 0.8,
+  "trigger_topic": "Self-Refine",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:14:34.541442+00:00"
+}

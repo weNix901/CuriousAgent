@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_055022_452690",
+  "content": "Language learning vocabulary reflection exercises can provide a replicable framework for training autonomous AI agents to build structured self-reflection habits. Just as learners repeatedly pause to categorize new vocabulary and correct usage misunderstandings, AI agents can be trained to regularly catalog their past decision outcomes and fix reasoning gaps through spaced reflection routines.",
+  "insight_type": "cross-pollination connection",
+  "source_topics": [
+    "Reflexion",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:50:22.452710+00:00"
+}

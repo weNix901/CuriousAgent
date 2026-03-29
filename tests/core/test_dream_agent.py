@@ -489,19 +489,23 @@ class TestDreamAgentThreadSafety:
     
     def test_multiple_agents_can_run_concurrently(self):
         """Multiple DreamAgent instances should be able to run concurrently."""
-        agents = [DreamAgent(name=f"agent_{i}") for i in range(3)]
-        
+        # Mock LLM client to avoid blocking calls
+        mock_llm = MagicMock()
+        mock_llm.chat.return_value = '{"content": "test insight", "type": "connection", "reasoning": "test", "surprise": 0.5, "novelty": 0.5, "quality": 0.6}'
+
+        agents = [DreamAgent(name=f"agent_{i}", poll_interval=0.01, llm_client=mock_llm) for i in range(3)]
+
         for agent in agents:
             agent.start()
-        
+
         time.sleep(0.1)
-        
+
         for agent in agents:
             agent.stop()
-        
+
         for agent in agents:
-            agent.join(timeout=1.0)
-        
+            agent.join(timeout=2.0)
+
         for agent in agents:
             assert not agent.is_alive()
     

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_020401_675808",
+  "content": "In curiosity-driven reinforcement learning, an agent’s intrinsic reward signal can be framed as a garbage collector for uninformative, stagnant agent states in distributed state management: the agent actively avoids previously explored low-information states the same way a distributed state manager garbage collects unused memory, freeing up state storage and computation for novel, high-curiosity regions of the environment.",
+  "insight_type": "principle",
+  "source_topics": [
+    "curiosity-driven reinforcement learning",
+    "agent state management"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "curiosity-driven reinforcement learning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T02:04:01.675830+00:00"
+}

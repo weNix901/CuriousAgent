@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_060642_945518",
+  "content": "Comparative performance gaps between intrinsic curiosity methods (ICM vs RND vs hand-designed curious agents) can be used as an active learning signal to prune and adapt the episodic memory banks of SOTA 2024-2025 active learning agents, retaining only unexpected, high-intrinsic-reward memories that drive future exploratory learning. This creates a self-reinforcing loop where the agent's own curiosity benchmarking dynamically optimizes its memory capacity.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.87,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:06:42.945542+00:00"
+}

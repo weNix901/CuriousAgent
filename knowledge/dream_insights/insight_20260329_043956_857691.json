@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_043956_857691",
+  "content": "If we map the layered English language learning definition of reflection onto LLM iterative refinement frameworks, structured guided reflection on vocabulary usage in student writing can be framed as a human-scale Self-Refine loop that improves linguistic output the same way Reflexion agents improve AI task performance.",
+  "insight_type": "connection",
+  "source_topics": [
+    "Reflexion",
+    "Self-Refine"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:39:56.857715+00:00"
+}

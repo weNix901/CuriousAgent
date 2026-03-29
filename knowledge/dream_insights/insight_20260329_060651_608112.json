@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_060651_608112",
+  "content": "The inherent working memory capacity limits that constrain agent reasoning can be turned into an adaptive active learning regularization signal: curiosity-driven exploration is only triggered to encode new episodic memory traces when the agent’s existing working memory fails to compress the current reasoning context. This creates a self-regulating memory system that prioritizes SOTA active learning efficiency by only storing high-value new memories that actually improve future reasoning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:06:51.608137+00:00"
+}

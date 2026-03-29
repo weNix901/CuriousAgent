@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_050131_038768",
+  "content": "We can reframe the original task-agnostic Self-Refine framework as a meta-structure that organizes multiple perspective-based LLM self-reflection mechanisms, turning single-path iterative self-feedback into a multi-view iterative refinement tree. Each branch of the tree corresponds to an inconsistent solving perspective from self-reflection mechanisms like Self-Contrast, and the entire framework still retains Self-Refine's core advantage of requiring no extra training or supervised data.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Self-Refine",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "Self-Refine",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:01:31.038791+00:00"
+}

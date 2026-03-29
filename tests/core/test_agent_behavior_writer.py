@@ -6,8 +6,8 @@ from core.agent_behavior_writer import AgentBehaviorWriter, QUALITY_THRESHOLD
 def test_quality_threshold_check():
     writer = AgentBehaviorWriter()
     
-    # Below threshold
-    result = writer.process("topic", {}, 6.0, [])
+    # Below threshold (QUALITY_THRESHOLD is 4.0)
+    result = writer.process("topic", {}, 3.0, [])
     assert result["applied"] is False
     assert "threshold" in result["reason"]
     

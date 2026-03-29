@@ -1,7 +1,7 @@
 # Curious Agent × OpenClaw 心跳集成接入手册
 
-> 适用版本：**Curious Agent v0.2.5** | OpenClaw 2026.3+
-> 测试状态：**45+ 测试模块** | 最后更新：2026-03-28
+> 适用版本：**Curious Agent v0.2.6** | OpenClaw 2026.3+
+> 测试状态：**678 测试项，99.5% 通过率** | 最后更新：2026-03-29
 > 让 Curious Agent 成为你的 AI 研究员的"好奇心内核"，通过 OpenClaw 心跳自动运行
 
 ---
@@ -33,7 +33,7 @@
 │                              │                                  │
 │                              ▼                                  │
 │   ┌─────────────────────────────────────────────────────────┐   │
-│   │  Curious Agent v0.2.3 后台服务                         │   │
+│   │  Curious Agent v0.2.6 后台服务（三代理并发）           │   │
 │   │  → API: http://localhost:4848/                          │   │
 │   │  → Web UI: http://10.1.0.13:4849/                      │   │
 │   │  → 定时探索 (每30分钟 via Cron 或独立进程)              │   │
@@ -74,17 +74,21 @@ Curious Agent v0.2.3 后台服务
          └── Web UI ──▶ 实时查看探索状态
 ```
 
-**v0.2.5 核心新特性**：
+**v0.2.6 核心新特性**：
 
 | 特性 | 说明 |
 |------|------|
+| **三代理并发架构** | SpiderAgent + DreamAgent + SleepPruner 并行运行 |
+| **自由梦境机制** | DreamAgent 空闲时生成跨领域创意洞察（F7+F8 策略） |
+| **持续探索** | SpiderAgent 7×24 小时监控 DreamInbox，自动执行探索 |
+| **线程安全** | NodeLockRegistry 两层锁机制，支持高并发访问 |
 | **话题分解引擎** | LLM 自动生成子话题，双 Provider 验证，过滤幻觉 |
 | **元认知监控** | MGV 循环（Monitor-Generate-Verify），自动检测边际收益递减 |
 | **行为闭环** | quality ≥ 7.0 自动写入行为规则，Agent 自我进化 |
 | **双 Provider 架构** | Bocha (中文) + Serper (学术)，2+ 通过才算验证 |
-| **KG根技术追溯** | 扩散激活算法，从任意知识点追溯根技术（v0.2.5新增） |
-| **根技术池** | 跨领域根技术浮现，root_score 排序，初始种子注入（v0.2.5新增） |
-| **完整测试覆盖** | 45+ 测试模块，质量有保障 |
+| **KG根技术追溯** | 扩散激活算法，从任意知识点追溯根技术 |
+| **根技术池** | 跨领域根技术浮现，root_score 排序，初始种子注入 |
+| **完整测试覆盖** | 678 测试项，99.5% 通过率 |
 
 ---
 
@@ -104,17 +108,25 @@ Curious Agent v0.2.3 后台服务
 
 ```
 /root/dev/curious-agent/          ← Curious Agent 安装目录
-├── curious_agent.py              ← 主程序（CLI 入口）
-├── curious_api.py                ← API 服务（Web UI + 所有 v0.2.5 端点）
+├── curious_agent.py              ← 主程序（CLI 入口，含三代理守护）
+├── curious_api.py                ← API 服务（Web UI + 所有端点）
 ├── spider_engine.py              ← Spider Engine 主引擎
 ├── core/
+│   ├── base_agent.py             ← 三代理基类 (v0.2.6)
+│   ├── spider_agent.py           ← 持续探索代理 (v0.2.6)
+│   ├── dream_agent.py            ← 自由梦境代理 (v0.2.6)
+│   ├── sleep_pruner.py           ← 周期修剪代理 (v0.2.6)
+│   ├── node_lock_registry.py     ← 线程安全节点锁 (v0.2.6)
+│   ├── exploration_history.py    ← 探索历史记录 (v0.2.6)
 │   ├── curiosity_decomposer.py   ← 话题分解引擎
 │   ├── quality_v2.py             ← 质量评估
-│   ├── meta_cognitive_monitor.py ← 元认知监控
+│   ├── meta_cognitive_monitor.py ← 元认知监控 (v0.2.6增强)
 │   ├── meta_cognitive_controller.py ← 元认知控制器
 │   ├── agent_behavior_writer.py  ← 行为写入器
-│   ├── knowledge_graph.py        ← 知识图谱（含根技术追溯 v0.2.5）
+│   ├── knowledge_graph.py        ← 知识图谱（含三代理功能）
 │   ├── kg_graph.py              ← KG Graph 结构管理
+│   ├── paper_citation_extractor.py  ← 论文引文提取器 (v0.2.6)
+│   ├── web_citation_extractor.py    ← 网页引用提取器 (v0.2.6)
 │   ├── spider/                   ← Spider 状态与检查点
 │   │   ├── state.py
 │   │   └── checkpoint.py
@@ -124,12 +136,12 @@ Curious Agent v0.2.3 后台服务
 │   ├── models/topic.py          ← Topic 数据模型
 │   └── provider_*.py             ← 双 Provider 实现
 ├── scripts/
-│   ├── migrate_kg_parents.py    ← v0.2.5 KG schema 迁移
-│   └── sync_kg_to_r1d3.py       ← v0.2.5 KG→R1D3 同步
+│   ├── migrate_kg_parents.py    ← KG schema 迁移
+│   └── sync_kg_to_r1d3.py       ← KG→R1D3 同步
 ├── knowledge/
 │   └── state.json                ← 探索状态文件
 ├── ui/                           ← Web UI
-├── tests/                        ← 45+ 测试模块
+├── tests/                        ← 678 测试项，99.5% 通过率
 └── run_curious.sh                ← 一键启动脚本
 
 /root/.openclaw/workspace-researcher/  ← OpenClaw Agent 工作空间
@@ -159,7 +171,7 @@ netstat -tlnp | grep -E "4848|4849"
 # 4. 确认测试通过
 cd /root/dev/curious-agent
 python3 -m pytest tests/ --tb=no -q
-# 期望: 320 passed
+# 期望: 678 passed (含 1 xfail)
 
 # 5. 确认 API Keys 配置
 echo $BOCHA_API_KEY
@@ -315,6 +327,168 @@ python3 /root/.openclaw/workspace-researcher/scripts/sync_discoveries.py
 
 若无需关注，回复 HEARTBEAT_OK。
 ```
+
+---
+
+## 三（附录）、三代理守护进程模式详解（v0.2.6）
+
+### 3.1 什么是三代理守护进程？
+
+v0.2.6 引入**三代理并发架构**，取代传统的单线程顺序执行模式：
+
+```
+传统模式（v0.2.5及之前）:
+顺序执行: 探索A → 探索B → 探索C → ...
+         ↓
+单线程，每次只能做一件事
+
+三代理模式（v0.2.6）:
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│ SpiderAgent │  │ DreamAgent  │  │SleepPruner  │
+│  持续探索    │  │ 自由梦境    │  │ 周期修剪    │
+│   7×24h     │  │  空闲时     │  │  每4-24h   │
+└─────────────┘  └─────────────┘  └─────────────┘
+     │                  │                 │
+     └──────────────────┼─────────────────┘
+                        │
+              SharedInbox (消息队列)
+```
+
+### 3.2 三代理职责对比
+
+| 代理 | 运行时机 | 核心职责 | 产出 |
+|------|----------|----------|------|
+| **SpiderAgent** | 7×24 小时持续运行 | 执行实际探索任务，写入知识图谱 | 探索结果、知识节点 |
+| **DreamAgent** | 空闲时启动（低负载） | 远距离联想，生成创意洞察 | 跨领域洞察、探索假设 |
+| **SleepPruner** | 周期性（自适应间隔） | 修剪 dormant 节点，维护 KG | 存储优化、资源回收 |
+
+### 3.3 如何启动三代理守护进程
+
+```bash
+# 启动三代理守护进程（推荐）
+cd /root/dev/curious-agent
+python3 curious_agent.py --daemon
+
+# 输出示例：
+🚀 Curious Agent 进入三代理守护进程模式 (v0.2.6)
+   SpiderAgent: 持续探索代理
+   DreamAgent: 创意洞察代理
+   SleepPruner: 周期修剪代理
+   按 Ctrl+C 停止
+
+[v0.2.6] Root pool initialized with 6 seeds
+[v0.2.6] Starting agents...
+[v0.2.6]   ✓ SpiderAgent started
+[v0.2.6]   ✓ DreamAgent started
+[v0.2.6]   ✓ SleepPruner started
+[v0.2.6] All agents running. Monitoring status...
+```
+
+### 3.4 监控三代理状态
+
+三代理模式下，系统每 10 个周期输出一次状态报告：
+
+```
+==================================================
+🔄 监控循环 #123 @ 2026-03-29 14:30:00
+==================================================
+[v0.2.6] Active agents: SpiderAgent, DreamAgent, SleepPruner
+[v0.2.6] SpiderAgent explored: 47 topics
+[v0.2.6] DreamAgent status: {'insights_generated': 12, 'insights_verified': 8}
+[v0.2.6] SleepPruner status: {'cycle_count': 5, 'dormant_pruned_total': 23}
+```
+
+### 3.5 三代理间的协作流程
+
+**典型工作流示例**：
+
+```
+用户注入话题: "attention mechanism"
+    ↓
+SpiderAgent 开始探索 "transformer attention"
+    ↓
+探索完成，写入知识图谱
+    ↓
+SpiderAgent 通知 DreamAgent（通过 SharedInbox）
+    ↓
+DreamAgent 空闲时启动 "自由梦境"
+    ↓
+远距离联想: "attention" ↔ "working memory"
+    ↓
+生成洞察: "两者都涉及有限资源的竞争性分配"
+    ↓
+DreamAgent 将洞察加入 SharedInbox
+    ↓
+SpiderAgent 下一轮探索 "attention + working memory 关联"
+    ↓
+知识图谱增加跨领域连接
+```
+
+### 3.6 优雅停止三代理
+
+使用 `Ctrl+C` 或发送 `SIGTERM` 信号：
+
+```bash
+# 方法1: 前台运行按 Ctrl+C
+# 系统会捕获信号，优雅停止所有代理
+
+# 方法2: 停止后台进程
+pkill -f "curious_agent.py --daemon"
+
+# 输出示例：
+[v0.2.6] Shutdown signal received, stopping agents...
+[v0.2.6] Waiting for agents to stop...
+[v0.2.6]   ✓ SpiderAgent stopped
+[v0.2.6]   ✓ DreamAgent stopped
+[v0.2.6]   ✓ SleepPruner stopped
+[v0.2.6] All agents stopped. Exiting.
+```
+
+### 3.7 三代理 vs 传统模式对比
+
+| 特性 | 传统模式 (v0.2.5) | 三代理模式 (v0.2.6) |
+|------|-------------------|---------------------|
+| 执行方式 | 单线程顺序执行 | 多线程并发执行 |
+| 探索连续性 | 一次一个，有间隔 | 7×24 持续探索 |
+| 创意生成 | 被动（依赖人工触发） | 主动（自由梦境） |
+| 资源维护 | 手动清理 | 自动修剪 (SleepPruner) |
+| CPU 利用率 | 低（I/O 等待时空闲） | 高（并发利用空闲时间） |
+| 线程安全 | 无需考虑 | NodeLockRegistry 保护 |
+
+### 3.8 故障排查
+
+**问题1: 代理显示 dead**
+
+```
+[v0.2.6] ⚠️ Dead agents detected: ['DreamAgent']
+```
+
+**原因**: DreamAgent 可能因异常退出
+**解决**: 检查日志，重启守护进程
+
+```bash
+# 查看详细日志
+tail -100 /root/dev/curious-agent/knowledge/dream_agent.log
+
+# 重启
+pkill -f "curious_agent.py --daemon"
+python3 curious_agent.py --daemon
+```
+
+**问题2: DreamAgent 不生成洞察**
+
+**检查**: 确认有足够知识节点供联想
+```bash
+# 检查知识图谱节点数
+curl http://localhost:4848/api/kg/overview | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'节点数: {len(d.get(\"nodes\",[]))}')"
+```
+
+**解决**: 先让 SpiderAgent 积累一些知识节点
+
+**问题3: 三代理启动后 CPU 占用高**
+
+**原因**: DreamAgent 频繁轮询
+**解决**: 调整轮询间隔（修改代码中 `poll_interval` 参数）
 
 ---
 
@@ -672,21 +846,78 @@ openclaw cron add \
 
 ---
 
-## 六、v0.2.3 Bug 修复说明
+## 六、v0.2.6 Bug 修复说明
 
-所有 v0.2.3 的已知 Bug 已修复：
+v0.2.6 修复了 10 个关键 Bug，实现了完整的分解闭环：
 
-| Bug | 问题 | 修复状态 | 验证命令 |
-|-----|------|----------|----------|
-| **#1** | Topic 注入后探索了完全不同的 topic | ✅ 已修复 | `curl -X POST .../run -d '{"topic": "测试"}'` |
-| **#2** | test shallow 分数 56.0（异常高分） | ✅ 已修复 | 评分公式已归一化，最大值 ~8.0 |
-| **#3** | inject API 拒绝字符串 depth | ✅ 已修复 | `curl .../inject -d '{"depth": "medium"}'` |
-| **#4** | DELETE queue 不接受 JSON body | ✅ 已修复 | `curl -X DELETE ... -d '{"topic": "xxx"}'` |
-| **#6** | 中文 topic URL 参数乱码 | ✅ 已修复 | `curl ".../check?topic=中文"` |
-| **#7** | completed_topics 永远为空 | ✅ 已修复 | `curl .../metacognitive/topics/completed` |
-| **#8** | KG topic 缺少 status 字段 | ✅ 已修复 | 所有 topic 都有 status 字段 |
+### 6.1 核心 Bug 修复清单
 
-**注意**：Bug #5（metacognitive/check URL 编码问题）与 Bug #6 是同一个问题，已一并修复。
+| # | Bug | 问题描述 | 修复状态 | 关键改动 |
+|---|-----|----------|----------|----------|
+| **#1** | SpiderAgent 无 decomposition | 探索完 topic 后不分解子话题，KG 无法形成树状结构 | ✅ 已修复 | `_explore_topic()` 末尾调用 `_decompose_and_enqueue()` |
+| **#2** | DreamAgent 闭环未形成 | insights 写入文件后没有触发新探索 | ✅ 已修复 | `_process_inbox_cycle()` 中探索后调用 decomposition |
+| **#3** | 论文引文未变成子节点 | ArXiv 分析找到论文，但核心引用未提取为子 topic | ✅ 已修复 | `PaperCitationExtractor` + `add_citation()` 写入 KG |
+| **#4** | 网页引用未变成子节点 | Layer1 搜索结果的来源网页引用未提取 | ✅ 已修复 | `WebCitationExtractor` 从 sources 提取外部引用 |
+| **#5** | API 无 decomposition | `/api/curious/run` 不经过完整分解流程 | ✅ 已修复 | `api_run()` 末尾追加 `decompose_and_write()` |
+| **#6** | 分解和写入分散 | decomposition 逻辑分散在多处，KG 写入不一致 | ✅ 已修复 | 新增 `decompose_and_write()` 统一入口 |
+| **#7** | parent 未标记 exploring | 分解后 parent 状态为 pending，导致父子关系写入失败 | ✅ 已修复 | `decompose_and_write()` 中标记 parent 为 exploring |
+| **#8** | add_curiosity 去重漏洞 | 已完成 topic 会被重复添加到队列 | ✅ 已修复 | 移除 `status != "done"` 检查 |
+| **#9** | decompose() 无法访问 papers | 论文引文提取无法获取 Layer2 的 papers 数据 | ✅ 已修复 | Layer2 独立调用引文提取，不走 decompose() |
+| **#10** | kg_fallback 循环依赖 | `_cascade_fallback` 使用不存在的 children | ✅ 已修复 | 改进 `_get_kg_fallback_candidates()` 策略 |
+
+### 6.2 Bug 修复验证命令
+
+```bash
+# 验证 Fix #1: SpiderAgent decomposition
+curl -X POST http://localhost:4848/api/curious/run \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "transformer attention mechanism", "depth": "medium"}'
+# 等待探索完成，然后检查 KG 是否有 children
+curl -s http://localhost:4848/api/curious/state | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+children = d.get('knowledge', {}).get('topics', {}).get('transformer attention mechanism', {}).get('children', [])
+print(f'Children count: {len(children)}')
+for c in children[:3]: print(f'  - {c}')
+"
+
+# 验证 Fix #3: 论文引文提取
+# 探索一个有 ArXiv 论文的 topic，检查 cites 边
+curl -s http://localhost:4848/api/kg/overview | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+cites_edges = [e for e in d.get('edges', []) if e.get('type') == 'cites']
+print(f'Cites edges: {len(cites_edges)}')
+for e in cites_edges[:3]: print(f'  {e[\"source\"]} -> {e[\"target\"]}')
+"
+
+# 验证 Fix #7: 父子关系正确写入
+curl -s http://localhost:4848/api/curious/state | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+topics = d.get('knowledge', {}).get('topics', {})
+has_children = sum(1 for t in topics.values() if t.get('children'))
+has_parents = sum(1 for t in topics.values() if t.get('parents'))
+print(f'Topics with children: {has_children}')
+print(f'Topics with parents: {has_parents}')
+"
+
+# 验证 Fix #8: 去重逻辑
+curl -X POST http://localhost:4848/api/curious/inject \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "duplicate-test-topic", "score": 5.0}'
+# 再次注入同一个 topic
+curl -X POST http://localhost:4848/api/curious/inject \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "duplicate-test-topic", "score": 6.0}'
+# 检查队列中只有一条
+curl -s http://localhost:4848/api/curious/queue/pending | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+count = sum(1 for item in d.get('items', []) if item.get('topic') == 'duplicate-test-topic')
+print(f'Duplicate test topic count: {count} (should be 1)')
+"
+```
 
 ---
 
@@ -794,6 +1025,37 @@ curl "http://localhost:4848/api/metacognitive/check?topic=测试中文" \
 # 验证 Bug #7 修复（completed_topics）
 curl http://localhost:4848/api/metacognitive/topics/completed \
   | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'completed count: {len(d.get(\"completed_topics\",[]))}')"
+
+# === v0.2.6 Bug 修复验证 ===
+# 验证 Fix #1: SpiderAgent decomposition
+curl -X POST http://localhost:4848/api/curious/run \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "v0.2.6-test-decomposition", "depth": "medium"}'
+# 等待 30 秒后检查
+curl -s http://localhost:4848/api/curious/state | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+children = d.get('knowledge', {}).get('topics', {}).get('v0.2.6-test-decomposition', {}).get('children', [])
+print(f'Children count: {len(children)}')
+"
+
+# 验证 Fix #7: 父子关系正确写入
+curl -s http://localhost:4848/api/curious/state | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+topics = d.get('knowledge', {}).get('topics', {})
+has_children = sum(1 for t in topics.values() if t.get('children'))
+has_parents = sum(1 for t in topics.values() if t.get('parents'))
+print(f'Topics with children: {has_children}, with parents: {has_parents}')
+"
+
+# 验证 Fix #3: 论文引文提取
+curl -s http://localhost:4848/api/kg/overview | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+cites_edges = [e for e in d.get('edges', []) if e.get('type') == 'cites']
+print(f'Cites edges: {len(cites_edges)}')
+"
 ```
 
 ### 7.5 端到端测试

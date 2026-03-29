@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_041909_636529",
+  "content": "Just as the linguistic definition of reflexion frames it as both a physical reflection of light and a deliberate metacognitive反思, we can reframe LLM self-reflection mechanisms to integrate both functions: a 'reflective replay' step that projects the LLM's existing output back as 'input light' to reveal logical blind spots, and a deliberate metacognitive check that aligns the output with the original problem's core requirements. This dual framing borrows the dual semantic meaning of reflexion that is taught in high school English curricula to fix a common flaw in current LLM self-reflection that only checks for errors rather than re-grounding the model in the original question context.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:19:09.636552+00:00"
+}

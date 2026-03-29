@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_050435_946703",
+  "content": "We can frame Self-Refine as the iterative step-by-step self-feedback mechanism, while Reflexion provides the structured long-term dynamic memory anchor that accumulates self-feedback insights across multiple separate tasks to avoid repeating past refinement mistakes. This creates a two-layer autonomous self-improvement system for LLMs that requires no external supervision or training at any stage.",
+  "insight_type": "connection",
+  "source_topics": [
+    "Self-Refine",
+    "Reflexion"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.78,
+  "trigger_topic": "Self-Refine",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:04:35.946726+00:00"
+}

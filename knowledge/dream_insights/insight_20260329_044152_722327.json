@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_044152_722327",
+  "content": "Just as the language education definition of reflexion frames it as a core active learning step that helps high school learners turn implicit practice into explicit mastery, LLM self-reflection can borrow this educational framing to move beyond niche technical perspective-matching approaches to become a generalized 'learning from experience' mechanism, just like it works for human students. This framing suggests that graded reflexion exercises, similar to those designed in high school writing curricula, can be used to improve LLM problem-solving performance over time.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:41:52.722351+00:00"
+}

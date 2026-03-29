@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_035951_101127",
+  "content": "Just as the English language definition of reflexion encompasses both literal light reflection and deliberate cognitive reflection on one’s own thinking, LLM self-reflection mechanisms can be designed to incorporate two complementary modes: a fast, passive \"reflection\" mode that mirrors inconsistent solving outputs like a mirror bounces light, and a slow, deliberate \"reflexion\" mode that revisits reasoning to correct errors, combining Self-Contrast’s inconsistent perspective approach with structured iterative self-critique. This dual-mode design outperforms single-perspective reflection by capturing both implicit inconsistencies and explicit gaps in reasoning.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T03:59:51.101149+00:00"
+}

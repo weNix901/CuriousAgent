@@ -8,6 +8,8 @@ from . import knowledge_graph as kg
 from .arxiv_analyzer import ArxivAnalyzer
 from .llm_client import LLMClient
 from .insight_synthesizer import InsightSynthesizer
+from .paper_citation_extractor import PaperCitationExtractor
+from .web_citation_extractor import WebCitationExtractor
 
 
 VALID_EXPLORATION_DEPTHS = {"shallow", "medium", "deep"}
@@ -54,6 +56,43 @@ class Explorer:
         except Exception:
             pass
         return []
+
+    def _call_serper_search(self, query: str, count: int = 3) -> list:
+        """调用 Serper Google Search API - Bocha 失效时的备用"""
+        serper_key = os.environ.get("SERPER_API_KEY", "5ab85d954a1d224281498b13b8d4731f05e1d562")
+        url = "https://google.serper.dev/search"
+        payload = {"q": query, "numResults": count}
+
+        try:
+            result = subprocess.run(
+                ["curl", "-s", "-X", "POST", url,
+                 "-H", f"X-API-KEY: {serper_key}",
+                 "-H", "Content-Type: application/json",
+                 "-d", json.dumps(payload)],
+                capture_output=True, text=True, timeout=15
+            )
+            data = json.loads(result.stdout)
+            if isinstance(data, dict) and "organic" in data:
+                return self._parse_serper_results(data["organic"])
+        except Exception:
+            pass
+        return []
+
+    def _parse_serper_results(self, items: list) -> list:
+        """解析 Serper Google Search 返回结果"""
+        results = []
+        for item in items[:5]:
+            if isinstance(item, dict):
+                title = item.get("title", "")
+                snippet = item.get("snippet", "")
+                link = item.get("link", "")
+                if title:
+                    results.append({
+                        "title": str(title)[:150],
+                        "snippet": str(snippet)[:400],
+                        "url": str(link)
+                    })
+        return results
 
     def _parse_bocha_results(self, items: list) -> list:
         """解析 Bocha Search 返回结果"""
@@ -138,6 +177,30 @@ class Explorer:
         all_sources.extend(l1_result["sources"])
         actions.append("layer1_search")
 
+        # === v0.2.6 Fix #4: 提取网页引用 ===
+        if l1_result.get("sources") and self.exploration_depth in ("medium", "deep"):
+            try:
+                web_extractor = WebCitationExtractor()
+                web_citations = web_extractor.extract_from_sources(topic, l1_result["sources"])
+                for citation in web_citations:
+                    name = citation.get("name", "")
+                    if not name or len(name) > 100:
+                        continue
+                    kg.add_child(topic, name)
+                    kg.add_curiosity(
+                        topic=name,
+                        reason=f"Web citation: {citation.get('reason', '')}",
+                        relevance=6.0,
+                        depth=5.0,
+                        original_topic=topic,
+                        topic_type="web_citation"
+                    )
+                if web_citations:
+                    print(f"[Explorer] Extracted {len(web_citations)} web citations for '{topic}'")
+            except Exception as e:
+                print(f"[Explorer] Web citation extraction failed: {e}")
+        # === v0.2.6 结束 ===
+
         # Layer 2: medium/deep depth
         if self.exploration_depth in ("medium", "deep"):
             arxiv_links = l1_result.get("arxiv_links", [])
@@ -167,15 +230,19 @@ class Explorer:
 
     def _layer1_search(self, topic: str) -> dict:
         """Layer 1: Web search (always runs)"""
+        # 优先 Bocha，Bocha 失效（401/403）时 fallback 到 Serper
         search_results = self._call_bocha_search(topic)
-        
+        if not search_results:
+            print(f"[Explorer] Bocha search empty, trying Serper for '{topic}'")
+            search_results = self._call_serper_search(topic)
+
         # Extract arXiv links from search results
         arxiv_links = []
         for result in search_results:
             url = result.get("url", "")
             if "arxiv.org" in url:
                 arxiv_links.append(url)
-        
+
         if search_results:
             findings = self._synthesize_web_results(topic, search_results)
             sources = [r["url"] for r in search_results if r.get("url")]
@@ -197,6 +264,31 @@ class Explorer:
         result = analyzer.analyze_papers(topic, arxiv_links)
         
         papers = result.get("papers", [])
+
+        # === v0.2.6: 提取论文引文，写入 cites 边 ===
+        if papers:
+            try:
+                extractor = PaperCitationExtractor()
+                citations = extractor.extract_all(topic, papers)
+                for c in citations:
+                    name = c.get("name", "")
+                    if not name or len(name) > 100:
+                        continue
+                    kg.add_citation(topic, name)
+                    kg.add_curiosity(
+                        topic=name,
+                        reason=f"Cited by: {topic}",
+                        relevance=7.0,
+                        depth=5.0,
+                        original_topic=topic,
+                        topic_type="citation"
+                    )
+                if citations:
+                    print(f"[Explorer] Extracted {len(citations)} citations from papers for '{topic}'")
+            except Exception as e:
+                print(f"[Explorer] Citation extraction failed: {e}")
+        # === v0.2.6 结束 ===
+
         sources = [f"https://arxiv.org/abs/{p['arxiv_id']}" for p in papers if p.get("arxiv_id")]
         
         # Build findings from paper analysis

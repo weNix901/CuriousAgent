@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_050824_975547",
+  "content": "Just as the linguistic meaning of 'reflexion' in high school English curricula explicitly ties the concept to both physical light reflection and metacognitive human self-reflection, existing LLM self-reflection mechanisms overlook the dual core of this concept: they only model the metacognitive introspection half, and ignore the 'external reflection' half that mirrors the light reflection definition, where an LLM reads its own generated outputs reflected back from external, grounded environment feedback instead of only introspecting on its internal reasoning. We can improve LLM self-reflection by adding a 'light-like reflection' step that pulls external environment signals about the agent's output as a complementary reflective perspective to internal self-evaluation.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:08:24.975571+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_045101_494400",
+  "content": "Just as human second-language learners use written reflection (the lexical sense of Reflexion from high school English curricula) to consolidate vocabulary and improve expressive writing, we can anchor LLM self-refinement to static, human-generated lexical reflection corpora to reduce unproductive random iteration in Self-Refine frameworks.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Reflexion",
+    "Self-Refine"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:51:01.494424+00:00"
+}

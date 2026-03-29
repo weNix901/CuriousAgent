@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_050052_909499",
+  "content": "Reflexion’s dynamic persistent memory acts as a \"long-term self-reflection journal\" for Self-Refine’s iterative local feedback loop, turning disconnected one-off output improvements into cumulative capability growth that accumulates across tasks rather than resetting for every new prompt. This combination solves a key unaddressed limitation of vanilla Self-Refine: it retains the framework’s core advantage of requiring no extra training or supervision while enabling long-tail improvement that compounds over time.",
+  "insight_type": "connection",
+  "source_topics": [
+    "Self-Refine",
+    "Reflexion"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "Self-Refine",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:00:52.909521+00:00"
+}

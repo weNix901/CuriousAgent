@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_055108_236517",
+  "content": "Just as the autonomous AI Reflexion agent improves its task performance by storing past failures as dynamic self-reflection memory, human second-language learners can build a structured 'error reflection agent' for vocabulary learning that actively pulls past word-use mistakes to guide targeted review instead of passive rote memorization.",
+  "insight_type": "cross-pollination connection",
+  "source_topics": [
+    "Reflexion",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:51:08.236540+00:00"
+}

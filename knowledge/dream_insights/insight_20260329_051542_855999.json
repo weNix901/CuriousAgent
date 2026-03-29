@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_051542_855999",
+  "content": "We can frame Self-Refine as a single-perspective foundational iteration framework, and integrate multiple-perspective inconsistency sampling from LLM self-reflection mechanisms to build a hierarchical self-refinement system: first generate multiple inconsistent candidate outputs from different solving perspectives, then let Self-Refine iteratively refine each candidate and cross-evaluate across perspectives to reach a better final output, without requiring any additional training, supervision or external test cases. This hybrid system solves the key limitation of vanilla Self-Refine of getting stuck in local optima from its single self-feedback perspective.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Self-Refine",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.8,
+  "trigger_topic": "Self-Refine",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:15:42.856021+00:00"
+}

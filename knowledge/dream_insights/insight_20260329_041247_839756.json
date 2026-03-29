@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_041247_839756",
+  "content": "Just as English language learners deepen their comprehension of vocabulary like 'reflection' through repeated active usage and metacognitive review of their own writing, large language models can improve their self-reflection mechanisms by incorporating spaced, explicit vocabulary-like rehearsal of correct reasoning patterns stored in dynamic memory, rather than only generating contrastive perspectives on single problems.",
+  "insight_type": "analogy",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.8,
+  "novelty": 0.85,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:12:47.839779+00:00"
+}

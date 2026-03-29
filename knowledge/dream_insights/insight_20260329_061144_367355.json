@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061144_367355",
+  "content": "The 2024-2025 generation of state-of-the-art active learning agent memory systems can be repurposed to fix a core flaw of curiosity-driven reinforcement learning methods like ICM and RND: unproductive 'novelty chasing' in unstructured open environments. This insight frames the active memory system not just as a storage tool, but as a dynamic 'curiosity curator' that filters novel observations to prioritize only those that advance long-horizon task learning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "curiosity driven reinforcement learning ICM RND compared to curious agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:11:44.367378+00:00"
+}

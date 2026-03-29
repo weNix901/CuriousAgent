@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_050546_414520",
+  "content": "Just as the double meaning of 'reflexion' as both optical reflection and human deliberate self-reflection frames how we think about metacognition, LLM self-reflection mechanisms can draw a new lesson from this duality: we can split LLM self-reflection into two sequential stages: first, an automatic 'optical reflection' stage that mirrors all inconsistent outputs from different solving perspectives back to the model, then a deliberate 'cognitive reflection' stage that evaluates these inconsistencies to refine responses. This split addresses current limitations of single-perspective self-reflection by systematically surfacing blind spots.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:05:46.414546+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_043947_169831",
+  "content": "Just as the linguistic meaning of \"reflexion\" evolved from the physical concept of light bouncing back to the cognitive concept of deliberate introspective reflection in human learning, LLM self-reflection mechanisms can evolve beyond a single step of error feedback to adopt the layered, context-dependent reflective routine that humans use for learning formal skills like academic writing in language classrooms. This frames LLM self-reflection improvement not as a search for new architecture tricks, but as an adoption of the staged reflective habits that have long been taught to human learners.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:39:47.169853+00:00"
+}

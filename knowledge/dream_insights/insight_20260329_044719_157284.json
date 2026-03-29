@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_044719_157284",
+  "content": "The double meaning of the word 'reflexion' that bridges general linguistic learning of 'reflection as a metacognitive skill' and specialized LLM agent research of 'reflexion as a self-improvement mechanism' reveals that graded metacognitive reflection training, which is the core of high school language learning, can be borrowed to design hierarchical self-reflection fine-tuning frameworks for large language models. Just as language learners progress from basic reflecting on word usage to reflecting on full argument structure, LLMs can be trained to gradually increase the depth of their self-reflection from error correction on individual output tokens to critical rethinking of full problem-solving strategies.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:47:19.157310+00:00"
+}

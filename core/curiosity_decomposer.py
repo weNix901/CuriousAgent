@@ -79,7 +79,7 @@ class CuriosityDecomposer:
         if verified:
             return verified
         
-        kg_candidates = self._get_kg_children(topic)
+        kg_candidates = self._get_kg_fallback_candidates(topic)
         if kg_candidates:
             return [{"sub_topic": c, "verified": True, "source": "kg_fallback"} for c in kg_candidates]
         
@@ -99,6 +99,58 @@ class CuriosityDecomposer:
             return self.kg.get("topics", {}).get(topic, {}).get("children", [])
         except (AttributeError, TypeError):
             return []
+
+    def _get_kg_fallback_candidates(self, topic: str) -> list[str]:
+        """
+        获取 KG 中的备选 candidates。
+
+        策略（按优先级）：
+        1. 使用该 topic 的 children（如果存在）
+        2. 使用该 topic 的 parents 的其他 children（兄弟姐妹）
+        3. 使用与该 topic 有 citation 关系的 topics
+
+        Fix #10: 修复原来的逻辑只使用 children，导致新 topic 无法触发 fallback。
+        """
+        candidates = []
+
+        # 1. 尝试获取该 topic 的 children
+        try:
+            children = self.kg.get("topics", {}).get(topic, {}).get("children", [])
+            candidates.extend(children)
+        except (AttributeError, TypeError):
+            pass
+
+        if candidates:
+            return candidates
+
+        # 2. 尝试获取 parents 的其他 children（兄弟姐妹）
+        try:
+            topic_data = self.kg.get("topics", {}).get(topic, {})
+            parents = topic_data.get("parents", [])
+            for parent in parents:
+                parent_data = self.kg.get("topics", {}).get(parent, {})
+                siblings = parent_data.get("children", [])
+                for sibling in siblings:
+                    if sibling != topic and sibling not in candidates:
+                        candidates.append(sibling)
+        except (AttributeError, TypeError):
+            pass
+
+        if candidates:
+            return candidates
+
+        # 3. 尝试获取 citation 相关的 topics
+        try:
+            topic_data = self.kg.get("topics", {}).get(topic, {})
+            cites = topic_data.get("cites", [])
+            cited_by = topic_data.get("cited_by", [])
+            for t in cites + cited_by:
+                if t not in candidates:
+                    candidates.append(t)
+        except (AttributeError, TypeError):
+            pass
+
+        return candidates
     
     async def _llm_generate_candidates(self, topic: str, style: str = "default") -> list[str]:
         """Step 1: Use LLM to generate candidate sub-topics"""
@@ -296,5 +348,53 @@ class CuriosityDecomposer:
             item["kg_confirmed"] = candidate in kg_children
             item["source"] = "llm+kg" if item["kg_confirmed"] else "llm_only"
             item["relation"] = "component"
-        
+
         return verified
+
+    def decompose_and_write(self, topic: str) -> list[dict]:
+        """decompose + write to KG unified entry."""
+        import asyncio
+        import threading
+
+        try:
+            asyncio.get_running_loop()
+            result_holder = []
+
+            def _run_in_thread():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    result_holder.append(loop.run_until_complete(self.decompose(topic)))
+                finally:
+                    loop.close()
+
+            t = threading.Thread(target=_run_in_thread)
+            t.start()
+            t.join()
+            subtopics = result_holder[0] if result_holder else []
+
+        except RuntimeError:
+            subtopics = asyncio.run(self.decompose(topic))
+
+        if not subtopics:
+            return []
+
+        from core import knowledge_graph as kg
+        kg.update_curiosity_status(topic, "exploring")
+
+        for sibling in subtopics:
+            s_topic = sibling["sub_topic"]
+            s_strength = sibling.get("signal_strength", "unknown")
+            s_relevance = 7.0 if s_strength == "strong" else (6.0 if s_strength == "medium" else 5.0)
+            s_depth = 6.0 if s_strength == "strong" else (5.5 if s_strength == "medium" else 5.0)
+
+            kg.add_child(topic, s_topic)
+            kg.add_curiosity(
+                topic=s_topic,
+                reason=f"Decomposed from: {topic}",
+                relevance=float(s_relevance),
+                depth=float(s_depth),
+                original_topic=topic
+            )
+
+        return subtopics

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_040722_092579",
+  "content": "The orthographic variation 'reflexion' (the older English spelling of reflection, taught in high school language curricula) can be framed as a minor inconsistent solving perspective for LLM self-reflection mechanisms, enabling lightweight self-contrast to improve reflection quality. Small orthographic perturbations to LLM reflection prompts that use the original 'reflexion' spelling instead of the common 'reflection' spelling can push an LLM to generate a second distinct reasoning path, without requiring complex multi-perspective prompt engineering.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Reflexion",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:07:22.092602+00:00"
+}

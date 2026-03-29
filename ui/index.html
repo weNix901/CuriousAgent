@@ -465,6 +465,7 @@
             <input type="range" id="ctrl-strength" min="0" max="1" value="0.35" step="0.05">
           </div>
           <label class="ctrl-check"><input type="checkbox" id="ctrl-show-decomp" checked onchange="toggleLinkType()">分解关系</label>
+          <label class="ctrl-check"><input type="checkbox" id="ctrl-show-cites" checked onchange="toggleLinkType()">论文引用</label>
           <label class="ctrl-check"><input type="checkbox" id="ctrl-show-semantic" checked onchange="toggleLinkType()">语义相似</label>
           <label class="ctrl-check"><input type="checkbox" id="ctrl-show-labels" checked onchange="toggleLabels()">节点标签</label>
           <button class="btn-reset" onclick="resetGraphLayout()">⟳ 重置布局</button>
@@ -475,6 +476,7 @@
 <div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>红色 = 低质量 (Q<5)</div>
 <div class="legend-item"><div class="legend-dot" style="background:#8b949e"></div>灰色 = 待探索（无质量）</div>
 <div class="legend-item"><div class="legend-dot" style="background:#58a6ff; width:14px; height:3px; border-radius:0;"></div>蓝实线 = 分解关系</div>
+<div class="legend-item"><div class="legend-dot" style="background:#e040fb; width:14px; height:3px; border-radius:0; border-top: 3px dashed #e040fb;"></div>紫点线 = 论文引用</div>
 <div class="legend-item"><div class="legend-dot" style="background:#8b949e; width:14px; height:2px; border-radius:0; border-top: 2px dashed #8b949e;"></div>灰虚线 = 语义相似</div>
 </div>
       </div>
@@ -624,6 +626,7 @@ function buildGraphData() {
   var links=[],seen={};
   
   // Add real parent-child decomposition links from children field
+  // Add decomposition edges
   for(var parent in topics){
     var children=(topics[parent]&&topics[parent].children)||[];
     for(var i=0;i<children.length;i++){
@@ -631,6 +634,19 @@ function buildGraphData() {
       if(topics[child]){
         links.push({source:parent,target:child,type:'decomposition'});
         seen[[parent,child].sort().join('|')]=true;
+      }
+    }
+  }
+
+  // Add citation edges (cites)
+  for(var citing in topics){
+    var cites=(topics[citing]&&topics[citing].cites)||[];
+    for(var i=0;i<cites.length;i++){
+      var cited=cites[i];
+      var key=[citing,cited].sort().join('|');
+      if(!seen[key] && topics[cited]){
+        links.push({source:citing,target:cited,type:'cites'});
+        seen[key]=true;
       }
     }
   }
@@ -684,9 +700,21 @@ function renderGraph() {
   var g=svg.append('g');
   svg.call(d3.zoom().scaleExtent([0.2,4]).on('zoom',function(e){g.attr('transform',e.transform);}));
   var link=g.append('g').selectAll('line').data(data.links).enter().append('line').attr('class','graph-link')
-    .attr('stroke', function(d) { return d.type === 'decomposition' ? '#58a6ff' : '#8b949e'; })
-    .attr('stroke-width', function(d) { return d.type === 'decomposition' ? 4 : 2; })
-    .attr('stroke-dasharray', function(d) { return d.type === 'semantic' ? '5,5' : '0'; })
+    .attr('stroke', function(d) {
+      if (d.type === 'decomposition') return '#58a6ff';
+      if (d.type === 'cites') return '#e040fb';  // 紫色：引用关系
+      return '#8b949e';
+    })
+    .attr('stroke-width', function(d) {
+      if (d.type === 'decomposition') return 4;
+      if (d.type === 'cites') return 3;
+      return 2;
+    })
+    .attr('stroke-dasharray', function(d) {
+      if (d.type === 'cites') return '8,4';  // 紫色点划线：引用
+      if (d.type === 'semantic') return '5,5';
+      return '0';
+    })
     .attr('stroke-opacity', 0.7);
   var nodeSel=g.append('g').selectAll('.graph-node').data(data.nodes).enter().append('g').attr('class','graph-node')
     .call(d3.drag().on('start',function(e,d){if(!e.active)_g.sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
@@ -749,9 +777,11 @@ function resetGraphLayout() {
 function toggleLinkType() {
   if(!_g.link) return;
   var showDecomp = document.getElementById('ctrl-show-decomp').checked;
+  var showCites = document.getElementById('ctrl-show-cites').checked;
   var showSem = document.getElementById('ctrl-show-semantic').checked;
   _g.link.attr('display', function(d) {
     if(d.type==='decomposition' && !showDecomp) return 'none';
+    if(d.type==='cites' && !showCites) return 'none';
     if(d.type==='semantic' && !showSem) return 'none';
     return null;
   });

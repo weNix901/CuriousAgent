@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061139_004837",
+  "content": "State-of-the-art 2024-2025 active learning agent memory systems can be augmented by repurposing the intrinsic reward signals from curiosity-driven RL methods (ICM/RND) to prioritize which new experiences the agent encodes into long-term episodic memory, rather than using traditional uncertainty-based acquisition alone. This creates a self-reinforcing cycle where agents actively seek out surprising, unpredicted experiences to add to memory, which in turn improves their future planning and predictive accuracy.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "curiosity driven reinforcement learning ICM RND compared to curious agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:11:39.004863+00:00"
+}

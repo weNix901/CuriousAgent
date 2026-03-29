@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_044602_469031",
+  "content": "We can reframe the task-agnostic Self-Refine framework as a meta-structure to unify fragmented LLM self-reflection mechanisms, where each distinct self-reflection perspective (such as the inconsistent solving perspective from Self-Contrast) becomes an iterative feedback step for refining the LLM's output instead of a standalone correction tool. This creates a cascaded multi-perspective self-refinement system that retains Self-Refine's core advantage of requiring no extra training or supervised data.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Self-Refine",
+    "LLM self-reflection mechanisms"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "Self-Refine",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:46:02.469054+00:00"
+}

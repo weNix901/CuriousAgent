@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_040927_947441",
+  "content": "When teaching English vocabulary such as 'reflexion', we can embed the LLM Self-Refine iterative feedback framework to let students iteratively refine their own understanding of the word's contextual connotations beyond basic dictionary definitions. This turns a passive vocabulary memorization task into an active autonomous reflective learning process.",
+  "insight_type": "connection",
+  "source_topics": [
+    "Reflexion",
+    "Self-Refine"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T04:09:27.947465+00:00"
+}

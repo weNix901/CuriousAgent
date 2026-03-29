@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_054836_650028",
+  "content": "Just as human language learners build stronger long-term retention by intentional reflection on writing errors, autonomous AI agents can leverage structured reflexion to refine their decision-making memory over repeated tasks, turning trial-and-error outputs into actionable performance improvements. This frames reflexion not as a passive side feature of agents, but as an active, learnable skill that can be adapted from how humans teach reflective learning in language classrooms.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Reflexion",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T05:48:36.650055+00:00"
+}

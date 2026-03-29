@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_060802_507094",
+  "content": "State-of-the-art 2024-2025 active learning agent memory architectures can be re-purposed to solve the core limitation of curiosity-driven reinforcement learning methods (ICM/RND): catastrophic forgetting of previously explored surprising states. By tiering episodic memory of unexpected observations into the active learning agent's dynamic retention/pruning framework, we can preserve useful exploration signal without saturating the agent's memory buffer with trivial novel noise.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "curiosity driven reinforcement learning ICM RND compared to curious agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:08:02.507117+00:00"
+}

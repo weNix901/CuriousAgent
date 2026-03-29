@@ -55,6 +55,69 @@ def _explore_in_thread(topic: str, score: float, depth: float):
             knowledge_graph=None
         )
         add_exploration_result(topic, result, quality)
+        # ===== Decomposition（与 curious_agent.py run_one_cycle 同步） =====
+        try:
+            from core.curiosity_decomposer import CuriosityDecomposer
+            from core.llm_manager import LLMManager
+            from core.provider_registry import init_default_providers
+            from core import knowledge_graph as kg_module
+            from core.config import get_config
+
+            config = get_config()
+            llm_config_async = {"providers": {}, "selection_strategy": "capability"}
+            for p in config.llm_providers:
+                llm_config_async["providers"][p.name] = {
+                    "api_url": p.api_url,
+                    "timeout": p.timeout,
+                    "enabled": p.enabled,
+                    "models": [
+                        {"model": m.model, "weight": m.weight, "capabilities": m.capabilities, "max_tokens": m.max_tokens}
+                        for m in p.models
+                    ]
+                }
+            llm_manager_async = LLMManager.get_instance(llm_config_async)
+            registry_async = init_default_providers()
+            state_async = kg_module.get_state()
+
+            decomposer_async = CuriosityDecomposer(
+                llm_client=llm_manager_async,
+                provider_registry=registry_async,
+                kg=state_async
+            )
+
+            import asyncio
+            subtopics_async = asyncio.run(decomposer_async.decompose(topic))
+
+            if subtopics_async:
+                subtopics_sorted_async = sorted(
+                    subtopics_async,
+                    key=lambda x: (x.get("signal_strength") != "strong", -x.get("total_count", 0))
+                )
+                best_async = subtopics_sorted_async[0]
+                explore_topic_async = best_async["sub_topic"]
+                kg_module.add_child(topic, explore_topic_async)
+
+                for sibling in subtopics_sorted_async[1:]:
+                    s_topic_async = sibling["sub_topic"]
+                    s_strength_async = sibling.get("signal_strength", "unknown")
+                    s_relevance_async = 7.0 if s_strength_async == "strong" else (6.0 if s_strength_async == "medium" else 5.0)
+                    s_depth_async = 6.0 if s_strength_async == "strong" else (5.5 if s_strength_async == "medium" else 5.0)
+                    kg_module.add_child(topic, s_topic_async)
+                    kg_module.add_curiosity(
+                        topic=s_topic_async,
+                        reason=f"Sibling of: {topic}",
+                        relevance=float(s_relevance_async),
+                        depth=float(s_depth_async),
+                        original_topic=topic
+                    )
+                logger.info(f"[T-10] Decomposed '{topic}' into {len(subtopics_async)} subtopics")
+            else:
+                logger.info(f"[T-10] No subtopics for '{topic}'")
+
+        except Exception as e_decomp:
+            logger.error(f"[T-10] Decomposition failed for '{topic}': {e_decomp}")
+        # ===== Decomposition 结束 =====
+
         update_curiosity_status(topic, "done")
         logger.info(f"[T-10] Async exploration completed for {topic}, quality={quality}")
     except Exception as e:

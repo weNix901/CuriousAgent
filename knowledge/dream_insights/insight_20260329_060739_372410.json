@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_060739_372410",
+  "content": "State-of-the-art 2024-2025 active learning agent memory systems can be structured to dynamically rank and retain only the most curiosity-triggering exploration trajectories, filtered by the intrinsic reward signals from ICM (Intrinsic Curiosity Module) and RND (Random Network Distillation), eliminating the scaling bottleneck of uncurated episodic memory that plagues current large agent models. This framework also leverages the differing uncertainty estimation properties of ICM and RND to adaptively adjust memory pruning thresholds as the agent gains more environmental experience.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "curiosity driven reinforcement learning ICM RND compared to curious agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:07:39.372435+00:00"
+}
