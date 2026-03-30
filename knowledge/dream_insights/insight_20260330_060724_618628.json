@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_060724_618628",
+  "content": "By embedding the 2025 configurable Intrinsic Curiosity Module (ICM) into a distributed Sales Prospecting AI Agent Team, the agent team can autonomously uncover high-value hidden prospect segments that would never be found through rule-based predefined search workflows, driven by intrinsic curiosity instead of explicit labeled lead data. This curiosity-driven prospecting framework redefines outbound sales scalability by turning passive lead qualification into active exploration of untapped market niches.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Sales Prospecting AI Agent Team",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "Sales Prospecting AI Agent Team",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T06:07:24.618653+00:00"
+}

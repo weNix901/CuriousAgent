@@ -49,7 +49,7 @@ def get_state() -> dict:
     return _load_state()
 
 
-def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: list = None) -> None:
+def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: list = None, quality: float = None) -> None:
     """标记某个 topic 为已知，并更新/创建知识节点"""
     state = _load_state()
     topics = state["knowledge"]["topics"]
@@ -64,6 +64,10 @@ def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: list =
         if sources:
             topics[topic]["sources"] = list(set(topics[topic].get("sources", []) + sources))
         topics[topic]["status"] = "complete"
+        if quality is not None:
+            topics[topic]["quality"] = quality
+        elif "quality" not in topics[topic]:
+            topics[topic]["quality"] = 0
         # Ensure new fields exist for existing topics
         if "children" not in topics[topic]:
             topics[topic]["children"] = []
@@ -83,11 +87,12 @@ def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: list =
             "summary": summary,
             "sources": sources or [],
             "status": "complete",
+            "quality": quality if quality is not None else 0,
             "children": [],
             "parents": [],
             "explains": [],
-            "cites": [],      # 论文引用：该 topic 引用了哪些其他 topic
-            "cited_by": []    # 被引用：该 topic 被哪些 topic 引用
+            "cites": [],
+            "cited_by": []
         }
     
     # 限制节点数：保留深度最高的

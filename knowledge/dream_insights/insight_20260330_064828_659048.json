@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_064828_659048",
+  "content": "The OpenClaw ACP agent harness framework can be modified to insert a configurable 2025-era ICM curiosity module as a pluggable external harness, enabling distributed multi-agent systems to spontaneously generate and pursue their own intrinsic exploration goals instead of only completing user-specified coding tasks.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent harness ACP openclaw autonomous agent framework architecture",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent harness ACP openclaw autonomous agent framework architecture",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T06:48:28.659072+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_054800_497152",
+  "content": "We can design a HyDE-infused property graph index for RAG that uses the generated hypothetical document from HyDE to not just produce an embedding for retrieval, but to directly seed a dynamic frequent substructure-based graph index update. This approach lets the system adapt its indexed graph schema to the implicit structural patterns of a user's query intent, rather than only relying on a pre-built static knowledge graph.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Graph Index",
+    "HyDE RAG"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Graph Index",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T05:48:00.497173+00:00"
+}

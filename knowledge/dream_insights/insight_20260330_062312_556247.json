@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_062312_556247",
+  "content": "An end-to-end autonomous B2B sales pipeline can be built by chaining a network of specialized Sales Prospecting AI Agents via the open A2A protocol, where each agent handles a discrete prospecting task and handoffs qualified leads seamlessly without human sales rep intervention. A leading indicator of conversion rate for this pipeline is the degree of contextual information preserved between agent handoffs via standardized A2A messaging, rather than the standalone accuracy of any single agent's lead qualification model.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Sales Prospecting AI Agent",
+    "multi-agent collaboration protocols A2A"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Sales Prospecting AI Agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T06:23:12.556269+00:00"
+}
