@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_211918_750936",
+  "content": "We can reframe the ICM curiosity mechanism’s search for novel unexplored environment states as an abnormality detection problem on the graph of an agent’s interaction trajectory, leveraging GNN’s inherent low-pass filtering bias to highlight novel out-of-distribution states as high-frequency abnormalities that trigger intrinsic reward. This replaces ICM’s traditional prediction error-based novelty calculation with a graph-native signal processing approach that scales better for large, connected interaction graphs.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "graph neural networks (Chai et al., 2022)",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "graph neural networks (Chai et al., 2022)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T21:19:18.750959+00:00"
+}

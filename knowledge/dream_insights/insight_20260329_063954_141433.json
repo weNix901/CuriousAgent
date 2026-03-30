@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063954_141433",
+  "content": "Curiosity-driven autonomous agents can leverage adaptive memory compression that prioritizes retention of unexpected, curiosity-triggering experiences over routine mundane observations, creating a self-reinforcing cycle that improves long-term task performance. This compression framework automatically prunes low-curiosity routine memory to make space for exploring new high-reward unknowns, aligning memory capacity with the agent's intrinsic motivation.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "[Memory compression and summarization for long-term retention]"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:39:54.141455+00:00"
+}

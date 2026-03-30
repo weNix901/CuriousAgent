@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062910_802668",
+  "content": "ICM (Intrinsic Curiosity Module) curiosity mechanisms can be repurposed to dynamically expand an AI agent's effective working memory capacity for reasoning by prioritizing retention of high-surprise, context-critical information instead of equally weighting all incoming tokens. This approach intentionally limits working memory to only high-curiosity signals, avoiding the performance collapse that comes from exceeding fixed hardware capacity limits.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:29:10.802689+00:00"
+}

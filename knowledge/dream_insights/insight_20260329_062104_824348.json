@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062104_824348",
+  "content": "We can reframe a general-purpose interactive agent as a living online meta-learning system where its cumulative, distributed memory consolidation specifically evolves to mitigate 'catastrophic forgetting of behavioral priors'—that is, the loss of well-learned reward-modulated action patterns when the agent adapts to new out-of-distribution environments. This framework treats curiosity-driven exploration (a core capability of most interactive agents) as a natural built-in regularization mechanism that improves memory consolidation for online meta-learning, rather than just a tool for better exploration.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Online meta-learning memory consolidation with catastrophic forgetting mitigation",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Online meta-learning memory consolidation with catastrophic forgetting mitigation",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:21:04.824371+00:00"
+}

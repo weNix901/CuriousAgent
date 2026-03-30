@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_184055_068959",
+  "content": "ICM curiosity-driven exploration in 2025 autonomous agents can be adapted to actively chunk dispersed low-level sensory or textual observations into consolidated high-level knowledge chunks before they enter an agent's working memory, offsetting the 3–5 chunk capacity limit that restricts reasoning. This reframes working memory constraint not as a fixed structural flaw to be scaled away, but as a drive that shapes how curiosity prioritizes what to encode for complex problem-solving.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T18:40:55.068982+00:00"
+}

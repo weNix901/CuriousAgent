@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070517_930989",
+  "content": "We can reframe the intrinsic curiosity module's (ICM) prediction error intrinsic reward signal as an uncertainty scoring metric to guide memory sample selection for deep active agents, creating a curiosity-driven active learning loop that only retains high-uncertainty, reward-dense experiences for future policy updates. This combined system automatically prunes low-information trivial experiences while prioritizing the surprising, unpredicted states that drive both faster exploration and more efficient memory usage.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Intrinsic Curiosity Module",
+    "Uncertainty-based memory sample selection for deep active agents"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "Intrinsic Curiosity Module",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:05:17.931015+00:00"
+}

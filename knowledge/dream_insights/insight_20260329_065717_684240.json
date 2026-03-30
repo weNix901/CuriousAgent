@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065717_684240",
+  "content": "The intrinsic curiosity drive of ICM-equipped autonomous agents can be repurposed to actively curate the long-term memory of state-of-the-art 2024-2025 active learning agents, automatically prioritizing encoding unexpected, high-learning-gain experiences over redundant, low-value ones that bloat working memory. This memory curation mechanism replaces static fixed-capacity retention rules with a dynamic, self-regulated system aligned to the agent’s ongoing learning goals.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:57:17.684263+00:00"
+}

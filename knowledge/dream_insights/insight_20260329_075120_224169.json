@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_075120_224169",
+  "content": "Hierarchical task planning can be repurposed as a structural framework for assembling agent-orchestrated answering ensembles, where high-level planners decompose a complex query into sub-questions that are routed to specialized answering agents at each layer of the hierarchy, rather than uniformly pooling all agent responses at once. This layered, task-decomposed ensemble approach outperforms flat answer pooling by matching question complexity to agent capability at each hierarchical level.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Hierarchical task planning for agents",
+    "Agent-Orchestrated Answering Ensembles"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.85,
+  "trigger_topic": "Hierarchical task planning for agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:51:20.224185+00:00"
+}

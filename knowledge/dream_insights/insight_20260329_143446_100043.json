@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_143446_100043",
+  "content": "A specialized multi-agent AI sales prospecting team can improve lead qualification accuracy and outreach relevance by adopting a triple hybrid retrieval framework, where each dedicated agent aligns with one of the three retrieval modalities to surface high-intent prospects missed by single-modality search. This division of labor mirrors the strengths of each retrieval technique, turning a unified search framework into a structured prospecting workflow.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Sales Prospecting AI Agent Team",
+    "Triple Hybrid Retrieval"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Sales Prospecting AI Agent Team",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T14:34:46.100065+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062931_337240",
+  "content": "By 2025, autonomous self-supervised agents will evolve to treat their own stored long-term memory modules as an unsupervised 'environment' for continuous curiosity-driven self-improvement, instead of only using external interaction data to train new skills. This turns the agent’s own existing memory into a never-ending source of self-supervised training data that requires no new external inputs.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "autonomous agent self-supervised learning 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.87,
+  "trigger_topic": "autonomous agent self-supervised learning 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:29:31.337263+00:00"
+}

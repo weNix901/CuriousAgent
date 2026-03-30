@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070213_499965",
+  "content": "By 2025, autonomous self-supervised agents will evolve a tiered 'curiosity filtering' mechanism that uses world model memory discrepancies to prioritize high-value self-supervised learning tasks, rather than exploring randomly. This mechanism only directs the agent's intrinsic curiosity toward unknown gaps that the agent's current self-supervised world model predicts would produce generalizable skill improvements, rather than all unobserved states.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "autonomous agent self-supervised learning 2025",
+    "self-supervised world model memory agent 2025"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "autonomous agent self-supervised learning 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:02:13.499988+00:00"
+}

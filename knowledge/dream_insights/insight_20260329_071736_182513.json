@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071736_182513",
+  "content": "Curiosity-driven autonomous agents can gate which episodic memory tokens are retained in working memory via attention-weighted retention, where high-attention memory traces from unexpected episodic events are prioritized for long-term working retention over low-curiosity, familiar events. This creates a dynamically bounded working memory that automatically expands capacity for high-information episodes while pruning redundant low-value content.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Transformer attention mechanism for episodic memory",
+    "Working memory retention gating mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Transformer attention mechanism for episodic memory",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:17:36.182541+00:00"
+}

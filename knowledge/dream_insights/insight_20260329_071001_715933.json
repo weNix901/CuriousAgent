@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071001_715933",
+  "content": "A curiosity-pruned hybrid active learning memory tier can be built on top of a self-supervised world model, where the hybrid planner uses intrinsic curiosity signals from reinforcement learning to selectively gate only high-uncertainty, high-outcome world model state representations into the agent’s long-term active memory. This gated memory architecture automatically balances world model generalization from self-supervision with the planning efficiency needs of downstream active task learning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Hybrid Planning and Learning System",
+    "self-supervised world model memory agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Hybrid Planning and Learning System",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:10:01.715956+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070731_538698",
+  "content": "2024-2025 SOTA active learning agent memory systems can be reframed as hierarchical curiosity filters, where long-term memory stores only high-curiosity unresolved environmental patterns that outrank low-information trivial memories in retrieval priority, similar to how a core agent's intrinsic reward signal prioritizes exploration of unknown over familiar states.",
+  "insight_type": "principle",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:07:31.538719+00:00"
+}

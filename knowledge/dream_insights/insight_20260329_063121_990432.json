@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063121_990432",
+  "content": "Comparative studies of intrinsic curiosity mechanisms (ICM vs RND) can be reframed as a testbed for measuring how much an agent’s own emergent self-representation shapes its exploratory behavior: different curiosity reward architectures produce systematically different levels of memory-linked exploratory bias that map directly to differences in how the agent encodes its own identity as an explorer over time.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:31:21.990460+00:00"
+}

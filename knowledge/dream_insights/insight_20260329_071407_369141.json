@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071407_369141",
+  "content": "Curiosity-driven autonomous agents (from Topic A) can serve as a self-improving pruning and curator for state-of-the-art active learning agent memory systems (from Topic B), where an agent’s intrinsic curiosity signal directly shapes which new experiences are stored long-term instead of relying on pre-defined task labels.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.81,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:14:07.369168+00:00"
+}

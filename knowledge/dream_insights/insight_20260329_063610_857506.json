@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063610_857506",
+  "content": "Curiosity-driven intrinsic reward mechanisms (like ICM and RND from Topic A) can be repurposed to actively prioritize which new experiences an autonomous agent stores in its long-term memory, creating a self-organizing memory pruning system that outperforms 2024 SOTA static memory retention rules. This creates a curious agent that automatically grows its memory to prioritize high-uncertainty, high-learning-value data rather than storing redundant or low-information observations.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.81,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:36:10.857528+00:00"
+}

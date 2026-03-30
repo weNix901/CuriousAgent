@@ -183,18 +183,31 @@ class SleepPruner(BaseAgent):
         Returns:
             True if all criteria are met
         """
-        # Criterion 1: Status is "complete"
-        if topic_data.get("status") != "complete":
+        # Criterion 1: Status is "complete" or "no_content" (stub nodes)
+        status = topic_data.get("status")
+        if status not in ("complete", "no_content"):
             return False
-        
+
+        # For "no_content" (stub/failed) nodes, skip dream/consolidation checks
+        # They should be pruned without waiting 7 days
+        if status == "no_content":
+            # Criterion 4: Quality below threshold
+            if not self._is_low_quality(topic_data):
+                return False
+            # Criterion 5: No pending children
+            if self._has_pending_children(topic_name, topic_data, all_topics):
+                return False
+            return True
+
+        # For "complete" nodes, apply full criteria
         # Criterion 2: No recent dreams
         if self._has_recent_dreams(topic_data):
             return False
-        
+
         # Criterion 3: No recent consolidations
         if self._has_recent_consolidation(topic_data):
             return False
-        
+
         # Criterion 4: Quality below threshold
         if not self._is_low_quality(topic_data):
             return False

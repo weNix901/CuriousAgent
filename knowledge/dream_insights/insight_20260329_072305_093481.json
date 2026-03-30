@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_072305_093481",
+  "content": "We can reframe Memory-Augmented Markov Decision Processes (M-MDP) as a core subcomponent of a curiosity-driven hybrid planning-learning system, where M-MDP's extended memory acts as a 'curiosity memory buffer' that stores unresolved, surprising environment states that the hybrid system can return to for active learning between planned task execution cycles. This lets the hybrid system decouple reactive task execution from deliberate knowledge gap refinement, leveraging M-MDP's structured memory to ground curiosity-driven exploration in actual unlearned state transitions.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Memory-Augmented Markov Decision Process (M-MDP)",
+    "Hybrid Planning and Learning System"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Memory-Augmented Markov Decision Process (M-MDP)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:23:05.093508+00:00"
+}

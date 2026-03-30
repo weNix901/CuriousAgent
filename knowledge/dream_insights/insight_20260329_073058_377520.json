@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_073058_377520",
+  "content": "Curiosity-driven autonomous agents can leverage the external, addressable memory architecture of Neural Turing Machines to dynamically grow their own persistent memory banks during active learning, without requiring retraining or architectural overhauls to store new long-horizon exploration insights. This replaces the common fixed-size context window bottleneck that plagues most modern agent memory designs.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Neural Turing Machines",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Neural Turing Machines",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:30:58.377546+00:00"
+}

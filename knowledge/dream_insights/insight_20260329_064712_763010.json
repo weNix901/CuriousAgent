@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064712_763010",
+  "content": "Comparative analysis of intrinsic curiosity modules (ICM) and random network distillation (RND) for curiosity-driven reinforcement learning can be reframed as a study of how an agent’s intrinsic self-model shapes its exploratory memory formation, where the performance gap between ICM and RND maps directly to differences in how an agent encodes surprising, novel experiences into long-term active memory. This framework suggests that curiosity methods are not just exploration bonuses, but inherent mechanisms for structuring an agent’s active learning memory hierarchy.",
+  "insight_type": "principle",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:47:12.763033+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061745_378470",
+  "content": "We can frame the performance gap between ICM, RND, and other curious RL agents as a *memory architecture bottleneck* rather than an intrinsic reward design flaw, where state prediction error (the core of ICM) and prediction surprise (the core of RND) double as active learning signals to prune and prioritize episodic memory for 2025-generation autonomous agents. This solves a key shared pain point: the growing computational cost of large episodic memory banks for long-horizon curious exploration.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:17:45.378494+00:00"
+}

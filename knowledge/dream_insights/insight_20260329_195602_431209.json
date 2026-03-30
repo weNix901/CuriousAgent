@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_195602_431209",
+  "content": "By integrating the 2025 ICM curiosity mechanism into traditional sales prospecting AI agents, we can create autonomous prospectors that intrinsically reward themselves for discovering under-targeted, high-potential prospect niches that rule-based prospecting tools routinely overlook, rather than just prioritizing pre-defined qualified lead criteria.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Sales Prospecting AI Agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Sales Prospecting AI Agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T19:56:02.431230+00:00"
+}

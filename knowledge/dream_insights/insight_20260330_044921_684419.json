@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_044921_684419",
+  "content": "Hybrid learning educational systems can be intentionally designed to leverage semantic priming effects to boost long-term knowledge retention for both in-person and remote students. In this framework, low-stakes in-person collaborative activities prime core conceptual schemas early in a unit, then follow-up remote asynchronous assignments deepen and solidify these primed semantic connections for mixed-participant classes.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Hybrid Planning and Learning System",
+    "Semantic Priming"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "Hybrid Planning and Learning System",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T04:49:21.684442+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063930_490749",
+  "content": "Just as curiosity-driven intrinsic motivation (ICM) shapes what an autonomous agent chooses to store in long-term memory to prioritize future learning, the 2024-2025 SOTA push for better active learning agent memory can be reframed as building a 'curiosity-aligned memory architecture' that only retains information the agent intrinsically judges as useful for future exploration, rather than storing all observed data.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:39:30.490771+00:00"
+}

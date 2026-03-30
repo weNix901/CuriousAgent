@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_093708_992283",
+  "content": "2025's configurable ICM curiosity mechanism can be repurposed to dynamically allocate an autonomous agent’s limited working memory by rewarding the agent for prioritizing encoding novel, unexplored state representations over consolidating familiar, low-information ones. This creates a natural intrinsic pressure to avoid working memory overload while still retaining the high-value information needed for robust long-horizon reasoning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T09:37:08.992310+00:00"
+}

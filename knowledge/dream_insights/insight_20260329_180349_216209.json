@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_180349_216209",
+  "content": "We can frame biological pathogenic agents (viruses and bacteria from the chemistry/biology definition of \"agent\") as naturally evolved autonomous agents that use an innate ICM-like curiosity mechanism to drive their persistent exploration of new host niches. Biological agents gain an implicit \"intrinsic reward\" from successfully adapting to and colonizing under-explored new host environments, just as 2025 ICM-powered RL swarm UAVs gain internal reward for discovering uncharted target areas.",
+  "insight_type": "principle",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "agent"
+  ],
+  "surprise": 0.88,
+  "novelty": 0.92,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T18:03:49.216232+00:00"
+}

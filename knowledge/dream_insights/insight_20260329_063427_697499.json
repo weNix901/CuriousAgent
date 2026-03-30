@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063427_697499",
+  "content": "When comparing curiosity-driven intrinsic reward methods (ICM, RND) to general curious RL agents, the open-ended exploratory gap between methods and agents mirrors the gap between an agent’s stored episodic memory and its active retrieval of novel, high-value memory traces in 2024–2025 SOTA active memory architectures. We can frame intrinsic reward scaling as a function of how well a curiosity method prunes outdated low-value exploration traces in the agent’s working memory rather than just generating new prediction error bonuses.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:34:27.697523+00:00"
+}

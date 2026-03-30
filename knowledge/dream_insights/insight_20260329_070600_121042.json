@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070600_121042",
+  "content": "2024–2025 state-of-the-art active learning agent memory systems can be restructured to frame the agent *itself* as a dynamically pruned active memory store, rather than treating the agent as a separate user of a dedicated memory module. This means agents actively query their own structural parameters for uncertain, high-value information instead of just querying an external knowledge base or separate memory buffer.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:06:00.121068+00:00"
+}

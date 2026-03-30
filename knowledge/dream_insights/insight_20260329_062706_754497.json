@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062706_754497",
+  "content": "A curiosity-driven autonomous agent can use the structure of Linear Temporal Logic (LTL) Reward Machines to explicitly structure its intrinsic reward memory, prioritizing memory updates for unvisited temporal state trajectories that align with its ICM-calculated prediction error. This structured memory storage reduces catastrophic forgetting of high-uncertainty temporal patterns that signal novel environment interactions, boosting the agent's active exploration efficiency in long-horizon environments.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Linear Temporal Logic Reward Machine"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:27:06.754523+00:00"
+}

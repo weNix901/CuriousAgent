@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_145211_419301",
+  "content": "Biological and chemical pathogenic agents (from the traditional definition of \"agent\") can be modeled as goal-seeking actors in a memory-augmented Markov Decision Process, where they accumulate historical information about host immune responses to adapt their mutation and proliferation strategies. This framing re-conceptualizes pathogen evolution as a sequential decision-making problem rather than a random stochastic process.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Memory-Augmented Markov Decision Process (M-MDP)"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T14:52:11.419326+00:00"
+}

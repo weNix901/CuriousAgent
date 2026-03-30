@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_170835_015275",
+  "content": "ICM curiosity mechanisms can be re-purposed to actively compress redundant information in an LLM agent's working memory, dynamically expanding effective reasoning capacity by prioritizing novel, task-critical state representations over redundant memorized context. This reframes working memory limits not as a fixed architectural constraint, but as a suboptimal allocation of memory capacity to predictable, low-value information that curiosity can naturally prune.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T17:08:35.015301+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_182813_715096",
+  "content": "Biological and chemical agents defined as active effect-producing entities can be framed as naturally evolved analogs to ICM-driven curiosity-based autonomous agents: both are inherently oriented toward seeking out novel, unexpored environments to produce change, with the intrinsic drive for novelty encoded into their core structure rather than imposed by an external source.",
+  "insight_type": "analogy",
+  "source_topics": [
+    "agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T18:28:13.715118+00:00"
+}

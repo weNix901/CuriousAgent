@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065858_368093",
+  "content": "2024-2025 state-of-the-art active learning agent memory systems can be restructured around a hierarchical 'agent-of-agents' memory gate, where micro-agent submodules compete for memory storage allocation based on their intrinsic curiosity signal, rather than relying on fixed task-driven prioritization rules. This framework redefines the core agent as a dynamic curator of its own memory rather than just a task-executing decision-maker.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:58:58.368118+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_143352_538949",
+  "content": "We can frame the prediction error of latent node attributes in graph learning as the intrinsic curiosity reward for an ICM-driven autonomous agent exploring an unknown graph environment, where unvisited nodes are inherently more unpredictable in their latent attributes. This lets the agent naturally prioritize exploring low-predictability graph regions that are most likely to contain novel, high-value structural information.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Latent Node Attribute Predictability",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Latent Node Attribute Predictability",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T14:33:52.538971+00:00"
+}

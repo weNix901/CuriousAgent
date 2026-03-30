@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065257_333068",
+  "content": "Curiosity-driven intrinsic reward methods (ICM, RND) can be mapped to the three progressive learning stages of Three-Stage Progressive Reinforcement Learning to create a self-scaffolding curious agent that automatically adjusts its intrinsic reward strategy as it accumulates environment knowledge. In this framework, an agent uses RND's uncertainty-based exploration in the first exploration stage, ICM's feature prediction error to refine causal understanding in the second consolidation stage, and a tuned baseline curious agent's sparse intrinsic reward to prioritize high-value novel regions in the final specialization stage.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "Three-Stage Progressive Reinforcement Learning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:52:57.333090+00:00"
+}

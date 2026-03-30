@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_072040_074417",
+  "content": "Autonomous AI agents can leverage human cognitive spreading activation dynamics to self-trigger curiosity-driven active learning, instead of relying on pre-scripted task prompts or reward signals. When an agent encounters a new concept in its working memory, spreading activation between connected memory nodes primes weakly activated unaddressed topics, which the agent can frame as spontaneous curiosity targets to explore next.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Spreading Activation",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Spreading Activation",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:20:40.074444+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_153642_940771",
+  "content": "Just as biological/chemical agents exert persistent effects through stored structural properties that trigger reactions when activated, AI agents with layered short-term/long-term memory systems can be redefined as active causal agents that exert targeted effects on their environment, rather than passive reactive tools. This frames memory architecture not as a technical convenience, but as the core enabler of an AI agent meeting the original definition of an agent as an active, effect-producing cause.",
+  "insight_type": "principle",
+  "source_topics": [
+    "agent",
+    "agent memory systems short-term long-term"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T15:36:42.940793+00:00"
+}

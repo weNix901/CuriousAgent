@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071437_623797",
+  "content": "We can reframe curiosity-driven autonomous agents to assign intrinsic reward not just to novel unexplored state spaces, but to failed trajectories that the agent’s own self-supervised world model incorrectly predicted. This creates a 'failure curiosity' intrinsic signal that directs active exploration toward high-uncertainty failure modes the agent has not yet mastered, rather than just random unvisited novel states.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Self-supervised exploration strategy improvement from failed trajectories"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:14:37.623824+00:00"
+}

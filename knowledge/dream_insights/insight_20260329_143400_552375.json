@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_143400_552375",
+  "content": "We can reframe the 2025 ICM curiosity mechanism’s novelty detection module around principal component analysis: ICM rewards agents for exploring new states by measuring how poorly a forward dynamics model predicts feature changes, and we can use online incremental PCA to dynamically compress the high-dimensional observation space of ICM’s embedding layer into the top k most variant principal components that capture the most structural state information, while pruning low-variance noise components that would otherwise trigger false curiosity rewards for trivial, spurious observation variations. This allows the autonomous agent to focus intrinsic reward on structurally novel state space exploration rather than noisy sensory fluctuations.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Principal component analysis (Abdi and Williams, 2010)",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.87,
+  "trigger_topic": "Principal component analysis (Abdi and Williams, 2010)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T14:34:00.552396+00:00"
+}

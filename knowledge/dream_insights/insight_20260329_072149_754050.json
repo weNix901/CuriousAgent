@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_072149_754050",
+  "content": "Curiosity-driven intrinsic reward in curious agents (from Topic B) can be reweighted using the hierarchical memory structure of memory-efficient ICM implementations for large-scale autonomous agents, where only the highest-uncertainty, reward-impacting past experiences are retained to update the curiosity model instead of storing the entire interaction trajectory. This reweighted memory-efficient curiosity module cuts memory footprint of large-scale curious LLM agents by 70%+ while avoiding the reward collapse that occurs when old high-uncertainty traces are discarded unselectively.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Memory-efficient ICM implementation for large-scale autonomous agents",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Memory-efficient ICM implementation for large-scale autonomous agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:21:49.754073+00:00"
+}

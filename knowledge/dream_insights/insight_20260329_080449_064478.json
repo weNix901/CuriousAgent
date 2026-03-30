@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080449_064478",
+  "content": "We can reframe HippoRAG2, the retrieval-augmented generation system, as a biological retrieval agent that actively exerts power to shape LLM outputs by acting on stored knowledge rather than passively retrieving matching documents. This biological agent framing of HippoRAG2 treats the system's memory recall pathways as purpose-driven acting structures that produce targeted effects on generation, rather than static indexing tools.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "HippoRAG2",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "HippoRAG2",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:04:49.064505+00:00"
+}

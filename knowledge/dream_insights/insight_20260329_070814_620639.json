@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070814_620639",
+  "content": "2024-2025 cutting-edge active learning agent memory systems can be rearchitected around a nested 'agent-within-agent' memory hierarchy, where a secondary lightweight meta-agent embedded within the memory subsystem autonomously selects which new experience traces to retain and prune, instead of relying on fixed static active sampling rules. This meta-agent itself uses curiosity-driven intrinsic reward to prioritize retaining ambiguous, under-learned memories that boost the main agent's downstream task performance the most.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:08:14.620662+00:00"
+}

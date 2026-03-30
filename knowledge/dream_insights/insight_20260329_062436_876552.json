@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062436_876552",
+  "content": "Just as a 2025 self-supervised world model memory agent builds its own predictive world representations from unlabeled interaction instead of relying on human-annotated training data, the open-ended conceptual development of the general term 'agent' across AI research can be reframed as a self-supervised world-building process: the research community collectively encodes new interaction patterns and unlabeled use cases into emergent, predictive conceptual boundaries for 'agent' without a fixed, pre-annotated definition. This reframing suggests that curiosity-driven active learning principles that boost performance for technical world model agents can also be applied to guide the open-ended conceptual evolution of core AI terminology.",
+  "insight_type": "principle",
+  "source_topics": [
+    "self-supervised world model memory agent 2025",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.92,
+  "trigger_topic": "self-supervised world model memory agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:24:36.876576+00:00"
+}

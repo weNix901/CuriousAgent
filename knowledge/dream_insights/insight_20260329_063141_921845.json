@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063141_921845",
+  "content": "Autonomous curiosity-driven intrinsic reward mechanisms from ICM-based curious agents can be repurposed to solve the active learning agent memory pruning problem that is a core bottleneck for 2024-2025 SOTA long-context agents. Instead of using static heuristics to remove rarely accessed old memory entries, an agent can assign intrinsic curiosity scores to every stored memory trace, retaining only traces that still hold prediction error (unresolved novelty) and pruning those that have been fully compressed into the agent’s world model.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:31:41.921865+00:00"
+}

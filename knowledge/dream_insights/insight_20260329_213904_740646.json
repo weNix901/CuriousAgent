@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_213904_740646",
+  "content": "We can repurpose intrinsic curiosity signals from ICM/RND reinforcement learning to dynamically explore and expand unified LLMs-graph structures by rewarding the LLM agent for discovering unconnected subgraph components or surprising relational gaps that the current unified graph fails to explain. This creates a self-improving loop where the LLM’s curiosity-driven exploration continuously fills missing knowledge links in the unified graph without relying on sparse external human annotation rewards.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "Large language model integration with unified graph"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T21:39:04.740669+00:00"
+}

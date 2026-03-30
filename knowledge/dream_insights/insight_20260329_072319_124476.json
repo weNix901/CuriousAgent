@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_072319_124476",
+  "content": "Autonomous agents can dynamically tune the weight of different feature dimensions when performing cosine similarity-based case matching, guided by intrinsic curiosity-driven active learning to prioritize matching cases that fill gaps in the agent’s existing task memory. This creates a self-improving case retrieval loop where the agent constantly refines its similarity matching schema to better address out-of-distribution tasks.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Cosine similarity-based case matching",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Cosine similarity-based case matching",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:23:19.124499+00:00"
+}

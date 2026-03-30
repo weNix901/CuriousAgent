@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061626_726915",
+  "content": "The intrinsic curiosity bonuses calculated by AI methods like ICM and RND map directly to the brain’s active memory encoding mechanism: just as curious RL agents prioritize exploring poorly predicted state transitions to improve long-term task performance, the human brain allocates stronger episodic memory encoding to information that violates prior expectations, which is itself a form of intrinsic curiosity-driven learning. This suggests that the core optimization objective of current curious RL agents is implicitly aligned with how the human brain evolved to manage memory for open-ended learning.",
+  "insight_type": "principle",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "memory as active learning human brain mechanisms"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:16:26.726941+00:00"
+}

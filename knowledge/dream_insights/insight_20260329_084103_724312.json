@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_084103_724312",
+  "content": "All biological and chemical agents can be modeled as inherently case-based reasoners that rely on stored \"past interaction cases\" with their environment rather than pre-coded generalized rules to adaptively respond to new challenges. This framework reframes agentic activity as a memory-driven problem-solving process instead of a pre-programmed stimulus-response sequence.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Case-Based Reasoning (CBR)",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "Case-Based Reasoning (CBR)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:41:03.724337+00:00"
+}

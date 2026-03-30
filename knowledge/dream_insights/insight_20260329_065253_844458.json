@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065253_844458",
+  "content": "By 2025, ICM curiosity mechanisms for autonomous agents can be reframed as a recursive self-improvement loop where the agent itself acts as both the explorer of new environments and the curator of its own intrinsic reward signal: each exploration step driven by ICM prediction error expands the agent’s working memory, which in turn rewrites the baseline against which future curiosity is measured. This creates a self-sustaining exploration dynamic that avoids the common 'curiosity collapse' problem of fixed-baseline intrinsic reward methods.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:52:53.844481+00:00"
+}

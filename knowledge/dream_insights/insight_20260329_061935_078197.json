@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061935_078197",
+  "content": "By 2025, retrieval-augmented memory agent architectures can be re-framed to treat open-ended agent curiosity as a retrievable memory signal, rather than a continuous exploration reward. Agents store past curious state representations in a retrieval index, pulling high-value curious exploration templates when encountering out-of-distribution environments instead of recalculating intrinsic reward from scratch each time.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "retrieval augmented memory agent architecture 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "retrieval augmented memory agent architecture 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:19:35.078217+00:00"
+}

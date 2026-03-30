@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_190824_267937",
+  "content": "Current computer-using agents (CUAs) that directly manipulate on-screen interfaces struggle with drift and forgetting over long, multi-step computer tasks, a failure mode that can be solved by adopting a neuro-inspired working memory retention mechanism based on synchronized sustained activation, borrowed from biological long-horizon active learning. This design would keep task-relevant interface and decision state activated across extended task horizons instead of offloading it to disconnected long-term memory, reducing the need for repeated context reloading and expensive inference.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Computer Agent",
+    "Working memory retention mechanisms for long-horizon active learning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Computer Agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T19:08:24.267960+00:00"
+}

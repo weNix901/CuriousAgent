@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080339_334624",
+  "content": "An ICM curiosity-driven 2025 autonomous agent can prune and expand its Tree of Thoughts exploration dynamically by treating each thought branch as an under-explored state for intrinsic reward calculation, prioritizing branching paths that reduce prediction uncertainty instead of brute-force searching all nodes. This creates a curiosity-guided self-pruning search tree that converges to high-value solutions much faster than uniform breadth or depth-based exploration.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Tree of Thoughts",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Tree of Thoughts",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:03:39.334648+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065037_659719",
+  "content": "Autonomous curiosity-driven agents (from Topic A) can be used to dynamically prune and prioritize the long-term memory of cutting-edge 2024-2025 active learning agents, creating a self-sustaining memory cycle where the agent’s intrinsic motivation shapes what it retains for future learning. This replaces static memory retention rules with a system that adapts to the agent’s own learning trajectory.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:50:37.659742+00:00"
+}

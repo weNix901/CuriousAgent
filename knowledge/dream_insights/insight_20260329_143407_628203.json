@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_143407_628203",
+  "content": "We can frame an ICM-driven 2025 autonomous agent's growing web of explored state transitions as a dynamic graph, and use GNNs to predict which unexplored state transitions will deliver the highest intrinsic novelty reward for the agent. This replaces the ICM's standard prediction error-based novelty scoring with a structure-aware novelty ranking that leverages global topological patterns in the agent's exploration history.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "graph neural networks (Chai et al., 2022)",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "graph neural networks (Chai et al., 2022)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T14:34:07.628223+00:00"
+}

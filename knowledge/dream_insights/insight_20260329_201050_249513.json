@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_201050_249513",
+  "content": "ICM curiosity-driven exploration in autonomous agents can be repurposed to actively chunk unstructured long-range reasoning inputs for LLMs, proactively fitting reasoning steps within the agent's fixed working memory capacity limit rather than retroactively trying to expand it. This turns a passive capacity constraint on LLM reasoning into an active exploration problem that rewards agents for discovering compact, memory-aligned reasoning schemas.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T20:10:50.249536+00:00"
+}

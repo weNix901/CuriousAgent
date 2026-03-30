@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062817_679015",
+  "content": "State-of-the-art 2024-2025 active learning agents can leverage Transformer attention’s built-in positional and contextual encoding to implement curiosity-driven active selection of episodic memories, where the agent’s intrinsic reward is tied to the attention weight entropy of unintegrated past experiences. This creates a closed-loop system where the agent actively prioritizes remembering ambiguous, high-learning-gain episodic events instead of passively storing all encountered data.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "Transformer attention mechanism for episodic memory"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:28:17.679038+00:00"
+}

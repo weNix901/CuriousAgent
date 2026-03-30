@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_103110_132075",
+  "content": "We can inject semantic priming mechanisms into computer-using agents to pre-activate contextually relevant action sequences before the agent begins interpreting a user's request, eliminating redundant exploration of irrelevant computer interface actions. For example, if a user mentions \"drafting a client email\", the agent will pre-activate mouse/keyboard sequences related to opening the email client and word processor, rather than scanning the entire interface for possible actions from scratch.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Computer Agent",
+    "Semantic Priming"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Computer Agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T10:31:10.132098+00:00"
+}

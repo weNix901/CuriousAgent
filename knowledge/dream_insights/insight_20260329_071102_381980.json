@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071102_381980",
+  "content": "A curiosity-driven autonomous agent can dynamically explore and revise its own numerical task and motion planning (TAMP) operators during long-horizon robot manipulation tasks, using an intrinsic curiosity module (ICM) to prioritize exploring uncertain planning constraints that conventional hand-coded TAMP frameworks never revise. This creates a self-improving TAMP system that learns to avoid unmodeled obstacles, kinematic singularities, and task execution failures without requiring labeled human demonstration data.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Task and Motion Planning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:11:02.382000+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_155842_823687",
+  "content": "Just as the Agent Communication Protocol (ACP) enables cross-framework AI agents to share interoperable signals to coordinate action, we can embed a lightweight distributed ICM curiosity module that leverages ACP to let a network of heterogeneous autonomous agents collectively reward each other for discovering novel cross-agent interaction patterns that no single agent would find on its own. This creates a network-level intrinsic reward signal that drives emergent exploration of untested inter-agent workflows.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Agent Communication Protocol",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Agent Communication Protocol",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T15:58:42.823710+00:00"
+}

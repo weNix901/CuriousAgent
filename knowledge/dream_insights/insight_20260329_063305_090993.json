@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063305_090993",
+  "content": "Uncertainty scores from active agent memory selection can act as a dynamic relevance weight that modulates retrieval ranking in retrieval-augmented agent architectures, creating a self-improving memory loop where the agent prioritizes retrieving high-uncertainty samples that will most reduce its prediction error over time. This replaces static similarity-based ranking with an error-reduction oriented ranking aligned with the agent's ongoing learning objectives.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Uncertainty-based memory sample selection for deep active agents",
+    "retrieval augmented memory agent architecture 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Uncertainty-based memory sample selection for deep active agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:33:05.091016+00:00"
+}

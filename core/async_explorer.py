@@ -129,6 +129,18 @@ def _explore_in_thread(topic: str, score: float, depth: float):
             update_curiosity_status(topic, "paused")
         except Exception:
             pass
+    finally:
+        # v0.2.6 fix: remove self from active threads tracker
+        import threading as t
+        current = t.current_thread()
+        with _active_threads_lock:
+            if current in _active_threads:
+                _active_threads.remove(current)
+
+
+# Global thread tracker for graceful shutdown
+_active_threads: list = []
+_active_threads_lock = threading.Lock()
 
 
 def trigger_async_exploration(topic: str, score: Optional[float] = None, depth: float = 6.0):
@@ -137,12 +149,39 @@ def trigger_async_exploration(topic: str, score: Optional[float] = None, depth: 
     
     在独立线程中执行，不阻塞 API 响应。
     被 curious_api.py 的 api_inject() 调用（集成点 6）。
+    
+    修复 (v0.2.6): 使用 non-daemon 线程 + SIGTERM 时等待完成。
     """
     thread = threading.Thread(
         target=_explore_in_thread,
         args=(topic, score, depth),
-        daemon=True,
+        daemon=False,  # v0.2.6 fix: non-daemon so SIGTERM handler can join()
         name=f"async-explorer-{topic[:30]}"
     )
+    with _active_threads_lock:
+        _active_threads.append(thread)
     thread.start()
     logger.info(f"[T-10] Triggered async exploration thread for {topic}")
+
+
+def wait_for_active_threads(timeout: float = 30.0) -> int:
+    """
+    v0.2.6: 等待所有活跃探索线程完成。
+    被 curious_api.py 的 SIGTERM handler 调用。
+    返回等待完成的线程数。
+    """
+    with _active_threads_lock:
+        threads = list(_active_threads)
+    
+    waited = 0
+    for t in threads:
+        remaining = timeout - waited
+        if remaining <= 0:
+            break
+        t.join(timeout=remaining)
+        waited += 1
+    
+    with _active_threads_lock:
+        _active_threads.clear()
+    
+    return waited

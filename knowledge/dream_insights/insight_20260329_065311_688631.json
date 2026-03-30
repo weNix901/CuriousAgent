@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065311_688631",
+  "content": "We can reframe agent memory systems as a hierarchical task and motion planner that plans how to retrieve and arrange episodic memory fragments like a robotic arm manipulates physical objects to complete a high-level cognitive goal. This curiosity-driven numerical planning operator dynamically prunes irrelevant memory fragments and adapts its planning rules based on how useful retrieved memories are for ongoing active learning, aligning with human-like active memory organization mechanisms.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Task and Motion Planning",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Task and Motion Planning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:53:11.688654+00:00"
+}

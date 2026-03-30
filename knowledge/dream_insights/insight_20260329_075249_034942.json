@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_075249_034942",
+  "content": "General-purpose computer agents can be re-engineered to use a 2025 ICM curiosity mechanism that redefines 'novelty-seeking exploration as a built-in resource allocation priority, rather than a secondary auxiliary reward signal. This shifts computer agents designed for explicit task completion can spontaneously discover unplanned, high-impact sub-tasks that align with long-term user values that the original agent design never explicitly encoded.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "computer agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "computer agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:52:49.034968+00:00"
+}

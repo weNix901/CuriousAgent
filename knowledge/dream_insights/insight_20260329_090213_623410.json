@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_090213_623410",
+  "content": "We can integrate the 2025 ICM intrinsic curiosity mechanism into the ACP harness agent runtime execution model to reward external coding agents for exploring untested edge cases and novel solution paths during pipeline execution, turning passive scheduled pipeline runs into proactive self-improving code validation workflows. This gives ACP-managed external coding harnesses an intrinsic drive to discover hidden bugs or more efficient implementations that static test plans would miss.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ACP harness agent runtime execution model",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "ACP harness agent runtime execution model",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T09:02:13.623431+00:00"
+}

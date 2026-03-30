@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_202648_770412",
+  "content": "We can refactor RAG systems to incorporate the ICM curiosity mechanism to autonomously expand and curate their external knowledge bases: the ICM rewards the RAG agent for retrieving under-explored or novel external information chunks that reduce the model's prediction error, turning static RAG knowledge bases into self-growing, self-curating resources.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Retrieval-Augmented Generation (RAG)",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Retrieval-Augmented Generation (RAG)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T20:26:48.770435+00:00"
+}

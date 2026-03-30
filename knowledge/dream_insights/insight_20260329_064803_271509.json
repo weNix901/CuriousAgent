@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064803_271509",
+  "content": "Curiosity-driven autonomous agents can align their memory compression and summarization policies to only retain long-term memory traces that spark new intrinsic curiosity, pruning low-curiosity experiences to maintain a compact, exploration-fostering long-term memory store. This creates a self-reinforcing cycle where the agent's compressed long-term memory continuously drives further useful exploration rather than becoming cluttered with trivial, uninformative experiences.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "[Memory compression and summarization for long-term retention]"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:48:03.271531+00:00"
+}

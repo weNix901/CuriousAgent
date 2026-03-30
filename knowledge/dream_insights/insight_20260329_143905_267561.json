@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_143905_267561",
+  "content": "Just as Merriam-Webster defines a general agent as any entity that exerts power and produces active effects, we can reframe biological/chemical pathogenic agents as naturally occurring 'autonomous agents' that follow a de facto ICM curiosity mechanism: they gain 'intrinsic reward' from exploring uncolonized, novel host environments that have not been encountered by their pathogen population before. This framing lets us model the emergent spread of novel pathogens as the exploratory behavior of a curious reinforcement learning agent.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T14:39:05.267585+00:00"
+}

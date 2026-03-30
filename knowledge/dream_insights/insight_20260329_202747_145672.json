@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_202747_145672",
+  "content": "By integrating case-based reasoning (CBR) into the 2025 generation of ICM curiosity-driven autonomous agents, we can filter intrinsic rewards to prioritize exploring truly unfamiliar problem spaces that have no close matches in the agent’s existing case library, rather than rewarding random novelty that repeats already solved problems. This hybrid framework avoids the common ICM pitfall of wasting exploration on noisy, trivial novel states while retaining the benefit of intrinsic motivation for open-ended learning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Case-Based Reasoning (CBR)",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Case-Based Reasoning (CBR)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T20:27:47.145699+00:00"
+}

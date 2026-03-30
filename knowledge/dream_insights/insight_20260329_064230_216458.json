@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064230_216458",
+  "content": "Curiosity-driven intrinsic reward mechanisms (from ICM/RND curious autonomous agents) can be repurposed to dynamically prioritize which unlabeled data samples get stored in an active learning agent’s long-term memory, instead of the standard fixed-capacity retention or heuristic sampling rules. This creates a self-reinforcing cycle where the agent prioritizes storing only the ambiguous, surprising samples that will most improve its future active learning performance, rather than wasting limited memory capacity on redundant or predictable data.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:42:30.216480+00:00"
+}

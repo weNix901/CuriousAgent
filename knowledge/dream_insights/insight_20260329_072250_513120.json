@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_072250_513120",
+  "content": "Autonomous AI agents can evolve their own task-specific curiosity drives by leveraging a gradient-free MemoryBank that accumulates high-value interaction traces over multi-turn sessions, eliminating the need for expensive fine-tuning to adapt curiosity to new environments. This turns the MemoryBank from a passive storage for context extension into an active engine that shapes the agent's intrinsic motivation automatically.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "MemoryBank",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "MemoryBank",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:22:50.513143+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_074937_911203",
+  "content": "We can conceptualize every autonomous agent as a localized originator of fan effect propagation, where the agent’s exerted power and causal effects spread outward in ever-widening, attenuating ripples through social, biological, or computational networks, just as a fan’s influence spreads across a cultural system. This framework allows us to quantify an agent’s real-world impact by measuring how its causal effects decay as they propagate across network edges, rather than only measuring its inherent capabilities.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Fan Effect Propagation",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Fan Effect Propagation",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:49:37.911225+00:00"
+}

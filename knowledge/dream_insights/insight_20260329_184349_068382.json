@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_184349_068382",
+  "content": "The 3–5 chunk working memory capacity limit for both human and agent reasoning arises from an implicit sigmoid-shaped gating mechanism that prioritizes chunk retention: once the number of active chunks approaches 4, the sigmoid gate’s steep slope sharply drops new chunk retention probability to near-zero, capping working memory at Cowan’s magical 3–5 range. This naturally explains why larger agent working memory scaling hits diminishing and ultimately zero returns for reasoning performance, rather than improving continuously with increased context window size.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "Sigmoid Activation"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T18:43:49.068404+00:00"
+}

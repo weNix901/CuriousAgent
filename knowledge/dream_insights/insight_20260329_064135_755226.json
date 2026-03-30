@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064135_755226",
+  "content": "Curiosity-driven intrinsic reward mechanisms (from Topic A's ICM-based autonomous curious agents) can be repurposed to reward coding agents for exploring under-tested edge cases and novel code refactoring patterns, rather than only rewarding them for meeting explicit user task requirements. This creates self-improving coding agents that proactively discover code quality gaps no human user explicitly asked them to address.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Coding Agents"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:41:35.755248+00:00"
+}

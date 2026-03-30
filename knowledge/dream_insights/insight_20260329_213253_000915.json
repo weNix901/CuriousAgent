@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_213253_000915",
+  "content": "RAG, which pulls static external knowledge into LLM generations, can be reimagined as a persistent, queryable external long-term memory for active learning agents that grows incrementally as the agent actively identifies and adds new knowledge gaps it encounters. This creates a closed loop where the agent's active curiosity drives updates to the RAG knowledge base, which in turn improves the quality of the agent's future actions and generations.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Retrieval-Augmented Generation (RAG)",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Retrieval-Augmented Generation (RAG)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T21:32:53.000942+00:00"
+}

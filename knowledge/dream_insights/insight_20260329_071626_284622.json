@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071626_284622",
+  "content": "Hierarchical agent-to-agent memory gating in multi-agent systems can repurpose memory-efficient Intrinsic Curiosity Module (ICM) implementations to only store forward prediction error features for high-uncertainty interactions between neighboring agents, cutting collective memory usage by up to 70% while preserving the curiosity-driven exploration that drives emergent coordination. This approach reframes agent-agent interaction as a form of intrinsic curiosity signal rather than just an explicitly rewarded communication channel.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Memory-efficient ICM implementation for large-scale autonomous agents",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Memory-efficient ICM implementation for large-scale autonomous agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:16:26.284648+00:00"
+}

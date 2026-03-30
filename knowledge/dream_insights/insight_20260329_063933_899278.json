@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063933_899278",
+  "content": "State-of-the-art 2024-2025 curiosity-driven active learning agent memory can be rearchitected to mimic the prefrontal-hippocampal memory retrieval interaction that underpins human Retrieval-Augmented Generation, where active curiosity-driven query selection replaces static retrieval trigger rules for RAG systems. This hybrid architecture would let agents proactively acquire missing context instead of waiting for user queries to trigger retrieval, aligning agent active learning with human-like adaptive memory access.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "Retrieval-Augmented Generation"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:39:33.899301+00:00"
+}

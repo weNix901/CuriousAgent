@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080609_732557",
+  "content": "We can reframe parallel orchestration of reader agents to intentionally collect failed data-ingestion trajectories (e.g., failed document parsing, dead-end information extraction) and use self-supervised learning on these failures to dynamically reward reader agents for exploring under-sampled document regions, rather than just rewarding successful information extraction. This turns unproductive failed attempts into a curiosity-driven signal for improving coverage of heterogeneous unstructured data.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Parallel Orchestration & Ingestion with Reader Agents",
+    "Self-supervised exploration strategy improvement from failed trajectories"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "Parallel Orchestration & Ingestion with Reader Agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:06:09.732585+00:00"
+}

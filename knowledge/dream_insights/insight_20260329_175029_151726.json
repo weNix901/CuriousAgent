@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_175029_151726",
+  "content": "We can reframe LLM working memory reasoning limits as an under-explored source of intrinsic reward for curiosity-driven autonomous agents, where the ICM can be adjusted to reward agents specifically for exploring tasks that push just beyond their current working memory capacity, rather than rewarding any novel state indiscriminately.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.87,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T17:50:29.151748+00:00"
+}

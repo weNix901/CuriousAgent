@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_194647_153110",
+  "content": "Autonomous agents can use the intrinsic reward signal from an ICM curiosity mechanism to proactively chunk and compress unprocessed information into working memory, offsetting the upper-bound reasoning limits imposed by fixed working memory capacity. This creates a self-regulating cycle where curiosity drives dynamic working memory expansion that scales with the reasoning demands of a task, rather than being capped by static hardware or architecture constraints.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T19:46:47.153133+00:00"
+}

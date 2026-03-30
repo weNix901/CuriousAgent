@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_204302_559565",
+  "content": "We can reframe zero-shot node generalization on a unified interactive graph as the exploration objective of an ICM-driven autonomous agent, where the agent receives intrinsic reward for discovering and encoding unobserved out-of-distribution node types that the unified graph model has never seen during training. This turns the static task of zero-shot node generalization into an active, curiosity-driven exploration problem that leverages ICM's intrinsic reward to improve generalization on unseen node categories without external labeled data.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Zero-shot node generalization on unified graph",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Zero-shot node generalization on unified graph",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T20:43:02.559589+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070350_508198",
+  "content": "For 2024-2025 state-of-the-art active learning agent memory systems, we can hypothesize that structuring memory around open research question fragments (borrowed from how DeepResearch Agents track evolving knowledge) will deliver stronger curiosity-driven exploration performance than existing prediction-error based curiosity methods like ICM and RND. This memory schema prioritizes retaining unresolved, high-information-gain questions over just storing completed facts or observed transitions, driving agents to actively seek data that resolves their open knowledge gaps.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "DeepResearch Agents"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:03:50.508220+00:00"
+}

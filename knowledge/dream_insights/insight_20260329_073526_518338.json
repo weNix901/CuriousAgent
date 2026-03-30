@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_073526_518338",
+  "content": "Biological agents (viruses and bacteria, from Topic B) evolve their adaptive long-horizon survival strategies via a working-memory-like retention mechanism: they retain molecular 'memories' of past host environments to improve future infection outcomes, mirroring how active learning agents retain critical information across long timelines to update decision-making policies. This frames biological agent adaptive behavior as a natural analogue of engineered long-horizon active learning with working memory.",
+  "insight_type": "analogy",
+  "source_topics": [
+    "Working memory retention mechanisms for long-horizon active learning",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "Working memory retention mechanisms for long-horizon active learning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:35:26.518364+00:00"
+}

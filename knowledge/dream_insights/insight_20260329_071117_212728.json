@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071117_212728",
+  "content": "Curiosity-driven intrinsic reward signals from autonomous ICM agents can act as a dynamic attention gate for Transformer-based episodic agent memory, only prioritizing storage and retrieval of surprising, high-learning-value experiences instead of encoding every interaction equally. This creates a self-organizing episodic memory that grows more efficient over the agent's autonomous learning trajectory.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Transformer attention mechanism for episodic memory"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:11:17.212753+00:00"
+}

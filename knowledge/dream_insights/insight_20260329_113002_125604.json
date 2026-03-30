@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_113002_125604",
+  "content": "AI agent workflows can be dynamically modularized around working memory capacity limits, rather than being built as fixed linear or branching task sequences: when approaching a complex open-ended goal, the workflow splits long reasoning chains into independent memory-aligned chunks that are stitched together only when needed, rather than forcing the agent to hold all intermediate context in its limited working memory. This creates a new 'capacity-aware agent workflow' design paradigm that adapts task structure to the agent's inherent cognitive bounds, rather than expecting the agent to adapt to a pre-built workflow.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "AI Agent Workflow",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "AI Agent Workflow",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T11:30:02.125627+00:00"
+}

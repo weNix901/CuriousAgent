@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065456_807912",
+  "content": "We can reframe curiosity-driven autonomous agent intrinsic motivation as a form of active memory selection, where an agent’s curiosity mechanism (ICM/RND) prioritizes encoding surprising, unpredicted memory traces instead of just actively sampling training data from the environment. This creates a new memory architecture where intrinsic reward directly shapes which long-term memory content the agent retains and retrieves for future learning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:54:56.807945+00:00"
+}

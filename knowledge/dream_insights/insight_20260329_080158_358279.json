@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080158_358279",
+  "content": "Neural Turing Machines, which augment neural networks with external memory banks, can serve as a computational framework to formally model the anterograde amnesia experienced by the protagonist of *Memento*, where the ability to form new long-term declarative memories is lost but core procedural skills and old long-term memories remain intact. This framing also suggests a new narrative design approach for amnesia-driven thrillers, where story beats are stored in a retrievable external memory matrix that the protagonist can only access via noisy, error-prone read operations, mirroring the real narrative tension of *Memento*'s unreliable clue system.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Neural Turing Machines",
+    "Memento"
+  ],
+  "surprise": 0.92,
+  "novelty": 0.88,
+  "trigger_topic": "Neural Turing Machines",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:01:58.358305+00:00"
+}

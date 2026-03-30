@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_152706_105486",
+  "content": "We can reframe Tree of Thoughts (ToT) for large language models as an intrinsically curious exploration process, where an ICM curiosity module rewards the LLM for exploring underexplored branches of the thought tree that it has not yet evaluated deeply, rather than always prioritizing the locally highest-confidence reasoning path. This combination solves a key limitation of standard ToT, which tends to prune low-confidence but correct reasoning paths too early.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Tree of Thoughts",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.75,
+  "novelty": 0.82,
+  "trigger_topic": "Tree of Thoughts",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T15:27:06.105507+00:00"
+}

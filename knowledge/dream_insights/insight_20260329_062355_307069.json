@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062355_307069",
+  "content": "Curiosity-driven intrinsic reward modules in DeepResearch Agents can be wired to draw on episodic memory traces from the neural architecture of planning agents to prioritize open-ended research exploration: the agent will prioritize searching for research directions that connect disconnected past research findings stored in its episodic memory, rather than just optimizing for incremental answers to a given query. This creates a self-organizing research discovery loop that generates novel cross-domain research hypotheses autonomously.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "DeepResearch Agents",
+    "neural architecture memory episodic planning agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "DeepResearch Agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:23:55.307097+00:00"
+}

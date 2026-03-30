@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064715_753067",
+  "content": "We can reframe Transformer attention for episodic memory as a curiosity-gated dynamic working memory allocation system for autonomous agents, where attention weights are not just for context retrieval but are actively adjusted by the intrinsic curiosity module (ICM) to prioritize storage of high-uncertainty, novel episodic traces that boost downstream active learning performance. This system automatically frees limited working memory capacity for new exploratory experiences by deprioritizing low-surprise, already-learned episodic memories that no longer contribute to learning gains.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Transformer attention mechanism for episodic memory",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Transformer attention mechanism for episodic memory",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:47:15.753090+00:00"
+}

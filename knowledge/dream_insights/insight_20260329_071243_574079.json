@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071243_574079",
+  "content": "Curiosity-driven intrinsic reward mechanisms (from Topic A's ICM/RND curious agent research) can be repurposed as a meta-learning objective to prioritize which new experiences get consolidated into long-term agent memory, rather than using fixed heuristic or task-specific rules for memory pruning. This creates a self-organizing memory consolidation system where an agent automatically prioritizes consolidating surprising, generalizable knowledge that improves future few-shot adaptation.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "meta-learning memory consolidation agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:12:43.574107+00:00"
+}

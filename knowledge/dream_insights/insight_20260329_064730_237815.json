@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064730_237815",
+  "content": "Episodic memory in a neural architecture planning agent can be reframed as an embedded active learning agent itself, where each stored episodic trace autonomously chooses whether to be recalled, consolidated, or pruned based on how much it can reduce the agent's current planning uncertainty. This creates a nested agent architecture where memory itself is curious, rather than just a passive storage layer for a single top-level planning agent.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "neural architecture memory episodic planning agent",
+    "memory as active learning agent SOTA 2025"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "neural architecture memory episodic planning agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:47:30.237843+00:00"
+}

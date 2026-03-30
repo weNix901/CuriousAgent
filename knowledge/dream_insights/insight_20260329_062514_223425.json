@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062514_223425",
+  "content": "We can refactor curiosity-driven intrinsic reward mechanisms (from ICM/RND curious agent research) into a hierarchical memory pruning gate for state-of-the-art active learning agent memory systems, where only unexpected, high-curiosity environmental experiences get preserved in long-term agent memory instead of being filtered by static prediction error thresholds. This creates an autonomous self-improving memory loop that aligns memory storage directly with the agent's active learning goals.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:25:14.223447+00:00"
+}

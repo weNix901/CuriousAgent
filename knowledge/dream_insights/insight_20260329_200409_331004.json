@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_200409_331004",
+  "content": "Just as inlet swirl distortion amplifies or attenuates pure-tone fan noise as it propagates through a ducted fan system, unmodeled environmental \"curiosity distortion\" from novel high-variance states can warp the intrinsic reward propagation of ICM in autonomous agents, creating unexpected noise that disrupts structured exploration. We can adapt boundary element methods from ducted fan noise propagation modeling to map ICM intrinsic reward propagation across high-dimensional state space boundaries, improving prediction of distorted curiosity signals.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Fan Effect Propagation",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "Fan Effect Propagation",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T20:04:09.331027+00:00"
+}

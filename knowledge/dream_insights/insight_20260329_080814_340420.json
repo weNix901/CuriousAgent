@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080814_340420",
+  "content": "We can frame low-communication mobile robot teams (LoCoMo) as biological agent collectives, where each individual robot functions as an autonomous chemical/biological agent that exerts localized power to produce emergent system-level effects without centralized control. This framing lets us adapt biological agent dispersion and interaction models to design more robust LoCoMo systems that work effectively even when long-range inter-robot communication is disrupted.",
+  "insight_type": "cross-pollination connection",
+  "source_topics": [
+    "LoCoMo",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "LoCoMo",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:08:14.340443+00:00"
+}

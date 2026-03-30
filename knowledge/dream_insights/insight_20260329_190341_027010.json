@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_190341_027010",
+  "content": "We can extend the cross-framework interoperability goal of the Agent Communication Protocol (ACP) to enable a distributed collective intrinsic curiosity system, where ACP standardizes the sharing of discovered novel state information between ICM-equipped autonomous agents to amplify collective exploration without redundant reward computation. Each agent can preserve its local ICM reward function while contributing and drawing on a shared network of novelty signals, creating a modular curiosity ecosystem that works across diverse agent frameworks.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Agent Communication Protocol",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Agent Communication Protocol",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T19:03:41.027032+00:00"
+}

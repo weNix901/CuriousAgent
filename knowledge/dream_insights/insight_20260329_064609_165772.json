@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064609_165772",
+  "content": "We can reframe curiosity-driven autonomous agent intrinsic reward assignment as a step-wise GRPO optimization problem, where each new exploratory trajectory step the agent takes is treated as a separate GRPO policy update step weighted by the agent's current curiosity score. This replaces static intrinsic reward calculations with iterative, relative advantage ranking that adapts to the agent's evolving memory state.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Step-wise GRPO"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:46:09.165799+00:00"
+}

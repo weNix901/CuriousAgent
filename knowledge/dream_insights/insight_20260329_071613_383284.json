@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071613_383284",
+  "content": "Autonomous curious ICM-driven agents (from Topic A) can act as self-supervised 'world model curators' that grow their memory by proactively mining high-value unlabeled environment data to fine-tune 2025 self-supervised world models (from Topic B), creating a recursive closed-loop improvement cycle where agent curiosity drives world model accuracy, and more accurate world models in turn enable more targeted curious exploration. This creates a system that does not require manually labeled training data to continuously improve both the agent's policy and its internal world representation.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "self-supervised world model memory agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:16:13.383308+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_151856_869913",
+  "content": "Case-Based Reasoning’s library of past solved problems can act as a built-in novelty filter for 2025 ICM curiosity-driven autonomous agents, where agents only assign intrinsic reward for exploring new problems that do not have a structurally similar solved case in the CBR memory bank. This creates a self-regulating exploration strategy that avoids wasting intrinsic reward on re-solving problems the agent already knows how to solve.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Case-Based Reasoning (CBR)",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Case-Based Reasoning (CBR)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T15:18:56.869939+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_212528_605331",
+  "content": "By integrating an ICM curiosity mechanism fine-tuned for 2025 autonomous industrial agents into WinCLIP’s zero-/few-shot anomaly detection pipeline, the agent can proactively seek out novel, unseen defect types that WinCLIP would miss under its default zero-shot setting. This turns passive industrial quality inspection into an active, self-improving process that automatically expands the anomaly distribution as new defect types emerge.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Winclip (Jeong et al., 2023)",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Winclip (Jeong et al., 2023)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T21:25:28.605354+00:00"
+}

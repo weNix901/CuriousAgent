@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070226_017995",
+  "content": "State-of-the-art 2024-2025 active learning agent memory systems can be re-framed as recursively self-modifying agents in their own right, where the memory architecture itself actively selects which new experiences to encode, forget, and re-prioritize rather than passively storing inputs selected by the main agent. This creates a nested agent structure where the memory subsystem drives the main agent’s curiosity via intrinsic reward signals tied to under-explored encoded memory patterns.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:02:26.018018+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062238_802906",
+  "content": "The ICM (Intrinsic Curiosity Module) curiosity mechanism at the core of autonomous curious agents can be reframed as a dynamic pruning and prioritization framework for state-of-the-art 2024-2025 active learning agent long-term memory, where unexpected prediction errors that drive curiosity also act as natural filters to retain only high-information unlabeled experience and discard low-value redundant memory entries.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:22:38.802931+00:00"
+}

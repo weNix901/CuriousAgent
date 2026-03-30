@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_195318_693171",
+  "content": "If we frame an ICM-curiosity-driven autonomous agent's exploration as being guided by semantic priming rooted in experiential similarity, the agent will prioritize exploring novel states that are semantically related to its already accumulated interaction experience, rather than jumping to completely unconnected random states, leading to more efficient intrinsic reward learning. This modified ICM replaces the existing inverse dynamics prediction error reward with a novelty scoring weighted by the experiential semantic similarity between newly discovered states and the agent's existing interaction memory.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Semantic Priming",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Semantic Priming",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T19:53:18.693194+00:00"
+}

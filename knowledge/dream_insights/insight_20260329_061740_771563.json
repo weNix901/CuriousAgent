@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061740_771563",
+  "content": "2024-2025 SOTA active learning agent memory systems can be redesigned to treat general-purpose agent design constraints as a dynamic, queryable 'external memory' that prunes uninformative exploration, rather than treating constraints as fixed architectural limits. This lets curiosity-driven active learning agents adapt their own memory architecture to the complexity of the task environment automatically.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:17:40.771586+00:00"
+}

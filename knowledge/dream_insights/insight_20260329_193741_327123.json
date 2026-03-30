@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_193741_327123",
+  "content": "We can inject an ICM-modulated spreading activation retrieval gate into RAG-based autonomous agents, where intrinsic reward from ICM dynamically boosts the activation of under-explored knowledge nodes in the retrieval corpus instead of just activating the most semantically obvious associations. This lets agents proactively retrieve underutilized, potentially novel information to solve open-ended tasks rather than being stuck in repeating dominant associative recall patterns.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "**Spreading Activation for large language model associative recall",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "**Spreading Activation for large language model associative recall",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T19:37:41.327145+00:00"
+}

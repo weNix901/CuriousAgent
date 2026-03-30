@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080704_188533",
+  "content": "We can reframe hierarchical task planning’s fixed top-down task decomposition structure to dynamically grow its task hierarchy *from the bottom up*, guided by an ICM curiosity mechanism that allocates deeper, more granular task branches only to high-uncertainty regions of the state space that the agent has not yet explored. This creates a self-organizing planning hierarchy that adapts its depth and breadth to the agent’s current knowledge gap, rather than being pre-specified by human designers.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Hierarchical task planning for agents",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Hierarchical task planning for agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:07:04.188555+00:00"
+}

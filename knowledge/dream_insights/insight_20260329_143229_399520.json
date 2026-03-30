@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_143229_399520",
+  "content": "Traditional RAG’s rigid top-k keyword or semantic matching can be augmented by a spreading activation-inspired dynamic weighting system, where retrieved initial documents activate semantically related chunks in the knowledge base proportional to their connection strength, rather than just pulling static pre-ranked results. This mimics how human memory recalls associated ideas after retrieving an initial memory, creating a more contextually rich and associative retrieval sequence than standard RAG.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Retrieval-Augmented Generation (RAG)",
+    "**Spreading Activation for large language model associative recall"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "Retrieval-Augmented Generation (RAG)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T14:32:29.399543+00:00"
+}

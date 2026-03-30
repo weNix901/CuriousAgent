@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070136_482231",
+  "content": "The prefrontal-hippocampal system’s dynamic interaction during retrieval to re-compress and update existing memories can inspire a new adaptive memory architecture for long-horizon AI agents. In this framework, a prefrontal-inspired 'summarization controller' triggers context-dependent hippocampal-inspired memory re-compression only during retrieval of relevant old memories, rather than running compression as a static offline step, to better retain long-term task-relevant knowledge.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "[Memory compression and summarization for long-term retention]",
+    "Prefrontal-hippocampal interaction during memory retrieval"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "[Memory compression and summarization for long-term retention]",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:01:36.482251+00:00"
+}

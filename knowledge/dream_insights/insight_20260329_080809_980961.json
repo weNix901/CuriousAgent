@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080809_980961",
+  "content": "Triple hybrid retrieval can be reframed as a multi-modal biological agent that dynamically combines three distinct retrieval 'pathways' (keyword, semantic, knowledge graph) to exert targeted causal influence over downstream task outputs, rather than just being a static information ranking method. This agentic retrieval design leverages the core definition of an agent as an active cause that produces specific effects, turning passive ranking into an adaptive problem-solving actor.",
+  "insight_type": "cross-pollination",
+  "source_topics": [
+    "Triple Hybrid Retrieval",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Triple Hybrid Retrieval",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:08:09.980985+00:00"
+}

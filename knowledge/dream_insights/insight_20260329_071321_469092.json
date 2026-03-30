@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071321_469092",
+  "content": "We can reframe the core definition of an autonomous agent itself as a distributed collection of intrinsic curiosity modules, rather than framing intrinsic curiosity modules as add-on reward components for pre-existing agents. Each sub-module within an agent's memory hierarchy drives exploration of local uncertainty in unprocessed sensory or latent data, with the global agent behavior emerging from the collective curiosity-driven optimization of all sub-modules.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Intrinsic Curiosity Module",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "Intrinsic Curiosity Module",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:13:21.469116+00:00"
+}

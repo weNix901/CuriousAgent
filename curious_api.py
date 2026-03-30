@@ -110,39 +110,11 @@ def api_run():
             writer = AgentBehaviorWriter()
             writer.process(result["topic"], findings, quality, result.get("sources", []))
 
-        from core.curiosity_decomposer import CuriosityDecomposer
-        from core.llm_manager import LLMManager
-        from core.provider_registry import init_default_providers
+        # G3-Fix: Remove decomposition from API, move to Daemon SpiderAgent
+        # Add topic to DreamInbox for Daemon to process decomposition
         from core import knowledge_graph as kg
-        from core.config import get_config
-
-        config = get_config()
-        llm_config = {"providers": {}, "selection_strategy": "capability"}
-        for p in config.llm_providers:
-            llm_config["providers"][p.name] = {
-                "api_url": p.api_url,
-                "timeout": p.timeout,
-                "enabled": p.enabled,
-                "models": [
-                    {"model": m.model, "weight": m.weight, "capabilities": m.capabilities, "max_tokens": m.max_tokens}
-                    for m in p.models
-                ]
-            }
-
-        llm_manager = LLMManager.get_instance(llm_config)
-        registry = init_default_providers()
-        state = kg.get_state()
-
-        decomposer = CuriosityDecomposer(
-            llm_client=llm_manager,
-            provider_registry=registry,
-            kg=state
-        )
-        try:
-            subtopics = decomposer.decompose_and_write(result["topic"])
-            print(f"[API] Decomposed '{result['topic']}' into {len(subtopics)} subtopics")
-        except Exception as e:
-            print(f"[API] Decompose failed: {e}")
+        kg.add_to_dream_inbox(result["topic"], source_insight="API exploration completed - needs decomposition")
+        print(f"[API] Topic '{result['topic']}' queued for decomposition in Daemon")
 
         return jsonify({
             "status": "success",
@@ -562,6 +534,7 @@ def api_r1d3_mark_shared():
 
 
 def main():
+    import signal
     parser = argparse.ArgumentParser(description="Curious Agent API Server")
     parser.add_argument("--port", type=int, default=4848)
     parser.add_argument("--host", default="0.0.0.0")
@@ -581,13 +554,65 @@ def main():
 ╚══════════════════════════════════════════╝
     """)
 
-    if not args.no_browser:
-        def open_browser():
-            time.sleep(1.5)
-            webbrowser.open(url)
-        threading.Thread(target=open_browser, daemon=True).start()
+    # v0.2.6 fix: SIGTERM handler for graceful restart
+    # When OpenClaw's management script kills us, wait for async threads first
+    shutdown_requested = threading.Event()
+    _server_ref = [None]  # mutable container for server reference
 
-    app.run(host=args.host, port=args.port, debug=False, threaded=True)
+    def _monitor_shutdown(srv):
+        """Background thread: waits for shutdown signal, then stops the server."""
+        # v0.2.6 fix: No more timeout - only shutdown on actual SIGTERM/SIGINT
+        # (the old 5-min restart script no longer exists, so no auto-restart needed)
+        shutdown_requested.wait()  # Wait forever until signal is set
+        print(f"[curious_api] Shutdown monitor triggered (requested={shutdown_requested.is_set()})")
+        try:
+            srv.shutdown()
+        except Exception:
+            pass
+
+    def handle_sigterm(signum, frame):
+        """SIGTERM handler: signal OpenClaw's restart script that we received the signal."""
+        print("[curious_api] SIGTERM received, initiating graceful shutdown...")
+        shutdown_requested.set()
+
+    signal.signal(signal.SIGTERM, handle_sigterm)
+    signal.signal(signal.SIGINT, handle_sigterm)
+
+    def open_browser():
+        time.sleep(1.5)
+        webbrowser.open(url)
+
+    threading.Thread(target=open_browser, daemon=True).start()
+
+    # Use make_server so we can control shutdown
+    from werkzeug.serving import make_server
+    srv = make_server(args.host, args.port, app, threaded=True)
+    _server_ref[0] = srv
+    print(f"[curious_api] Serving on {args.host}:{args.port}")
+
+    # Start shutdown monitor thread
+    monitor = threading.Thread(target=_monitor_shutdown, args=(srv,), daemon=True, name="shutdown-monitor")
+    monitor.start()
+
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        print("[curious_api] KeyboardInterrupt, shutting down...")
+        shutdown_requested.set()
+        srv.shutdown()
+
+    # Graceful shutdown: wait for async exploration threads (up to 25s)
+    # OpenClaw gives ~60s TimeoutStopSec, so 25s is safe
+    print("[curious_api] Waiting for exploration threads to finish...")
+    try:
+        from core.async_explorer import wait_for_active_threads
+        waited = wait_for_active_threads(timeout=25.0)
+        print(f"[curious_api] Waited for {waited} thread(s), done.")
+    except Exception as e:
+        print(f"[curious_api] Thread join error: {e}")
+
+    print("[curious_api] Exiting gracefully.")
+    sys.exit(0)
 
 
 @app.route("/api/kg/trace/<path:topic>")

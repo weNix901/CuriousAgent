@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061759_828344",
+  "content": "By 2025, self-supervised world model memory agents will leverage a 'curiosity-driven memory pruning' framework that repurposes the intrinsic reward signal from curiosity-driven reinforcement learning to automatically discard low-information episodic memories, solving the catastrophic capacity bloat that plagues modern large-scale memory agents. This framework uses prediction error discrepancy (the core signal used in ICM and RND curiosity methods) to rank memory entries by how much they refined the agent's world model, retaining only high-surprise memories that improve long-horizon planning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "self-supervised world model memory agent 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "self-supervised world model memory agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:17:59.828367+00:00"
+}

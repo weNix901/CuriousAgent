@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_161011_744130",
+  "content": "If we embed a lightweight 2025-configured ICM curiosity mechanism into the message negotiation layer of the open Agent-to-Agent (A2A) protocol, heterogeneous AI agents from different developers will spontaneously explore mutually beneficial collaborative tasks that are not pre-specified in their instructions, rather than only executing pre-defined communication workflows. This creates a self-expanding network of agent collaboration that grows with novel interaction discoveries.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Agent-to-Agent Protocol",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Agent-to-Agent Protocol",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T16:10:11.744150+00:00"
+}

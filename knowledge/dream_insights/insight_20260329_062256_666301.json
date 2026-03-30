@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062256_666301",
+  "content": "We can reframe a general agent as a naturally occurring hybrid planning and learning system, where curiosity-driven intrinsic reward modules act as the active learning trigger that dynamically allocates limited long-term memory storage between high-level plan hierarchies for familiar tasks and new episodic memory for under-explored environments. This structure lets the agent balance exploiting reliable planned behaviors for known tasks and exploring novel patterns to expand its capabilities without overwhelming memory capacity.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Hybrid Planning and Learning System",
+    "agent"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.68,
+  "trigger_topic": "Hybrid Planning and Learning System",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:22:56.666326+00:00"
+}

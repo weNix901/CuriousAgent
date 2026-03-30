@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065033_588365",
+  "content": "Memory-efficient ICM implementations for large-scale curiosity-driven autonomous agents can be restructured to treat agent submodules as independent, curiosity-driven fine-tuning agents that only activate their intrinsic reward modules when encountering out-of-distribution state representations, cutting overall memory footprint by only storing forward/Inverse model parameters for active submodules rather than loading the full ICM at all times.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Memory-efficient ICM implementation for large-scale autonomous agents",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Memory-efficient ICM implementation for large-scale autonomous agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:50:33.588394+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062143_623035",
+  "content": "The open-ended exploratory drive that differentiates intrinsic curiosity methods like ICM and RND from conventional curious RL agents can be reframed as a graded 'epistemic maturity' trait for the agent itself, where the type of curiosity mechanism an agent uses directly shapes its developmental trajectory in sparse-reward open-ended environments. This trait mirrors how human agents' inherent levels of information-seeking openness shape the long-term complexity of their memories and real-world learning outcomes.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:21:43.623058+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_112025_935680",
+  "content": "ICM curiosity-driven exploration can be reengineered to actively prune low-value information from an agent's working memory to offset inherent working memory capacity limits that bottleneck reasoning. Curiosity, typically framed only as a driver for discovering new environmental information, can double as a natural filter that retains only high-uncertainty, high-prediction-error information that directly advances reasoning, dropping inert low-relevance data that would otherwise clog limited working memory.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T11:20:25.935705+00:00"
+}

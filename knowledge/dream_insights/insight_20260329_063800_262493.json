@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063800_262493",
+  "content": "Just as tool-based memory operation lets active learning AI agents offload persistent information to external storage to preserve limited working memory for in-the-moment reasoning, we can reframe curiosity-driven agent exploration as an innate tool-based memory operation: curiosity acts as an external memory retrieval tool that actively queries the environment to fill missing gaps in the agent’s existing memory, rather than just driving random exploration. This means an agent’s bounded working memory capacity is not just a hard constraint to optimize around, but the very reason curiosity evolved as a compensatory memory tool.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Tool-based Memory Operation",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Tool-based Memory Operation",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:38:00.262513+00:00"
+}

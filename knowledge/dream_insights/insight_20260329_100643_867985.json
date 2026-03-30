@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_100643_867985",
+  "content": "Agent working memory capacity limits can be resolved by reframing agent open-ended reasoning as a non-parametric continual memory task implemented via HippoRAG2's Personalized PageRank-based graph memory system. This turns the problem of fixed capacity working memory bottlenecks into a dynamic connection-finding problem that grows with new knowledge without fine-tuning or retraining.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "HippoRAG2",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "HippoRAG2",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T10:06:43.868008+00:00"
+}

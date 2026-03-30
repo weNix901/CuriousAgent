@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_161722_963428",
+  "content": "The human brain’s active memory mechanism, which relies on long-distance neural communication to sustain plasticity for ongoing learning, can be redesigned as a biological intrinsic curiosity module (ICM) for next-generation 2025 autonomous agents. This framework replaces the standard ICM’s focus on only rewarding novel state discovery with an active memory-plasticity loop that reinforces curiosity-driven exploration by integrating new findings into existing long-term agent memory, mirroring how the human brain sustains adaptive open-ended learning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "memory as active learning human brain mechanisms",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "memory as active learning human brain mechanisms",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T16:17:22.963450+00:00"
+}

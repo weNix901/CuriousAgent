@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_111616_634387",
+  "content": "Active Agentic Retrieval search agents can be reimagined as modern, dynamic neural Turing machines adapted for open-domain knowledge access, where the external knowledge base acts as the NTM’s external memory bank, and the agent’s dynamic query decomposition acts as the NTM’s learned read-write head operations. This hybrid design would let agents learn to algorithmically retrieve and compose information to answer complex queries through end-to-end reinforcement, just as original NTMs learned to sort or copy sequences from examples.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Active Agentic Retrieval with Search Agents",
+    "Neural Turing Machines"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Active Agentic Retrieval with Search Agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T11:16:16.634410+00:00"
+}

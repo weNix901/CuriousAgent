@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_143502_918539",
+  "content": "An AI Agent Builder can be redesigned to let end-users assemble custom triple-signal hybrid retrieval modules as parallel asynchronous agent capabilities, rather than locking retrieval into a single pre-built sequential workflow. This would let custom agents dynamically match their retrieval strategy to the complexity of their task, cutting latency for multi-source knowledge queries.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "AI Agent Builder",
+    "Triple-Signal Hybrid Retrieval"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "AI Agent Builder",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T14:35:02.918562+00:00"
+}

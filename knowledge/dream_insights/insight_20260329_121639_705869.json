@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_121639_705869",
+  "content": "If we expand the original Merriam-Webster definition of an agent as 'any entity that exerts power to produce an effect', biological pathogenic agents (the original biological/chemical definition of an agent) can be framed as naturally evolved autonomous agents driven by a crude analogue of ICM curiosity. Pathogens gain intrinsic 'reward' in the form of increased replication fitness when they discover novel unexploited host niches, mirroring how 2025 ICM-powered AI autonomous agents gain intrinsic reward for exploring novel unseen environments. This perspective suggests we can draw evolutionary lessons from natural biological agents to improve ICM curiosity mechanisms for artificial autonomous agents.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T12:16:39.705916+00:00"
+}

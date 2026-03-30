@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080722_345235",
+  "content": "Autonomous agentic AI can be redesigned to use a 2025 Iterative Curiosity Modulation (ICM) mechanism that frames long-term goal pursuit as a series of active curiosity-driven exploration cycles, instead of static planned execution. This replaces the common paradigm of top-down objective alignment with a bottom-up system where intrinsic curiosity modulates the agent’s goal priorities to explore unforeseen high-impact opportunities that align with the agent’s core values.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Autonomous agentic AI",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Autonomous agentic AI",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:07:22.345258+00:00"
+}

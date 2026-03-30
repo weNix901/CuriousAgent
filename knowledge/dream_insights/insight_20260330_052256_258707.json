@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_052256_258707",
+  "content": "We can integrate cosine similarity-based case matching into the 2025 ICM curiosity mechanism for autonomous agents, where the ICM module uses cosine similarity between the current state vector of the agent and past explored state vectors to measure unexpectedness for intrinsic reward. Autonomous agents will avoid wasting exploration on nearly identical states that only have trivial variations, while directing more intrinsic reward to state mismatches that represent truly novel, uncharted environments.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Cosine similarity-based case matching",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Cosine similarity-based case matching",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T05:22:56.258730+00:00"
+}

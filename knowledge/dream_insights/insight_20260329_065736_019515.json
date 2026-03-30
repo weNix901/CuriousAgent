@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065736_019515",
+  "content": "Step-wise GRPO's incremental reward alignment for multi-step reasoning can be repurposed as a self-supervised reward signal for 2025 autonomous agents, where the agent generates its own step-wise correctness signals by checking incremental consistency between its action trajectories and internal memory states, eliminating the need for expensive human labels.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Step-wise GRPO",
+    "autonomous agent self-supervised learning 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Step-wise GRPO",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:57:36.019537+00:00"
+}

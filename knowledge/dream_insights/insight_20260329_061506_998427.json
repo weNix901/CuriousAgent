@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061506_998427",
+  "content": "The 2024-2025 SOTA trend of task-gated, retrieval-augmented active memory for agents can resolve a longstanding flaw in curiosity-driven reinforcement learning (ICM/RND): the propensity to get stuck in uninformative noisy or infinite curiosity loops (e.g. spamming random noise inputs to maximize prediction error). By dynamically prioritizing and pruning episodic curiosity-driven exploration experiences in an active learning memory framework, agents can automatically retain only high-value exploration traces that connect to downstream task goals, rather than rewarding any novel stimulus regardless of utility.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "curiosity driven reinforcement learning ICM RND compared to curious agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:15:06.998450+00:00"
+}

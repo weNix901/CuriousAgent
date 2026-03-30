@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_115157_245063",
+  "content": "ICM curiosity-driven exploration in 2025 swarm UAV autonomous agents can be adaptively regulated by an agent's working memory capacity limit: the ICM will only assign intrinsic rewards to unexplored states that the agent can fit into its current working memory for downstream reasoning, discarding unprocessable novel stimuli to avoid useless exploration. This creates a curiosity bottleneck that aligns an agent's intrinsic motivation with its actual cognitive reasoning capability.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.85,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T11:51:57.245085+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_120147_969913",
+  "content": "We can reframe the A2A multi-agent collaboration protocol as a distributed \"working memory expansion system\" that bypasses the individual agent's working memory capacity limit for reasoning. When any single agent hits its working memory bottleneck when processing complex multi-step collaborative tasks, the A2A protocol lets it offload intermediate reasoning chunks to other specialized agents, effectively creating a pooled, scalable working memory network for the whole multi-agent system.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "multi-agent collaboration protocols A2A",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "multi-agent collaboration protocols A2A",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T12:01:47.969941+00:00"
+}

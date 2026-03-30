@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_194315_359580",
+  "content": "The working memory capacity limit that constrains LLM reasoning arises because LLMs activate relevant knowledge through a fixed-capacity spreading activation process: only a small set of directly connected concepts can be activated and held in the agent's active working set during multi-step reasoning, creating hard upper bounds on long-range reasoning depth. We can mitigate this reasoning limit by dynamically routing gated spreading activation cascades in a retrieval-augmented framework, where previously activated concept cues trigger new offloading associative retrieval to extend the effective working memory capacity.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "**Spreading Activation for large language model associative recall"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T19:43:15.359601+00:00"
+}

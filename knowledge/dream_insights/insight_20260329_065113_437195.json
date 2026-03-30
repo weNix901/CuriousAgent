@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065113_437195",
+  "content": "Step-wise GRPO can be repurposed to reward an agent for incrementally consolidating new, curiosity-driven memory traces instead of only rewarding it for solving end-user tasks, creating a self-improving agent that builds robust long-term domain knowledge on its own.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Step-wise GRPO",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Step-wise GRPO",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:51:13.437216+00:00"
+}

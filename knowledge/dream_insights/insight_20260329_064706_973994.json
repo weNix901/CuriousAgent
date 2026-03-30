@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064706_973994",
+  "content": "Curiosity-driven intrinsic reward mechanisms (already used to improve general agent exploration can be repurposed to build self-improving coding agents that actively seek out unwritten edge-case code challenges to expand their own memory of bug patterns, rather than only solving pre-specified user requests. This creates a self-amplifying cycle where the coding agent grows its coding competence independently of constant human prompting.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Coding Agents",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Coding Agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:47:06.974016+00:00"
+}

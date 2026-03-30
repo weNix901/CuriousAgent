@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_053256_363274",
+  "content": "We can inject an Intrinsic Curiosity Module (ICM) into large language models' Chain of Thought (CoT) reasoning process, where the ICM rewards the model for exploring diverse intermediate reasoning paths that deviate from the most common token-level coherence, instead of only following rigid few-shot CoT examples. This turns static explicit reasoning into a self-improving reward-driven search for better solutions to open-ended complex problems.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Chain of Thought",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Chain of Thought",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T05:32:56.363297+00:00"
+}

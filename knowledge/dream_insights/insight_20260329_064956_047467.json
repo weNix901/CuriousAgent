@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064956_047467",
+  "content": "By 2025, autonomous self-supervised learning agents can reframe their own intrinsic curiosity drives as a self-supervised predictive task, where the agent continuously trains on forecasting its own future exploratory actions to refine its world model without any external reward labels. This recursive self-supervision creates a self-amplifying loop of exploratory learning that outperforms fixed intrinsic curiosity modules like ICM or RND.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "autonomous agent self-supervised learning 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "autonomous agent self-supervised learning 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:49:56.047495+00:00"
+}

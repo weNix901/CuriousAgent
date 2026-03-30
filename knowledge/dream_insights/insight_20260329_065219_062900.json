@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065219_062900",
+  "content": "Coding Agents that perform real-world software development tasks can be fundamentally improved by integrating an intrinsic curiosity-driven ICM (Intrinsic Curiosity Module) memory mechanism that proactively explores undocumented edge cases in codebases, rather than only learning from labeled human bug fixes and feature requirements. This creates a self-improving coding agent that discovers unaddressed gaps in code on its own.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Coding Agents"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:52:19.062926+00:00"
+}

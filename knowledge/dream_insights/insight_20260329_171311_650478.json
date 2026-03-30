@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_171311_650478",
+  "content": "Biological and chemical pathogenic agents (from the traditional definition of agent) can be framed as naturally evolved 'autonomous agents' that use an implicit ICM-style curiosity mechanism to drive their persistence and evolution. Pathogens gain an intrinsic 'reward' from exploring novel host niches and interacting with unexploited host immune landscapes, which drives their mutation and spread just as ICM reward drives AI agents to explore unknown environments.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T17:13:11.650501+00:00"
+}

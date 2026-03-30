@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063708_655954",
+  "content": "2025 state-of-the-art deep active learning memory agents can be redefined as recursively self-improving agents that treat their own existing agent modules as unlabeled data to actively sample and fine-tune, rather than treating only external environment data as the learning target. This recursive self-refinement loop leverages the active learning memory architecture to continuously prioritize which of its underlying agent components to update next, driven by intrinsic curiosity about its own performance gaps.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning memory agent SOTA deep 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning memory agent SOTA deep 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:37:08.655982+00:00"
+}

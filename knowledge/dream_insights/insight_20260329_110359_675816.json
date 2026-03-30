@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_110359_675816",
+  "content": "Just as autonomous agent path planning algorithms prune redundant candidate paths to avoid combinatorial explosion when navigating to a destination, we can design working memory for reasoning agents that uses path planning pruning heuristics to discard irrelevant reasoning branches that exceed working memory capacity limits. This turns the problem of working memory overflow into a navigational search problem, where the agent only retains 'on-path' reasoning nodes that lead toward the current reasoning goal, just as a path planner only retains viable routes to the navigation target.",
+  "insight_type": "cross-pollination connection",
+  "source_topics": [
+    "Planning algorithms for autonomous agents",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Planning algorithms for autonomous agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T11:03:59.675842+00:00"
+}

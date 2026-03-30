@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061603_835248",
+  "content": "The human brain’s active memory-as-learning mechanism, where recalling old memories updates rather than just retrieves stored information, can inspire a new curiosity-driven episodic memory architecture for autonomous AI agents. Instead of separate storage and training phases, every retrieval of an agent’s past episodic experience becomes an automatic active learning step that adjusts its world model to align with new observations.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "memory as active learning human brain mechanisms",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "memory as active learning human brain mechanisms",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:16:03.835271+00:00"
+}

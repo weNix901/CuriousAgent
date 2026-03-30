@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065902_371597",
+  "content": "We can model Retrieval-Augmented Generation for artificial agents after the prefrontal-hippocampal interaction that governs biological memory retrieval, and gate this retrieval using a Transformer attention mechanism that prioritizes context-relevant episodic memory traces the same way active learning and intrinsic curiosity (ICM) prioritize novel, high-information environmental exploration. This creates a curiosity-driven episodic retrieval system that automatically updates its external knowledge base with high-value new episodic memories accumulated through the agent's interaction with the world.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Retrieval-Augmented Generation",
+    "Transformer attention mechanism for episodic memory"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Retrieval-Augmented Generation",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:59:02.371625+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070837_148610",
+  "content": "Autonomous curiosity mechanisms from curiosity-driven reinforcement learning agents can be repurposed to dynamically prioritize which unlabeled data gets stored and learned in state-of-the-art active learning agent memory systems, creating a self-improving loop where the agent’s own innate curiosity drives memory curation instead of hand-coded sampling rules. This shifts active learning from a task-supervised data selection framework to an autonomous self-guided system that grows its own relevant knowledge base.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning memory agent SOTA deep 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:08:37.148637+00:00"
+}

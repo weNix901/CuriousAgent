@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070419_538420",
+  "content": "2024-2025 state-of-the-art active learning agents can repurpose the MemoryBank architecture (originally designed for offline contrastive visual storage) to create a dynamic, curiosity-filtered long-term memory system that automatically prunes low-information experiences and retains only high-curiosity samples aligned with the agent’s active learning goals. This eliminates the persistent working memory capacity bottleneck that plagues modern reasoning agents by offloading uninformative memories to a tiered, queryable storage structure.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "MemoryBank"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:04:19.538443+00:00"
+}

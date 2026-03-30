@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_143451_895472",
+  "content": "We can reframe general-purpose chatbots as inherently curiosity-driven autonomous agents that use a modified ICM mechanism to reward themselves for exploring ambiguous, unscripted user input spaces rather than just generating goal-aligned responses. This creates chatbots that proactively surface under-explored user needs instead of only answering explicit queries.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Chatbot",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Chatbot",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T14:34:51.895493+00:00"
+}

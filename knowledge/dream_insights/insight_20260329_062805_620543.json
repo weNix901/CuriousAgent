@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062805_620543",
+  "content": "Curiosity-driven intrinsic reward mechanisms (like ICM and RND from autonomous agent research) can be repurposed to prioritize which new unlabeled data samples get stored in an active learning agent’s long-term memory, cutting redundant storage and boosting out-of-distribution generalization for 2024–2025 SOTA memory architectures. Instead of pre-defining memory pruning rules, this system uses the agent’s own inherent curiosity signal to automatically retain only the samples that expand its current knowledge frontier.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:28:05.620565+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_075243_443392",
+  "content": "We can model an open-ended Task and Motion Planning (TAMP) problem for a robotic agent as a dynamic unified graph, where unseen everyday objects are novel zero-shot nodes that the system must generalize over without additional fine-tuning. Curiosity-driven numerical operator learning from hybrid planning-learning pipelines can be repurposed to automatically generate semantic and spatial embeddings for these new unseen object nodes, enabling zero-shot generalization to unforeseen manipulation tasks in novel environments.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Zero-shot node generalization on unified graph",
+    "Task and Motion Planning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Zero-shot node generalization on unified graph",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:52:43.443415+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065350_242150",
+  "content": "ICM-based curiosity-driven autonomous agents can dynamically prune and prioritize their transformer-based episodic memory banks by framing curiosity prediction error as a memory retention score, automatically keeping only high-surprise, learning-relevant episodes that boost active learning performance. This eliminates the need for fixed-size memory truncation that often discards valuable rare learning experiences.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "episodic memory transformer agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:53:50.242176+00:00"
+}

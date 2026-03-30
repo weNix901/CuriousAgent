@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070949_517094",
+  "content": "Tool-based memory operation can reframe curiosity-driven reinforcement learning agents to treat working memory capacity limits as a feature, not a bug: curiosity becomes an external tool-triggered memory refresh mechanism that actively prunes low-certainty unstructured memories to free working memory, aligning active learning agent memory performance. This creates a curious agent that actively seeks new information to replace stale low-confidence memories instead of carrying a fixed working memory load.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Tool-based Memory Operation",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Tool-based Memory Operation",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:09:49.517118+00:00"
+}

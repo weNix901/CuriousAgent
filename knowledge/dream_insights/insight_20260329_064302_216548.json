@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064302_216548",
+  "content": "A curiosity-driven Hybrid Planning and Learning System can treat its own unstructured agent memory as an open-ended active learning environment, where 'exploring under-sampled memory regions' replaces exploring the external physical environment to reduce long-term planning errors. This system dynamically shifts between planning over external world states and planning over internal memory uncertainty to improve out-of-distribution generalization.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Hybrid Planning and Learning System",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Hybrid Planning and Learning System",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:43:02.216573+00:00"
+}

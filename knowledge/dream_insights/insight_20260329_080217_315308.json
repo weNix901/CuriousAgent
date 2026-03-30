@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080217_315308",
+  "content": "Biological pathogenic agents from chemistry and biology can be framed as naturally occurring case-based reasoners, where each individual pathogen stores and deploys previously evolved successful infection 'cases' to adapt to new host environments. This perspective reframes microbial virulence not as a fixed trait, but as an incremental case-based problem-solving process.",
+  "insight_type": "connection",
+  "source_topics": [
+    "Case-Based Reasoning (CBR)",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.91,
+  "trigger_topic": "Case-Based Reasoning (CBR)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:02:17.315331+00:00"
+}

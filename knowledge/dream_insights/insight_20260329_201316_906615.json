@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_201316_906615",
+  "content": "LLM self-reflection algorithms, which improve problem-solving by correcting past errors, can be paired with the 2025 ICM curiosity mechanism to create a self-improving agent that actively seeks out novel problems to reflect on, turning reflection from a reactive fix for existing tasks into a proactive driver of capability growth.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Self-reflection algorithm for LLM agents",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "Self-reflection algorithm for LLM agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T20:13:16.906638+00:00"
+}

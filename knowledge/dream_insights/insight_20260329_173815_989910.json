@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_173815_989910",
+  "content": "The ICM curiosity mechanism can be repurposed to actively prune low-value working memory chunks in LLM agents, offsetting the reasoning limits imposed by fixed working memory capacity by only retaining surprising, novel state information that directly contributes to active reasoning. This creates a self-regulating working memory system where intrinsic reward for novelty doubles as a natural filtering signal for what deserves limited working memory slots.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T17:38:15.989939+00:00"
+}

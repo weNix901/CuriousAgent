@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_075010_725109",
+  "content": "We can reframe computer agent goal-seeking as a spreading activation process over the LLM's associative recall memory: instead of pre-planning a fixed trajectory of actions, the agent spreads activation outward from its current goal state through the LLM's associative knowledge graph, activating candidate actions that are semantically and causally linked to goal progress, and iteratively selects the most highly activated next step.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Computer Agent",
+    "**Spreading Activation for large language model associative recall"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "Computer Agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:50:10.725132+00:00"
+}

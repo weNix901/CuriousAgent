@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071315_022267",
+  "content": "A 2024-2025 state-of-the-art active learning agent can repurpose the fixed-contrastive MemoryBank architecture originally designed for self-supervised image representation learning as a dynamically growing, curiosity-filtered long-term memory store. This lets the agent sidestep working memory capacity bottlenecks that cripple long-horizon reasoning by only adding unexpected, high-curiosity experiences to the shared MemoryBank, rather than storing every interaction.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "MemoryBank"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:13:15.022295+00:00"
+}

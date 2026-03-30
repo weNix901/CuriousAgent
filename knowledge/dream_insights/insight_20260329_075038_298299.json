@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_075038_298299",
+  "content": "Framing ASMR (Agentic search and memory retrieval) systems as purpose-built biological/chemical agents reveals that effective autonomous information retrieval behaves like a targeted pathogenic agent: it actively navigates a host environment (the knowledge graph or external dataset) to exert its specific effect (locating and activating the correct memory for a downstream task), rather than passively matching query terms. This perspective encourages rethinking retrieval system design to prioritize active environmental adaptation over static indexing.",
+  "insight_type": "analogy",
+  "source_topics": [
+    "ASMR (Agentic search and memory retrieval)",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "ASMR (Agentic search and memory retrieval)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:50:38.298320+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064235_175468",
+  "content": "2024-2025 SOTA active learning agent memory systems can be restructured to leverage A2A protocols to enable distributed curiosity-driven memory pruning and expansion, where individual agents actively query peer agents for high-uncertainty memory chunks missing from their own knowledge stores instead of only sampling unlabeled data from a centralized corpus. This creates a networked active learning loop where the collective memory of the multi-agent system improves faster than any single agent’s memory can improve in isolation.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "A2A (Agent-to-Agent) Protocol"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:42:35.175491+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064508_482253",
+  "content": "A curiosity-driven autonomous agent can treat its own existing memory as an unexplored environment to deploy tool-based memory operations as a curiosity intrinsic reward signal, where writing, pruning, and reorganizing memory via external tools becomes the agent’s novelty-seeking exploration rather than just a utility editing step. This creates an ICM-like intrinsic reward is assigned to unexpected insights the agent gains from discovering under-explored regions of its own memory archive, rather than only from the external physical or digital environment.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Tool-based Memory Operation"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:45:08.482274+00:00"
+}

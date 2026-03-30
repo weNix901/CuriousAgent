@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_150112_732819",
+  "content": "Just as ICM curiosity mechanisms drive autonomous RL UAV agents to intrinsically reward exploration of unvisited spatial targets to improve collective swarm performance, biological pathogenic agents could be modeled as intrinsically curious 'biological agents' that gain internal 'fitness rewards' for discovering novel uncolonized host niches to drive epidemic spread. This framework reframes viral evolution as a curious reinforcement learning process rather than just random mutation and selection.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "agent"
+  ],
+  "surprise": 0.92,
+  "novelty": 0.89,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T15:01:12.732843+00:00"
+}

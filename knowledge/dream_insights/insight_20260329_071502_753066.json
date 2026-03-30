@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071502_753066",
+  "content": "Curiosity-driven intrinsic reward in ICM can be re-framed as a dynamic memory allocation gate for large-scale autonomous agents, where only unexpected, high-intrinsic-reward experiences are stored in full, while predictable, low-curiosity states are compressed into sparse summary embeddings. This creates a self-regulating memory system that aligns memory usage with the agent’s active learning goals without human-specified storage budgets.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Memory-efficient ICM implementation for large-scale autonomous agents"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:15:02.753088+00:00"
+}

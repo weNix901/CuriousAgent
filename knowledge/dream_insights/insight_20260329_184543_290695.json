@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_184543_290695",
+  "content": "If we extend the Merriam-Webster definition of an agent as any entity that exerts power to produce an effect, even biological pathogens classified as agents in traditional terminology can be framed as intrinsically curious autonomous agents driven by a de facto ICM curiosity mechanism: they gain \"internal reward\" by discovering novel, unoccupied host niches, rather than only being motivated by external fitness pressures. This re-frames pathogenic adaptation as a form of intrinsically motivated reinforcement learning rather than just passive natural selection.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T18:45:43.290715+00:00"
+}
