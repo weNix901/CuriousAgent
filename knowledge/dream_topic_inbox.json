@@ -1,3 +1,19 @@
 {
-  "inbox": []
+  "inbox": [
+    {
+      "topic": "Dense Retrieval",
+      "timestamp": "2026-03-30T09:07:16.474112+00:00",
+      "source_insight": "Dream insight: We can reframe dense retrieval as an artificial spreading activation process over a large embedding-based semantic network: instead of precomputing full activation spread from the query embedding, den"
+    },
+    {
+      "topic": "Spreading Activation",
+      "timestamp": "2026-03-30T09:07:16.474450+00:00",
+      "source_insight": "Dream insight: We can reframe dense retrieval as an artificial spreading activation process over a large embedding-based semantic network: instead of precomputing full activation spread from the query embedding, den"
+    },
+    {
+      "topic": "Sentence Transformers",
+      "timestamp": "2026-03-30T09:07:20.472045+00:00",
+      "source_insight": "Main curiosity queue"
+    }
+  ]
 }

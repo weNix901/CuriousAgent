@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_085525_272296",
+  "content": "Hierarchical planner modules for task decomposition can leverage the naturally emergent episodic memory properties of Transformer attention heads to build a dynamic, as-needed decomposition system that only splits tasks into subtasks when attention patterns signal a mismatch between the current horizon and existing episodic task memories. This design replaces fixed hierarchical decomposition structures with attention-driven, human-like memory retrieval that prioritizes early and recent completed task schemas just like human episodic memory.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Planner module design for task decomposition",
+    "Transformer attention mechanism for episodic memory"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Planner module design for task decomposition",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T08:55:25.272321+00:00"
+}
