@@ -457,17 +457,20 @@ def daemon_mode(interval_minutes: int = 30):
             current_explored_count = spider_agent.get_explored_count()
             idle_time = spider_agent.get_idle_time()
             if idle_time > stuck_threshold:
-                print(f"[v0.2.6] ⚠️ SpiderAgent stuck! Idle for {idle_time:.0f}s, restarting...")
-                spider_agent.stop()
-                spider_agent.join(timeout=5.0)
-                spider_agent = SpiderAgent(
-                    name="SpiderAgent",
-                    notification_queue=notification_queue,
-                    exploration_depth="medium",
-                    poll_interval=1.0
-                )
-                spider_agent.start()
-                print("[v0.2.6] ✓ SpiderAgent restarted")
+                if spider_agent.is_alive():
+                    print(f"[v0.2.6] ⚠️ SpiderAgent idle for {idle_time:.0f}s (DreamInbox may be empty, waiting for G2). Skipping restart.")
+                else:
+                    print(f"[v0.2.6] ⚠️ SpiderAgent dead! Restarting...")
+                    spider_agent.stop()
+                    spider_agent.join(timeout=5.0)
+                    spider_agent = SpiderAgent(
+                        name="SpiderAgent",
+                        notification_queue=notification_queue,
+                        exploration_depth="medium",
+                        poll_interval=1.0
+                    )
+                    spider_agent.start()
+                    print("[v0.2.6] ✓ SpiderAgent restarted")
             last_explored_count = current_explored_count
             last_explored_check_time = current_time
         
@@ -475,12 +478,12 @@ def daemon_mode(interval_minutes: int = 30):
         if cycle_count % 60 == 0:
             try:
                 from core import knowledge_graph as kg_main
-                next_item = kg_main.select_next()
-                if next_item:
+                pending = kg_main.list_pending()
+                if pending:
+                    next_item = pending[0]
                     topic = next_item.get("topic")
                     if topic and not kg_main.is_topic_completed(topic):
                         print(f"[v0.2.6] Consuming main queue: {topic}")
-                        # Add to DreamInbox for SpiderAgent to process
                         kg_main.add_to_dream_inbox(topic, source_insight="Main curiosity queue")
                         main_queue_consumed += 1
             except Exception as e:
