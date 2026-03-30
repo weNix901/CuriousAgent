@@ -452,27 +452,19 @@ def daemon_mode(interval_minutes: int = 30):
                     print(f"[v0.2.6] Restarting {agent.name}...")
                     agent.start()
         
-        # G1-Fix: Check SpiderAgent health every 60 seconds
-        if current_time - last_explored_check_time >= stuck_check_interval:
-            current_explored_count = spider_agent.get_explored_count()
-            idle_time = spider_agent.get_idle_time()
-            
-            # Check if SpiderAgent is stuck (idle for more than 5 minutes)
-            if idle_time > stuck_threshold:
-                print(f"[v0.2.6] ⚠️ SpiderAgent stuck! Idle for {idle_time:.0f}s, restarting...")
-                spider_agent.stop()
-                spider_agent.join(timeout=5.0)
-                spider_agent = SpiderAgent(
-                    name="SpiderAgent",
-                    notification_queue=notification_queue,
-                    exploration_depth="medium",
-                    poll_interval=1.0
-                )
-                spider_agent.start()
-                print("[v0.2.6] ✓ SpiderAgent restarted")
-            
-            last_explored_count = current_explored_count
-            last_explored_check_time = current_time
+        # G1-Fix: Check SpiderAgent health every 60 seconds (temporarily disabled - SpiderAgent methods not yet restored)
+        # if current_time - last_explored_check_time >= stuck_check_interval:
+        #     current_explored_count = spider_agent.get_explored_count()
+        #     idle_time = spider_agent.get_idle_time()
+        #     if idle_time > stuck_threshold:
+        #         print(f"[v0.2.6] ⚠️ SpiderAgent stuck! Idle for {idle_time:.0f}s, restarting...")
+        #         spider_agent.stop()
+        #         spider_agent.join(timeout=5.0)
+        #         spider_agent = SpiderAgent(...)
+        #         spider_agent.start()
+        #         print("[v0.2.6] ✓ SpiderAgent restarted")
+        #     last_explored_count = current_explored_count
+        #     last_explored_check_time = current_time
         
         # G2-Fix: Consume main curiosity_queue (every 60 cycles = ~60s)
         if cycle_count % 60 == 0:
@@ -494,7 +486,7 @@ def daemon_mode(interval_minutes: int = 30):
             print(f"🔄 监控循环 #{cycle_count // 10} @ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             print(f"{'='*50}")
             print(f"[v0.2.6] Active agents: {', '.join(alive_agents)}")
-            print(f"[v0.2.6] SpiderAgent explored: {len(spider_agent.get_recently_explored())} topics (idle: {spider_agent.get_idle_time():.0f}s)")
+            print(f"[v0.2.6] SpiderAgent explored: {len(spider_agent._explored_topics)} topics")
             print(f"[v0.2.6] DreamAgent status: {dream_agent.get_status()}")
             print(f"[v0.2.6] SleepPruner status: {sleep_pruner.get_status()}")
             if main_queue_consumed > 0:
