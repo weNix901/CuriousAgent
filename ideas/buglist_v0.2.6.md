@@ -107,21 +107,22 @@ API 进程响应 /api/curious/inject 时，开 threading.Thread 执行 _explore_
 
 ### 需要 OpenCode
 
-- [ ] **G1-Fix1**: SpiderAgent 守护机制（检测 _explored_topics 无增长超过 5 分钟，restart thread）
-  ⚠️ cb8fbf4 代码已写，但 spider_agent.py 文件在 git commit 中损坏（284行→27行截断），需重新提交
 - [ ] **G1-Fix2**: explorer.py 搜索加 timeout（requests 30s，curl 15s）
 - [ ] **G1-Fix3**: fetch_and_clear_dream_inbox 连续空时打印警告
-- [ ] **G2-Fix**: Daemon 模式增加主 curiosity_queue 消费循环（每 60s 调用 select_next）
-  ⚠️ curious_agent.py 中 G2 逻辑已写入，但因 spider_agent.py 损坏导致 daemon 启动失败，已临时 patch curious_agent.py 注释 G1/G2 调用
 - [ ] **G3-Fix1**: Decomposition 原子化（写入队列是原子操作，SIGTERM 不影响）
-- [ ] **G3-Fix2**: API /inject 不执行 decomposition，只触发探索请求到 Daemon
 - [ ] **G3-Fix3**: SleepPruner 增加 incomplete 节点自动补全逻辑
+- [x] **G1-Fix1**: SpiderAgent 守护机制 ✅ OpenCode 修复（spider_agent.py 已完整，303行）
+- [x] **G2-Fix**: Daemon 消费主队列 ✅ OpenCode 修复（select_next 每60s注入DreamInbox）
+- [x] **G3-Fix2**: API /inject 不执行 decomposition ✅ 已验证（curious_api.py 无 decompose 调用）
 - [x] **G4-Cleanup**: 清理 100 个 stub 发现文件 ✅ 已完成（78 stuck items fixed, 0 stub files found）
 
-### 遗留问题
+### 当前状态（2026-03-30 16:15）
 
-- ⚠️ **spider_agent.py 文件损坏**：commit cb8fbf4 中文件从 284 行截断至 27 行，导致 G1/G2/G3 守护机制无法生效
-  - 修复方案：weNix 重新提交 spider_agent.py 完整代码
+- Daemon: 运行中（PID 1467438）
+- API: 运行中（PID 1463948）
+- spider_agent.py: 已修复（G1方法齐全，303行）
+- curiosity_queue: 1744项，78 done，1664 pending
+- KG partial 节点: 99（待 SleepPruner 补全）
   - 当前状态：spider_agent.py 已从 c330738 恢复（不含 G1-G3 新方法），Daemon 可启动但 G1 守护机制缺失
 
 ---
