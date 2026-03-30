@@ -111,18 +111,18 @@ API 进程响应 /api/curious/inject 时，开 threading.Thread 执行 _explore_
 - [ ] **G1-Fix3**: fetch_and_clear_dream_inbox 连续空时打印警告
 - [ ] **G3-Fix1**: Decomposition 原子化（写入队列是原子操作，SIGTERM 不影响）
 - [ ] **G3-Fix3**: SleepPruner 增加 incomplete 节点自动补全逻辑
-- [x] **G1-Fix1**: SpiderAgent 守护机制 ✅ OpenCode 修复（spider_agent.py 已完整，303行）
-- [x] **G2-Fix**: Daemon 消费主队列 ✅ OpenCode 修复（select_next 每60s注入DreamInbox）
-- [x] **G3-Fix2**: API /inject 不执行 decomposition ✅ 已验证（curious_api.py 无 decompose 调用）
-- [x] **G4-Cleanup**: 清理 100 个 stub 发现文件 ✅ 已完成（78 stuck items fixed, 0 stub files found）
+- [x] **G1-Fix1**: SpiderAgent 守护机制 ✅ OpenCode + R1D3 修复
+- [x] **G2-Fix**: Daemon 消费主队列 ✅ R1D3 修复（select_next→list_pending）
+- [x] **G3-Fix2**: API /inject 不执行 decomposition ✅
+- [x] **G4-Cleanup**: 清理 100 个 stub 发现文件 ✅
 
-### 当前状态（2026-03-30 16:15）
+### 当前状态（2026-03-30 16:42）
 
-- Daemon: 运行中（PID 1467438）
-- API: 运行中（PID 1463948）
-- spider_agent.py: 已修复（G1方法齐全，303行）
+- Daemon: 运行中（PID 1482655）
+- API: 运行中
+- spider_agent.py: 已修复（303行）
+- G2: 每60s从 list_pending() 取1项注入 DreamInbox（1664 pending）
 - curiosity_queue: 1744项，78 done，1664 pending
-- KG partial 节点: 99（待 SleepPruner 补全）
   - 当前状态：spider_agent.py 已从 c330738 恢复（不含 G1-G3 新方法），Daemon 可启动但 G1 守护机制缺失
 
 ---
