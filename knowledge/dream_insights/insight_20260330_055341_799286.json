@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_055341_799286",
+  "content": "Autonomous agent path planning algorithms can be modified to explicitly plan out sequences of curiosity-driven exploration actions for ICM-equipped swarm UAVs, treating \"discovering novel environment features\" as the moving target destination that the planning algorithm navigates toward, instead of a fixed geographic coordinate.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Planning algorithms for autonomous agents",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.75,
+  "novelty": 0.82,
+  "trigger_topic": "Planning algorithms for autonomous agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T05:53:41.799309+00:00"
+}

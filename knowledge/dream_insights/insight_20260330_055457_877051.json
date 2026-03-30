@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_055457_877051",
+  "content": "By embedding a 2025-configurable ICM curiosity module into an ASMR agentic memory system, autonomous agents can proactively prioritize searching for under-explored gaps in their long-term memory instead of only retrieving information to answer explicit user queries. This creates a self-improving memory loop where curiosity drives the agent to fill incomplete memories, reducing long-tail retrieval failure for open-ended tasks.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ASMR (Agentic search and memory retrieval)",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.85,
+  "trigger_topic": "ASMR (Agentic search and memory retrieval)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T05:54:57.877074+00:00"
+}

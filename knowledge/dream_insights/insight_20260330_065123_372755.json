@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_065123_372755",
+  "content": "We can refactor tool selection for function-calling autonomous agents by framing available tools as a dynamic generalized attention neighborhood, where only contextually relevant tools are activated in the prompt space, rather than dumping all available tool definitions into the agent’s context window every time it makes a tool choice. This allows the agent to dynamically expand or contract its tool neighborhood based on the complexity of the current task, trimming redundant tool options to reduce context clutter and avoid misselection.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "tool use function calling autonomous agent",
+    "Generalized Neighborhood Prompts"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "tool use function calling autonomous agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T06:51:23.372778+00:00"
+}

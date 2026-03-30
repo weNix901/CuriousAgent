@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_055240_366414",
+  "content": "We can incorporate memory consolidation mechanisms from online meta-learning with catastrophic forgetting mitigation into computer agents that control physical computers, creating lifelong learning computer-using agents that gradually accumulate generalizable computer operation skills without forgetting how to perform older common tasks like formatting a Word document as they learn new niche workflows. This would solve the key limitation of current CUAs that only perform well on tasks seen during their initial reinforcement learning training and fail to retain custom user workflows learned through incremental on-device interaction.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Computer Agent",
+    "Online meta-learning memory consolidation with catastrophic forgetting mitigation"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Computer Agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T05:52:40.366439+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_061812_162278",
+  "content": "If we integrate an Intrinsic Curiosity Module (ICM) to guide spreading activation in RAG-based large language model associative recall, the ICM can intrinsically reward activation that spreads to under-connected, underexplored nodes in the knowledge graph, pulling novel, unexpected associations out of long-tail knowledge that standard greedy spreading activation would miss. This creates a self-improving retrieval loop where the agent’s curiosity continuously expands the scope of useful associative recall beyond frequently activated high-frequency documents.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "**Spreading Activation for large language model associative recall",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "**Spreading Activation for large language model associative recall",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T06:18:12.162301+00:00"
+}

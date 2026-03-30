@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_065544_554779",
+  "content": "We can reframe multi-agent A2A collaboration protocols to systematically harvest failed coordination trajectories between interoperable agents as self-supervised training data to refine individual agents’ exploration strategies for new shared tasks. This turns otherwise discarded coordination failures into free, high-signal improvements to multi-agent task performance without requiring manually labeled data.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "multi-agent collaboration protocols A2A",
+    "Self-supervised exploration strategy improvement from failed trajectories"
+  ],
+  "surprise": 0.75,
+  "novelty": 0.82,
+  "trigger_topic": "multi-agent collaboration protocols A2A",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T06:55:44.554805+00:00"
+}
