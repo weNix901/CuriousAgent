@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_073704_570380",
+  "content": "By integrating the open-domain dense retrieval capability of Contriever into a configurable 2025 ICM-curiosity-driven swarm UAV autonomous agent framework, the curiosity module can prioritize exploring environment regions that contain out-of-distribution, high-information targets matching open-world retrieval queries, rather than just exploring random unvisited areas.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Contriever",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Contriever",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T07:37:04.570411+00:00"
+}
