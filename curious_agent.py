@@ -452,19 +452,24 @@ def daemon_mode(interval_minutes: int = 30):
                     print(f"[v0.2.6] Restarting {agent.name}...")
                     agent.start()
         
-        # G1-Fix: Check SpiderAgent health every 60 seconds (temporarily disabled - SpiderAgent methods not yet restored)
-        # if current_time - last_explored_check_time >= stuck_check_interval:
-        #     current_explored_count = spider_agent.get_explored_count()
-        #     idle_time = spider_agent.get_idle_time()
-        #     if idle_time > stuck_threshold:
-        #         print(f"[v0.2.6] ⚠️ SpiderAgent stuck! Idle for {idle_time:.0f}s, restarting...")
-        #         spider_agent.stop()
-        #         spider_agent.join(timeout=5.0)
-        #         spider_agent = SpiderAgent(...)
-        #         spider_agent.start()
-        #         print("[v0.2.6] ✓ SpiderAgent restarted")
-        #     last_explored_count = current_explored_count
-        #     last_explored_check_time = current_time
+        # G1-Fix: Check SpiderAgent health every 60 seconds
+        if current_time - last_explored_check_time >= stuck_check_interval:
+            current_explored_count = spider_agent.get_explored_count()
+            idle_time = spider_agent.get_idle_time()
+            if idle_time > stuck_threshold:
+                print(f"[v0.2.6] ⚠️ SpiderAgent stuck! Idle for {idle_time:.0f}s, restarting...")
+                spider_agent.stop()
+                spider_agent.join(timeout=5.0)
+                spider_agent = SpiderAgent(
+                    name="SpiderAgent",
+                    notification_queue=notification_queue,
+                    exploration_depth="medium",
+                    poll_interval=1.0
+                )
+                spider_agent.start()
+                print("[v0.2.6] ✓ SpiderAgent restarted")
+            last_explored_count = current_explored_count
+            last_explored_check_time = current_time
         
         # G2-Fix: Consume main curiosity_queue (every 60 cycles = ~60s)
         if cycle_count % 60 == 0:
