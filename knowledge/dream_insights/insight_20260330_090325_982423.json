@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_090325_982423",
+  "content": "A curiosity-driven reinforcement learning agent can use a unified episodic-semantic node memory architecture (like Synapse) to organize its exploratory trajectories by both the specific sequence of visited states (episodic nodes) and their abstract semantic meaning, replacing flat vector storage of surprising states to prioritize high-value, generalizable exploration over repeated visits to trivial novel stimuli. This architecture mirrors how human episodic memory integrates semantic context to guide intrinsically motivated exploration, aligning neural cognitive principles with modern reinforcement learning design.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Episodic-semantic node representation learning",
+    "curiosity driven reinforcement learning ICM RND compared to curious agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Episodic-semantic node representation learning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T09:03:25.982445+00:00"
+}

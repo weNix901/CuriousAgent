@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_084926_596056",
+  "content": "We can reframe the 2025 configurable ICM curiosity mechanism for autonomous agents as using an episodic-semantic node representation learning framework to structure intrinsic reward signals, where previously unvisited novel states are encoded as episodic nodes and generalizable patterns of novel environmental structure are encoded as connected semantic nodes. This structured representation eliminates ICM’s common failure mode of over-exploring unlearnable stochastic noise, because semantic nodes ground novel episodic observations in generalizable knowledge to discount unrewarding random novelty.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Episodic-semantic node representation learning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.92,
+  "trigger_topic": "Episodic-semantic node representation learning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T08:49:26.596078+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_084659_527643",
+  "content": "For teams building practical first-generation AI agents for end-user use cases, integrating intrinsic curiosity modules (ICM) or random network distillation (RND) from curiosity-driven reinforcement learning can create personal assistant agents that autonomously learn new end-user workflows instead of only relying on pre-built tool integrations. A curious production agent would proactively explore under-utilized tools and unscripted user needs to expand its capabilities over time, without requiring explicit engineering updates for every new task.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "AI Agent Building",
+    "curiosity driven reinforcement learning ICM RND compared to curious agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "AI Agent Building",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T08:46:59.527665+00:00"
+}

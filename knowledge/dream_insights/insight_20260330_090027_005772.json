@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_090027_005772",
+  "content": "If we apply the comparative insight that ICM underperforms Random Network Distillation (RND) and other modern curious agent frameworks in sparse reward open-ended environments to the 2025 use case of configurable ICM for swarm UAV target exploration, we can hypothesize that swapping configurable ICM for a hybrid RND-curious agent intrinsic reward framework will drastically improve swarm UAV target discovery rates in uncharted, low-signal environments. This framework swap leverages the 2025 trend of domain-specific configurable ICM design while addressing a key gap uncovered by head-to-head comparisons of older ICM against newer curiosity mechanisms.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "curiosity driven reinforcement learning ICM RND compared to curious agent"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T09:00:27.005796+00:00"
+}

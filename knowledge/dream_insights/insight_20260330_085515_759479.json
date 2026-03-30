@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_085515_759479",
+  "content": "We can frame zero-shot and few-shot prompting performance differences through an ICM curiosity lens: few-shot prompting acts like an intrinsic curiosity reward signal that guides a large language model to adjust its task search space toward novel but in-distribution solutions, just as ICM rewards autonomous agents for exploring under-visited state transitions. This leads to the testable hypothesis that prompting strategies that explicitly add 'novelty of observation' incentives aligned with ICM will improve few-shot generalization on out-of-distribution tasks far more than they improve zero-shot performance.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "[Zero-shot vs few-shot prompting performance comparison]",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "[Zero-shot vs few-shot prompting performance comparison]",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T08:55:15.759502+00:00"
+}
