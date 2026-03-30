@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_052139_960443",
+  "content": "We can reframe underutilized Soft Q-Learning as an implicit curiosity regulator for 2025 ICM-powered autonomous swarm agents, where Soft Q-Learning's inherent maximum entropy objective naturally amplifies ICM's intrinsic reward signal to prevent the swarm from getting stuck in repetitive, low-discovery local optima. This combination addresses a key unaddressed flaw of current ICM swarm systems: over-specialized curiosity that wastes exploration bandwidth on trivial redundant targets instead of exploring high-value uncharted environments.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Soft Q-Learning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Soft Q-Learning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T05:21:39.960467+00:00"
+}

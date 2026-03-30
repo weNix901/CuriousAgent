@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_162656_855859",
+  "content": "Every autonomous agent, whether biological, chemical, or digital, can be reframed as a mobile, action-oriented node in a global semantic network that updates concept relationships through its interactions, rather than just a static entity that exerts power or produces effects. This perspective treats an agent's causal impacts as semantic edits that permanently alter the meaning of connected concepts in the network.",
+  "insight_type": "principle",
+  "source_topics": [
+    "agent",
+    "Semantic Networks"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T16:26:56.855904+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_164452_399556",
+  "content": "If we model the active context of a reasoning LLM agent as a dynamic unified graph, where each token or reasoning step is a node, the LLM's working memory capacity limit directly acts as a hard constraint on zero-shot node generalization for new reasoning steps added to this context graph. LLM agents fail at long-range reasoning not just because they run out of context slots, but because out-of-distribution new reasoning nodes cannot be properly generalized and integrated into the working memory graph once working memory capacity is exhausted.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "Zero-shot node generalization on unified graph"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T16:44:52.399579+00:00"
+}

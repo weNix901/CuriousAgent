@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061857_891477",
+  "content": "State-of-the-art 2024-2025 active learning agents can leverage curiosity-driven exploration signals to dynamically prioritize which episodic memories get compressed and retained long-term, rather than using fixed compression heuristics based on recency or frequency. This creates a self-reinforcing loop where the agent’s ongoing active learning goals shape its own compressed long-term memory structure, which in turn makes future exploration more efficient and targeted.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "[Memory compression and summarization for long-term retention]"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:18:57.891500+00:00"
+}

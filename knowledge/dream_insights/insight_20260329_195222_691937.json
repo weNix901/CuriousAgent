@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_195222_691937",
+  "content": "We can reframe adaptive AI agent workflows as dynamic curiosity-driven exploration spaces, where an embedded 2025 ICM curiosity mechanism replaces static task branching logic to automatically adjust the workflow path when the pre-planned sequence hits unanticipated unknowns. The ICM assigns intrinsic reward for exploring uncharted task branches that move the agent closer to the overall goal, rather than requiring hard-coded conditional rules for every possible edge case.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "AI Agent workflow",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "AI Agent workflow",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T19:52:22.691960+00:00"
+}

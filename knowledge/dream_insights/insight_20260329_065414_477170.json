@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065414_477170",
+  "content": "Curiosity-driven intrinsic reward mechanisms from autonomous ICM agents can be repurposed as a meta-learning gating signal to prioritize which episodic memories get consolidated during off-policy updates, solving the forgetting of high-value rarely encountered tasks in fast-adapting meta-agents.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "meta-learning memory consolidation agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:54:14.477192+00:00"
+}

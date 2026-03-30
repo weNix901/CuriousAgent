@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_122157_058260",
+  "content": "We can reframe zero-shot node generalization on graphs as a retrieval-augmented generation task, where contrastive pre-training learns to structure graph embeddings such that unlabeled target nodes 'retrieve' semantically compatible structural patterns from a pre-trained corpus of source graph node embeddings, rather than relying purely on linear projection to unseen classes. This allows zero-shot node models to leverage fine-grained structural commonalities between source and target domains instead of only learning coarse-grained embedding alignment.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Contrastive pre-training strategies for zero-shot node generalization",
+    "Retrieval-Augmented Generation (RAG)"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.87,
+  "trigger_topic": "Contrastive pre-training strategies for zero-shot node generalization",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T12:21:57.058281+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_110849_432099",
+  "content": "Instead of forcing single agents to handle long, complex reasoning tasks that exceed their working memory limits, we can decompose the full reasoning chain into a sequence of small, memory-bounded subtasks assigned to specialized agents in a multi-agent orchestrated pipeline, where each agent only needs to retain enough working memory for its own narrow subtask. This turns the hard constraint of individual agent working memory limits from a flaw into a design feature that improves overall pipeline predictability and reliability.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Multi-agent orchestrated pipeline",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.75,
+  "novelty": 0.8,
+  "trigger_topic": "Multi-agent orchestrated pipeline",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T11:08:49.432119+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_073543_614365",
+  "content": "Hierarchical task planning for agents can be reimagined where each hierarchical planning abstraction level trains a Numerical Planning Operator Learner that bootstraps its own operator set via curiosity-driven intrinsic reward, rather than relying on pre-specified ground operators. This creates a self-growing hierarchical planning tree where higher-level abstract operators emerge from low-level numerical curiosity-driven exploration of the task space.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Hierarchical task planning for agents",
+    "Numerical Planning Operator Learner"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Hierarchical task planning for agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:35:43.614393+00:00"
+}

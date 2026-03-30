@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_143621_280151",
+  "content": "Contrastive pre-training for zero-shot node generalization can be repurposed as the feature embedding backbone for a 2025 ICM curiosity autonomous agent, where unseen graph nodes that the contrastive pre-training cannot easily align to existing clusters are treated as intrinsically 'novel' states to drive exploratory behavior. This lets the agent automatically prioritize exploring out-of-distribution environments without manual reward shaping, while also improving the zero-shot generalization of the node embeddings through active exploration.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Contrastive pre-training strategies for zero-shot node generalization",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Contrastive pre-training strategies for zero-shot node generalization",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T14:36:21.280175+00:00"
+}

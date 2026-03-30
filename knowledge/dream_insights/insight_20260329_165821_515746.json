@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_165821_515746",
+  "content": "ICM curiosity-driven exploration can be intentionally biased to prioritize learning compressed, high-value reasoning chunks that fit within an LLM agent’s fixed working memory capacity, turning a hard capacity constraint into a filter that avoids noisy low-impact exploration. This creates a self-regulating loop where curiosity only expands reasoning around chunks that the agent can actually hold and use in context, rather than wasting exploration on unretrievable long-range reasoning steps.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T16:58:21.515766+00:00"
+}

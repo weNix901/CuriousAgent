@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063940_735376",
+  "content": "We can reframe general agent design around the core mechanism of uncertainty-based memory sample selection from Topic A: rather than pre-defining an agent’s action space or reward function, the agent’s persistent identity and adaptive behavior emerge from iteratively selecting which new experiences to store in memory based on how uncertain the current agent model is about those experiences. This turns the problem of building a capable general agent into the problem of tuning a principled memory selection gate.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Uncertainty-based memory sample selection for deep active agents",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Uncertainty-based memory sample selection for deep active agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:39:40.735398+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080456_035729",
+  "content": "We can reframe LightRAG not just as a retrieval-augmented generation system for retrieving stored knowledge, but as a biologically inspired active `retrieval agent` where each text chunk acts as a targeted biological agent that exerts power to produce a specific effect: activating only the semantically relevant subset of the knowledge graph to shape the LLM's final output, rather than passively waiting to be retrieved. This shifts LightRAG design from optimizing static indexing to engineering active, effect-driven knowledge chunks that self-organize around user query intent.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "LightRAG",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "LightRAG",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:04:56.035755+00:00"
+}

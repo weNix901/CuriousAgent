@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063742_755230",
+  "content": "We can reframe the architecture of 2024–2025 SOTA active learning agent memory around the intrinsic curiosity mechanism of ICM-driven autonomous agents, where unlabeled high-uncertainty data points selected for active learning annotation are treated as \"curiosity peaks\" that get priority encoding into long-term agent memory, rather than only being sampled for model improvement. This lets agents simultaneously refine their predictive world models and build a semantically structured memory schema anchored to what they found most surprising to begin with.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:37:42.755251+00:00"
+}

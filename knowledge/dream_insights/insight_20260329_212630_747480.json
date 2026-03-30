@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_212630_747480",
+  "content": "We can integrate Generalized Neighborhood Prompts into scalable shared memory architectures for multi-agent active learning to create a dynamic, query-aware memory routing system, where only the relevant neighborhood of stored memory experiences is activated for each new active learning query, rather than scanning the entire shared memory bank. This hybrid design lets agents selectively pull contextually similar prior annotations while preserving the scalability of the shared memory system by keeping activation sparse.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Scalable shared memory architecture for multi-agent active learning",
+    "Generalized Neighborhood Prompts"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Scalable shared memory architecture for multi-agent active learning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T21:26:30.747503+00:00"
+}

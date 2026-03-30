@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061528_175746",
+  "content": "The 'depth of unknown' fundamental property of general agents, which cannot be fully pre-specified or bounded by designers, can be measured and exploited for intrinsic motivation by repurposing the prediction error frameworks from curiosity-driven RL methods like ICM and RND. The degree of unresolvable uncertainty about an agent's own long-term open-ended behavior becomes the intrinsic reward signal that drives autonomous open-ended exploration of its own capabilities.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:15:28.175767+00:00"
+}

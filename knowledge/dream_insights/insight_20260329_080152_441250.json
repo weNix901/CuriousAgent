@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080152_441250",
+  "content": "Biological pathogens (a classic class of biological agents defined by Merriam-Webster and Wikipedia as entities that exert power and produce specific effects on host organisms) can be modeled as memory networks that store incremental traces of their adaptive spread across heterogeneous host populations. This framework reframes disease surveillance as a memory retrieval task, where variant detection corresponds to recalling updated contextual memory of the pathogen's evolutionary trajectory.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Memory Networks",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "Memory Networks",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:01:52.441272+00:00"
+}

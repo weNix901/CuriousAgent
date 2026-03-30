@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_074942_160914",
+  "content": "An AI agent’s multi-step reasoning workflow can be dynamically structured as a query-specific knowledge graph by GraphRAG, where each reasoning step becomes a node and dependencies between steps become edges, rather than following a rigid pre-defined execution sequence. This allows the agent to surface unplanned relevant intermediate connections that improve task completion, rather than being constrained to a fixed linear or branching workflow.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "GraphRAG",
+    "AI Agent workflow"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "GraphRAG",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:49:42.160945+00:00"
+}

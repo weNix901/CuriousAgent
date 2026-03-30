@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080554_897392",
+  "content": "We can reframe core planning algorithms for autonomous agents as a hybrid active learning memory architecture where curiosity-driven intrinsic reward signals prioritize which world state branches the agent should explore and commit to memory, pruning low-curiosity low-reward paths before full computational planning is executed. This creates a self-improving system where past planning outcomes update the memory's curiosity weighting for future planning queries.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Planning algorithms for autonomous agents",
+    "Hybrid Planning and Learning System"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Planning algorithms for autonomous agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:05:54.897418+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065518_435771",
+  "content": "Tool-based memory operations can turn an AI agent's fixed working memory capacity limit into a controllable, curiosity-aligned feature: instead of forcing the agent to store all novel observations in constrained native memory, it can offload unexplored, high-curiosity patterns to external tool-managed memory for asynchronous active learning, rather than discarding them when native capacity is exceeded. This creates a scalable 'curiosity buffer' that adapts memory usage to the agent's exploration drive rather than hard architectural limits.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Tool-based Memory Operation",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.85,
+  "trigger_topic": "Tool-based Memory Operation",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:55:18.435791+00:00"
+}

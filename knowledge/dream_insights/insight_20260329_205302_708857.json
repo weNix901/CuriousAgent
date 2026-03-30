@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_205302_708857",
+  "content": "We can reframe biological pathogens (biological agents from Topic B) as naturally evolved 2025 ICM curiosity-driven autonomous agents that generate intrinsic \"reward\" from exploring and adapting to novel host niches. This framing lets us borrow the configurable ICM framework for swarm UAVs to model how viral or bacterial swarms evolve to discover new host targets.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "agent"
+  ],
+  "surprise": 0.88,
+  "novelty": 0.92,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T20:53:02.708904+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062456_713655",
+  "content": "Comparing intrinsic curiosity modules (ICM) and random network distillation (RND) for curiosity-driven reinforcement learning against general curious agents can reveal that the intrinsic reward regularization used in ICM/RND can be repurposed to solve the active learning 'forgetting of rare surprising patterns' problem that plagues 2024-2025 SOTA memory-augmented agents. Curiosity intensity, measured as prediction error from ICM/RND, can act as a dynamic retention priority score for agent memory, automatically keeping unexpected high-error patterns that active learning often misses due to static sampling rules.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:24:56.713678+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061530_351311",
+  "content": "The \"depth unknown\" open-endedness of the general agent concept can be framed as a built-in curiosity trigger for 2025 self-supervised world model memory agents, driving them to actively explore unmodeled blanks in their own world representation instead of just pre-programmed external environments. This turns the fundamental incompleteness of general agent definition into a self-improving engine for autonomous open-ended development.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "self-supervised world model memory agent 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "self-supervised world model memory agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:15:30.351333+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_091212_997861",
+  "content": "The 2025 state-of-the-art framework of treating memory as an active learning agent can be standardized via the Model Context Protocol (MCP) to create interoperable, portable memory agents that work across all AI applications, rather than being locked to a single model or platform.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Model Context Protocol",
+    "memory as active learning agent SOTA 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Model Context Protocol",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T09:12:12.997915+00:00"
+}

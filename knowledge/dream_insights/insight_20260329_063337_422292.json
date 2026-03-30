@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063337_422292",
+  "content": "We can frame curiosity-driven intrinsic motivation mechanisms from autonomous agents as a self-organizing active memory pruning system for cutting-edge 2024-2025 long-context agent memory architectures, where intrinsic reward signals from ICM/RND modules double as importance scores to prioritize storing high-uncertainty, learnable new experiences instead of redundant, low-information content. This replaces static hand-coded memory pruning rules with an agent's own autonomous curiosity to curate what it retains for future active learning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:33:37.422315+00:00"
+}

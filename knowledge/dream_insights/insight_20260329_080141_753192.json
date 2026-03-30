@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080141_753192",
+  "content": "We can integrate the Intrinsic Curiosity Module (ICM) into the permission-bounded OpenClaw-ACP autonomous agent harness architecture to create *curiosity-governed autonomous agents*, where ICM's exploration signal is filtered through ACP's predefined operation permission layers before being allowed to drive agent actions.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent harness ACP openclaw autonomous agent framework architecture",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent harness ACP openclaw autonomous agent framework architecture",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:01:41.753217+00:00"
+}

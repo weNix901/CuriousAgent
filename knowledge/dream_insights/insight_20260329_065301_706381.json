@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065301_706381",
+  "content": "Comparative analysis of intrinsic curiosity modules (ICM) and random network distillation (RND) for curiosity-driven reinforcement learning reveals that the performance gap between these intrinsic reward methods is heavily modulated by the agent’s working memory capacity from cutting-edge 2024-2025 active learning architectures. Higher-capacity agent memory disproportionately amplifies the performance advantage of RND over ICM in sparse-reward, open-ended environments.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "agent"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.81,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:53:01.706404+00:00"
+}

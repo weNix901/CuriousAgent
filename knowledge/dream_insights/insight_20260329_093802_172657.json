@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_093802_172657",
+  "content": "We can adapt React's component-based UI architecture to modularize agent working memory, breaking monolithic working memory into reusable, self-contained memory components that only re-render (update) when their specific input context changes. This design directly mitigates the working memory capacity limit that cripples agent reasoning by avoiding unnecessary reprocessing of irrelevant old information and letting agents load only required memory components for a given reasoning step.",
+  "insight_type": "principle",
+  "source_topics": [
+    "ReAct",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "ReAct",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T09:38:02.172679+00:00"
+}

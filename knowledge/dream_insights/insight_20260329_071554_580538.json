@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071554_580538",
+  "content": "We can reframe an autonomous agent’s long-term memory consolidation as a dynamic, curiosity-filtered process where the 2024 SOTA agent memory system uses an adapted Intrinsic Curiosity Module (ICM) to prioritize encoding new memories that conflict with or extend existing schemas, rather than storing all encountered experience indiscriminately. This ICM-modulated memory system would automatically prune low-surprise, predictable memories to avoid the catastrophic capacity overload that plagues modern long-horizon agents.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Intrinsic Curiosity Module"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:15:54.580561+00:00"
+}

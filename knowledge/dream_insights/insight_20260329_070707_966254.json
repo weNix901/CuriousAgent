@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070707_966254",
+  "content": "Just as the prefrontal-hippocampal memory retrieval system (the biological inspiration for Retrieval-Augmented Generation) dynamically selects relevant episodic memories to ground current reasoning, a hierarchical Retrieval-Augmented Generation extension can ground Task and Motion Planning for embodied agents by retrieving previously successful motion trajectories and task schemas matched to current environmental context, rather than recomputing plans from scratch every time. This architecture mirrors how the brain pairs high-level goal planning with memory-retrieved movement templates to reduce cognitive and computational load.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Retrieval-Augmented Generation",
+    "Task and Motion Planning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Retrieval-Augmented Generation",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:07:07.966277+00:00"
+}

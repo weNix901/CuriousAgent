@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062603_128469",
+  "content": "A curiosity-driven autonomous agent can leverage its persistent memory to hierarchically cluster failed self-supervised exploration trajectories by the type of unexpected world model prediction error that caused the failure, rather than discarding them as uninformative noise. This clustering enables the agent to iteratively refine its intrinsic curiosity reward signal to avoid repeating unproductive failure modes and prioritize exploring high-uncertainty regions that actually advance its world model understanding.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Self-supervised exploration strategy improvement from failed trajectories",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Self-supervised exploration strategy improvement from failed trajectories",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:26:03.128492+00:00"
+}

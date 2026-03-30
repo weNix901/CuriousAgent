@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080443_585901",
+  "content": "We can reframe an autonomous AI agent as a walking, acting GraphRAG structure that continuously extends its own knowledge graph through action, rather than only retrieving from a pre-built static graph to answer queries. Every real-world intervention a biological or software agent makes leaves a new entity-relation edge in its working knowledge graph, updating its context for future decisions.",
+  "insight_type": "principle",
+  "source_topics": [
+    "GraphRAG",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "GraphRAG",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:04:43.585928+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062745_370974",
+  "content": "Comparative evaluations of curiosity-driven reinforcement learning methods (ICM vs RND vs hand-designed curious agents) can be reframed as an active learning problem where the evaluation agent itself adaptively allocates exploration budget to test the most informative mismatched performance scenarios, rather than running uniform brute-force evaluations across all environments. This reframing turns the static problem of method comparison into an adaptive, self-improving process that cuts evaluation cost while uncovering nuanced, environment-specific strengths of each curiosity method.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:27:45.370997+00:00"
+}

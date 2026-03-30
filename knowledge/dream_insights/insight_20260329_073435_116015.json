@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_073435_116015",
+  "content": "We can reframe the design of autonomous computer agents by drawing on the core definition of biological and chemical agents: instead of building computer agents to execute pre-specified task sequences, we can design them to act as diffuse, effect-producing active causes that spread adaptive changes through digital systems, much like a biological agent catalyzes cellular responses.",
+  "insight_type": "cross-pollination",
+  "source_topics": [
+    "Computer Agent",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Computer Agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:34:35.116037+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_175813_701542",
+  "content": "The original Merriam-Webster definition of an agent as \"one that acts or exerts power to produce an effect\" aligns with a re-framing of ICM curiosity mechanisms for autonomous agents as biological-style causal effect-seeking agents in their own right, where ICM modules actively drive exploration by exerting internal power to seek out unobserved causal relationships in the environment. This frames ICM not just as a reward component for AI agents, but as a standalone micro-agent oriented around the core agent function of producing novel effects.",
+  "insight_type": "principle",
+  "source_topics": [
+    "agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T17:58:13.701567+00:00"
+}

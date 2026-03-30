@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_073104_836810",
+  "content": "Autonomous curiosity-driven agents can leverage streaming experience processing techniques originally designed for Intrinsic Curiosity Module (ICM) training to continuously grow their active memory without catastrophic forgetting. Instead of pre-loading static datasets for offline ICM training, the agent intrinsically curates its own streaming stream of novel, curiosity-triggered experiences to incrementally update both its exploration policy and long-term memory store.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Streaming experience processing for ICM training",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.85,
+  "trigger_topic": "Streaming experience processing for ICM training",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:31:04.836833+00:00"
+}

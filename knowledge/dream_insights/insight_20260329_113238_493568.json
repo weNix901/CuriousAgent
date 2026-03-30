@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_113238_493568",
+  "content": "The AI Agent Marketplace can be reimagined as a dynamic matching platform that sorts AI agents by their measured working memory capacity for specific reasoning tasks, matching agents with appropriate working memory limits to the complexity of jobs users post. For example, a simple customer support FAQ task would be matched to lightweight agents with smaller working memories to reduce inference costs, while a complex long-horizon legal document reasoning task would be routed to high-capacity agents.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "AI Agent Marketplace",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "AI Agent Marketplace",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T11:32:38.493590+00:00"
+}

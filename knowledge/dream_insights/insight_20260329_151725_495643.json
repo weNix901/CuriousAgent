@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_151725_495643",
+  "content": "If we extend the Merriam-Webster definition of an agent as \"any entity that exerts power to produce an effect\" to include biological pathogenic agents, we can frame ICM curiosity-driven autonomous AI agents as analogous to biological infectious agents: ICM rewards drive AI agents to actively seek out uncharted, novel interaction domains in their environment just as biological infectious agents evolved to spread into new, uncolonized host niches to produce new effects.",
+  "insight_type": "analogy",
+  "source_topics": [
+    "agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T15:17:25.495663+00:00"
+}

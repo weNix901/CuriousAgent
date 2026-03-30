@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064051_994758",
+  "content": "Curiosity-driven intrinsic reward modules (like ICM and RND) for autonomous agents can be reframed as a built-in active learning data selector that dynamically prioritizes which new experiences to encode into the agent’s long-term memory, cutting redundant memory storage by up to 40% while improving out-of-distribution task generalization for 2024-2025 SOTA agent memory architectures. This creates a self-organizing memory system where intrinsic curiosity, not explicit human labels or task rewards, shapes what the agent retains long-term.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:40:51.994785+00:00"
+}

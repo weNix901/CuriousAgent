@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_110247_454824",
+  "content": "ICM's intrinsic curiosity-driven exploration can be regulated by an autonomous agent's working memory capacity limit: agents will automatically assign higher intrinsic reward to unexplored state features that fit within their remaining working memory, and deprioritize novel states that would overcrowd their active buffer. This creates a naturally self-limiting curiosity that avoids the common ICM problem of over-exploring noisy, unprocessable novel states.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T11:02:47.454846+00:00"
+}

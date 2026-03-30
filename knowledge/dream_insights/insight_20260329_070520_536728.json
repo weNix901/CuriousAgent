@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070520_536728",
+  "content": "Step-wise Group Relative Policy Optimization (GRPO) can be adapted to model the phase-locked prefrontal-hippocampal interaction during hierarchical memory retrieval, where the prefrontal cortex (PFC) sequentially prunes competing retrieval trajectories just as step-wise GRPO normalizes relative advantage per reasoning step to stabilize policy updates.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Step-wise GRPO",
+    "Prefrontal-hippocampal interaction during memory retrieval"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Step-wise GRPO",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:05:20.536751+00:00"
+}

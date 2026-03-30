@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064656_747939",
+  "content": "A curiosity-driven autonomous agent can dynamically bootstrap its own Task and Motion Planning (TAMP) operator library by actively exploring novel environment interactions, rather than relying on pre-specified planning operators or offline expert demonstration data. This creates a self-improving closed loop where curiosity-driven exploration generates new training data for numerical planning operators, and updated TAMP capabilities in turn guide the agent to explore higher-complexity environments that yield more valuable learning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Task and Motion Planning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.87,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:46:56.747970+00:00"
+}

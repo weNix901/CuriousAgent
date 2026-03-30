@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_143242_641792",
+  "content": "We can reframe LoCoMo motion planning latency optimization as an intrinsic curiosity problem for autonomous mobile agents, where the ICM curiosity mechanism rewards the agent for exploring low-latency motion planning trajectories that the system has not tested frequently, rather than only converging on a precomputed feasible path. This creates a self-optimizing loop where the agent continuously discovers faster, more adaptive motion plans for novel dynamic environments without explicit external reward tuning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "LoCoMo motion planning latency optimization",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "LoCoMo motion planning latency optimization",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T14:32:42.641813+00:00"
+}

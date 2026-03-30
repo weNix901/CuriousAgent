@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_162536_253434",
+  "content": "We can frame the 2025 evolution of ICM-powered autonomous agents as a natural selection process where the comparison of ICM, RND, and general curious agents acts as a fitness filter: only curiosity mechanisms that balance sustained open-ended exploration and targeted novel-state reward generation survive to be deployed in next-generation autonomous agents. This means 2025 configurable ICM designs can borrow the adaptive intrinsic reward scaling of RND to outperform general curious agents in long-horizon autonomous tasks.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.78,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T16:25:36.253456+00:00"
+}

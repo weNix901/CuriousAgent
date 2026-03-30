@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062958_187458",
+  "content": "2025 state-of-the-art active learning memory agents can be improved by adding an episodic memory transformer gate that prunes low-information query candidates by linking new exploratory stimuli to past surprising episodes, turning active learning’s sample selection into a curiosity-driven memory-aware process. This gate would automatically prioritize queries that resolve uncertainty from mismatches between current predictions and stored episodic context that previously triggered strong learning updates.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning memory agent SOTA deep 2025",
+    "episodic memory transformer agent 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.85,
+  "trigger_topic": "active learning memory agent SOTA deep 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:29:58.187480+00:00"
+}

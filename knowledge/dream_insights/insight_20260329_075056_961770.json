@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_075056_961770",
+  "content": "We can reframe agent-orchestrated answering ensembles for AI to draw on the biological/chemical definition of an agent, designing each specialized AI answering component as a biological 'active agent' that produces targeted, context-specific effects, rather than just a discrete model waiting for orchestration prompts. The ensemble can then be orchestrated to activate only the specialized agents that match the unique causal requirements of a given query, rather than running all components in parallel.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Agent-Orchestrated Answering Ensembles",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "Agent-Orchestrated Answering Ensembles",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:50:56.961800+00:00"
+}

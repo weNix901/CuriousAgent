@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064810_287170",
+  "content": "Curiosity-driven intrinsic motivation modules (like ICM and RND from Topic A) can serve as a dynamic pruning and prioritization gate for 2025 SOTA long-term active learning agent memory, filtering out low-novelty stale experiences to retain only high-surprise information that drives further exploration. This creates a self-sustaining memory loop where curiosity shapes memory, and improved memory in turn enables more targeted curious exploration.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:48:10.287196+00:00"
+}

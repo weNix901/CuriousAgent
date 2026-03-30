@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063438_978771",
+  "content": "We can frame an agent's intrinsic curiosity drive as a dynamically evolving Linear Temporal Logic Reward Machine, where each unobserved or underexplored memory state corresponds to a reward-generating transition that pushes the agent to satisfy the temporal logic constraint \"eventually explore every unvisited information state\". This structure replaces ad-hoc curiosity bonuses with verifiable, formal reward shaping that aligns long-term exploratory behavior with the agent's active memory expansion goals.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Linear Temporal Logic Reward Machine",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Linear Temporal Logic Reward Machine",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:34:38.978794+00:00"
+}

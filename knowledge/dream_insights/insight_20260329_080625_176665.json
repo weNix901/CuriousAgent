@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080625_176665",
+  "content": "We can reframe long-horizon active learning working memory retention as a property of distributed biological agent populations, where distinct small agent subpopulations each encode specific salient information from long learning trajectories, and only activate to exert their effect when relevant context is encountered during extended sequential decision-making. This avoids the bottleneck of centralized working memory retention by offloading long-horizon information across a distributed collective of specialized agent units.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Working memory retention mechanisms for long-horizon active learning",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "Working memory retention mechanisms for long-horizon active learning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:06:25.176689+00:00"
+}

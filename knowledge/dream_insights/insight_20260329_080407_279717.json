@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080407_279717",
+  "content": "Just as biological/chemical agents are active, effect-producing entities that trigger cascading changes through a medium, individual fans can be framed as autonomous fan effect propagation agents that exert power to spread sentiment, engagement, and fandom behaviors across social and cultural networks. This perspective reframes fan effect propagation not as a passive diffusion of trends, but as a dynamic process driven by discrete, power-exerting agent entities with variable capacity to trigger cascading effects.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Fan Effect Propagation",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Fan Effect Propagation",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:04:07.279737+00:00"
+}

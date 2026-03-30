@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065443_767711",
+  "content": "ICM-based curiosity-driven autonomous agents can be adapted to intentionally exploit, rather than compensate for, working memory capacity limits to improve open-ended reasoning efficiency. Instead of filling all available working memory slots with new information at every reasoning step, a curiosity gatekeeper aligned with ICM will prioritize storing only unexpected, uncertainty-reducing information that fits within the working memory bound.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:54:43.767734+00:00"
+}

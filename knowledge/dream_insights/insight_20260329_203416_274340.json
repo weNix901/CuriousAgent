@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_203416_274340",
+  "content": "We can integrate semantic priming principles into the 2025 generation of configurable ICM curiosity mechanisms for swarm UAV autonomous agents, to bias the agent's intrinsic reward toward semantically related unexplored states rather than random novelty. This creates a more purpose-driven exploration strategy that prioritizes discovering contextually relevant targets over uninformative random novel stimuli.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "Semantic Priming"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T20:34:16.274361+00:00"
+}

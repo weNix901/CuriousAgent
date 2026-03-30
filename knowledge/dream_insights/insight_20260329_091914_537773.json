@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_091914_537773",
+  "content": "We can frame ASMR (Agentic search and memory retrieval) as a dynamic, on-demand 'retrieval priming mechanism that can be integrated into online meta-learning memory consolidation to pre-emptively reduce catastrophic forgetting. By pulling only contextually relevant old memories during each new online meta-learning update, ASMR actively rehearses high-utility outdated knowledge without the computational overhead of full memory replay, turning ad-hoc agent memory search into a built-in forgetting mitigation tool.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ASMR (Agentic search and memory retrieval)",
+    "Online meta-learning memory consolidation with catastrophic forgetting mitigation"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "ASMR (Agentic search and memory retrieval)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T09:19:14.537801+00:00"
+}

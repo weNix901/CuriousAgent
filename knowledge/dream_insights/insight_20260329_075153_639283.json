@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_075153_639283",
+  "content": "Just as biological/chemical agents from the traditional agent definition exert power to produce targeted effects in external environments by exploiting uncharted molecular niches, 2025 ICM curiosity-driven autonomous agents can be reframed as 'epistemic biological agents' that use intrinsic curiosity to seek out unmodeled environmental niches to exert causal power over new problem domains. This framework suggests that the success of curiosity-driven autonomous agents hinges on tuning their 'virulence' (impact of their exploratory actions) to match the novelty of the epistemic niche they encounter.",
+  "insight_type": "analogy",
+  "source_topics": [
+    "agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.82,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:51:53.639308+00:00"
+}

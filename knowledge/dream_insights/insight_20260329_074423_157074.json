@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_074423_157074",
+  "content": "We can reframe any biological or chemical agent as a natural evolved context compressor, where pathogenic biological agents selectively compress the full genomic and proteomic context of a host organism into a narrow set of disease-causing functional outputs, aligning with the core definition of an agent as an entity that exerts targeted power to produce a specific effect. This framework suggests that context compression efficiency is a unifying functional trait that can predict how effective any agent — natural or artificial — is at achieving its goal.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Context Compression",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "Context Compression",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:44:23.157097+00:00"
+}

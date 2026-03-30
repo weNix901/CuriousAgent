@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065824_883079",
+  "content": "By 2025, 2025-era autonomous self-supervised learning agents can be repurposed to recursively train next-generation DeepResearch Agents by treating the entire corpus of existing scientific literature and experimental outcomes as an unlabeled interactive environment for self-supervised curiosity-driven exploration. This creates a self-amplifying cycle where DeepResearch Agents improve their own research capabilities by continuously discovering implicit novel connections across unstructured research data without human-labeled training signals.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "autonomous agent self-supervised learning 2025",
+    "DeepResearch Agents"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "autonomous agent self-supervised learning 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:58:24.883107+00:00"
+}

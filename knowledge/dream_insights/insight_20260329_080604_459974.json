@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080604_459974",
+  "content": "Biological pathogenic agent spread through interconnected host pathways can be reframed as a naturally evolved multi-agent orchestrated pipeline, where each individual pathogen agent follows conserved behavioral rules to coordinate systemic infection, rather than acting independently. This framing lets researchers model disease progression as a modular orchestrated process, rather than just the sum of individual agent effects.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Multi-agent orchestrated pipeline",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Multi-agent orchestrated pipeline",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:06:04.459999+00:00"
+}

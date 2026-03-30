@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_164101_254069",
+  "content": "We can reframe Tree of Thoughts (ToT) reasoning for large language models to use an Intrinsic Curiosity Module (ICM) that assigns intrinsic reward to exploring under-explored branches of the thought tree, instead of only pruning low-value paths based on pre-trained self-evaluation scores. This creates an autonomous, curiosity-driven ToT solver that actively seeks out unconventional reasoning paths it is uncertain about, rather than only following the most confident-seeming chains. ",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Tree of Thoughts",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Tree of Thoughts",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T16:41:01.254093+00:00"
+}

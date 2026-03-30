@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_164708_216191",
+  "content": "ICM curiosity-driven exploration in 2025 autonomous agents can be adapted to chunk multi-step reasoning information into 3–5 coherent clusters, directly mitigating performance degradation caused by agent working memory capacity limits. This reframes curiosity from a general exploration tool to a structured reasoning organizer that works with, rather than against, the inherent bounded capacity of agent working memory.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T16:47:08.216213+00:00"
+}

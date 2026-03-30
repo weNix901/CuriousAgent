@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064753_562604",
+  "content": "Autonomous curiosity-driven AI agents can be improved by incorporating biologically inspired working memory retention gating mechanisms that only preserve surprising, high-curiosity experiences for long-term active learning, discarding predictable low-information stimuli that waste memory capacity. This creates a self-sustaining learning cycle where curiosity signals gate which memories are retained to power further exploration.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Working memory retention gating mechanisms"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:47:53.562627+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_182647_772572",
+  "content": "We can frame an LLM agent's working memory capacity limit as a built-in constraint that the ICM curiosity mechanism can exploit to drive structured, incremental reasoning improvement, rather than viewing working memory limits as purely a harmful flaw. This works because ICM rewards exploration of novel, unprocessed states, which aligns with probing the uncompressed edge of an agent's current working memory upper bound.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T18:26:47.772595+00:00"
+}

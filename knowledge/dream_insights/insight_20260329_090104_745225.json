@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_090104_745225",
+  "content": "Autonomous reinforcement learning agents can use an episodic-semantic hybrid node representation learning framework to structure the intrinsic reward signal from the 2025 configurable ICM curiosity mechanism, turning scattered novel environmental observations into hierarchically organized, long-term reusable exploration incentives. This hybrid representation solves a key 2025 ICM limitation of overvaluing noisy, meaningless novel states by filtering novelty through aligned semantic generalizations pulled from accumulated episodic exploration memory.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Episodic-semantic node representation learning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Episodic-semantic node representation learning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T09:01:04.745243+00:00"
+}

@@ -396,7 +396,7 @@ def daemon_mode(interval_minutes: int = 30):
     dream_agent = DreamAgent(
         name="DreamAgent",
         high_priority_queue=notification_queue,
-        poll_interval=1.0
+        poll_interval=2.0  # v0.2.6: reduced from 1.0 to lower insight generation rate
     )
     
     sleep_pruner = SleepPruner(
@@ -427,24 +427,78 @@ def daemon_mode(interval_minutes: int = 30):
     print("[v0.2.6] All agents running. Monitoring status...")
     print()
     
+    # G1-Fix: Add health monitoring variables
+    last_explored_count = 0
+    last_explored_check_time = time.time()
+    stuck_check_interval = 60  # Check every 60 seconds
+    stuck_threshold = 300  # 5 minutes
+    
+    # G2-Fix: Track main queue consumption
+    main_queue_consumed = 0
+    
     cycle_count = 0
     while not shutdown_requested:
         cycle_count += 1
+        current_time = time.time()
         
         alive_agents = [a.name for a in agents if a.is_alive()]
         dead_agents = [a.name for a in agents if not a.is_alive()]
         
+        # G1-Fix: Check for dead agents and restart
         if dead_agents:
             print(f"[v0.2.6] ⚠️ Dead agents detected: {dead_agents}")
+            for agent in agents:
+                if not agent.is_alive():
+                    print(f"[v0.2.6] Restarting {agent.name}...")
+                    agent.start()
+        
+        # G1-Fix: Check SpiderAgent health every 60 seconds
+        if current_time - last_explored_check_time >= stuck_check_interval:
+            current_explored_count = spider_agent.get_explored_count()
+            idle_time = spider_agent.get_idle_time()
+            
+            # Check if SpiderAgent is stuck (idle for more than 5 minutes)
+            if idle_time > stuck_threshold:
+                print(f"[v0.2.6] ⚠️ SpiderAgent stuck! Idle for {idle_time:.0f}s, restarting...")
+                spider_agent.stop()
+                spider_agent.join(timeout=5.0)
+                spider_agent = SpiderAgent(
+                    name="SpiderAgent",
+                    notification_queue=notification_queue,
+                    exploration_depth="medium",
+                    poll_interval=1.0
+                )
+                spider_agent.start()
+                print("[v0.2.6] ✓ SpiderAgent restarted")
+            
+            last_explored_count = current_explored_count
+            last_explored_check_time = current_time
+        
+        # G2-Fix: Consume main curiosity_queue (every 60 cycles = ~60s)
+        if cycle_count % 60 == 0:
+            try:
+                from core import knowledge_graph as kg_main
+                next_item = kg_main.select_next()
+                if next_item:
+                    topic = next_item.get("topic")
+                    if topic and not kg_main.is_topic_completed(topic):
+                        print(f"[v0.2.6] Consuming main queue: {topic}")
+                        # Add to DreamInbox for SpiderAgent to process
+                        kg_main.add_to_dream_inbox(topic, source_insight="Main curiosity queue")
+                        main_queue_consumed += 1
+            except Exception as e:
+                print(f"[v0.2.6] Error consuming main queue: {e}")
         
         if cycle_count % 10 == 0:
             print(f"\n{'='*50}")
             print(f"🔄 监控循环 #{cycle_count // 10} @ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             print(f"{'='*50}")
             print(f"[v0.2.6] Active agents: {', '.join(alive_agents)}")
-            print(f"[v0.2.6] SpiderAgent explored: {len(spider_agent.get_recently_explored())} topics")
+            print(f"[v0.2.6] SpiderAgent explored: {len(spider_agent.get_recently_explored())} topics (idle: {spider_agent.get_idle_time():.0f}s)")
             print(f"[v0.2.6] DreamAgent status: {dream_agent.get_status()}")
             print(f"[v0.2.6] SleepPruner status: {sleep_pruner.get_status()}")
+            if main_queue_consumed > 0:
+                print(f"[v0.2.6] Main queue consumed: {main_queue_consumed} topics")
         
         time.sleep(1.0)
     

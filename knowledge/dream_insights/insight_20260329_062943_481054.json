@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062943_481054",
+  "content": "Comparative evaluations of curiosity-driven reinforcement learning methods (ICM vs RND vs bespoke curious agents) can be reframed as an active learning problem for the evaluation agent itself, where the evaluation agent assigns intrinsic reward to discovering unforeseen performance gaps across agent architectures rather than just measuring pre-defined benchmark metrics. This turns static benchmarking into a self-motivated search for novel, impactful findings about curiosity methods.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:29:43.481081+00:00"
+}

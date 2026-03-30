@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071454_241601",
+  "content": "Curiosity intrinsic reward modules (ICM/RND) for autonomous agents can be repurposed as a dynamic pruning and prioritization gate for 2024-2025 SOTA active learning agent memory, where only information that triggers non-trivial prediction error (the core signal of curiosity mechanisms) is retained long-term. This creates a self-organizing memory system that automatically prioritizes uncertain, learnable new data over redundant, predictable observations without manual retention threshold tuning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:14:54.241623+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_110622_929811",
+  "content": "We can frame Agentic Search and Memory Retrieval (ASMR) as a dynamic, in-context \"long-chain Chain of Thought\" that extends intermediate reasoning steps beyond the current context window by actively retrieving relevant past memories to ground each step of the reasoning process. This hybrid framework turns static intermediate reasoning into an iterative, memory-grounded reasoning loop that can solve long-horizon problems requiring both multi-step logic and access to scattered information stored in long-term agent memory.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ASMR (Agentic search and memory retrieval)",
+    "Chain of Thought"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.88,
+  "trigger_topic": "ASMR (Agentic search and memory retrieval)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T11:06:22.929834+00:00"
+}

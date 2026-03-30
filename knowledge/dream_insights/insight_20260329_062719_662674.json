@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062719_662674",
+  "content": "Coding Agents can be redesigned to use a layered curiosity-driven intrinsic reward framework borrowed from general curious reinforcement learning agents, where exploring syntactic edge cases and untested code interaction patterns becomes self-motivated rather than only driven by human-specified task rewards. This self-directed exploration of code space will let Coding Agents discover rare bug fixes and unconventional efficient architectures that would never be surfaced through task-only training.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Coding Agents",
+    "agent"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.81,
+  "trigger_topic": "Coding Agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:27:19.662697+00:00"
+}

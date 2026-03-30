@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065347_758571",
+  "content": "In 2025 state-of-the-art memory systems re-framed as active learning agents mean that the persistent memory store of a larger AI system is not a passive static repository for data, but an independent curiosity-driven agent that actively seeks out missing information to resolve its own uncertainty about stored patterns, rather than only responding to queries from the main agent. This turns the traditional hierarchical relationship between core agent and memory upside down, making memory a pro-active partner in the learning process.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "memory as active learning agent SOTA 2025",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "memory as active learning agent SOTA 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:53:47.758599+00:00"
+}

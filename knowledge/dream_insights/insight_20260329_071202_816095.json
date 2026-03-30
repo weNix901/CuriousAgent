@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071202_816095",
+  "content": "Just as an Intrinsic Curiosity Module rewards an autonomous reinforcement learning agent for exploring unfamiliar states to improve generalization, we can reframe the general definition of an agent itself as a system that encodes its own intrinsic curiosity signal as a core identity property, rather than treating curiosity as an add-on module. This means any adaptive agent (not just AI reinforcement learning agents) inherently sustains its agency by prioritizing exploration of uncertain unvisited states over just maximizing fixed extrinsic rewards.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Intrinsic Curiosity Module",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Intrinsic Curiosity Module",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:12:02.816118+00:00"
+}

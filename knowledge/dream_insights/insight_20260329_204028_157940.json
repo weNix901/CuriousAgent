@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_204028_157940",
+  "content": "By embedding the 2025-configured ICM curiosity mechanism into beginner-built practical AI personal assistant agents, we can create self-improving agents that proactively explore new useful user-facing tasks instead of only executing pre-programmed tool workflows. This turns static personal assistant agents into adaptive systems that grow their capability set based on what they discover to be valuable to the user.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "AI Agent Building",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "AI Agent Building",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T20:40:28.157965+00:00"
+}

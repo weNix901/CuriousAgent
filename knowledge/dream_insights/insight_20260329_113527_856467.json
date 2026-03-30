@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_113527_856467",
+  "content": "We can refactor the ReAct-Reflexion reasoning framework to dynamically gate its reflection and action planning cycles around the agent's working memory capacity limit: only high-uncertainty reasoning traces that do not exceed working memory bounds are passed to Reflexion for iterative self-correction, while low-uncertainty traces are truncated to free working memory for immediate action. This capacity-aware gating maintains the interpretable structured reasoning of ReAct-Reflexion while preventing performance collapse from working memory overload.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent planning reasoning frameworks ReAct Reflexion",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.78,
+  "trigger_topic": "agent planning reasoning frameworks ReAct Reflexion",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T11:35:27.856489+00:00"
+}

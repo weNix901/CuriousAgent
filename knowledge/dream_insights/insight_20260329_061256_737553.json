@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061256_737553",
+  "content": "The intrinsic reward bonuses that power curiosity-driven methods like ICM and RND can be repurposed as a dynamic pruning signal for 2024–2025 SOTA active learning agent memory, where only surprising, unpredicted transitions (the same events that trigger high intrinsic curiosity reward) are retained in long-term episodic memory. This creates a self-selecting memory archive that prioritizes information that will improve the agent’s future exploration, eliminating redundant, easily predictable experience that wastes storage and slows planning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:12:56.737576+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071006_118714",
+  "content": "We can structure a general-purpose agent's long-term memory development as a three-stage progressive reinforcement learning pipeline, where each stage gates memory consolidation based on curiosity-driven surprise signals instead of just reward frequency. This progressive gating solves the active memory scaling problem that currently limits state-of-the-art 2024-2025 agents, by only promoting high-uncertainty, novel experiences to long-term memory at each stage.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Three-Stage Progressive Reinforcement Learning",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Three-Stage Progressive Reinforcement Learning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:10:06.118737+00:00"
+}

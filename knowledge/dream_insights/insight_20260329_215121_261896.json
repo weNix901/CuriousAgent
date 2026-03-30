@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_215121_261896",
+  "content": "Self-reflection iterations in LLM agents produce a growing trail of low-value redundant interaction data that eats into finite context windows; if we inject adaptive context compression that only retains high-impact corrected reasoning traces instead of full reflection histories, we can maintain the performance gains of repeated self-reflection without exhausting context capacity.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Context Compression",
+    "Self-reflection algorithm for LLM agents"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Context Compression",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T21:51:21.261919+00:00"
+}

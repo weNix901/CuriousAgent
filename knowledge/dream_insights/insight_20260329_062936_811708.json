@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062936_811708",
+  "content": "A hybrid planning and learning system can be re-framed as a self-curating memory manager for active learning agents, where hierarchical planning routines prune low-value exploratory memories the same way curiosity-driven intrinsic reward filters uninformative novel experiences. This architecture would retain the generalization benefits of model-based planning while letting endogenously motivated learning shape which memories get preserved for future decision-making.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Hybrid Planning and Learning System",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Hybrid Planning and Learning System",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:29:36.811730+00:00"
+}

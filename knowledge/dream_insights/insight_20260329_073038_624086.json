@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_073038_624086",
+  "content": "Autonomous AI agents can leverage curiosity-driven intrinsic reward to dynamically prioritize which context to compress and retain, turning context compression from a static efficiency hack into an active, self-regulated adaptation mechanism. Curiosity-driven agents can compress low-curiosity (already well-understood) past context heavily while keeping high-curiosity (unresolved, novel) context uncompressed, improving both long-context performance and memory efficiency.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Context Compression",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Context Compression",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:30:38.624111+00:00"
+}

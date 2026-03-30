@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_152006_243280",
+  "content": "We can frame OpenAI's Computer-Using Agent (CUA) as a real-world memory-augmented Markov Decision Process, where every previous interaction with the graphical user interface (GUI) is stored in an external memory buffer to resolve the partial observability of dynamic on-screen states. This allows CUA to avoid the classic Markov assumption that all necessary state information is captured in the current screen, enabling more robust long-horizon tasks like filling multi-page online forms or debugging code across scattered application windows.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Memory-Augmented Markov Decision Process (M-MDP)",
+    "computer agent"
+  ],
+  "surprise": 0.75,
+  "novelty": 0.82,
+  "trigger_topic": "Memory-Augmented Markov Decision Process (M-MDP)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T15:20:06.243303+00:00"
+}

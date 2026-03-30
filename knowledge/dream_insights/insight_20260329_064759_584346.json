@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064759_584346",
+  "content": "The hard working memory capacity limit that constrains an AI agent's multi-step reasoning can be reframed as a feature, not a bug, for curiosity-driven active learning agents: the capacity limit forces the agent to prioritize encoding only the most surprising, high-information new observations into its limited working store, rather than memorizing redundant low-value details. This naturally drives the agent to seek out novel, unlearned environments that push its reasoning forward, aligning its intrinsic curiosity with efficient memory use.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:47:59.584376+00:00"
+}

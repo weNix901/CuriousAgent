@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071700_421869",
+  "content": "The iterative self-referential search process that incomplete DeepResearch Agents rely on to map out their own domain knowledge is functionally equivalent to a curiosity-driven agent’s intrinsic reward mechanism, where unresolved gaps in the agent’s own memory of its domain trigger new exploratory search cycles. This creates a self-amplifying loop where the agent’s own knowledge incompleteness becomes the primary driver of more targeted, efficient deep research, rather than relying on externally assigned research queries.",
+  "insight_type": "principle",
+  "source_topics": [
+    "DeepResearch Agents",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "DeepResearch Agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:17:00.422906+00:00"
+}

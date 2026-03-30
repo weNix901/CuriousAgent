@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_154336_541148",
+  "content": "We can integrate Chain of Thought's intermediate explicit reasoning steps into the reward prediction pathway of an ICM-driven autonomous agent, where each step of the agent's exploratory thought chain is evaluated for novelty to generate intrinsic reward. This creates a \"curious chain of reasoning\" that incentivizes agents to explore unexplored reasoning trajectories rather than just unexplored physical or environmental states.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Chain of Thought",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Chain of Thought",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T15:43:36.541170+00:00"
+}

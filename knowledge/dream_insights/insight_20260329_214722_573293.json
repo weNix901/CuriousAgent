@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_214722_573293",
+  "content": "We can hypothesize that induction heads (the Transformer attention substructures that encode human-like episodic memory properties including temporal contiguity, primacy, and recency) can act as an intrinsic curiosity signal for ICM-powered autonomous agents, replacing the ICM's traditional prediction error-based novelty metric. This works because attention activation strength for rare, unintegrated episodic events directly correlates with how novel and information-rich an observation is for the agent.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Transformer attention mechanism for episodic memory",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Transformer attention mechanism for episodic memory",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T21:47:22.573316+00:00"
+}

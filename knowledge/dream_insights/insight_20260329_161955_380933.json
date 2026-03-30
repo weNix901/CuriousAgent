@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_161955_380933",
+  "content": "Combining ASMR (Agentic search and memory retrieval) with Tree of Thoughts (ToT) creates a hierarchical memory retrieval framework where each node in the ToT reasoning tree triggers targeted agentic search over the agent's long-term memory, rather than relying on the LLM's static context window for intermediate reasoning steps. This lets large language agents prune unpromising reasoning branches early by grounding each step in verifiable retrieved knowledge from their entire long-term memory store.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ASMR (Agentic search and memory retrieval)",
+    "Tree of Thoughts"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.85,
+  "trigger_topic": "ASMR (Agentic search and memory retrieval)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T16:19:55.380957+00:00"
+}

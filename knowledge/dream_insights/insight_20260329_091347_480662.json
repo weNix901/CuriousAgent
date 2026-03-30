@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_091347_480662",
+  "content": "We can frame naturally occurring biological infectious agents (viruses and bacteria from Topic B) as swarm-configurable ICM curiosity-driven autonomous agents that evolve by intrinsically rewarding themselves for exploring under-characterized host niches, rather than being purely externally driven by selection for replication. This re-framing opens up a new interdisciplinary approach to predicting viral spillover and host switching by borrowing 2025 ICM framework tools for modeling swarm autonomous exploration.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T09:13:47.480683+00:00"
+}

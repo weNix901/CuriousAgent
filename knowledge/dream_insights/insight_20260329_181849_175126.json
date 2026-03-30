@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_181849_175126",
+  "content": "We can reframe the ICM curiosity mechanism to actively prune and prioritize encoding of only high-novelty state representations into an agent’s limited working memory, creating a resource allocation loop that preserves working memory capacity for high-stakes reasoning while still driving exploratory learning. This means ICM does not just generate intrinsic reward for exploration—it can act as a built-in gatekeeper that prevents working memory overflow from low-information mundane observations.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T18:18:49.175149+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_181738_362406",
+  "content": "We can reframe hybrid learning educational planning as a parallel orchestration system, where the instructor acts as the central Meta Orchestration Agent that splits lesson content work across in-person student peer agents and remote AI-supported reader agents. This reimagining lets us build more adaptive hybrid learning systems that leverage parallel processing of learning content to meet individual student needs while keeping the whole class aligned.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Hybrid Planning and Learning System",
+    "Parallel Orchestration & Ingestion with Reader Agents"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Hybrid Planning and Learning System",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T18:17:38.362429+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_081707_120046",
+  "content": "Just as biological and chemical agents from the broad Merriam-Webster definition of 'agent' exert power by interacting with host environments to produce targeted effects, we can reframe computer agents as programmable 'biological-like agents' that evolve and spread their functional effects across digital host systems (such as distributed computing networks or user ecosystems). This perspective suggests that regulating and debugging harmful computer agents could borrow biosecurity frameworks for infectious biological agents.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "computer agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:17:07.120069+00:00"
+}

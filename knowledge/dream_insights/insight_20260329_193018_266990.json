@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_193018_266990",
+  "content": "We can hypothesize that a 2025-configured ICM curiosity mechanism can be dynamically tuned to an LLM agent’s working memory capacity limit, proactively directing the agent’s intrinsic exploration to only reasoning chunks that fit within its active working memory instead of wasting intrinsic reward on information that exceeds its reasoning bounds.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T19:30:18.267015+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_122502_057261",
+  "content": "We can frame naturally occurring biological infectious agents (viruses and bacteria from the biology/chemistry definition of \"agent\") as evolved swarm autonomous agents that use an implicit intrinsic curiosity module (ICM)-like curiosity mechanism to drive their adaptive spread and mutation. In this framework, biological agents gain an implicit \"intrinsic reward\" for discovering novel, unoccupied host niches and underexplored tissue environments, mirroring how 2025 ICM-powered UAV swarm agents get internal reward for exploring novel target areas.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "agent"
+  ],
+  "surprise": 0.88,
+  "novelty": 0.92,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T12:25:02.057286+00:00"
+}

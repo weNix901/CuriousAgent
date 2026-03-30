@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063626_574213",
+  "content": "Curiosity-driven autonomous agents can integrate intrinsic ICM/RND curiosity signals into a hybrid planning and learning framework to dynamically split exploration between deliberative long-term planning and reactive reward-seeking learning, where curiosity prioritizes planning for high-uncertainty regions of environment space the agent has not encoded in its memory. This mechanism lets the agent avoid redundant exploratory sampling of already learned areas while proactively targeting under-explored zones that deliver long-term knowledge gains, rather than just reacting to random novelty.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Hybrid Planning and Learning System"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:36:26.574235+00:00"
+}

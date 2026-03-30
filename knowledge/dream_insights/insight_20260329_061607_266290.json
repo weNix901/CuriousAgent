@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061607_266290",
+  "content": "The hierarchical, error-correcting structure of agent self-identity can be framed as an implicit intrinsic reward signal for curiosity-driven reinforcement learning, where mismatches between the agent's current self-model and observed interactions with the environment work exactly like prediction error in ICM or RND to drive exploratory behavior. This creates a self-reinforcing loop where curious exploration not only solves extrinsic tasks but also gradually refines the agent's own self-representation over its lifespan.",
+  "insight_type": "principle",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:16:07.266311+00:00"
+}

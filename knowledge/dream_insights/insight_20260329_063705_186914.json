@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063705_186914",
+  "content": "A curiosity-driven autonomous agent equipped with intrinsic curiosity modules (ICM) can be reframed as a self-improving Numerical Planning Operator Learner, where the agent's intrinsic reward for encountering uncertain state transitions doubles as a training signal for refining numerical planning operators. This design creates a closed-loop system where the agent’s natural drive to explore uncovers edge cases in numerical planning that static training datasets would never capture.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Numerical Planning Operator Learner"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:37:05.186939+00:00"
+}

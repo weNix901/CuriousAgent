@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_073506_838375",
+  "content": "Individual autonomous agents in a collective network can be modeled as activated cognitive nodes in a spreading activation system, where proximity to an initial triggering stimulus (like an environmental change or task signal) dictates which agents activate sequentially to solve a distributed problem without top-down coordination. This frames collective agent behavior as an emergent associative search process, rather than a pre-planned step-by-step execution.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Spreading Activation",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Spreading Activation",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:35:06.838403+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_194050_650063",
+  "content": "An ICM curiosity mechanism can be adapted to proactively prune low-relevance information from an LLM agent's working memory to fit within its inherent capacity bound, rather than only generating exploratory behavior. This creates a self-regulating system where intrinsic motivation aligns exploration with the agent's fixed working memory reasoning limits.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T19:40:50.650086+00:00"
+}

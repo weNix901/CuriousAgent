@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062633_962299",
+  "content": "HyDE RAG, which generates hypothetical documents to improve retrieval, can be mapped to the prefrontal-hippocampal interaction mechanism at the core of biological retrieval-augmented memory: the prefrontal cortex constructs a rough hypothetical memory trace to cue the hippocampus, rather than searching with the raw input query directly.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "HyDE RAG",
+    "Retrieval-Augmented Generation"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "HyDE RAG",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:26:33.962322+00:00"
+}

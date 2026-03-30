@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062447_957844",
+  "content": "2024-2025 state-of-the-art active learning agent memory systems can be reframed as recursive self-improving agents in their own right, rather than just passive storage components for a parent task agent. This means curiosity-driven memory pruning and expansion can be guided by the memory system's own intrinsic reward signal, rather than hard-coded rules set by the parent agent.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:24:47.957866+00:00"
+}

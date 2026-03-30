@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_124650_204734",
+  "content": "We can reframe the ICM curiosity mechanism as an implicit maximum entropy regularizer for soft Q-Learning, creating a self-sustaining exploration loop that addresses soft Q-Learning's modern underuse by automatically tuning its entropy bonus to the agent's current knowledge gap. Autonomous 2025 agents built on this hybrid would generate their own reward gradient for exploration without needing hand-specified entropy hyperparameters.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Soft Q-Learning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Soft Q-Learning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T12:46:50.204757+00:00"
+}

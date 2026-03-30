@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_075202_842310",
+  "content": "We can reframe LLM spreading activation for associative recall as a miniature biological agent that actively exerts power to retrieve context rather than passively fetching pre-stored information. This agentic spreading activation dynamically reshapes its own search scope based on initial activation signals, producing targeted recall effects by propagating association strengths through the LLM's parameter space.",
+  "insight_type": "analogy",
+  "source_topics": [
+    "**Spreading Activation for large language model associative recall",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "**Spreading Activation for large language model associative recall",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:52:02.842336+00:00"
+}

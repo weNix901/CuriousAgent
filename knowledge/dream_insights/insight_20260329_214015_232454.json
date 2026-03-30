@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_214015_232454",
+  "content": "AI agent builders can be enhanced by adding a modular ICM curiosity layer that lets end-users auto-discover and wire novel custom agent workflows that even the platform designers did not anticipate. This turns static no-code agent building from a process where users must manually map every task to one where the agent actively explores the tool’s capability space to suggest useful new automations.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "AI Agent Builder",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "AI Agent Builder",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T21:40:15.232478+00:00"
+}

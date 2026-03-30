@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_110155_195274",
+  "content": "We can frame the ICM curiosity mechanism's novelty-seeking reward signal as a natural \"gatekeeper\" that determines which episodic experiences from an agent's short-term memory get encoded into its long-term memory, where high novelty triggers permanent storage while routine interactions are discarded after the current task. This creates a self-organizing long-term memory that grows only with information that supports the agent's future exploratory value, rather than being filled with redundant or trivial raw experiences.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent memory systems short-term long-term",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent memory systems short-term long-term",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T11:01:55.195299+00:00"
+}

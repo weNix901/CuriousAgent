@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_091637_351379",
+  "content": "The 2025 ICM curiosity mechanism for AI autonomous agents can be repurposed to model the exploratory behavior of collective biological agent systems like swarm microbial communities or invasive pathogen populations, where intrinsic 'curiosity' (driven by reward for encountering unoccupied niches or novel host environments) replaces human-engineered internal reward. This framework would let researchers predict how biological agent swarms expand and explore new ecosystems far more accurately than traditional fitness-based models.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T09:16:37.351406+00:00"
+}

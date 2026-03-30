@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080513_927860",
+  "content": "By 2025, a population of intrinsically curious autonomous agents equipped with ICM curiosity mechanisms can be framed as an open-ended evolutionary ecosystem, where curiosity-driven exploration of unknown state transitions functions the same way genetic mutation does in biological evolution: it generates novel variation that leads to the spontaneous emergence of increasingly capable agent lineages no external designer explicitly programmed. This stands in contrast to the dominant paradigm of training autonomous agents for fixed, pre-specified human-designed tasks.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Autonomous Agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Autonomous Agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:05:13.927912+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064914_910240",
+  "content": "We can structure the intrinsic curiosity bonus of a 2025 ICM-based autonomous agent into the same three progressive stages of Three-Stage Progressive Reinforcement Learning: first rewarding low-level state prediction error to map basic novel environment dynamics, then rewarding mid-level pattern surprise to identify high-value interaction regions, then rewarding high-level model inconsistency to drive novel hypothesis generation for open-ended tasks. This staged curation of intrinsic reward eliminates the common ICM problem of noisy, unhelpful novelty bonuses from distractor objects in complex environments.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "Three-Stage Progressive Reinforcement Learning"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.85,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:49:14.910262+00:00"
+}

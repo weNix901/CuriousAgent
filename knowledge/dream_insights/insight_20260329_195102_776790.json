@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_195102_776790",
+  "content": "We can reframe working memory capacity limits in AI agents not as a fixed hard constraint, but as a feature that can be adaptively regulated by the 2025 ICM curiosity mechanism: ICM will prioritize encoding novel, reasoning-relevant information into working memory while dropping predictable, low-value content to stay within the existing working memory capacity bound. This creates a self-tuning system where curiosity automatically optimizes the allocation of limited working memory space for high-quality reasoning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T19:51:02.776812+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_195702_756038",
+  "content": "The intrinsic curiosity module (ICM) that drives autonomous agents to explore novel states can be re-purposed to actively map and compensate for working memory capacity limits that bound LLM reasoning, by generating intrinsic rewards for the agent to split long, complex reasoning tasks into chunks that fit within its working memory window instead of attempting to reason over the entire problem at once. This creates a self-regulating cycle where curiosity drives the agent to discover its own working memory bounds and adapts its reasoning strategy to work within them.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T19:57:02.756062+00:00"
+}

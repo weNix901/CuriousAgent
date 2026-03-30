@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_094117_019180",
+  "content": "Instead of forcing an agent to fit all relevant problem context into its limited working memory for real-time reasoning, we can reframe the agent's reasoning process to offload persistent problem knowledge into a CBR case library, only retrieving and loading the most similarity-matched past cases and their solutions into working memory at each step. This turns working memory capacity from a hard constraint into a controllable bottleneck that aligns with how CBR leverages prior experience.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Case-Based Reasoning (CBR)",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Case-Based Reasoning (CBR)",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T09:41:17.019205+00:00"
+}

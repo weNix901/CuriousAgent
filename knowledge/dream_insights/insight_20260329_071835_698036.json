@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071835_698036",
+  "content": "Curiosity-driven autonomous agents can use a dynamically evolving, human-like semantic MemoryBank to self-manage their working memory capacity limits and outperform existing active learning agent memory SOTA, by only pulling high-reward unexpected observations into the active working set based on intrinsic curiosity signals. This MemoryBank acts as a long-term curiosity filter that prunes low-information stale memories and prioritizes novel patterns that align with the agent’s current exploratory goals.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "MemoryBank"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:18:35.698062+00:00"
+}

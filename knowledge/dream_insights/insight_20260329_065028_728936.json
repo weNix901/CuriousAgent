@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065028_728936",
+  "content": "Autonomous AI agents can use biologically-inspired working memory retention gating mechanisms tied to intrinsic curiosity signals to dynamically allocate limited working memory capacity: only information that triggers novelty-seeking ICM curiosity is gated in for long enough retention to support multi-step reasoning, while trivial predictable details are immediately gated out to avoid capacity overload. This creates a self-regulating active memory system that doesn’t require external labeling to prioritize what to retain.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Working memory retention gating mechanisms",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Working memory retention gating mechanisms",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:50:28.728960+00:00"
+}

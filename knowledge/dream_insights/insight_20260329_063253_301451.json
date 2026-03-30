@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063253_301451",
+  "content": "By 2025, self-supervised autonomous agents can evolve their own intrinsic curiosity drive by continuously self-supervising on the unlabeled gaps in their own episodic memory, turning passive memory storage into an active self-generated curriculum for open-ended learning. This frames an agent's memory bottleneck not as a limitation to fix, but as a self-supervised training signal that naturally perpetuates adaptive curiosity.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "autonomous agent self-supervised learning 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "autonomous agent self-supervised learning 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:32:53.301473+00:00"
+}

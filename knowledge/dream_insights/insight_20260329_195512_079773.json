@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_195512_079773",
+  "content": "ICM curiosity-driven exploration in autonomous agents can be intentionally constrained to match the inherent working memory capacity limits that bound LLM reasoning, creating a self-regulating agent that avoids overloading its working memory by only prioritizing exploration of novel states it can actually hold and reason about. This creates a curious agent that does not waste intrinsic reward on unprocessable, out-of-context novel information that would exceed its working memory reasoning bounds.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T19:55:12.079798+00:00"
+}

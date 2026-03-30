@@ -69,7 +69,7 @@ class Explorer:
                  "-H", f"X-API-KEY: {serper_key}",
                  "-H", "Content-Type: application/json",
                  "-d", json.dumps(payload)],
-                capture_output=True, text=True, timeout=15
+                capture_output=True, text=True, timeout=30
             )
             data = json.loads(result.stdout)
             if isinstance(data, dict) and "organic" in data:
@@ -120,6 +120,27 @@ class Explorer:
         action = layer_result.get("action", "layer_dispatch")
         findings = layer_result["findings"]
         sources = layer_result["sources"]
+
+        # v0.2.6 fix: 如果所有层都没有返回有效内容，
+        # 仍然写入 KG（标记为 no_content），但不产生 stub。
+        if not findings or len(findings) < 20:
+            print(f"[Explorer] No valid content for '{topic}' after all layers, saving with no_content status")
+            kg.add_knowledge(
+                topic=topic,
+                depth=int(curiosity_item.get("depth", 5)),
+                summary="[no web content found - niche topic or search failed]",
+                sources=sources
+            )
+            kg.update_curiosity_status(topic, "no_content")
+            kg.log_exploration(topic, action, findings, False)
+            return {
+                "topic": topic,
+                "action": action,
+                "findings": "[no web content found - niche topic or search failed]",
+                "sources": [],
+                "notified": False,
+                "score": 0
+            }
 
         score = curiosity_item["score"]
         threshold = kg.DEFAULT_STATE["config"]["notification_threshold"]
@@ -229,31 +250,154 @@ class Explorer:
         }
 
     def _layer1_search(self, topic: str) -> dict:
-        """Layer 1: Web search (always runs)"""
-        # 优先 Bocha，Bocha 失效（401/403）时 fallback 到 Serper
-        search_results = self._call_bocha_search(topic)
-        if not search_results:
-            print(f"[Explorer] Bocha search empty, trying Serper for '{topic}'")
-            search_results = self._call_serper_search(topic)
+        """Layer 1: Web search (always runs) - Serper 优先，Bocha 备用
 
-        # Extract arXiv links from search results
-        arxiv_links = []
-        for result in search_results:
-            url = result.get("url", "")
-            if "arxiv.org" in url:
-                arxiv_links.append(url)
+        v0.2.6 fix: 完整的探索保证 - 永不产生 stub。
+        策略：多轮查询增强 + 多 Provider 链式降级 + stub 模式检测。
+        """
+        import time
 
-        if search_results:
-            findings = self._synthesize_web_results(topic, search_results)
-            sources = [r["url"] for r in search_results if r.get("url")]
-            return {
-                "findings": findings,
-                "sources": sources,
-                "arxiv_links": arxiv_links[:5],  # Max 5 arxiv links
-                "search_results": search_results
-            }
-        findings = self._deep_inference(topic)
-        return {"findings": findings, "sources": [], "arxiv_links": [], "search_results": []}
+        # ===== 预检查：太短的 topics 直接标记为失败，不产生 stub =====
+        if len(topic.strip()) < 3:
+            print(f"[Explorer] Topic '{topic}' too short for search, marking as failed (no stub)")
+            return {"findings": "", "sources": [], "arxiv_links": [], "search_results": [], "status": "failed_too_short"}
+
+        # ===== 生成多轮查询策略 =====
+        queries = self._generate_query_variants(topic)
+        all_results = []
+        used_queries = set()
+
+        # ===== 链式搜索：每个查询都尝试 Serper + Bocha =====
+        for query in queries:
+            if query in used_queries:
+                continue
+            used_queries.add(query)
+
+            # Serper
+            results = self._call_serper_search(query)
+            if results:
+                all_results.extend(results)
+                print(f"[Explorer] Serper got {len(results)} results for '{query}'")
+
+            # Bocha (补充)
+            bocha_results = self._call_bocha_search(query)
+            if bocha_results:
+                # 去重
+                existing_urls = {r.get("url") for r in all_results}
+                for br in bocha_results:
+                    if br.get("url") not in existing_urls:
+                        all_results.append(br)
+                if bocha_results:
+                    print(f"[Explorer] Bocha补充 {len(bocha_results)} results for '{query}'")
+
+            # 如果已经有足够的结果（>= 5），可以提前停止
+            if len(all_results) >= 5:
+                print(f"[Explorer] Got {len(all_results)} total results, stopping search")
+                break
+
+            # 避免 API 限流
+            time.sleep(0.5)
+
+        # ===== 去重 =====
+        seen_urls = set()
+        deduped = []
+        for r in all_results:
+            url = r.get("url", "")
+            if url and url not in seen_urls:
+                seen_urls.add(url)
+                deduped.append(r)
+        all_results = deduped
+
+        # ===== 提取 arXiv 链接 =====
+        arxiv_links = [r.get("url") for r in all_results if "arxiv.org" in r.get("url", "")]
+
+        # ===== 如果没有任何结果：标记失败，不产生 stub =====
+        if not all_results:
+            print(f"[Explorer] All queries failed for '{topic}', marking exploration as failed (no stub)")
+            return {"findings": "", "sources": [], "arxiv_links": [], "search_results": [], "status": "search_failed"}
+
+        # ===== 合成内容 =====
+        findings = self._synthesize_web_results(topic, all_results)
+
+        # ===== Stub 模式检测 =====
+        stub_patterns = ["推理分析：", "相关已有知识", "初步推断", "该领域与 Agent 自主意识"]
+        is_stub = any(pattern in findings for pattern in stub_patterns)
+        is_too_short = len(findings) < 150
+
+        if is_stub or is_too_short:
+            print(f"[Explorer] Content check failed for '{topic}': stub={is_stub}, short={is_too_short} ({len(findings)} chars)")
+            # 再试一组更具体的查询
+            retry_queries = [
+                f"{topic} research paper 2024 2025",
+                f"{topic} deep learning neural network",
+                f"what is {topic} AI machine learning",
+            ]
+            for retry_q in retry_queries:
+                if retry_q in used_queries:
+                    continue
+                used_queries.add(retry_q)
+                retry_results = self._call_serper_search(retry_q)
+                if retry_results:
+                    all_results.extend(retry_results)
+                    print(f"[Explorer] Retry query '{retry_q}' got {len(retry_results)} results")
+                time.sleep(0.5)
+
+            # 重新合成
+            seen_urls = set()
+            deduped = []
+            for r in all_results:
+                url = r.get("url", "")
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    deduped.append(r)
+            all_results = deduped
+            arxiv_links = [r.get("url") for r in all_results if "arxiv.org" in r.get("url", "")]
+            findings = self._synthesize_web_results(topic, all_results)
+
+            # 最终检查：如果还是 stub，返回空（不产生噪音）
+            is_stub = any(pattern in findings for pattern in stub_patterns)
+            if is_stub or len(findings) < 150:
+                print(f"[Explorer] Retry also produced stub/short content for '{topic}', returning empty (no stub)")
+                return {"findings": "", "sources": [], "arxiv_links": [], "search_results": [], "status": "content_too_poor"}
+
+        sources = [r["url"] for r in all_results if r.get("url")]
+        print(f"[Explorer] Successfully synthesized {len(findings)} chars of content for '{topic}'")
+        return {
+            "findings": findings,
+            "sources": sources,
+            "arxiv_links": arxiv_links[:5],
+            "search_results": all_results,
+            "status": "success"
+        }
+
+    def _generate_query_variants(self, topic: str) -> list:
+        """v0.2.6: 为 topic 生成多个查询变体，按优先级排序"""
+        queries = [topic]  # 原始查询优先
+
+        # 如果 topic 是单字或很通用，添加增强变体
+        broad_keywords = {
+            "agent", "model", "system", "learning", "network", "memory",
+            "planning", "control", "task", "reasoning", "attention",
+            "reward", "policy", "state", "action", "goal", "curiosity"
+        }
+        topic_lower = topic.lower().strip()
+        is_generic = topic_lower in broad_keywords or len(topic_lower.split()) <= 1
+
+        if is_generic:
+            # 通用词需要更具体的上下文
+            queries.extend([
+                f"{topic} AI artificial intelligence agent",
+                f"{topic} machine learning deep learning",
+                f"{topic} autonomous agent LLM",
+            ])
+        else:
+            # 正常 topic 的变体
+            queries.extend([
+                f"{topic} research 2024 2025",
+                f"{topic} deep learning neural network",
+            ])
+
+        return queries
 
     def _layer2_arxiv(self, topic: str, arxiv_links: list = None) -> dict:
         """Layer 2: ArXiv search (medium/deep depth)"""
@@ -328,13 +472,23 @@ class Explorer:
         synthesis = [f"关于「{topic}」的核心发现："]
         seen = set()
         for i, r in enumerate(results[:3], 1):
-            snippet = r["snippet"]
-            if snippet[:100] not in seen:
-                seen.add(snippet[:100])
-                synthesis.append(f"\n{i}. **{r['title']}**")
-                synthesis.append(f"   {snippet[:250]}")
+            snippet = r.get("snippet", "").strip()
+            # v0.2.6 fix: Skip results with empty or very short snippets
+            # (often indicates search returned generic/navigation results)
+            if len(snippet) < 30:
+                continue
+            # Deduplicate by snippet content
+            snippet_key = snippet[:100]
+            if snippet_key in seen:
+                continue
+            seen.add(snippet_key)
+            synthesis.append(f"\n{i}. **{r['title']}**")
+            synthesis.append(f"   {snippet[:300]}")
         synthesis.append(f"\n（共 {len(results)} 条相关结果）")
-        return "".join(synthesis)
+        result = "".join(synthesis)
+        # v0.2.6 fix: Always return something if we had search results, even if many were filtered
+        # The header "关于「X」的核心发现：\n（共 N 条相关结果）" is valid content
+        return result
 
     def _synthesize_findings(self, topic: str, layer_results: dict) -> str:
         """综合各层发现为最终报告"""
@@ -379,23 +533,14 @@ class Explorer:
         return list(dict.fromkeys(sources))[:10]
 
     def _deep_inference(self, topic: str) -> str:
-        """无搜索结果时的深度推理"""
-        state = kg.get_state()
-        related = []
-        topic_lower = topic.lower()
-        for t, v in state["knowledge"]["topics"].items():
-            if t.lower() in topic_lower or any(kw in topic_lower for kw in t.lower().split()):
-                if v.get("summary"):
-                    related.append(f"- {t}: {v['summary'][:100]}")
+        """无搜索结果时的深度推理
 
-        parts = [f"推理分析：「{topic}」\n相关已有知识："]
-        parts.extend(related[:5] if related else ["- 暂无直接相关知识，标记为深度未知"])
-        parts.extend([
-            "\n初步推断：",
-            "- 该领域与 Agent 自主意识研究高度相关",
-            "- 建议通过 web 搜索获取最新资料",
-        ])
-        return "\n".join(parts)
+        v0.2.6 fix: 此方法已废弃，不再产生 stub 内容。
+        所有探索路径都已改为：搜索失败 -> 返回空内容 -> 不写入 KG。
+        保留此方法仅为兼容，以防其他代码调用。
+        """
+        # 返回空字符串，不再产生任何 stub 内容
+        return ""
 
     def format_for_user(self, result: dict) -> str:
         """格式化探索结果，用于飞书通知"""

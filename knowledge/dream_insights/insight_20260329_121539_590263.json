@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_121539_590263",
+  "content": "We can model a hierarchical virtual context management system for large language models after a temporal event graph, where each node in the temporal graph corresponds to a context block that is swapped in or out of physical LLM context, with directed edges encoding causal dependency between events that dictates the priority for context fetching. This allows the system to automatically retrieve only the temporally and causally relevant context blocks for a given query, rather than relying on fixed arbitrary memory tiering.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "temporal event graph",
+    "Hierarchical Virtual Context Management"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "temporal event graph",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T12:15:39.590286+00:00"
+}

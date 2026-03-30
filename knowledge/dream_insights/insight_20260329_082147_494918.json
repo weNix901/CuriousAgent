@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_082147_494918",
+  "content": "If we extend the original Merriam-Webster definition of an agent as \"any entity that acts to produce an effect\" to include biological and chemical pathogenic agents, ICM curiosity-driven autonomous AI agents can be framed as distributed \"biological-style curiosity agents\" that actively seek out novel unmarked edge cases in safety-critical systems, analogous to how biological agents evolve to exploit new unoccupied host niches. This perspective reframes ICM reward not just as a reinforcement learning trick, but as a functional adaptation that lets agent collectives search for systemic vulnerabilities the same way biological agents search for new entry points to exert effect.",
+  "insight_type": "analogy",
+  "source_topics": [
+    "agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.88,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:21:47.494946+00:00"
+}

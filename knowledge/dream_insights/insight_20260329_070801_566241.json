@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070801_566241",
+  "content": "The iterative search for missing information that characterizes incomplete exploratory searches of curiosity-driven reinforcement learning (CDRL) literature mirrors how an under-trained curious agent iteratively explores high-prediction-error unvisited states to build a more complete world model. Incomplete literature search uncertainty can be framed as an intrinsic reward signal for the agent itself, driving it to prioritize filling gaps in its own knowledge of CDRL methods rather than only solving external downstream tasks.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:08:01.566270+00:00"
+}

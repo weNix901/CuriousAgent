@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_211826_665120",
+  "content": "We can frame biological pathogens (biological agents from Topic B) as naturally evolved, ICM curiosity-driven autonomous agents that pursue intrinsic reward from exploring novel uncolonized host niches, rather than only extrinsic fitness rewards from replicating in already occupied hosts. This view reinterprets viral host-jumping behavior as intrinsically curiosity-driven exploration rather than just adaptive evolution for extrinsic fitness.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "agent"
+  ],
+  "surprise": 0.89,
+  "novelty": 0.92,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T21:18:26.665141+00:00"
+}

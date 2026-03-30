@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_214356_909533",
+  "content": "Persistent memory can be leveraged to eliminate the catastrophic forgetting of exploration patterns in ICM-powered autonomous agents, creating a lifelong curiosity-driven learning loop where agents accumulate and reuse novel state representations across multiple task sessions without re-computation. This solves a longstanding tradeoff between curiosity-driven exploration overhead and long-term learning retention.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Persistent memory",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Persistent memory",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T21:43:56.909554+00:00"
+}

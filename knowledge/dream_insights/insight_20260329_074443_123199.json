@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_074443_123199",
+  "content": "Streaming experience processing for Intrinsic Curiosity Module (ICM) training can be restructured using a ReAct (Reasoning + Acting) loop to dynamically adapt the rate of new experience ingestion based on the model's current prediction error uncertainty. Rather than streaming experience at a fixed rate, the model alternates between reasoning about how well it currently predicts the forward dynamics of its environment and acting to adjust how much new streaming data it absorbs, pausing for additional gradient updates when prediction uncertainty is high.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Streaming experience processing for ICM training",
+    "ReAct"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.89,
+  "trigger_topic": "Streaming experience processing for ICM training",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:44:43.123224+00:00"
+}

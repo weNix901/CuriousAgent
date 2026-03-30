@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062337_766312",
+  "content": "Curiosity-driven intrinsic reward mechanisms from Topic A's autonomous ICM agents can be repurposed to gate memory consolidation in meta-learning agents from Topic B, only consolidating unexpected, high learning-potential memories that accelerate cross-task generalization instead of overfitting to common task patterns. This creates a \"curiosity-filtered meta-memory\" system that resolves the current 2024-2025 SOTA challenge of catastrophic forgetting in few-shot meta-learning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "meta-learning memory consolidation agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:23:37.766334+00:00"
+}

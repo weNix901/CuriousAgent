@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071806_811578",
+  "content": "The 2024-2025 SOTA trend of structured, retrievable memory for active learning agents can be repurposed to solve a long-standing flaw in generic AI agent design: the tendency to forget what triggered curiosity for exploration in prior trajectories. By adding a dedicated \"curiosity context memory\" bank pulled directly from active learning agent memory architectures, generic agents can avoid redundant exploration of previously mapped low-information environments.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "agent"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.81,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:18:06.811605+00:00"
+}

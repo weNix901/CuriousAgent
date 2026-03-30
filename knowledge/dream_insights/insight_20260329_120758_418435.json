@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_120758_418435",
+  "content": "Just as biological and chemical agents exert their maximum effect only when their active reactive sites are not overwhelmed by excess substrate, AI agents are constrained in reasoning not by total stored memory, but by the limited capacity of their active working memory 'active sites' that can process information at any given time. This suggests that limiting the amount of active context an AI agent engages with at once can improve the reliability of its reasoning, rather than expanding working memory indefinitely.",
+  "insight_type": "principle",
+  "source_topics": [
+    "agent",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T12:07:58.418455+00:00"
+}

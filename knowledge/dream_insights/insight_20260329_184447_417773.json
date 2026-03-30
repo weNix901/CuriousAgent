@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_184447_417773",
+  "content": "We can adapt the 2025 ICM intrinsic curiosity mechanism from autonomous agents to proactively optimize LoCoMo motion planning latency: a curiosity-driven reward is given for exploring under-characterized, low-latency motion trajectories that are rarely encountered in standard training datasets, rather than only optimizing for pre-specified path cost objectives. This approach is particularly suited for latency-critical swarm UAV motion planning, which already leverages ICM for swarm coordination, creating a unified framework that simultaneously improves exploration and reduces end-to-end motion planning delay.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "LoCoMo motion planning latency optimization"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T18:44:47.417799+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_073021_794828",
+  "content": "Autonomous AI agents can leverage a lateral inhibition-inspired gating mechanism in their working memory to dynamically suppress low-reward, outdated memories, amplifying the signal of contextually relevant, curiosity-driven information to avoid exploration stagnation. This mechanism resolves the common active learning agent problem of over-cluttering memory with trivial, uninformative observations that waste computation and derail targeted exploration.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Lateral Inhibition",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.92,
+  "trigger_topic": "Lateral Inhibition",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:30:21.794851+00:00"
+}

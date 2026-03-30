@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_173513_002183",
+  "content": "We can refactor the development of user-facing interactive interfaces with React by borrowing the intrinsic reward principle from ICM curiosity autonomous agents: we can design modular React components that reward end-users with intrinsic curiosity boosts for exploring under-engaged parts of an application, rather than only optimizing for predefined conversion funnels.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ReAct",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "ReAct",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T17:35:13.002207+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_122048_608600",
+  "content": "Safety alignment for large autonomous agents can be reframed as a problem of guiding intrinsic curiosity, rather than just restricting harmful exploration: curiosity-driven exploration methods like ICM and RND that reward agents for exploring uncertain states can be repurposed to penalize curiosity about unsafe, high-risk states that misaligned agents may otherwise spontaneously seek out. This turns the intrinsic motivation mechanism that drives autonomous exploration into a built-in safety guardrail that aligns with human value constraints.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Safety alignment for autonomous agents",
+    "curiosity driven reinforcement learning ICM RND compared to curious agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.82,
+  "trigger_topic": "Safety alignment for autonomous agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T12:20:48.608621+00:00"
+}

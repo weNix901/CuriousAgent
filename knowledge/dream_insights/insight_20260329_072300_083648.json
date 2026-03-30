@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_072300_083648",
+  "content": "We can reframe a memento as a persistent, curiosity-driven external memory node for active learning artificial agents, where the agent stores high-impact, emotionally salient (contextually valuable) interaction trajectories to avoid catastrophic forgetting and prioritize future exploration aligned with past meaningful experiences. Just as humans revisit mementos to reorient their understanding of their life story, an agent can pull stored memento trajectories to refine its decision-making instead of re-learning entire interaction contexts from scratch.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Memento",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.91,
+  "trigger_topic": "Memento",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:23:00.083671+00:00"
+}

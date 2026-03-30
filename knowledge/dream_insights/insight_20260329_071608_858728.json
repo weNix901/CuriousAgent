@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071608_858728",
+  "content": "Curiosity-driven autonomous agents can leverage intrinsic reward signals to dynamically prune and prioritize the exponentially large search space of Task and Motion Planning (TAMP) problems, eliminating the need for hand-specified goal priors that often fail in unstructured real-world environments. This curiosity-guided planning framework treats unmodeled geometric and interaction uncertainties in TAMP as exploratory opportunities for the agent to update its planning operator library on the fly.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "Task and Motion Planning"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:16:08.858755+00:00"
+}

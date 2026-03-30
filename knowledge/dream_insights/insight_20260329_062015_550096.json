@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062015_550096",
+  "content": "We can reframe the debate between intrinsic curiosity modules (ICM) and random network distillation (RND) for curiosity-driven reinforcement learning as a natural selection competition among general agent design paradigms, where each intrinsic reward mechanism acts as an evolvable trait encoded in an agent's memory-based neural architecture. Instead of only benchmarking ICM and RND against each other on fixed tasks, we can let agent populations select the optimal curiosity mechanism dynamically based on the structure of their episodic memory.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:20:15.550118+00:00"
+}

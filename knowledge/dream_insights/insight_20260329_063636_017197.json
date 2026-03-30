@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063636_017197",
+  "content": "A hybrid planning and learning system can be re-framed as a self-reshaping 'agent ecosystem' that dynamically partitions memory into specialized sub-agents: one sub-agent driven by curiosity to explore unlabeled data for active learning, another to execute hierarchical long-horizon planning, and a lightweight arbitration sub-agent that reallocates memory resources based on current task demand. This architecture outperforms monolithic agents by decoupling the conflicting objectives of exploration and planning across specialized modules.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Hybrid Planning and Learning System",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "Hybrid Planning and Learning System",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:36:36.017220+00:00"
+}

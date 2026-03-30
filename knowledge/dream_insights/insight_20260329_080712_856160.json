@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_080712_856160",
+  "content": "Autonomous goal-seeking agents inherently rely on a internalized semantic priming mechanism to prioritize and activate action paths aligned with their current objectives, where biologically or chemically defined active agents also follow this same priming logic to produce targeted effects. Just as semantic priming activates associated conceptual nodes in a cognitive network to speed response, a power-exerting agent primes compatible local causal pathways to advance its core purpose.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Semantic Priming",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Semantic Priming",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T08:07:12.856186+00:00"
+}

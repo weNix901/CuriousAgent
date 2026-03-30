@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_073208_397152",
+  "content": "Treat standard agent communication protocols as a fixed 'context budget' analogous to the limited memory budget that memory-efficient intrinsic curiosity module (ICM) implementations optimize for large-scale autonomous agent swarms. This allows adapting memory compression techniques from sparse ICM design to prune redundant, low-signal inter-agent messages, keeping only high-information communication that preserves collective task performance without saturating available network or agent-side context capacity.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Agent Communication Protocol",
+    "Memory-efficient ICM implementation for large-scale autonomous agents"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Agent Communication Protocol",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:32:08.397178+00:00"
+}

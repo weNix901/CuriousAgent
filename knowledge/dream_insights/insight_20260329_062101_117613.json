@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062101_117613",
+  "content": "A2A protocols can be designed to leverage collective curiosity-driven exploration across a network of agents, where each agent contributes its own episodic memory of unvisited state spaces to a shared active learning memory pool that outperforms single-agent SOTA curiosity-driven methods. This creates a emergent \"distributed curiosity\" system where agent-to-agent communication eliminates the redundancy of individual agents exploring the same unknown regions.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "A2A (Agent-to-Agent) Protocol",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.87,
+  "trigger_topic": "A2A (Agent-to-Agent) Protocol",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:21:01.117639+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_211558_186716",
+  "content": "Treating the tool definition catalog for function-calling autonomous agents as an exploreable state space, we can integrate the ICM curiosity mechanism to reward agents for discovering and testing underused tool combinations that generate novel outcomes, rather than only following pre-specified task goals. This creates a self-improving cycle where agents actively expand their own effective tool usage repertoire without external reward signals.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "tool use function calling autonomous agent",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "tool use function calling autonomous agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T21:15:58.186737+00:00"
+}

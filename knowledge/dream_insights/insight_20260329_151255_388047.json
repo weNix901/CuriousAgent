@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_151255_388047",
+  "content": "When building custom AI agents in 2025, developers can treat every modular component of their agent as a tiny swarm ICM-powered sub-agent that assigns intrinsic reward to exploring untested interaction pathways between components, rather than only rewarding the end-to-end agent for completing user-defined tasks. This turns the agent's own build and iteration process into a self-improving curiosity-driven search.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "AI Agent Building"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T15:12:55.388070+00:00"
+}

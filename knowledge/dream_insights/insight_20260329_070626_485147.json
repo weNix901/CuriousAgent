@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070626_485147",
+  "content": "Autonomous curiosity-driven ICM agents can embed their intrinsic exploratory memories into standardized A2A protocol payloads to seed collective curiosity across agent networks, turning individual exploratory discovery into a network-level active learning loop. This creates a \"curiosity contagion\" dynamic where agents share not just task data, but unresolvable exploratory anomalies that drive the entire network to explore novel states no single agent would have targeted on its own.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "A2A (Agent-to-Agent) Protocol"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:06:26.485175+00:00"
+}

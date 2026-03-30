@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_044622_750836",
+  "content": "We can integrate Neural Turing Machine's external memory architecture into Intrinsic Curiosity Module (ICM)-based sparse reward robotic control, to store the low-reward visited state features and prediction errors from past exploration, then use the NTM's associative recall capability to avoid redundant exploration and guide the agent to actively under-explored high-potential areas. This turns unstructured sparse reward exploration into a structured algorithmic recall task that NTM is inherently good at processing.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM-based exploration for sparse reward robotic control",
+    "Neural Turing Machines"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "ICM-based exploration for sparse reward robotic control",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T04:46:22.750859+00:00"
+}

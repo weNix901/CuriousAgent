@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064530_121114",
+  "content": "Curiosity-driven intrinsic motivation mechanisms (like ICM used in autonomous agents) can be repurposed to prioritize what new unlabeled data gets encoded into a 2025 SOTA active learning agent’s long-term memory, rather than just using uncertainty scoring for active data selection. This creates a self-sustaining learning loop where the agent’s own innate curiosity drives both what it learns and what it retains long-term.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:45:30.121142+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_163309_296450",
+  "content": "Retrieval-augmented context management for agents acts as the 'long-term working memory' of an AI agent, while active agentic retrieval with search agents functions as the 'attentional curiosity' that proactively seeks missing information to fill gaps in this memory. This pairing creates a self-regulating memory system that mirrors how human cognition balances stored context and on-demand information seeking.",
+  "insight_type": "analogy",
+  "source_topics": [
+    "Retrieval-augmented context management for agents",
+    "Active Agentic Retrieval with Search Agents"
+  ],
+  "surprise": 0.75,
+  "novelty": 0.8,
+  "trigger_topic": "Retrieval-augmented context management for agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T16:33:09.296473+00:00"
+}

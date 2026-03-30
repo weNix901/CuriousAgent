@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_064320_884568",
+  "content": "By 2025, self-supervised world model memory agents can reframe core agent design by tying memory retention to emergent curiosity-driven \"episodic value\" rather than fixed objective function weighting: only world state transitions that trigger intrinsic surprise are permanently encoded into long-term agent memory, creating a self-organizing knowledge hierarchy that grows more aligned with an agent's open-ended goals over time. This design eliminates the common problem of catastrophic forgetting of high-impact rare events that plagues generic memory-augmented agents today.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "self-supervised world model memory agent 2025",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "self-supervised world model memory agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:43:20.884593+00:00"
+}

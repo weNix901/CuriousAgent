@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_170009_074614",
+  "content": "We can integrate the ICM curiosity mechanism into active agentic retrieval pipelines to reward search agents for seeking out novel, underretrieved subqueries that solve unrecognized ambiguities in complex user queries, rather than only chasing high-relevance matches aligned with the initial query decomposition. This creates a self-improving retrieval loop where the agent proactively explores information gaps that traditional static decomposition Agentic RAG would miss.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Active Agentic Retrieval with Search Agents",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Active Agentic Retrieval with Search Agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T17:00:09.074637+00:00"
+}

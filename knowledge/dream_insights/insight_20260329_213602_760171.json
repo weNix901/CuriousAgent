@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_213602_760171",
+  "content": "If we integrate the 2025 ICM curiosity mechanism into customer-facing website chatbots, we can train chatbots to proactively explore unaddressed customer needs instead of only responding to predefined queries. This would turn chatbots from passive 24/7 support tools into active discoverers of new user pain points that never appear in existing training datasets.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Chatbot",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "Chatbot",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T21:36:02.760193+00:00"
+}

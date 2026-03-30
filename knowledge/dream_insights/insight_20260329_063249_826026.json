@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063249_826026",
+  "content": "Curiosity-driven intrinsic reward mechanisms (from Topic A's ICM-based autonomous agents) can be repurposed to prioritize what new data and past experiences get stored in long-term memory for state-of-the-art 2024-2025 active learning agents, creating a self-organizing memory system that automatically prunes low-value information while retaining high-uncertainty, knowledge-expanding content. This removes the need for hand-engineered memory retention rules that currently limit active learning agent scalability.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.72,
+  "novelty": 0.78,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:32:49.826049+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_165653_123296",
+  "content": "By combining Chain of Hindsight's feedback processing and HyDE's hypothetical document generation, we can build a self-improving RAG system that automatically corrects its own retrieval errors: when the system retrieves irrelevant context for a user query, it turns the negative feedback on bad retrieval into a natural language hindsight chain, then uses that chain to generate a refined hypothetical document embedding that pulls more relevant context in subsequent retrieval passes. This creates a closed loop of retrieval alignment that requires no manual re-engineering of embedding models or index.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Chain of Hindsight",
+    "HyDE RAG"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Chain of Hindsight",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T16:56:53.123319+00:00"
+}

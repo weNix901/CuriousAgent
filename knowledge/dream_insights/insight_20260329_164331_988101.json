@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_164331_988101",
+  "content": "We can reframe biological pathogenic agents (like viruses) as naturally evolved autonomous agents that use an intrinsic curiosity mechanism analogous to the 2025 ICM framework for swarm UAVs, where their intrinsic reward comes from discovering novel host niches to infect. This parallel suggests that viral mutation and spread follows the same intrinsic reward logic that engineers use to drive exploratory behavior in artificial ICM-powered swarm agents.",
+  "insight_type": "principle",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T16:43:31.988123+00:00"
+}

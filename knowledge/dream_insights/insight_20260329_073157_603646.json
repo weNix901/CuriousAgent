@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_073157_603646",
+  "content": "Framing any biological or chemical agent (from Topic B's definition) as a 'case' enables the use of cosine similarity to match active pathogenic agents to previously documented outbreak cases based on molecular sequence embedding vectors. This matching approach can rapidly identify novel variants of existing pathogenic agents by detecting small angular deviations from known case embeddings.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Cosine similarity-based case matching",
+    "agent"
+  ],
+  "surprise": 0.85,
+  "novelty": 0.9,
+  "trigger_topic": "Cosine similarity-based case matching",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:31:57.603667+00:00"
+}

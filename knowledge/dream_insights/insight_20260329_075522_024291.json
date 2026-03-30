@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_075522_024291",
+  "content": "By fine-tuning the intrinsic curiosity reward of an ICM-based 2025 autonomous agent to prioritize exploration of novel semantic embedding regions mapped by Sentence Transformers, we can build open-domain agents that actively seek out linguistically ambiguous or under-represented concepts to improve their world knowledge. This creates a self-reinforcing cycle where the agent’s curiosity is guided directly by the semantic structure of unstructured natural language data it encounters.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Sentence Transformers",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.87,
+  "trigger_topic": "Sentence Transformers",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:55:22.024315+00:00"
+}

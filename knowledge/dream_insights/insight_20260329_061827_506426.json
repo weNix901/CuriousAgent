@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_061827_506426",
+  "content": "The intrinsic reward signals used by curiosity-driven RL methods like ICM and RND to drive exploration can be repurposed to dynamically adjust an agent’s working memory capacity, allocating larger memory resources only to high-uncertainty, novel states that trigger the strongest curiosity rewards, and pruning stale, low-uncertainty memories to avoid capacity bottlenecks during reasoning. This creates a curiosity-gated working memory system that adapts resource allocation to exploration demand.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "curiosity driven reinforcement learning ICM RND compared to curious agent",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:18:27.506448+00:00"
+}

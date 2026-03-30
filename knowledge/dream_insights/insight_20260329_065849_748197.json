@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065849_748197",
+  "content": "A deep active agent’s uncertainty-based memory selection mechanism can be reframed as an implicit form of curiosity regulation: the agent prioritizes storing uncertain memory samples not just to improve downstream task performance, but to self-tune its curiosity drive to avoid both under-exploration (from ignoring high-uncertainty experiences) and distraction (from overloading on noisy, uninformative uncertain outliers). This creates a closed-loop system where memory management directly shapes intrinsic motivation.",
+  "insight_type": "principle",
+  "source_topics": [
+    "Uncertainty-based memory sample selection for deep active agents",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.78,
+  "trigger_topic": "Uncertainty-based memory sample selection for deep active agents",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:58:49.748217+00:00"
+}

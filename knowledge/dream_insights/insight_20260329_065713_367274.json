@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_065713_367274",
+  "content": "2024-2025 SOTA active learning agent memory systems can be reframed as hierarchical \"curiosity archives\" that prioritize storing only the information that triggers unresolved novelty, rather than indexing all interaction data by task or timestep. This memory architecture inherently bootstraps more efficient curiosity-driven exploration by letting the agent repeatedly revisit unresoved novelty to refine its predictive models, eliminating the need for separate intrinsic reward modules for active learning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:57:13.367301+00:00"
+}

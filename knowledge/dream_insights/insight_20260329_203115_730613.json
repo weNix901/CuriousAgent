@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_203115_730613",
+  "content": "Long-context LLMs that can recall entire interaction histories can turn monolithic single-shot ReAct/Reflexion agent pipelines into recursive, self-bootstrapping reflective planners that accumulate structured reasoning experience across extended task trajectories. Instead of relying on fixed reflection cycles bounded by context window limits, agents can iteratively refine their reasoning heuristics by looking back on dozens of past failed attempts to solve similar long-horizon problems.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "long-context LLMs",
+    "agent planning reasoning frameworks ReAct Reflexion"
+  ],
+  "surprise": 0.75,
+  "novelty": 0.82,
+  "trigger_topic": "long-context LLMs",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T20:31:15.730635+00:00"
+}

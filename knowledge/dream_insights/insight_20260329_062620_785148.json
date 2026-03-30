@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_062620_785148",
+  "content": "Curiosity-driven autonomous agents can prioritize which episodic memories to compress and retain long-term by using their intrinsic curiosity signal as a weighting heuristic: only memories that still retain high prediction error (and thus unlearned informational value) are preserved in summarized form, while low-curiosity, predictable memories are discarded entirely rather than wasting compression budget on them. This creates a self-sustaining cycle where an agent’s intrinsic drive to explore automatically optimizes its long-term memory storage efficiency.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "[Memory compression and summarization for long-term retention]"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.79,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:26:20.785166+00:00"
+}

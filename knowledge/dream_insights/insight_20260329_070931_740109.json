@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_070931_740109",
+  "content": "By 2025, the intrinsic curiosity signal that self-supervised autonomous agents use to drive open-ended exploration will turn out to function like a biological 'agent' itself: it self-organizes to prune uninformative memory traces, expand high-uncertainty exploration niches, and reproduces its own exploratory tendency across generations of agent fine-tuning, rather than being a static reward auxiliary. This means curiosity itself is an autonomous self-supervised learner nested within the larger agent system.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "autonomous agent self-supervised learning 2025",
+    "agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "autonomous agent self-supervised learning 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:09:31.740131+00:00"
+}

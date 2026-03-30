@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_163437_892758",
+  "content": "We can reframe LLM agent working memory capacity limits as a feature, not a bug: the ICM curiosity mechanism can be rewired to actively prioritize encoding only high-novelty, high-reward state transitions into working memory, using working memory's inherent upper bound as a natural filter to prevent the agent from wandering into low-value trivial exploration.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent working memory capacity limits reasoning",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent working memory capacity limits reasoning",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T16:34:37.892780+00:00"
+}

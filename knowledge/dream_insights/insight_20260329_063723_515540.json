@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063723_515540",
+  "content": "Autonomous AI agents can incorporate intrinsic curiosity gating derived from working memory retention mechanisms to dynamically adjust which new information is encoded into limited working memory, prioritizing learnable uncertain surprises over fully random novel stimuli. This curiosity-driven retention gate lets agents maintain working memory within capacity constraints while still driving efficient active exploration for long-term active learning.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Working memory retention gating mechanisms",
+    "agent"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Working memory retention gating mechanisms",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:37:23.515569+00:00"
+}

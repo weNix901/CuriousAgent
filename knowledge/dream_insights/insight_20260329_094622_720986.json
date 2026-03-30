@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_094622_720986",
+  "content": "We can reframe agent working memory capacity limits not as a hard architectural constraint to overcome via compression, but as a sequential feedback collection problem that can be solved with a Chain of Hindsight fine-tuning regime. This lets agents offload incremental feedback from limited active working memory into permanent hindsight alignment, turning working memory bottlenecks into structured feedback opportunities.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Chain of Hindsight",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "Chain of Hindsight",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T09:46:22.721008+00:00"
+}

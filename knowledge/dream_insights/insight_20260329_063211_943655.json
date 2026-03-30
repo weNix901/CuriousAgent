@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063211_943655",
+  "content": "State-of-the-art 2024-2025 curiosity-driven active learning memory architectures for agents can be repurposed to build self-improving coding agents that selectively memorize only high-value debugging patterns and uncaught edge cases instead of storing all past code interactions, pruning low-information trivial code snippets to reduce context bloat. This active memory curation lets coding agents continuously learn to prioritize debugging the most uncertain, novel code problems that align with user needs, rather than overfitting to common boilerplate patterns.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "active learning agent memory SOTA 2024 2025",
+    "Coding Agents"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "active learning agent memory SOTA 2024 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:32:11.943675+00:00"
+}

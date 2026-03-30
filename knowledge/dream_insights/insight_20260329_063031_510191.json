@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_063031_510191",
+  "content": "A Numerical Planning Operator Learner can be modified to treat unexplored numerical state transitions as intrinsic reward targets shaped by an ICM curiosity mechanism, creating a self-improving agent that actively seeks out ambiguous numerical planning problems to refine its operator library on its own. This eliminates the need for manually curated labeled planning datasets by letting the agent’s curiosity drive active acquisition of new numerical operator knowledge.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Numerical Planning Operator Learner",
+    "ICM curiosity mechanism autonomous agent 2025"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "Numerical Planning Operator Learner",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T06:30:31.510218+00:00"
+}

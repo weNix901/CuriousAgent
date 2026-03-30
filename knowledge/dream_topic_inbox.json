@@ -1,14 +1,364 @@
 {
   "inbox": [
     {
-      "topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
-      "timestamp": "2026-03-29T06:12:06.130285+00:00",
-      "source_insight": "Dream insight: A distributed collective of curiosity-driven reinforcement learning agents can use a modified A2A protocol to dynamically offload and share episodic memory of unexplored state-space regions, turning i"
+      "topic": "ICM-based exploration for sparse reward robotic control",
+      "timestamp": "2026-03-30T04:46:46.672535+00:00",
+      "source_insight": "Dream insight: We can integrate Neural Turing Machine's external memory architecture into Intrinsic Curiosity Module (ICM)-based sparse reward robotic control, to store the low-reward visited state features and pred"
     },
     {
-      "topic": "A2A (Agent-to-Agent) Protocol",
-      "timestamp": "2026-03-29T06:12:06.130593+00:00",
-      "source_insight": "Dream insight: A distributed collective of curiosity-driven reinforcement learning agents can use a modified A2A protocol to dynamically offload and share episodic memory of unexplored state-space regions, turning i"
+      "topic": "Neural Turing Machines",
+      "timestamp": "2026-03-30T04:46:46.672813+00:00",
+      "source_insight": "Dream insight: We can integrate Neural Turing Machine's external memory architecture into Intrinsic Curiosity Module (ICM)-based sparse reward robotic control, to store the low-reward visited state features and pred"
+    },
+    {
+      "topic": "Inter-service connectivity testing in microservices",
+      "timestamp": "2026-03-30T04:46:53.999588+00:00",
+      "source_insight": "Dream insight: We can reframe microservices inter-service connectivity testing as a reinforcement learning task for an autonomous Computer-Using Agent, where the agent navigates the dynamic service topology like Ope"
+    },
+    {
+      "topic": "Computer Agent",
+      "timestamp": "2026-03-30T04:46:53.999952+00:00",
+      "source_insight": "Dream insight: We can reframe microservices inter-service connectivity testing as a reinforcement learning task for an autonomous Computer-Using Agent, where the agent navigates the dynamic service topology like Ope"
+    },
+    {
+      "topic": "Model Context Protocol",
+      "timestamp": "2026-03-30T04:48:18.793052+00:00",
+      "source_insight": "Dream insight: If we treat the Model Context Protocol as a universal 'plumbing standard' for AI Agent ecosystems, we can reframe AI agent building from the current practice of writing custom one-off tool integration"
+    },
+    {
+      "topic": "AI Agent Building",
+      "timestamp": "2026-03-30T04:48:18.793440+00:00",
+      "source_insight": "Dream insight: If we treat the Model Context Protocol as a universal 'plumbing standard' for AI Agent ecosystems, we can reframe AI agent building from the current practice of writing custom one-off tool integration"
+    },
+    {
+      "topic": "Hybrid Planning and Learning System",
+      "timestamp": "2026-03-30T04:49:21.684782+00:00",
+      "source_insight": "Dream insight: Hybrid learning educational systems can be intentionally designed to leverage semantic priming effects to boost long-term knowledge retention for both in-person and remote students. In this framework,"
+    },
+    {
+      "topic": "Semantic Priming",
+      "timestamp": "2026-03-30T04:49:21.685201+00:00",
+      "source_insight": "Dream insight: Hybrid learning educational systems can be intentionally designed to leverage semantic priming effects to boost long-term knowledge retention for both in-person and remote students. In this framework,"
+    },
+    {
+      "topic": "Tool-based Memory Operation",
+      "timestamp": "2026-03-30T04:50:45.835257+00:00",
+      "source_insight": "Dream insight: We can reframe the Intrinsic Curiosity Module (ICM) of 2025 autonomous agents to use tool-based memory operation as a core curiosity-driven exploration scaffold, where ICM-driven exploration targets u"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T04:50:45.835691+00:00",
+      "source_insight": "Dream insight: We can reframe the Intrinsic Curiosity Module (ICM) of 2025 autonomous agents to use tool-based memory operation as a core curiosity-driven exploration scaffold, where ICM-driven exploration targets u"
+    },
+    {
+      "topic": "MemoryBank",
+      "timestamp": "2026-03-30T04:54:38.037025+00:00",
+      "source_insight": "Dream insight: A persistent MemoryBank can act as a \"curiosity memory cache\" for ICM-powered autonomous agents, enabling them to avoid re-exploring already known environments and reorient their intrinsic curiosity t"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T04:54:38.037465+00:00",
+      "source_insight": "Dream insight: A persistent MemoryBank can act as a \"curiosity memory cache\" for ICM-powered autonomous agents, enabling them to avoid re-exploring already known environments and reorient their intrinsic curiosity t"
+    },
+    {
+      "topic": "Unified Episodic-Semantic Graph",
+      "timestamp": "2026-03-30T04:56:59.263276+00:00",
+      "source_insight": "Dream insight: We can hypothesize that the unified episodic-semantic memory framework rooted in human medial temporal lobe (MTL) organization defines a natural structural prior that improves latent node attribute pr"
+    },
+    {
+      "topic": "Latent Node Attribute Predictability",
+      "timestamp": "2026-03-30T04:56:59.263728+00:00",
+      "source_insight": "Dream insight: We can hypothesize that the unified episodic-semantic memory framework rooted in human medial temporal lobe (MTL) organization defines a natural structural prior that improves latent node attribute pr"
+    },
+    {
+      "topic": "Spreading Activation",
+      "timestamp": "2026-03-30T04:58:30.687361+00:00",
+      "source_insight": "Dream insight: Integrating spreading activation into the 2025 generation of ICM curiosity-driven autonomous agents can create a 'context-aware curiosity' that prioritizes exploration of state spaces semantically con"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T04:58:30.687835+00:00",
+      "source_insight": "Dream insight: Integrating spreading activation into the 2025 generation of ICM curiosity-driven autonomous agents can create a 'context-aware curiosity' that prioritizes exploration of state spaces semantically con"
+    },
+    {
+      "topic": "Lateral Inhibition",
+      "timestamp": "2026-03-30T04:59:32.193704+00:00",
+      "source_insight": "Dream insight: We can integrate neuroscience’s lateral inhibition mechanism into the 2025 generation of Intrinsic Curiosity Module (ICM)-driven autonomous agents to suppress redundant curiosity exploration of over-s"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T04:59:32.194200+00:00",
+      "source_insight": "Dream insight: We can integrate neuroscience’s lateral inhibition mechanism into the 2025 generation of Intrinsic Curiosity Module (ICM)-driven autonomous agents to suppress redundant curiosity exploration of over-s"
+    },
+    {
+      "topic": "Triple-Signal Hybrid Retrieval",
+      "timestamp": "2026-03-30T05:01:40.256615+00:00",
+      "source_insight": "Dream insight: We can refactor an ICM curiosity-driven autonomous agent to use triple-signal hybrid retrieval as its intrinsic reward signal generator, where the three signals of the retrieval system correspond to t"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T05:01:40.257146+00:00",
+      "source_insight": "Dream insight: We can refactor an ICM curiosity-driven autonomous agent to use triple-signal hybrid retrieval as its intrinsic reward signal generator, where the three signals of the retrieval system correspond to t"
+    },
+    {
+      "topic": "Scalable shared memory architecture for multi-agent active learning",
+      "timestamp": "2026-03-30T05:02:56.169245+00:00",
+      "source_insight": "Dream insight: We can adapt the scalable shared memory architecture design for multi-agent active learning to build a hierarchical agentic search and memory retrieval (ASMR) system, where each active learning agent "
+    },
+    {
+      "topic": "ASMR (Agentic search and memory retrieval)",
+      "timestamp": "2026-03-30T05:02:56.169755+00:00",
+      "source_insight": "Dream insight: We can adapt the scalable shared memory architecture design for multi-agent active learning to build a hierarchical agentic search and memory retrieval (ASMR) system, where each active learning agent "
+    },
+    {
+      "topic": "Context Compression",
+      "timestamp": "2026-03-30T05:05:33.129441+00:00",
+      "source_insight": "Dream insight: An autonomous AI agent can leverage biological agent principles of virulence to optimize context compression: just as a pathogenic biological agent only encodes the minimal essential genetic material "
+    },
+    {
+      "topic": "agent",
+      "timestamp": "2026-03-30T05:05:33.130000+00:00",
+      "source_insight": "Dream insight: An autonomous AI agent can leverage biological agent principles of virulence to optimize context compression: just as a pathogenic biological agent only encodes the minimal essential genetic material "
+    },
+    {
+      "topic": "Hierarchical Virtual Context Management",
+      "timestamp": "2026-03-30T05:08:47.810149+00:00",
+      "source_insight": "Dream insight: Just as hierarchical virtual context management uses OS-inspired tiered memory to extend LLM context beyond hard physical context limits, we can reframe autonomous biological/chemical agents as natura"
+    },
+    {
+      "topic": "agent",
+      "timestamp": "2026-03-30T05:08:47.810754+00:00",
+      "source_insight": "Dream insight: Just as hierarchical virtual context management uses OS-inspired tiered memory to extend LLM context beyond hard physical context limits, we can reframe autonomous biological/chemical agents as natura"
+    },
+    {
+      "topic": "Memory Networks",
+      "timestamp": "2026-03-30T05:11:05.810623+00:00",
+      "source_insight": "Dream insight: We can reframe LoCoMo's long-term conversational memory evaluation benchmark as a stress-testing tool for the original Memory Network long-term memory architecture, to quantify how well explicit exter"
+    },
+    {
+      "topic": "LoCoMo",
+      "timestamp": "2026-03-30T05:11:05.811228+00:00",
+      "source_insight": "Dream insight: We can reframe LoCoMo's long-term conversational memory evaluation benchmark as a stress-testing tool for the original Memory Network long-term memory architecture, to quantify how well explicit exter"
+    },
+    {
+      "topic": "Neural Turing Machines",
+      "timestamp": "2026-03-30T05:13:54.481746+00:00",
+      "source_insight": "Dream insight: We can reframe biological and chemical agents, which produce specific effects by interacting with their external environment, as naturally evolved Neural Turing Machines that maintain a modifiable ext"
+    },
+    {
+      "topic": "agent",
+      "timestamp": "2026-03-30T05:13:54.482333+00:00",
+      "source_insight": "Dream insight: We can reframe biological and chemical agents, which produce specific effects by interacting with their external environment, as naturally evolved Neural Turing Machines that maintain a modifiable ext"
+    },
+    {
+      "topic": "Streaming experience processing for ICM training",
+      "timestamp": "2026-03-30T05:15:03.049706+00:00",
+      "source_insight": "Dream insight: An autonomous AI Agent can be designed to dynamically process real-time streaming clinical experience data to guide personalized continuous training and revalidation for integrated case management (IC"
+    },
+    {
+      "topic": "AI Agent",
+      "timestamp": "2026-03-30T05:15:03.050311+00:00",
+      "source_insight": "Dream insight: An autonomous AI Agent can be designed to dynamically process real-time streaming clinical experience data to guide personalized continuous training and revalidation for integrated case management (IC"
+    },
+    {
+      "topic": "Memento",
+      "timestamp": "2026-03-30T05:16:18.836613+00:00",
+      "source_insight": "Dream insight: The anterograde amnesia framework of *Memento*'s protagonist Leonard can be reframed as a novel self-supervised exploration approach that intentionally discards long-term memory of past successful tra"
+    },
+    {
+      "topic": "Self-supervised exploration strategy improvement from failed trajectories",
+      "timestamp": "2026-03-30T05:16:18.837248+00:00",
+      "source_insight": "Dream insight: The anterograde amnesia framework of *Memento*'s protagonist Leonard can be reframed as a novel self-supervised exploration approach that intentionally discards long-term memory of past successful tra"
+    },
+    {
+      "topic": "Memory-Augmented Markov Decision Process (M-MDP)",
+      "timestamp": "2026-03-30T05:17:28.744456+00:00",
+      "source_insight": "Dream insight: Ad-hoc multi-agent orchestration pipelines that currently only automate static, pre-specified glue work can be reframed as a non-Markovian multi-objective M-MDP, where each agent’s explicit memory of "
+    },
+    {
+      "topic": "Multi-agent orchestrated pipeline",
+      "timestamp": "2026-03-30T05:17:28.745095+00:00",
+      "source_insight": "Dream insight: Ad-hoc multi-agent orchestration pipelines that currently only automate static, pre-specified glue work can be reframed as a non-Markovian multi-objective M-MDP, where each agent’s explicit memory of "
+    },
+    {
+      "topic": "Case-Based Reasoning (CBR)",
+      "timestamp": "2026-03-30T05:18:52.311156+00:00",
+      "source_insight": "Dream insight: Case-Based Reasoning can resolve the longstanding 'noisy novelty' problem of ICM curiosity mechanisms in 2025-era autonomous swarm UAVs: ICM drives agents to explore novel states by rewarding unpredic"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T05:18:52.311898+00:00",
+      "source_insight": "Dream insight: Case-Based Reasoning can resolve the longstanding 'noisy novelty' problem of ICM curiosity mechanisms in 2025-era autonomous swarm UAVs: ICM drives agents to explore novel states by rewarding unpredic"
+    },
+    {
+      "topic": "Soft Q-Learning",
+      "timestamp": "2026-03-30T05:21:39.960897+00:00",
+      "source_insight": "Dream insight: We can reframe underutilized Soft Q-Learning as an implicit curiosity regulator for 2025 ICM-powered autonomous swarm agents, where Soft Q-Learning's inherent maximum entropy objective naturally ampli"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T05:21:39.961564+00:00",
+      "source_insight": "Dream insight: We can reframe underutilized Soft Q-Learning as an implicit curiosity regulator for 2025 ICM-powered autonomous swarm agents, where Soft Q-Learning's inherent maximum entropy objective naturally ampli"
+    },
+    {
+      "topic": "Cosine similarity-based case matching",
+      "timestamp": "2026-03-30T05:22:56.259159+00:00",
+      "source_insight": "Dream insight: We can integrate cosine similarity-based case matching into the 2025 ICM curiosity mechanism for autonomous agents, where the ICM module uses cosine similarity between the current state vector of the "
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T05:22:56.259837+00:00",
+      "source_insight": "Dream insight: We can integrate cosine similarity-based case matching into the 2025 ICM curiosity mechanism for autonomous agents, where the ICM module uses cosine similarity between the current state vector of the "
+    },
+    {
+      "topic": "MemoryBank for long-context conversation alignment",
+      "timestamp": "2026-03-30T05:25:28.846095+00:00",
+      "source_insight": "Dream insight: We can reframe ICM's intrinsic curiosity-driven exploration in 2025 autonomous agents as a dynamic 'curiosity MemoryBank', where every unexpected exploration outcome is stored as an updatable long-ter"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T05:25:28.846819+00:00",
+      "source_insight": "Dream insight: We can reframe ICM's intrinsic curiosity-driven exploration in 2025 autonomous agents as a dynamic 'curiosity MemoryBank', where every unexpected exploration outcome is stored as an updatable long-ter"
+    },
+    {
+      "topic": "Agent Communication Protocol",
+      "timestamp": "2026-03-30T05:26:23.314766+00:00",
+      "source_insight": "Dream insight: We can reframe the Agent Communication Protocol (ACP) for cross-agent interoperability as a collective curiosity-driven exploration mechanism, where ACP enables a network of heterogeneous agents to co"
+    },
+    {
+      "topic": "curiosity driven reinforcement learning ICM RND compared to curious agent",
+      "timestamp": "2026-03-30T05:26:23.315510+00:00",
+      "source_insight": "Dream insight: We can reframe the Agent Communication Protocol (ACP) for cross-agent interoperability as a collective curiosity-driven exploration mechanism, where ACP enables a network of heterogeneous agents to co"
+    },
+    {
+      "topic": "Model Context Protocol",
+      "timestamp": "2026-03-30T05:27:46.385136+00:00",
+      "source_insight": "Dream insight: The Model Context Protocol (MCP) can be reframed as a standardized inter-agent memory communication protocol that unifies access to both short-term and long-term agent memory systems across disparate "
+    },
+    {
+      "topic": "agent memory systems short-term long-term",
+      "timestamp": "2026-03-30T05:27:46.385866+00:00",
+      "source_insight": "Dream insight: The Model Context Protocol (MCP) can be reframed as a standardized inter-agent memory communication protocol that unifies access to both short-term and long-term agent memory systems across disparate "
+    },
+    {
+      "topic": "Context retrieval-augmentation integration",
+      "timestamp": "2026-03-30T05:28:47.550681+00:00",
+      "source_insight": "Dream insight: We can reframe context retrieval-augmentation integration as a demand-paged hierarchical virtual context system, where only the relevant retrieved context segments are dynamically swapped into the LLM"
+    },
+    {
+      "topic": "Hierarchical Virtual Context Management",
+      "timestamp": "2026-03-30T05:28:47.562465+00:00",
+      "source_insight": "Dream insight: We can reframe context retrieval-augmentation integration as a demand-paged hierarchical virtual context system, where only the relevant retrieved context segments are dynamically swapped into the LLM"
+    },
+    {
+      "topic": "Agent-to-Agent Protocol",
+      "timestamp": "2026-03-30T05:28:54.736086+00:00",
+      "source_insight": "Dream insight: The open Agent-to-Agent (A2A) interoperability protocol can be augmented with swarm-configurable Intrinsic Curiosity Modules (ICM) to enable dynamic, self-organizing inter-agent task negotiation witho"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T05:28:54.736843+00:00",
+      "source_insight": "Dream insight: The open Agent-to-Agent (A2A) interoperability protocol can be augmented with swarm-configurable Intrinsic Curiosity Modules (ICM) to enable dynamic, self-organizing inter-agent task negotiation witho"
+    },
+    {
+      "topic": "Reinforcement Learning",
+      "timestamp": "2026-03-30T05:30:03.937366+00:00",
+      "source_insight": "Dream insight: 2025 advancements in ICM curiosity-driven autonomous agents can reframe core reinforcement learning objective design: instead of aligning agents only with pre-defined external reward signals, we can e"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T05:30:03.938141+00:00",
+      "source_insight": "Dream insight: 2025 advancements in ICM curiosity-driven autonomous agents can reframe core reinforcement learning objective design: instead of aligning agents only with pre-defined external reward signals, we can e"
+    },
+    {
+      "topic": "LLM-based AI-agent Framework",
+      "timestamp": "2026-03-30T05:31:16.422108+00:00",
+      "source_insight": "Dream insight: Just as memory forensic tools systematically scan, parse, and triage unstructured running memory to surface hidden threat evidence, we can build a specialized AI-agent tool within LLM-based agent fram"
+    },
+    {
+      "topic": "Tool-based Memory Operation",
+      "timestamp": "2026-03-30T05:31:16.423417+00:00",
+      "source_insight": "Dream insight: Just as memory forensic tools systematically scan, parse, and triage unstructured running memory to surface hidden threat evidence, we can build a specialized AI-agent tool within LLM-based agent fram"
+    },
+    {
+      "topic": "Chain of Thought",
+      "timestamp": "2026-03-30T05:32:56.363753+00:00",
+      "source_insight": "Dream insight: We can inject an Intrinsic Curiosity Module (ICM) into large language models' Chain of Thought (CoT) reasoning process, where the ICM rewards the model for exploring diverse intermediate reasoning pat"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T05:32:56.364591+00:00",
+      "source_insight": "Dream insight: We can inject an Intrinsic Curiosity Module (ICM) into large language models' Chain of Thought (CoT) reasoning process, where the ICM rewards the model for exploring diverse intermediate reasoning pat"
+    },
+    {
+      "topic": "Tree of Thoughts",
+      "timestamp": "2026-03-30T05:34:06.403320+00:00",
+      "source_insight": "Dream insight: Existing LLM-based AI-agent frameworks can be significantly enhanced by embedding Tree of Thoughts (ToT) as a dynamic, self-evaluating tree search module for the agent's high-stakes top-level action p"
+    },
+    {
+      "topic": "LLM-based AI-agent Framework",
+      "timestamp": "2026-03-30T05:34:06.404241+00:00",
+      "source_insight": "Dream insight: Existing LLM-based AI-agent frameworks can be significantly enhanced by embedding Tree of Thoughts (ToT) as a dynamic, self-evaluating tree search module for the agent's high-stakes top-level action p"
+    },
+    {
+      "topic": "ReAct",
+      "timestamp": "2026-03-30T05:35:18.204942+00:00",
+      "source_insight": "Dream insight: We can borrow React’s component-based UI architecture to build a modular, reusable Intrinsic Curiosity Module (ICM) framework for 2025’s swarm UAV autonomous agents, where each curiosity-driven explor"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T05:35:18.208851+00:00",
+      "source_insight": "Dream insight: We can borrow React’s component-based UI architecture to build a modular, reusable Intrinsic Curiosity Module (ICM) framework for 2025’s swarm UAV autonomous agents, where each curiosity-driven explor"
+    },
+    {
+      "topic": "Reflexion",
+      "timestamp": "2026-03-30T05:36:17.655278+00:00",
+      "source_insight": "Dream insight: We can leverage cosine similarity-based case matching to tailor the personalized cognitive training workouts of Reflexion to individual patient needs after SCINTIX radiotherapy for lung or bone tumors"
+    },
+    {
+      "topic": "Cosine similarity-based case matching",
+      "timestamp": "2026-03-30T05:36:17.656430+00:00",
+      "source_insight": "Dream insight: We can leverage cosine similarity-based case matching to tailor the personalized cognitive training workouts of Reflexion to individual patient needs after SCINTIX radiotherapy for lung or bone tumors"
+    },
+    {
+      "topic": "Chain of Hindsight",
+      "timestamp": "2026-03-30T05:39:01.863174+00:00",
+      "source_insight": "Dream insight: We can embed a lightweight modified ICM curiosity module into the Chain of Hindsight (CoH) alignment pipeline, where the intrinsic reward generated by ICM incentivizes the language model to actively e"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T05:39:01.864319+00:00",
+      "source_insight": "Dream insight: We can embed a lightweight modified ICM curiosity module into the Chain of Hindsight (CoH) alignment pipeline, where the intrinsic reward generated by ICM incentivizes the language model to actively e"
+    },
+    {
+      "topic": "Sigmoid Activation",
+      "timestamp": "2026-03-30T05:40:00.004840+00:00",
+      "source_insight": "Dream insight: We can repurpose the sigmoid function to dynamically scale intrinsic curiosity reward output from an ICM in autonomous agents, clamping reward to a 0-1 range that prevents reward explosion from unpred"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T05:40:00.006205+00:00",
+      "source_insight": "Dream insight: We can repurpose the sigmoid function to dynamically scale intrinsic curiosity reward output from an ICM in autonomous agents, clamping reward to a 0-1 range that prevents reward explosion from unpred"
+    },
+    {
+      "topic": "Fan Effect Propagation",
+      "timestamp": "2026-03-30T05:40:54.726318+00:00",
+      "source_insight": "Dream insight: The CFD/CAA coupled modeling framework for fan tone noise propagation can be repurposed to model the propagation of emergent harmful coordination behaviors across a distributed OpenClaw multi-agent fr"
+    },
+    {
+      "topic": "agent harness ACP openclaw autonomous agent framework architecture",
+      "timestamp": "2026-03-30T05:40:54.728804+00:00",
+      "source_insight": "Dream insight: The CFD/CAA coupled modeling framework for fan tone noise propagation can be repurposed to model the propagation of emergent harmful coordination behaviors across a distributed OpenClaw multi-agent fr"
+    },
+    {
+      "topic": "GraphRAG",
+      "timestamp": "2026-03-30T05:42:28.119911+00:00",
+      "source_insight": "Dream insight: An autonomous agent with an Intrinsic Curiosity Module (ICM) can use GraphRAG's hierarchical knowledge graph structure to actively prioritize unexplored or weakly connected knowledge nodes for intrins"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-03-30T05:42:28.122198+00:00",
+      "source_insight": "Dream insight: An autonomous agent with an Intrinsic Curiosity Module (ICM) can use GraphRAG's hierarchical knowledge graph structure to actively prioritize unexplored or weakly connected knowledge nodes for intrins"
     }
   ]
 }

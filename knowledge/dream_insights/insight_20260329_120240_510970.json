@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_120240_510970",
+  "content": "Just as the human fan effect predicts slower associative recognition when a concept is linked to more memory traces, the working memory capacity limit of AI agents can be formalized as a system-level fan effect, where adding more associative connections to active context creates predictable non-linear slowdowns in reasoning speed and accuracy. This framing explains why even large-context AI agents suffer unexpected reasoning failures when asked to draw inferences across many related facts stored in active working memory.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Fan Effect Propagation",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Fan Effect Propagation",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T12:02:40.510992+00:00"
+}

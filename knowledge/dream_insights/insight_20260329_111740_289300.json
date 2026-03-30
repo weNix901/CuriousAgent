@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_111740_289300",
+  "content": "Just as biological/chemical agents exert targeted, effect-producing power by being constrained to only interact with specific binding sites rather than reacting with every molecule in a system, AI agents’ working memory capacity limits are not a flaw but a functional adaptation that improves their focused reasoning power. This constraint prevents AI agents from being overwhelmed by irrelevant contextual data, allowing them to produce consistent, targeted effects aligned with their core goal.",
+  "insight_type": "principle",
+  "source_topics": [
+    "agent",
+    "agent working memory capacity limits reasoning"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T11:17:40.289323+00:00"
+}

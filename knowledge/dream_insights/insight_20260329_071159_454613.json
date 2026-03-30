@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_071159_454613",
+  "content": "Autonomous curiosity-driven reinforcement learning agents, powered by intrinsic curiosity modules (ICM), can be adapted to solve the core open challenge in 2024-2025 state-of-the-art active learning agent memory: proactively selecting which new episodic memories to retain or prune based on intrinsic novelty, rather than relying on hand-coded retention rules or task-specific reward signals. This turns memory management from a passive optimization problem into an active, self-directed exploration problem.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "agent",
+    "active learning agent memory SOTA 2024 2025"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.88,
+  "trigger_topic": "agent",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:11:59.454636+00:00"
+}

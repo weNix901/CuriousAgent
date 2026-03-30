@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_074921_338021",
+  "content": "We can refactor computer automation agents to use an iterative Chain of Hindsight workflow, where the agent revisits its own past completed task trajectories, reweights the value of its earlier successful and failed actions based on the final outcome of the entire task, and fine-tunes its action selection policy to avoid short-sighted decisions that lead to suboptimal end results.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "Chain of Hindsight",
+    "Computer automation agent"
+  ],
+  "surprise": 0.82,
+  "novelty": 0.85,
+  "trigger_topic": "Chain of Hindsight",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T07:49:21.338043+00:00"
+}

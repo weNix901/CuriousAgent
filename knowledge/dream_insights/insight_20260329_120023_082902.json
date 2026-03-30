@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260329_120023_082902",
+  "content": "By integrating a long-term memory component from Memory Networks into the 2025 configurable ICM framework for swarm UAVs, we can avoid redundant curiosity-driven exploration of previously discovered regions, while still prioritizing exploration of truly novel untargeted areas. This hybrid mechanism lets individual UAVs share a collective long-term memory of explored spaces, turning uncoordinated individual intrinsic rewards into efficient group-level exploration.",
+  "insight_type": "hypothesis",
+  "source_topics": [
+    "ICM curiosity mechanism autonomous agent 2025",
+    "Memory Networks"
+  ],
+  "surprise": 0.78,
+  "novelty": 0.82,
+  "trigger_topic": "ICM curiosity mechanism autonomous agent 2025",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-29T12:00:23.082927+00:00"
+}
