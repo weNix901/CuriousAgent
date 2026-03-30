@@ -1,0 +1,17 @@
+{
+  "node_id": "insight_20260330_071238_681781",
+  "content": "Just as InstructGPT aligned generic large language model behavior to human instruction preferences through human feedback, Computer Use Agents can be refined by extending the same human feedback alignment paradigm not just to natural language responses, but to direct human judgment of the agent's step-by-step computer interaction trajectories. This creates a two-layer alignment framework that aligns both what an AI says and what an AI does on a computer to human expectations.",
+  "insight_type": "principle",
+  "source_topics": [
+    "InstructGPT",
+    "计算机智能体（Computer Agent）"
+  ],
+  "surprise": 0.75,
+  "novelty": 0.8,
+  "trigger_topic": "InstructGPT",
+  "weight": 0.5,
+  "verified": false,
+  "quality": 0.0,
+  "stale": false,
+  "created_at": "2026-03-30T07:12:38.681804+00:00"
+}
