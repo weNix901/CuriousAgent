@@ -1,19 +1,114 @@
 {
   "inbox": [
     {
-      "topic": "Dense Retrieval",
-      "timestamp": "2026-03-30T09:07:16.474112+00:00",
-      "source_insight": "Dream insight: We can reframe dense retrieval as an artificial spreading activation process over a large embedding-based semantic network: instead of precomputing full activation spread from the query embedding, den"
-    },
-    {
-      "topic": "Spreading Activation",
-      "timestamp": "2026-03-30T09:07:16.474450+00:00",
-      "source_insight": "Dream insight: We can reframe dense retrieval as an artificial spreading activation process over a large embedding-based semantic network: instead of precomputing full activation spread from the query embedding, den"
+      "topic": "Middleware lifecycle hooks agent harness",
+      "timestamp": "2026-04-01T04:45:01.984444+00:00",
+      "source_insight": "Dream insight: A middleware lifecycle hooks agent harness can be repurposed as a dynamic modular pipeline for fine-tuning Sentence Transformers, where lifecycle hooks inject task-specific embedding augmentation, neg"
     },
     {
       "topic": "Sentence Transformers",
-      "timestamp": "2026-03-30T09:07:20.472045+00:00",
+      "timestamp": "2026-04-01T04:45:01.984750+00:00",
+      "source_insight": "Dream insight: A middleware lifecycle hooks agent harness can be repurposed as a dynamic modular pipeline for fine-tuning Sentence Transformers, where lifecycle hooks inject task-specific embedding augmentation, neg"
+    },
+    {
+      "topic": "Middleware lifecycle hooks agent harness",
+      "timestamp": "2026-04-01T04:45:08.611395+00:00",
+      "source_insight": "Dream insight: Just as middleware lifecycle hooks let developers inject custom validation, transformation, and access control logic into an agent harness’s input/output pipeline without rewriting the core agent fram"
+    },
+    {
+      "topic": "Sentence Transformers",
+      "timestamp": "2026-04-01T04:45:08.611723+00:00",
+      "source_insight": "Dream insight: Just as middleware lifecycle hooks let developers inject custom validation, transformation, and access control logic into an agent harness’s input/output pipeline without rewriting the core agent fram"
+    },
+    {
+      "topic": "Anthropic Claude Agent SDK harness architecture",
+      "timestamp": "2026-04-01T04:45:31.046481+00:00",
       "source_insight": "Main curiosity queue"
+    },
+    {
+      "topic": "Anthropic Claude Agent SDK harness architecture",
+      "timestamp": "2026-04-01T04:46:31.088462+00:00",
+      "source_insight": "Main curiosity queue"
+    },
+    {
+      "topic": "Sentence Transformers",
+      "timestamp": "2026-04-01T04:46:33.016915+00:00",
+      "source_insight": "Dream insight: We can augment ICM curiosity mechanisms for 2025 swarm UAV autonomous agents by using Sentence Transformers to encode semantic descriptions of unexplored environment features, turning raw sensory obse"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-04-01T04:46:33.017290+00:00",
+      "source_insight": "Dream insight: We can augment ICM curiosity mechanisms for 2025 swarm UAV autonomous agents by using Sentence Transformers to encode semantic descriptions of unexplored environment features, turning raw sensory obse"
+    },
+    {
+      "topic": "Anthropic Claude Agent SDK harness architecture",
+      "timestamp": "2026-04-01T04:47:36.317326+00:00",
+      "source_insight": "Main curiosity queue"
+    },
+    {
+      "topic": "Middleware lifecycle hooks agent harness",
+      "timestamp": "2026-04-01T04:47:42.411744+00:00",
+      "source_insight": "Dream insight: Just as middleware lifecycle hooks inject customizable validation, transformation, and access control logic into an agent harness at predefined enforcement points, we can design a modular \"embedding m"
+    },
+    {
+      "topic": "Sentence Transformers",
+      "timestamp": "2026-04-01T04:47:42.412146+00:00",
+      "source_insight": "Dream insight: Just as middleware lifecycle hooks inject customizable validation, transformation, and access control logic into an agent harness at predefined enforcement points, we can design a modular \"embedding m"
+    },
+    {
+      "topic": "Anthropic Claude Agent SDK harness architecture",
+      "timestamp": "2026-04-01T04:48:59.714782+00:00",
+      "source_insight": "Main curiosity queue"
+    },
+    {
+      "topic": "Sentence Transformers",
+      "timestamp": "2026-04-01T04:49:06.896764+00:00",
+      "source_insight": "Dream insight: We can reframe Sentence Transformers' dense text embedding generation as an intrinsic curiosity signal for autonomous ICM-driven agents, where the agent rewards itself for exploring linguistic or envi"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-04-01T04:49:06.897202+00:00",
+      "source_insight": "Dream insight: We can reframe Sentence Transformers' dense text embedding generation as an intrinsic curiosity signal for autonomous ICM-driven agents, where the agent rewards itself for exploring linguistic or envi"
+    },
+    {
+      "topic": "Anthropic Claude Agent SDK harness architecture",
+      "timestamp": "2026-04-01T04:50:13.423812+00:00",
+      "source_insight": "Main curiosity queue"
+    },
+    {
+      "topic": "Agent harness OpenAI context engineering",
+      "timestamp": "2026-04-01T04:50:18.089651+00:00",
+      "source_insight": "Dream insight: We can reframe OpenAI agent context engineering as a dynamic embedding pruning and routing task, where Sentence Transformers pre-filter long agent interaction histories into semantically clustered, co"
+    },
+    {
+      "topic": "Sentence Transformers",
+      "timestamp": "2026-04-01T04:50:18.090142+00:00",
+      "source_insight": "Dream insight: We can reframe OpenAI agent context engineering as a dynamic embedding pruning and routing task, where Sentence Transformers pre-filter long agent interaction histories into semantically clustered, co"
+    },
+    {
+      "topic": "Agent harness OpenAI context engineering",
+      "timestamp": "2026-04-01T04:50:25.561804+00:00",
+      "source_insight": "Dream insight: Context engineering for OpenAI agents can be enhanced by repurposing Sentence Transformers' hierarchical embedding grouping logic as a dynamic context pruning and prioritization mechanism, treating th"
+    },
+    {
+      "topic": "Sentence Transformers",
+      "timestamp": "2026-04-01T04:50:25.562248+00:00",
+      "source_insight": "Dream insight: Context engineering for OpenAI agents can be enhanced by repurposing Sentence Transformers' hierarchical embedding grouping logic as a dynamic context pruning and prioritization mechanism, treating th"
+    },
+    {
+      "topic": "Anthropic Claude Agent SDK harness architecture",
+      "timestamp": "2026-04-01T04:51:33.269998+00:00",
+      "source_insight": "Main curiosity queue"
+    },
+    {
+      "topic": "RFC 2119",
+      "timestamp": "2026-04-01T04:51:40.178878+00:00",
+      "source_insight": "Dream insight: We can standardize requirement levels for the intrinsic curiosity goals generated by 2025 ICM-powered autonomous agents using the exact keyword framework defined in RFC 2119, to avoid ambiguous goal p"
+    },
+    {
+      "topic": "ICM curiosity mechanism autonomous agent 2025",
+      "timestamp": "2026-04-01T04:51:40.179432+00:00",
+      "source_insight": "Dream insight: We can standardize requirement levels for the intrinsic curiosity goals generated by 2025 ICM-powered autonomous agents using the exact keyword framework defined in RFC 2119, to avoid ambiguous goal p"
     }
   ]
 }

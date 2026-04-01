@@ -161,6 +161,17 @@ def api_inject():
         else:
             depth = float(depth)
 
+        # === Phase 2: parent link 在入口处立即写入 KG ===
+        from core import knowledge_graph as kg_module
+        parent = data.get("parent")
+        if parent:
+            # Step 1: 建占位 KG 节点（即使还没探索，KG 里也要有记录）
+            kg_module.add_knowledge(topic=topic, depth=depth, summary="")
+            # Step 2: 立即建立父子关系
+            kg_module.add_child(parent, topic)
+            print(f"[Phase2] Linked '{topic}' -> '{parent}' in KG")
+        # === Phase 2 结束 ===
+
         add_curiosity(
             topic=topic,
             reason=str(data.get("reason", "Web UI 注入")),

@@ -10,6 +10,7 @@ from .llm_client import LLMClient
 from .insight_synthesizer import InsightSynthesizer
 from .paper_citation_extractor import PaperCitationExtractor
 from .web_citation_extractor import WebCitationExtractor
+from .quality_v2 import QualityV2Assessor
 
 
 VALID_EXPLORATION_DEPTHS = {"shallow", "medium", "deep"}
@@ -146,11 +147,26 @@ class Explorer:
         threshold = kg.DEFAULT_STATE["config"]["notification_threshold"]
         should_notify = score >= threshold
 
+        # === G6-Fix: explorer 路径调用 QualityV2 评估质量 ===
+        try:
+            llm_client = LLMClient()
+            quality_assessor = QualityV2Assessor(llm_client)
+            quality_findings = {
+                "summary": findings,
+                "sources": sources
+            }
+            quality = quality_assessor.assess_quality(topic, quality_findings, kg)
+        except Exception as e:
+            print(f"[Explorer] QualityV2 assessment failed for '{topic}': {e}")
+            quality = 0.0
+        # === G6-Fix 结束 ===
+
         kg.add_knowledge(
             topic=topic,
             depth=int(curiosity_item.get("depth", 5)),
             summary=findings[:300],
-            sources=sources
+            sources=sources,
+            quality=quality
         )
         kg.update_curiosity_status(topic, "done")
         kg.log_exploration(topic, action, findings, should_notify)

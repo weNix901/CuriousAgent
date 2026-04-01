@@ -7,6 +7,8 @@ from core.base_agent import BaseAgent
 from core.explorer import Explorer
 from core import knowledge_graph as kg
 from core.node_lock_registry import NodeLockRegistry
+from core.quality_v2 import QualityV2Assessor
+from core.llm_client import LLMClient
 
 
 class SpiderAgent(BaseAgent):
@@ -72,11 +74,29 @@ class SpiderAgent(BaseAgent):
         inbox_items = kg.fetch_and_clear_dream_inbox()
 
         if not inbox_items:
-            self._consecutive_empty_inbox += 1
-            if self._consecutive_empty_inbox >= 5:
-                print(f"[SpiderAgent] Warning: DreamInbox empty for {self._consecutive_empty_inbox} consecutive cycles")
+            # === v0.2.8: 批量 claim 填满并发槽位 ===
+            MAX_CLAIM_PER_CYCLE = 20  # 每次最多 claim 20 个，平衡速率和调度粒度
+            claimed = 0
+            while claimed < MAX_CLAIM_PER_CYCLE:
+                pending_item = kg.claim_pending_item()
+                if not pending_item:
+                    break
+                topic = pending_item["topic"]
+                inbox_items.append({
+                    "topic": topic,
+                    "source_insight": "curiosity_queue_fallback"
+                })
+                claimed += 1
+            if inbox_items:
+                print(f"[SpiderAgent] DreamInbox empty, batch-claimed {len(inbox_items)} items from curiosity_queue")
                 self._consecutive_empty_inbox = 0
-            return
+            else:
+                self._consecutive_empty_inbox += 1
+                if self._consecutive_empty_inbox >= 5:
+                    print(f"[SpiderAgent] Warning: DreamInbox and curiosity_queue both empty for {self._consecutive_empty_inbox} consecutive cycles")
+                    self._consecutive_empty_inbox = 0
+                return
+            # === v0.2.8 批量 claim 结束 ===
 
         self._consecutive_empty_inbox = 0
         cycle_topics = []
@@ -130,6 +150,21 @@ class SpiderAgent(BaseAgent):
                     result = self.explorer.explore(curiosity_item)
                     if result:
                         self._last_explored_timestamp = time.time()
+                        # === G6-Fix: SpiderAgent 同步路径调用 QualityV2 ===
+                        try:
+                            llm = LLMClient()
+                            quality_assessor = QualityV2Assessor(llm)
+                            findings = {
+                                "summary": result.get("findings", ""),
+                                "sources": result.get("sources", [])
+                            }
+                            quality = quality_assessor.assess_quality(topic, findings, kg)
+                            result["quality"] = quality
+                            # 更新 KG 中的 quality
+                            kg.update_topic_quality(topic, quality)
+                        except Exception as e:
+                            print(f"[SpiderAgent] Quality assessment failed for '{topic}': {e}")
+                        # === G6-Fix 结束 ===
                     self._notify_dream_agent(topic, result)
                     return result
         except Exception as e:

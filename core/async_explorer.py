@@ -32,6 +32,14 @@ def _get_instances(depth: float = 6.0):
 
 def _explore_in_thread(topic: str, score: float, depth: float):
     """在线程中执行探索，完成后更新状态"""
+    # === Phase 3: async 路径也要正确更新队列 status ===
+    from core.knowledge_graph import update_curiosity_status
+    try:
+        update_curiosity_status(topic, "exploring")
+    except Exception:
+        pass  # 不因为 status 更新失败而阻止探索
+    # === Phase 3 结束 ===
+
     try:
         logger.info(f"[T-10] Async exploration started for {topic} (depth={depth})")
         explorer, quality_assessor = _get_instances(depth)
@@ -45,6 +53,7 @@ def _explore_in_thread(topic: str, score: float, depth: float):
         result = explorer.explore(curiosity_item)
 
         from core.knowledge_graph import add_exploration_result, update_curiosity_status
+        from core import knowledge_graph as kg_module
         # Explorer.explore() returns findings as a string (summary text)
         # QualityV2 expects a dict, wrap appropriately
         findings_str = result.get("findings", "") or ""
@@ -52,7 +61,7 @@ def _explore_in_thread(topic: str, score: float, depth: float):
         quality = quality_assessor.assess_quality(
             topic=topic,
             findings=findings_dict,
-            knowledge_graph=None
+            knowledge_graph=kg_module  # G4-Fix: 传入 kg_module 实例，不是 None
         )
         add_exploration_result(topic, result, quality)
         # ===== Decomposition（与 curious_agent.py run_one_cycle 同步） =====

@@ -97,7 +97,7 @@ def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: list =
     
     # 限制节点数：保留深度最高的
     if len(topics) > DEFAULT_STATE["config"]["max_knowledge_nodes"]:
-        sorted_topics = sorted(topics.items(), key=lambda x: x[1]["depth"], reverse=True)
+        sorted_topics = sorted(topics.items(), key=lambda x: x[1].get("depth", 0), reverse=True)
         topics.clear()
         for k, v in sorted_topics[:DEFAULT_STATE["config"]["max_knowledge_nodes"]]:
             topics[k] = v
@@ -130,6 +130,21 @@ def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float 
     }
     # v0.2.5: 存储额外字段（如 original_topic）
     queue_item.update(extra)
+
+    # v0.2.8: priority 字段 — 按来源设优先级，claim 时高优先级先出
+    # 避免低优先级的 decomposition 饿死高优先级的 web_citation
+    reason = queue_item.get("reason", "")
+    if "Web citation" in reason:
+        queue_item["priority"] = 10
+    elif "Cited by" in reason:
+        queue_item["priority"] = 9
+    elif "Dream" in reason:
+        queue_item["priority"] = 8
+    elif "Decomposed from" in reason:
+        queue_item["priority"] = 5  # decomposition 优先级低
+    else:
+        queue_item["priority"] = 5
+
     state["curiosity_queue"].append(queue_item)
     _save_state(state)
 
@@ -235,6 +250,32 @@ def list_pending() -> list:
     """列出所有待探索条目"""
     state = _load_state()
     return [item for item in state.get("curiosity_queue", []) if item.get("status") == "pending"]
+
+
+def claim_pending_item() -> Optional[dict]:
+    """
+    原子地 claim 一个 pending 项。
+    只有 status=pending 的项才能被 claim。
+    已 claiming 的项（status=exploring）会被跳过。
+
+    注意：本函数不修改 DreamInbox，只修改 curiosity_queue 的 status。
+
+    Returns:
+        被 claim 的 item dict（status 已改为 exploring），或 None（队列为空）
+    """
+    state = _load_state()
+    queue = state.get("curiosity_queue", [])
+    # v0.2.8: 优先 claim priority 最高的 pending 项
+    pending_items = [(i, item) for i, item in enumerate(queue) if item.get("status") == "pending"]
+    if not pending_items:
+        _save_state(state)
+        return None
+    # priority 最高的排前面；priority 相等时按入队时间（越早优先）
+    pending_items.sort(key=lambda x: (x[1].get("priority", 5), x[1].get("created_at", "")), reverse=True)
+    idx, item = pending_items[0]
+    item["status"] = "exploring"
+    _save_state(state)
+    return item.copy()
 
 
 # === Meta-cognitive tracking functions ===
@@ -740,14 +781,10 @@ def add_exploration_result(topic: str, result: dict, quality: float) -> None:
     except Exception as e:
         print(f"[KG] AgentBehaviorWriter failed: {e}")
 
-    # v0.2.5: parent 写入 - 从 curiosity_queue 获取正在探索的 parent
-    state = _load_state()
-    for queue_item in state.get("curiosity_queue", []):
-        if queue_item.get("status") == "exploring":
-            parent_topic = queue_item.get("topic")
-            if parent_topic and parent_topic != topic:
-                _update_parent_relation(parent_topic, topic)
-                break
+    # v0.2.7 Phase 4: parent link 已在 api_inject() 入口处通过 add_child() 写入 KG，
+    # 不需要再从队列推断。此段逻辑删除以避免 Bug 3+4（queue_item.get("topic")
+    # 拿到的是当前探索完成的 topic，不是 parent，逻辑颠倒）。
+    pass
 
 # v0.2.5 Root Tracing Functions
 

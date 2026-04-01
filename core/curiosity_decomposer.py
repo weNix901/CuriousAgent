@@ -379,6 +379,10 @@ class CuriosityDecomposer:
         if not subtopics:
             return []
 
+        # v0.2.8: 限制每个 topic 最多入队 5 个子 topic，防止队列膨胀
+        MAX_CHILDREN_PER_TOPIC = 5
+        subtopics = subtopics[:MAX_CHILDREN_PER_TOPIC]
+
         from core import knowledge_graph as kg
         kg.update_curiosity_status(topic, "exploring")
 
