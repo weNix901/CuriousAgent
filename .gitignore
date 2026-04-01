@@ -31,6 +31,7 @@ logs/
 knowledge/state.json
 knowledge/.curious_last_sync
 ui/.DS_Store
+knowledge/dream_insights/
 
 # Sensitive
 .env
