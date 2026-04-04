@@ -24,15 +24,24 @@ pkill -f "curious_agent.py" 2>/dev/null && echo "   ✓ 已终止 curious_agent.
 echo "[3/5] 等待端口释放 ..."
 sleep 2
 
-# 4. 启动 API 服务
-echo "[4/6] 启动 Curious Agent API ..."
+# 4. 加载环境变量（包含 API keys）
+echo "[4/7] 加载环境变量 ..."
+if [ -f "$APP_DIR/.env" ]; then
+    set -a && source "$APP_DIR/.env" && set +a
+    echo "   ✓ API keys loaded from .env"
+else
+    echo "   ⚠️ .env not found, API keys may be missing"
+fi
+
+# 5. 启动 API 服务
+echo "[5/7] 启动 Curious Agent API ..."
 cd "$APP_DIR"
 nohup python3 curious_api.py > "$LOG_FILE" 2>&1 &
 PID=$!
 echo "   ✓ API PID: $PID"
 
-# 5. 启动探索 Daemon
-echo "[5/6] 启动探索 Daemon (间隔 30 分钟) ..."
+# 6. 启动探索 Daemon
+echo "[6/7] 启动探索 Daemon (间隔 30 分钟) ..."
 nohup python3 -u curious_agent.py --daemon --interval 30 >> logs/daemon.log 2>&1 &
 PID_D=$!
 echo "   ✓ Daemon PID: $PID_D"
@@ -40,7 +49,7 @@ echo "   ✓ Daemon PID: $PID_D"
 # 6. 等待启动并验证
 
 # 6. 等待启动并验证
-echo "[6/6] 验证服务启动 ..."
+echo "[7/7] 验证服务启动 ..."
 for i in {1..10}; do
     sleep 1
     if curl -s "http://localhost:$PORT/api/curious/state" > /dev/null 2>&1; then

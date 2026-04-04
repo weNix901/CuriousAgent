@@ -297,6 +297,15 @@ class SpiderAgent(BaseAgent):
             from core import knowledge_graph as kg
             from core.config import get_config
 
+            # Guard: skip decomposition if topic has no_content status in curiosity_queue
+            state = kg.get_state()
+            topics = state.get('knowledge', {}).get('topics', {})
+            queue = state.get('curiosity_queue', [])
+            queue_item = next((item for item in queue if item['topic'] == topic), {})
+            if queue_item.get('status') == 'no_content':
+                print(f"[SpiderAgent] Skipping decompose for no_content topic: {topic}")
+                return
+
             config = get_config()
             llm_config = {"providers": {}, "selection_strategy": "capability"}
             for p in config.llm_providers:

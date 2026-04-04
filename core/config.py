@@ -151,7 +151,8 @@ def _load_env_file():
                 line = line.strip()
                 if line and not line.startswith("#") and "=" in line:
                     key, value = line.split("=", 1)
-                    os.environ.setdefault(key.strip(), value.strip())
+                    value = value.strip().strip('"').strip("'")
+                    os.environ.setdefault(key.strip(), value)
 
 
 _config: Optional[Config] = None

@@ -268,8 +268,14 @@ def claim_pending_item() -> Optional[dict]:
     """
     state = _load_state()
     queue = state.get("curiosity_queue", [])
+    topics = state.get("knowledge", {}).get("topics", {})
     # v0.2.8: 优先 claim priority 最高的 pending 项
-    pending_items = [(i, item) for i, item in enumerate(queue) if item.get("status") == "pending"]
+    # v0.2.8-fix: 跳过 KG 里已 complete 的 topic
+    pending_items = [
+        (i, item) for i, item in enumerate(queue)
+        if item.get("status") == "pending"
+        and topics.get(item["topic"], {}).get("status") != "complete"
+    ]
     if not pending_items:
         _save_state(state)
         return None
