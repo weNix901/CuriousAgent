@@ -60,7 +60,7 @@ class Explorer:
 
     def _call_serper_search(self, query: str, count: int = 3) -> list:
         """调用 Serper Google Search API - Bocha 失效时的备用"""
-        serper_key = os.environ.get("SERPER_API_KEY", "5ab85d954a1d224281498b13b8d4731f05e1d562")
+        serper_key = os.environ.get("SERPER_API_KEY", "")
         url = "https://google.serper.dev/search"
         payload = {"q": query, "numResults": count}
 
