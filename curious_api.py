@@ -35,7 +35,7 @@ def api_state():
     topics_with_quality = {}
     for name, v in topics.items():
         topic_copy = dict(v)
-        topic_copy["quality"] = quality_map.get(name, None)
+        topic_copy["quality"] = v.get("quality") or quality_map.get(name)
         topics_with_quality[name] = topic_copy
     
     return jsonify({

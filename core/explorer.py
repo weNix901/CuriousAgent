@@ -224,6 +224,7 @@ class Explorer:
                     if not name or len(name) > 100:
                         continue
                     kg.add_child(topic, name)
+                    kg.add_citation(topic, name)
                     kg.add_curiosity(
                         topic=name,
                         reason=f"Web citation: {citation.get('reason', '')}",

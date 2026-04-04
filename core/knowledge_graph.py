@@ -155,6 +155,9 @@ def update_curiosity_status(topic: str, status: str) -> None:
     for item in state["curiosity_queue"]:
         if item["topic"] == topic:
             item["status"] = status
+            # v0.2.8: 设置 claimed_at，防止 stuck items
+            if "claimed_at" not in item and status in ("exploring", "investigating"):
+                item["claimed_at"] = datetime.now(timezone.utc).isoformat()
     _save_state(state)
 
 
@@ -274,6 +277,7 @@ def claim_pending_item() -> Optional[dict]:
     pending_items.sort(key=lambda x: (x[1].get("priority", 5), x[1].get("created_at", "")), reverse=True)
     idx, item = pending_items[0]
     item["status"] = "exploring"
+    item["claimed_at"] = datetime.now(timezone.utc).isoformat()
     _save_state(state)
     return item.copy()
 
