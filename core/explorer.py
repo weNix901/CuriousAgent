@@ -219,6 +219,18 @@ class Explorer:
             try:
                 web_extractor = WebCitationExtractor()
                 web_citations = web_extractor.extract_from_sources(topic, l1_result["sources"])
+                # v0.2.8: 限制每个 topic 最多入队 5 个 web citation，防止队列膨胀
+                MAX_WEB_CITATIONS = 5
+                # v0.2.8: 歧义 topic 的域名黑名单（React.js/Frontend vs LLM）
+                AMBIGUOUS_TOPICS = {"Context resets": ["reactjs.org", "stackoverflow.com", "github.com/facebook/react", "nextjs.org", "zustand"]}
+                blacklisted_domains = AMBIGUOUS_TOPICS.get(topic, [])
+                filtered = []
+                for citation in web_citations:
+                    source_url = citation.get("source_url", "")
+                    if blacklisted_domains and any(bad in source_url for bad in blacklisted_domains):
+                        continue  # 过滤掉 React.js/Frontend 相关来源
+                    filtered.append(citation)
+                web_citations = filtered[:MAX_WEB_CITATIONS]
                 for citation in web_citations:
                     name = citation.get("name", "")
                     if not name or len(name) > 100:
@@ -431,6 +443,9 @@ class Explorer:
             try:
                 extractor = PaperCitationExtractor()
                 citations = extractor.extract_all(topic, papers)
+                # v0.2.8: 限制每个 topic 最多入队 10 个论文引文
+                MAX_PAPER_CITATIONS = 10
+                citations = citations[:MAX_PAPER_CITATIONS]
                 for c in citations:
                     name = c.get("name", "")
                     if not name or len(name) > 100:
