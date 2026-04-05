@@ -510,14 +510,14 @@ def daemon_mode(interval_minutes: int = 30):
         if cycle_count % 60 == 0:
             try:
                 from core import knowledge_graph as kg_main
-                pending = kg_main.list_pending()
-                if pending:
-                    next_item = pending[0]
-                    topic = next_item.get("topic")
-                    if topic and not kg_main.is_topic_completed(topic):
-                        print(f"[v0.2.6] Consuming main queue: {topic}")
-                        kg_main.add_to_dream_inbox(topic, source_insight="Main curiosity queue")
-                        main_queue_consumed += 1
+                # Use claim_pending_item instead of list_pending()[0]
+                # to atomically claim and move topic from pending -> exploring
+                claimed = kg_main.claim_pending_item()
+                if claimed:
+                    topic = claimed.get("topic")
+                    print(f"[v0.2.6] Consuming main queue: {topic}")
+                    kg_main.add_to_dream_inbox(topic, source_insight="Main curiosity queue")
+                    main_queue_consumed += 1
             except Exception as e:
                 print(f"[v0.2.6] Error consuming main queue: {e}")
         
