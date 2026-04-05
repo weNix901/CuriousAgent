@@ -22,7 +22,7 @@ DEFAULT_STATE = {
     "exploration_log": [],
     "config": {
         "curiosity_top_k": 3,        # 每次探索 Top K 个好奇心
-        "max_knowledge_nodes": 100,  # 知识图谱最大节点数
+        "max_knowledge_nodes": 5000,  # 知识图谱最大节点数（100太小，会导致探索成果被截断丢失）
         "notification_threshold": 7.0  # 超过此分数才通知用户
     }
 }
