@@ -338,31 +338,62 @@ def print_status():
 def daemon_mode(interval_minutes: int = 30):
     """
     Three-Agent Daemon Mode (v0.2.6).
-    
+
     Starts SpiderAgent, DreamAgent, and SleepPruner in dedicated threads.
     Agents communicate via queue for inter-agent messaging.
-    
+
     Features:
     - F1: Three-agent architecture (SpiderAgent, DreamAgent, SleepPruner)
     - F7: High-priority queue with 5s timeout
     - F8: Three-layer randomization for distant pair selection
     - Graceful shutdown on Ctrl+C
     - Feature toggle support via config
+    - PID file check to prevent multiple instances
     """
     import queue
     import signal
-    
+    import os
+
+    # ─── PID file check：防止多个 daemon 实例并发运行 ────────────
+    pid_file = "/tmp/curious_agent_daemon.pid"
+    if os.path.exists(pid_file):
+        try:
+            with open(pid_file) as f:
+                old_pid = int(f.read().strip())
+            # 检查旧 PID 是否还活着
+            try:
+                os.kill(old_pid, 0)  # signal 0 不杀死，只检查存活
+                print(f"[daemon] PID {old_pid} is already running. Exiting.")
+                print(f"[daemon] If the old daemon is dead, remove {pid_file}")
+                return
+            except OSError:
+                print(f"[daemon] Stale PID file (process {old_pid} is dead). Removing.")
+                os.remove(pid_file)
+        except (ValueError, IOError):
+            print("[daemon] Corrupt PID file. Removing.")
+            os.remove(pid_file)
+
+    # 写入当前 PID
+    with open(pid_file, 'w') as f:
+        f.write(str(os.getpid()))
+    print(f"[daemon] PID {os.getpid()} registered in {pid_file}")
+
+    def cleanup_pid():
+        if os.path.exists(pid_file):
+            os.remove(pid_file)
+
     from core.spider_agent import SpiderAgent
     from core.dream_agent import DreamAgent
     from core.sleep_pruner import SleepPruner
-    
+
     from core.config import get_config
     cfg = get_config()
     feature_flags = getattr(cfg, 'feature_flags', {})
     three_agent_enabled = feature_flags.get('three_agent_daemon', True)
-    
+
     if not three_agent_enabled:
         print("[v0.2.6] Three-agent daemon disabled, falling back to legacy mode")
+        cleanup_pid()
         _daemon_mode_legacy(interval_minutes)
         return
     
@@ -415,6 +446,7 @@ def daemon_mode(interval_minutes: int = 30):
         shutdown_requested = True
         for agent in agents:
             agent.stop()
+        cleanup_pid()
     
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)
