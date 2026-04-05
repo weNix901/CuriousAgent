@@ -116,37 +116,12 @@ class CuriosityEngine:
         }
     
     def generate_initial_curiosities(self) -> int:
-        """生成初始好奇心队列（仅当队列为空时）"""
-        state = kg.get_state()
-        if any(i["status"] == "pending" for i in state["curiosity_queue"]):
-            return 0  # 已有待探索项
-        
-        initial_topics = [
-            # 元认知相关
-            ("LLM self-reflection mechanisms", "理解 Agent 自我监控的实现方式", 9.0, 8.0),
-            ("curiosity-driven reinforcement learning", "AI 好奇心如何量化", 8.0, 7.0),
-            ("knowledge graph completion AI", "知识图谱补全方法", 7.0, 6.0),
-            
-            # Agent 架构相关
-            ("ReAct Reflexion agent frameworks", "最新 Agent 自我改进框架", 8.5, 7.5),
-            ("autonomous agent planning and replanning", "Agent 动态规划机制", 8.0, 7.0),
-            
-            # 认知架构
-            ("dual process theory AI", "快慢思考在 AI 中的应用", 7.0, 6.0),
-            ("working memory AI agent", "Agent 工作记忆实现方式", 7.5, 7.0),
-            
-            # OpenClaw / Agent 系统
-            ("openclaw agent framework capabilities", "当前平台的 Agent 能力边界", 9.0, 9.0),
-            ("OMO multi-agent orchestration", "多 Agent 协作架构", 8.0, 8.0),
-        ]
-        
-        count = 0
-        for topic, reason, rel, depth in initial_topics:
-            kg.add_curiosity(topic, reason, rel, depth)
-            count += 1
-        
-        return count
-    
+        """DISABLED: 硬编码 topics 会覆盖手动注入的队列项。
+        队列初始化应该通过直接注入或种子文件完成。
+        """
+        return 0  # 已禁用 - 队列由外部注入填充
+
+
     def compute_curiosity_score(self, topic: str, base_relevance: float, base_depth: float) -> float:
         """
         动态评分：
