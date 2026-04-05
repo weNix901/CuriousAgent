@@ -288,6 +288,53 @@ def claim_pending_item() -> Optional[dict]:
     return item.copy()
 
 
+def revive_stuck_items(timeout_seconds: int = 180) -> int:
+    """
+    复活超时的 exploring items，将它们重置为 pending。
+
+    当 SpiderAgent 重置或崩溃时，claim_pending_item 已被调用但探索未完成，
+    items 会永久卡在 "exploring" 状态。
+    本函数检测 "exploring" items 是否超时，超时则重置为 "pending"。
+
+    Args:
+        timeout_seconds: 超时阈值（秒），默认 3 分钟
+
+    Returns:
+        复活的 items 数量
+    """
+    from datetime import datetime as dt, timezone as tz
+
+    state = _load_state()
+    queue = state.get("curiosity_queue", [])
+    now = dt.now(tz=tz.utc)
+    revived = 0
+
+    for item in queue:
+        if item.get("status") == "exploring":
+            claimed_at_str = item.get("claimed_at")
+            if claimed_at_str:
+                try:
+                    # 支持带 Z 和 +00:00 两种格式
+                    if claimed_at_str.endswith("Z"):
+                        claimed_at_str = claimed_at_str[:-1] + "+00:00"
+                    claimed_at = dt.fromisoformat(claimed_at_str.replace("Z", "+00:00"))
+                    age_seconds = (now - claimed_at).total_seconds()
+                    if age_seconds > timeout_seconds:
+                        item["status"] = "pending"
+                        # 清除 claimed_at，下次 claim 时会重新设置
+                        item.pop("claimed_at", None)
+                        revived += 1
+                except (ValueError, TypeError):
+                    # 时间戳解析失败，安全处理：保持原状
+                    pass
+
+    if revived > 0:
+        _save_state(state)
+        print(f"[kg] Revived {revived} stuck items (timeout={timeout_seconds}s)")
+
+    return revived
+
+
 # === Meta-cognitive tracking functions ===
 
 def _ensure_meta_cognitive(state: dict) -> dict:

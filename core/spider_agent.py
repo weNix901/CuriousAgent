@@ -60,6 +60,9 @@ class SpiderAgent(BaseAgent):
 
         Loop continues until running flag is set to False via stop().
         """
+        # v0.2.8: 启动时先复活所有超时的 stuck items
+        kg.revive_stuck_items(timeout_seconds=180)
+
         while self.running:
             try:
                 self._process_inbox_cycle()
@@ -71,6 +74,9 @@ class SpiderAgent(BaseAgent):
 
     def _process_inbox_cycle(self):
         """Process one cycle: consume inbox, explore, write, notify."""
+        # v0.2.8: 每次 cycle 先检查并复活超时的 stuck items
+        kg.revive_stuck_items(timeout_seconds=180)
+
         inbox_items = kg.fetch_and_clear_dream_inbox()
 
         if not inbox_items:
