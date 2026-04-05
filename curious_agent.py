@@ -378,6 +378,22 @@ def daemon_mode(interval_minutes: int = 30):
         f.write(str(os.getpid()))
     print(f"[daemon] PID {os.getpid()} registered in {pid_file}")
 
+    # Graceful shutdown: save state before exiting
+    import signal as sig_module
+    def _graceful_shutdown(signum, frame):
+        print(f"\n[daemon] Received signal {signum}, saving state before exit...")
+        try:
+            from core import knowledge_graph as kg_safe
+            kg_safe._save_state(kg_safe._load_state())
+            print("[daemon] State saved.")
+        except Exception as e:
+            print(f"[daemon] Error saving state: {e}")
+        cleanup_pid()
+        raise SystemExit(0)
+
+    sig_module.signal(sig_module.SIGTERM, _graceful_shutdown)
+    sig_module.signal(sig_module.SIGINT, _graceful_shutdown)
+
     def cleanup_pid():
         if os.path.exists(pid_file):
             os.remove(pid_file)
