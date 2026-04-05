@@ -271,6 +271,7 @@ def claim_pending_item() -> Optional[dict]:
     topics = state.get("knowledge", {}).get("topics", {})
     # v0.2.8: 优先 claim priority 最高的 pending 项
     # v0.2.8-fix: 跳过 KG 里已 complete 的 topic
+    # v0.2.8-fix2: 跳过 exploring items（SpiderAgent 崩溃时遗留的 stuck items）
     pending_items = [
         (i, item) for i, item in enumerate(queue)
         if item.get("status") == "pending"
