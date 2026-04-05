@@ -1,6 +1,7 @@
 """
 知识图谱 - 管理 Agent 的已知/未知知识状态
 """
+import fcntl
 import json
 import os
 from datetime import datetime, timezone
@@ -41,8 +42,15 @@ def _load_state() -> dict:
 def _save_state(state: dict) -> None:
     state["last_update"] = datetime.now(timezone.utc).isoformat()
     os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+    # Use file locking to prevent concurrent writes from corrupting state.json
     with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
+        try:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            json.dump(state, f, ensure_ascii=False, indent=2)
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+        except BlockingIOError:
+            # Could not acquire lock, skip this save
+            pass
 
 
 def get_state() -> dict:
