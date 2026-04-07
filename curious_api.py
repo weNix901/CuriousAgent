@@ -779,5 +779,41 @@ def api_kg_calibration():
     })
 
 
+@app.route("/api/curious/quality/assertion", methods=["POST"])
+def assess_quality_assertion():
+    """Test assertion-based quality assessment"""
+    data = request.get_json()
+    topic = data.get('topic')
+    findings = data.get('findings', {})
+    
+    from core.config import get_config
+    from core.embedding_service import EmbeddingService, EmbeddingConfig
+    from core.assertion_index import AssertionIndex
+    from core.quality_v2 import QualityV2Assessor
+    from core.llm_client import LLMClient
+    from core.kg_graph import KGGraph
+    
+    config = get_config()
+    llm = LLMClient()
+    embedding_service = EmbeddingService(config.embedding)
+    assertion_index = AssertionIndex()
+    kg = KGGraph()  # Get existing KG instance
+    
+    assessor = QualityV2Assessor(
+        llm,
+        embedding_service=embedding_service,
+        assertion_index=assertion_index,
+        knowledge_graph=kg
+    )
+    
+    quality = assessor.assess_quality(topic, findings, kg)
+    
+    return jsonify({
+        'topic': topic,
+        'quality': quality,
+        'method': 'assertion_based'
+    })
+
+
 if __name__ == "__main__":
     main()
