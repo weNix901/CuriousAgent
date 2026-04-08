@@ -1,0 +1,3546 @@
+{
+  "version": "1.0",
+  "last_update": "2026-04-05T05:33:02.858982+00:00",
+  "knowledge": {
+    "topics": {
+      "UNPrompt transferability across different LLMs": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "\"name\": \"UNPrompt\","
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:12:42.163793+00:00",
+        "last_updated": "2026-04-05T04:12:42.163793+00:00",
+        "status": "partial"
+      },
+      "\"name\": \"UNPrompt\",": {
+        "known": false,
+        "depth": 0,
+        "parents": [],
+        "explains": [
+          {
+            "target": "UNPrompt transferability across different LLMs",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:12:42.163793+00:00",
+        "last_updated": "2026-04-05T04:12:42.163793+00:00",
+        "status": "partial"
+      },
+      "Edge computing offloading for Zoom hybrid meeting processing": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Hybrid with Zoom"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:05:56.076655+00:00",
+        "last_updated": "2026-04-05T05:05:56.076655+00:00",
+        "status": "partial"
+      },
+      "Hybrid with Zoom": {
+        "known": false,
+        "depth": 0,
+        "parents": [],
+        "explains": [
+          {
+            "target": "Edge computing offloading for Zoom hybrid meeting processing",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:05:56.076655+00:00",
+        "last_updated": "2026-04-05T05:05:56.076655+00:00",
+        "status": "partial"
+      },
+      "Christensen Institute混合学习模型": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Hybrid Planning and Learning System"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:26:52.730813+00:00",
+        "last_updated": "2026-04-05T05:26:52.731797+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Hybrid Planning and Learning System"
+        ]
+      },
+      "Hybrid Planning and Learning System": {
+        "known": true,
+        "depth": 5,
+        "parents": [],
+        "explains": [
+          {
+            "target": "Christensen Institute混合学习模型",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "反向课程规划法",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Large language model embedded hybrid task planning",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "children": [
+          "反向课程规划法",
+          "Large language model embedded hybrid task planning"
+        ],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:26:52.730813+00:00",
+        "last_updated": "2026-04-05T05:26:53.869490+00:00",
+        "status": "partial",
+        "cites": [
+          "Christensen Institute混合学习模型",
+          "反向课程规划法"
+        ],
+        "summary": "【搜索发现】\n关于「Hybrid Planning and Learning System」的核心发现：\n1. **Hybrid Planning Strategies - Teaching and Learning Resource Center**   The most basic model of a hybrid class experience is where every week all students attend class in person together one or more times.\n2. **What is hybrid learning? Here's ",
+        "sources": [
+          "https://resources.owllabs.com/blog/hybrid-learning",
+          "https://feedbackfruits.com/blog/a-comprehensive-guide-to-hybrid-learning",
+          "https://ctl.columbia.edu/resources-and-technology/teaching-with-technology/teaching-online/hyflex/",
+          "https://www.nea.org/professional-excellence/student-engagement/tools-tips/overview-hybrid-learning-models",
+          "https://teaching.resources.osu.edu/teaching-topics/keep-teaching/hybrid-strategies"
+        ],
+        "quality": 5.2,
+        "cited_by": [],
+        "dreamed_at": "2026-04-05T05:27:00.675847+00:00"
+      },
+      "反向课程规划法": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Hybrid Planning and Learning System"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:26:52.736003+00:00",
+        "last_updated": "2026-04-05T05:26:52.737270+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Hybrid Planning and Learning System"
+        ]
+      },
+      "Agent Harness": {
+        "known": true,
+        "depth": 5,
+        "children": [
+          "ReAct loop",
+          "Filesystem abstractions",
+          "Bash code execution",
+          "Sandboxes",
+          "AGENTS.md",
+          "沙箱（Sandboxes）",
+          "Bash工具",
+          "Context7",
+          "Agent Harness multi-agent collaborative scheduling module",
+          "Dynamic tool integration framework for Harness",
+          "Multi-agent coordination testing in Agent Harness",
+          "Sandbox",
+          "Filesystem abstraction",
+          "Tool calling correctness validation in Agent Harness",
+          "Agent filesystem abstraction",
+          "Sandboxed execution"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-05T05:26:58.074021+00:00",
+        "status": "complete",
+        "cites": [
+          "ReAct loop",
+          "Filesystem abstractions",
+          "Bash code execution",
+          "Sandboxes",
+          "AGENTS.md",
+          "沙箱（Sandboxes）",
+          "Bash工具",
+          "Context7",
+          "Sandbox",
+          "Filesystem abstraction",
+          "Agent filesystem abstraction",
+          "Sandboxed execution"
+        ],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "ReAct loop",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Filesystem abstractions",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Bash code execution",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Sandboxes",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "AGENTS.md",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "沙箱（Sandboxes）",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Bash工具",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Context7",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Agent Harness multi-agent collaborative scheduling module",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Dynamic tool integration framework for Harness",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Multi-agent coordination testing in Agent Harness",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Sandbox",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Filesystem abstraction",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Tool calling correctness validation in Agent Harness",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Agent filesystem abstraction",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Sandboxed execution",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:26:58.074785+00:00",
+        "last_updated": "2026-04-05T05:32:58.847565+00:00",
+        "summary": "【搜索发现】\n关于「Agent Harness」的核心发现：\n1. **The Anatomy of an Agent Harness - LangChain Blog**   A harness is every piece of code, configuration, and execution logic that isn't the model itself. A raw model is not an agent. But it becomes ...\n2. **Effective harnesses for long-running agents - Anthropic**   ",
+        "sources": [
+          "https://www.reddit.com/r/LLMDevs/comments/1rm5cxu/what_is_agent_harness_code_harness_and_agent_sdk/",
+          "https://blog.langchain.com/the-anatomy-of-an-agent-harness/",
+          "https://martinfowler.com/articles/harness-engineering.html",
+          "https://www.philschmid.de/agent-harness-2026",
+          "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents"
+        ],
+        "quality": 6.4,
+        "parents": [],
+        "dreamed_at": "2026-04-05T05:33:02.858968+00:00"
+      },
+      "ReAct loop": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:26:58.074785+00:00",
+        "last_updated": "2026-04-05T05:32:57.629043+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Harness"
+        ]
+      },
+      "Filesystem abstractions": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:26:58.082457+00:00",
+        "last_updated": "2026-04-05T05:26:58.084237+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Harness"
+        ]
+      },
+      "Bash code execution": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:26:58.089457+00:00",
+        "last_updated": "2026-04-05T05:32:57.650031+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Harness"
+        ]
+      },
+      "Sandboxes": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:26:58.096572+00:00",
+        "last_updated": "2026-04-05T05:29:27.510072+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Harness"
+        ]
+      },
+      "AGENTS.md": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:26:58.104189+00:00",
+        "last_updated": "2026-04-05T05:32:57.733203+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Harness"
+        ]
+      },
+      "沙箱（Sandboxes）": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:27:09.598603+00:00",
+        "last_updated": "2026-04-05T05:27:09.600615+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Harness"
+        ]
+      },
+      "Bash工具": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:27:09.606833+00:00",
+        "last_updated": "2026-04-05T05:27:09.612979+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Harness"
+        ]
+      },
+      "Context7": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:27:09.626296+00:00",
+        "last_updated": "2026-04-05T05:29:27.538337+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Harness"
+        ]
+      },
+      "Large language model embedded hybrid task planning": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Hybrid Planning and Learning System"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:27:38.793131+00:00",
+        "last_updated": "2026-04-05T05:27:38.793131+00:00",
+        "status": "partial"
+      },
+      "Agent Harness multi-agent collaborative scheduling module": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:27:52.485082+00:00",
+        "last_updated": "2026-04-05T05:27:52.485082+00:00",
+        "status": "partial"
+      },
+      "Dynamic tool integration framework for Harness": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:27:53.738663+00:00",
+        "last_updated": "2026-04-05T05:27:53.738663+00:00",
+        "status": "partial"
+      },
+      "Middleware lifecycle hooks agent harness": {
+        "known": true,
+        "depth": 5,
+        "children": [
+          "AgentMiddleware",
+          "create_agent",
+          "PIIMiddleware",
+          "SummarizationMiddleware",
+          "ModelRetryMiddleware",
+          "Error handling interception hook for agent lifecycle"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-05T05:28:04.233400+00:00",
+        "status": "partial",
+        "cites": [
+          "AgentMiddleware",
+          "create_agent",
+          "PIIMiddleware",
+          "SummarizationMiddleware",
+          "ModelRetryMiddleware"
+        ],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "AgentMiddleware",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "create_agent",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "PIIMiddleware",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "SummarizationMiddleware",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "ModelRetryMiddleware",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Error handling interception hook for agent lifecycle",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:04.234923+00:00",
+        "last_updated": "2026-04-05T05:28:04.862240+00:00",
+        "summary": "【搜索发现】\n关于「Middleware lifecycle hooks agent harness」的核心发现：\n1. **How Middleware Lets You Customize Your Agent Harness**   Agent harnesses are what help build an agent, they connect an LLM to its environment and let it do things. When you're building an agent, ...\n2. **What is Agent Harness? How Does i",
+        "sources": [
+          "https://www.linkedin.com/posts/harrison-chase-961287118_how-middleware-lets-you-customize-your-agent-activity-7442955036923523072-VNyz",
+          "https://blog.langchain.com/how-middleware-lets-you-customize-your-agent-harness/",
+          "https://www.puppygraph.com/blog/agent-harness",
+          "https://snowan.gitbook.io/study-notes/ai-blogs/how-to-build-agent-harness",
+          "https://medium.com/@ale.garavaglia/langchain-middlewares-lightweight-hooks-for-more-structured-agents-f0abba828934"
+        ],
+        "quality": 6.4,
+        "parents": [],
+        "dreamed_at": "2026-04-05T05:28:08.063054+00:00"
+      },
+      "AgentMiddleware": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Middleware lifecycle hooks agent harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:04.234923+00:00",
+        "last_updated": "2026-04-05T05:28:04.237250+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Middleware lifecycle hooks agent harness"
+        ]
+      },
+      "create_agent": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Middleware lifecycle hooks agent harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:04.245415+00:00",
+        "last_updated": "2026-04-05T05:28:04.248198+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Middleware lifecycle hooks agent harness"
+        ]
+      },
+      "PIIMiddleware": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Middleware lifecycle hooks agent harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:04.256605+00:00",
+        "last_updated": "2026-04-05T05:28:04.259040+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Middleware lifecycle hooks agent harness"
+        ]
+      },
+      "SummarizationMiddleware": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Middleware lifecycle hooks agent harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:04.266974+00:00",
+        "last_updated": "2026-04-05T05:28:04.269463+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Middleware lifecycle hooks agent harness"
+        ]
+      },
+      "ModelRetryMiddleware": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Middleware lifecycle hooks agent harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:04.277210+00:00",
+        "last_updated": "2026-04-05T05:28:04.280069+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Middleware lifecycle hooks agent harness"
+        ]
+      },
+      "agent harness ACP openclaw autonomous agent framework architecture": {
+        "known": true,
+        "depth": 5,
+        "children": [
+          "上下文压缩",
+          "双分区记忆管理",
+          "智能体循环",
+          "会话持久化",
+          "自主触发机制",
+          "Autonomous agent perception-planning decoupling architecture"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-05T05:28:12.868967+00:00",
+        "status": "partial",
+        "cites": [
+          "上下文压缩",
+          "双分区记忆管理",
+          "智能体循环",
+          "会话持久化",
+          "自主触发机制"
+        ],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "上下文压缩",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "双分区记忆管理",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "智能体循环",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "会话持久化",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "自主触发机制",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Autonomous agent perception-planning decoupling architecture",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:12.870921+00:00",
+        "last_updated": "2026-04-05T05:28:13.914778+00:00",
+        "summary": "【搜索发现】\n关于「agent harness ACP openclaw autonomous agent framework architecture」的核心发现：\n1. **What Is OpenClaw? A Practical Guide to the Agent Harness Behind ...**   OpenClaw is a framework that surrounds an LLM with memory, tools, triggers, instructions, and output channels so the model can behave like ",
+        "sources": [
+          "https://www.youtube.com/watch?v=qrzUM3dJ2Rw",
+          "https://agentnativedev.medium.com/deep-agents-the-harness-behind-claude-code-codex-manus-and-openclaw-bdd94688dfdb",
+          "https://developer.harness.io/docs/platform/harness-ai/harness-agents",
+          "https://www.reddit.com/r/LangChain/comments/1rwfoq8/how_to_turn_deep_agent_into_an_agentic_agent_like/",
+          "https://www.zylon.ai/resources/blog/what-is-openclaw-a-practical-guide-to-the-agent-harness-behind-the-hype"
+        ],
+        "quality": 6.4,
+        "parents": [],
+        "dreamed_at": "2026-04-05T05:28:17.302899+00:00"
+      },
+      "上下文压缩": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "agent harness ACP openclaw autonomous agent framework architecture"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:12.870921+00:00",
+        "last_updated": "2026-04-05T05:28:12.873667+00:00",
+        "status": "partial",
+        "cited_by": [
+          "agent harness ACP openclaw autonomous agent framework architecture"
+        ]
+      },
+      "双分区记忆管理": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "agent harness ACP openclaw autonomous agent framework architecture"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:12.882672+00:00",
+        "last_updated": "2026-04-05T05:28:12.885742+00:00",
+        "status": "partial",
+        "cited_by": [
+          "agent harness ACP openclaw autonomous agent framework architecture"
+        ]
+      },
+      "智能体循环": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "agent harness ACP openclaw autonomous agent framework architecture"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:12.895635+00:00",
+        "last_updated": "2026-04-05T05:28:12.899038+00:00",
+        "status": "partial",
+        "cited_by": [
+          "agent harness ACP openclaw autonomous agent framework architecture"
+        ]
+      },
+      "会话持久化": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "agent harness ACP openclaw autonomous agent framework architecture"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:12.907341+00:00",
+        "last_updated": "2026-04-05T05:28:12.910414+00:00",
+        "status": "partial",
+        "cited_by": [
+          "agent harness ACP openclaw autonomous agent framework architecture"
+        ]
+      },
+      "自主触发机制": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "agent harness ACP openclaw autonomous agent framework architecture"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:12.918706+00:00",
+        "last_updated": "2026-04-05T05:28:12.921954+00:00",
+        "status": "partial",
+        "cited_by": [
+          "agent harness ACP openclaw autonomous agent framework architecture"
+        ]
+      },
+      "Augmented SBERT": {
+        "known": true,
+        "depth": 5,
+        "children": [
+          "Bi-Encoder",
+          "Cross-Encoder",
+          "Sentence Transformers",
+          "Generative Pseudo-Labeling",
+          "MultipleNegativesRankingLoss",
+          "Augmented SBERT task-specific fine-tuning augmentation"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-05T05:28:22.313198+00:00",
+        "status": "partial",
+        "cites": [
+          "Bi-Encoder",
+          "Cross-Encoder",
+          "Sentence Transformers",
+          "Generative Pseudo-Labeling",
+          "MultipleNegativesRankingLoss",
+          "Cross-encoders",
+          "Bi-encoders",
+          "SBERT"
+        ],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "Bi-Encoder",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Cross-Encoder",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Sentence Transformers",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Generative Pseudo-Labeling",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "MultipleNegativesRankingLoss",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Augmented SBERT task-specific fine-tuning augmentation",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:22.315444+00:00",
+        "last_updated": "2026-04-05T05:28:25.838664+00:00",
+        "summary": "【搜索发现】\n关于「Augmented SBERT」的核心发现：\n1. **Augmented SBERT — Sentence Transformers documentation**   We release an effective data-augmentation strategy known as Augmented SBERT where we utilize a high performing and slow cross-encoder (BERT) to label a larger ...\n2. **Data Augmentation Method for Improvi",
+        "sources": [
+          "https://medium.com/@zilliz_learn/augmented-sbert-a-data-augmentation-method-to-enhance-bi-encoders-for-pairwise-sentence-scoring-e73a117e357b",
+          "https://sbert.net/examples/sentence_transformer/training/data_augmentation/README.html",
+          "https://arxiv.org/abs/2010.08240",
+          "https://sh-tsang.medium.com/brief-review-augmented-sbert-data-augmentation-method-for-improving-bi-encoders-for-pairwise-09e27ba9de34",
+          "https://aclanthology.org/2021.naacl-main.28/"
+        ],
+        "quality": 6.4,
+        "parents": [],
+        "dreamed_at": "2026-04-05T05:28:29.261581+00:00"
+      },
+      "Bi-Encoder": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Augmented SBERT",
+          "Sentence Transformers"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:22.315444+00:00",
+        "last_updated": "2026-04-05T05:29:27.143732+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Augmented SBERT",
+          "Sentence Transformers"
+        ]
+      },
+      "Cross-Encoder": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Augmented SBERT"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:22.330419+00:00",
+        "last_updated": "2026-04-05T05:28:22.333760+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Augmented SBERT"
+        ]
+      },
+      "Sentence Transformers": {
+        "known": true,
+        "depth": 5,
+        "parents": [
+          "Augmented SBERT"
+        ],
+        "explains": [
+          {
+            "target": "Cross Encoder",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Sparse Encoder",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Bi-Encoder",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Knowledge Distillation",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "MTEB",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Retrieval-augmented generation with Sentence Transformers",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "children": [
+          "Cross Encoder",
+          "Sparse Encoder",
+          "Bi-Encoder",
+          "Knowledge Distillation",
+          "MTEB",
+          "Retrieval-augmented generation with Sentence Transformers"
+        ],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:22.344252+00:00",
+        "last_updated": "2026-04-05T05:29:27.784913+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Augmented SBERT"
+        ],
+        "cites": [
+          "Cross Encoder",
+          "Sparse Encoder",
+          "Bi-Encoder",
+          "Knowledge Distillation",
+          "MTEB"
+        ],
+        "summary": "【搜索发现】\n关于「Sentence Transformers」的核心发现：\n1. **SentenceTransformers Documentation — Sentence Transformers ...**   Sentence Transformers (aka SBERT) is the go-to Python module for accessing, using, and training state-of-the-art embedding and reranker models.\n2. **Sentence Transformers - Hugging Face**  ",
+        "sources": [
+          "https://sbert.net/",
+          "https://www.marqo.ai/course/introduction-to-sentence-transformers",
+          "https://huggingface.co/sentence-transformers",
+          "https://pypi.org/project/sentence-transformers/",
+          "https://github.com/UKPLab/sentence-transformers/releases"
+        ],
+        "quality": 5.2,
+        "dreamed_at": "2026-04-05T05:29:31.272521+00:00"
+      },
+      "Generative Pseudo-Labeling": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Augmented SBERT"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:22.356823+00:00",
+        "last_updated": "2026-04-05T05:28:22.360031+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Augmented SBERT"
+        ]
+      },
+      "MultipleNegativesRankingLoss": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Augmented SBERT"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:22.369852+00:00",
+        "last_updated": "2026-04-05T05:28:22.373053+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Augmented SBERT"
+        ]
+      },
+      "Cross-encoders": {
+        "known": false,
+        "depth": 0,
+        "children": [],
+        "parents": [],
+        "explains": [],
+        "cites": [],
+        "cited_by": [
+          "Augmented SBERT"
+        ],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:25.222050+00:00",
+        "last_updated": "2026-04-05T05:28:25.222050+00:00",
+        "status": "partial"
+      },
+      "Bi-encoders": {
+        "known": false,
+        "depth": 0,
+        "children": [],
+        "parents": [],
+        "explains": [],
+        "cites": [],
+        "cited_by": [
+          "Augmented SBERT"
+        ],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:25.228257+00:00",
+        "last_updated": "2026-04-05T05:28:25.228257+00:00",
+        "status": "partial"
+      },
+      "SBERT": {
+        "known": false,
+        "depth": 0,
+        "children": [],
+        "parents": [],
+        "explains": [],
+        "cites": [],
+        "cited_by": [
+          "Augmented SBERT"
+        ],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:28:25.235950+00:00",
+        "last_updated": "2026-04-05T05:28:25.235950+00:00",
+        "status": "partial"
+      },
+      "Error handling interception hook for agent lifecycle": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Middleware lifecycle hooks agent harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:29:05.642630+00:00",
+        "last_updated": "2026-04-05T05:29:05.642630+00:00",
+        "status": "partial"
+      },
+      "Autonomous agent perception-planning decoupling architecture": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "agent harness ACP openclaw autonomous agent framework architecture"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:29:10.793281+00:00",
+        "last_updated": "2026-04-05T05:29:10.793281+00:00",
+        "status": "partial"
+      },
+      "Augmented SBERT task-specific fine-tuning augmentation": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Augmented SBERT"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:29:15.872773+00:00",
+        "last_updated": "2026-04-05T05:29:15.872773+00:00",
+        "status": "partial"
+      },
+      "Cross Encoder": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Sentence Transformers"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:29:27.093822+00:00",
+        "last_updated": "2026-04-05T05:29:27.099574+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Sentence Transformers"
+        ]
+      },
+      "Sparse Encoder": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Sentence Transformers"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:29:27.116870+00:00",
+        "last_updated": "2026-04-05T05:29:27.123091+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Sentence Transformers"
+        ]
+      },
+      "Knowledge Distillation": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Sentence Transformers"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:29:27.152903+00:00",
+        "last_updated": "2026-04-05T05:29:27.158227+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Sentence Transformers"
+        ]
+      },
+      "MTEB": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Sentence Transformers"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:29:27.170773+00:00",
+        "last_updated": "2026-04-05T05:29:27.174631+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Sentence Transformers"
+        ]
+      },
+      "MCP SDKs": {
+        "known": true,
+        "depth": 5,
+        "children": [
+          "TypeScript SDK",
+          "Python SDK",
+          "C# SDK",
+          "Go SDK",
+          "Java SDK",
+          "MCP request timeout and error handling strategies"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-05T05:29:42.771197+00:00",
+        "status": "partial",
+        "cites": [
+          "TypeScript SDK",
+          "Python SDK",
+          "C# SDK",
+          "Go SDK",
+          "Java SDK"
+        ],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "TypeScript SDK",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Python SDK",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "C# SDK",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Go SDK",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Java SDK",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "MCP request timeout and error handling strategies",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:29:42.774651+00:00",
+        "last_updated": "2026-04-05T05:29:43.682587+00:00",
+        "summary": "【搜索发现】\n关于「MCP SDKs」的核心发现：\n1. **SDKs - Model Context Protocol**   Build MCP servers and clients using our official SDKs. SDKs are classified into tiers based on feature completeness, protocol support, and maintenance ...\n2. **MCP Python SDK - GitHub**   The Model Context Protocol (MCP) lets you build",
+        "sources": [
+          "https://developers.openai.com/apps-sdk/concepts/mcp-server/",
+          "https://huggingface.co/learn/mcp-course/unit1/sdk",
+          "https://github.com/modelcontextprotocol/python-sdk",
+          "https://modelcontextprotocol.io/docs/sdk",
+          "https://github.com/modelcontextprotocol/typescript-sdk"
+        ],
+        "quality": 6.4,
+        "parents": [],
+        "dreamed_at": "2026-04-05T05:29:47.869626+00:00"
+      },
+      "TypeScript SDK": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "MCP SDKs"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:29:42.774651+00:00",
+        "last_updated": "2026-04-05T05:29:42.778780+00:00",
+        "status": "partial",
+        "cited_by": [
+          "MCP SDKs"
+        ]
+      },
+      "Python SDK": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "MCP SDKs"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:29:42.802256+00:00",
+        "last_updated": "2026-04-05T05:29:42.806823+00:00",
+        "status": "partial",
+        "cited_by": [
+          "MCP SDKs"
+        ]
+      },
+      "C# SDK": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "MCP SDKs"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:29:42.819015+00:00",
+        "last_updated": "2026-04-05T05:29:42.823840+00:00",
+        "status": "partial",
+        "cited_by": [
+          "MCP SDKs"
+        ]
+      },
+      "Go SDK": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "MCP SDKs"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:29:42.836521+00:00",
+        "last_updated": "2026-04-05T05:29:42.841073+00:00",
+        "status": "partial",
+        "cited_by": [
+          "MCP SDKs"
+        ]
+      },
+      "Java SDK": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "MCP SDKs"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:29:42.855279+00:00",
+        "last_updated": "2026-04-05T05:29:42.860288+00:00",
+        "status": "partial",
+        "cited_by": [
+          "MCP SDKs"
+        ]
+      },
+      "Retrieval-augmented generation with Sentence Transformers": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Sentence Transformers"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:10.938062+00:00",
+        "last_updated": "2026-04-05T05:30:10.938062+00:00",
+        "status": "partial"
+      },
+      "Agent harness OpenAI context engineering": {
+        "known": true,
+        "depth": 5,
+        "children": [
+          "Harness engineering",
+          "Feedforward control (Guide)",
+          "Feedback control (Sensor)",
+          "Computational control",
+          "Inferential control",
+          "Dynamic few-shot example selection for OpenAI agents"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-05T05:30:22.217064+00:00",
+        "status": "partial",
+        "cites": [
+          "Harness engineering",
+          "Feedforward control (Guide)",
+          "Feedback control (Sensor)",
+          "Computational control",
+          "Inferential control"
+        ],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "Harness engineering",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Feedforward control (Guide)",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Feedback control (Sensor)",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Computational control",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Inferential control",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Dynamic few-shot example selection for OpenAI agents",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:22.220923+00:00",
+        "last_updated": "2026-04-05T05:30:22.955656+00:00",
+        "summary": "【搜索发现】\n关于「Agent harness OpenAI context engineering」的核心发现：\n1. **Harness engineering for coding agent users - Martin Fowler**   Context engineering provides us with the means to make guides and sensors available to the agent. Engineering a user harness for a coding agent ...\n2. **Harness engineering: ",
+        "sources": [
+          "https://hugobowne.substack.com/p/ai-agent-harness-3-principles-for",
+          "https://martinfowler.com/articles/harness-engineering.html",
+          "https://developers.openai.com/cookbook/examples/agents_sdk/context_personalization/",
+          "https://openai.com/index/harness-engineering/",
+          "https://cobusgreyling.medium.com/the-rise-of-ai-harness-engineering-5f5220de393e"
+        ],
+        "quality": 6.4,
+        "parents": [],
+        "dreamed_at": "2026-04-05T05:30:27.382480+00:00"
+      },
+      "Harness engineering": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent harness OpenAI context engineering"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:22.220923+00:00",
+        "last_updated": "2026-04-05T05:30:22.226428+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent harness OpenAI context engineering"
+        ]
+      },
+      "Feedforward control (Guide)": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent harness OpenAI context engineering"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:22.240956+00:00",
+        "last_updated": "2026-04-05T05:30:22.246994+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent harness OpenAI context engineering"
+        ]
+      },
+      "Feedback control (Sensor)": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent harness OpenAI context engineering"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:22.269923+00:00",
+        "last_updated": "2026-04-05T05:30:22.276717+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent harness OpenAI context engineering"
+        ]
+      },
+      "Computational control": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent harness OpenAI context engineering"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:22.292131+00:00",
+        "last_updated": "2026-04-05T05:30:22.296566+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent harness OpenAI context engineering"
+        ]
+      },
+      "Inferential control": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent harness OpenAI context engineering"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:22.311501+00:00",
+        "last_updated": "2026-04-05T05:30:22.317647+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent harness OpenAI context engineering"
+        ]
+      },
+      "MCP request timeout and error handling strategies": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "MCP SDKs"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:26.985249+00:00",
+        "last_updated": "2026-04-05T05:30:26.985249+00:00",
+        "status": "partial"
+      },
+      "Multi-agent coordination testing in Agent Harness": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:32.164254+00:00",
+        "last_updated": "2026-04-05T05:30:32.164254+00:00",
+        "status": "partial"
+      },
+      "Agent Communication Protocol": {
+        "known": true,
+        "depth": 5,
+        "children": [
+          "RESTful API",
+          "OpenAPI",
+          "BeeAI framework",
+          "LangChain",
+          "CrewAI",
+          "Semantic alignment for inter-agent communication"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-05T05:30:43.713426+00:00",
+        "status": "partial",
+        "cites": [
+          "RESTful API",
+          "OpenAPI",
+          "BeeAI framework",
+          "LangChain",
+          "CrewAI"
+        ],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "RESTful API",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "OpenAPI",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "BeeAI framework",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "LangChain",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "CrewAI",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Semantic alignment for inter-agent communication",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:43.719843+00:00",
+        "last_updated": "2026-04-05T05:30:44.721995+00:00",
+        "summary": "【搜索发现】\n关于「Agent Communication Protocol」的核心发现：\n1. **Agent Communication Protocol: Welcome**   The Agent Communication Protocol (ACP) is an open protocol for agent interoperability that solves the growing challenge of connecting AI agents, applications, ...\n2. **What is Agent Communication Protocol (A",
+        "sources": [
+          "https://github.com/i-am-bee/acp",
+          "https://akka.io/blog/mcp-a2a-acp-what-does-it-all-mean",
+          "https://www.ibm.com/think/topics/agent-communication-protocol",
+          "https://agentclientprotocol.com/get-started/introduction",
+          "https://agentcommunicationprotocol.dev/introduction/welcome"
+        ],
+        "quality": 5.2,
+        "parents": [],
+        "dreamed_at": "2026-04-05T05:30:52.272825+00:00"
+      },
+      "RESTful API": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Communication Protocol"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:43.719843+00:00",
+        "last_updated": "2026-04-05T05:30:43.728357+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Communication Protocol"
+        ]
+      },
+      "OpenAPI": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Communication Protocol"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:43.745189+00:00",
+        "last_updated": "2026-04-05T05:30:43.751434+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Communication Protocol"
+        ]
+      },
+      "BeeAI framework": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Communication Protocol"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:43.766980+00:00",
+        "last_updated": "2026-04-05T05:30:43.773016+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Communication Protocol"
+        ]
+      },
+      "LangChain": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Communication Protocol"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:43.788678+00:00",
+        "last_updated": "2026-04-05T05:30:43.793599+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Communication Protocol"
+        ]
+      },
+      "CrewAI": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Communication Protocol"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:43.810930+00:00",
+        "last_updated": "2026-04-05T05:30:43.817121+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Communication Protocol"
+        ]
+      },
+      "Planner module design for task decomposition": {
+        "known": true,
+        "depth": 5,
+        "children": [
+          "ADaPT",
+          "Chain-of-Thought (CoT)",
+          "Corrective Chain-of-Thought (CCoT)",
+          "ReAct",
+          "Plan-And-Execute",
+          "Generalization of planner module across different task domains"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-05T05:30:53.066448+00:00",
+        "status": "partial",
+        "cites": [
+          "ADaPT",
+          "Chain-of-Thought (CoT)",
+          "Corrective Chain-of-Thought (CCoT)",
+          "ReAct",
+          "Plan-And-Execute"
+        ],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "ADaPT",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Chain-of-Thought (CoT)",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Corrective Chain-of-Thought (CCoT)",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "ReAct",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Plan-And-Execute",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Generalization of planner module across different task domains",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:53.071245+00:00",
+        "last_updated": "2026-04-05T05:30:53.998828+00:00",
+        "summary": "【搜索发现】\n关于「Planner module design for task decomposition」的核心发现：\n1. **A Deep Dive into AI Coding Agents' Task Decomposition Architecture**   Pattern 1: Explicit Planning (Plan-and-Execute). The agent generates a written plan before touching any code. The plan is a structured artifact ...\n2. **A simple ",
+        "sources": [
+          "https://www.kore.ai/blog/as-needed-decomposition-planning-using-large-language-models----adapt",
+          "https://www.sciencedirect.com/science/article/pii/S2405844024152115",
+          "https://medium.com/codex/a-deep-dive-into-ai-coding-agents-task-decomposition-architecture-bd42db97bab8",
+          "https://arxiv.org/html/2601.07577v1",
+          "https://www.emergentmind.com/topics/task-decomposition-strategies"
+        ],
+        "quality": 6.4,
+        "parents": [],
+        "dreamed_at": "2026-04-05T05:30:57.459263+00:00"
+      },
+      "ADaPT": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Planner module design for task decomposition"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:53.071245+00:00",
+        "last_updated": "2026-04-05T05:30:53.076610+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Planner module design for task decomposition"
+        ]
+      },
+      "Chain-of-Thought (CoT)": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Planner module design for task decomposition"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:53.094279+00:00",
+        "last_updated": "2026-04-05T05:30:53.099750+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Planner module design for task decomposition"
+        ]
+      },
+      "Corrective Chain-of-Thought (CCoT)": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Planner module design for task decomposition"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:53.116983+00:00",
+        "last_updated": "2026-04-05T05:30:53.122464+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Planner module design for task decomposition"
+        ]
+      },
+      "ReAct": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Planner module design for task decomposition"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:53.139437+00:00",
+        "last_updated": "2026-04-05T05:30:53.145632+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Planner module design for task decomposition"
+        ]
+      },
+      "Plan-And-Execute": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Planner module design for task decomposition"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:30:53.164939+00:00",
+        "last_updated": "2026-04-05T05:30:53.171907+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Planner module design for task decomposition"
+        ]
+      },
+      "Dynamic few-shot example selection for OpenAI agents": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent harness OpenAI context engineering"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:31:13.805444+00:00",
+        "last_updated": "2026-04-05T05:31:13.805444+00:00",
+        "status": "partial"
+      },
+      "Semantic alignment for inter-agent communication": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Communication Protocol"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:31:37.862664+00:00",
+        "last_updated": "2026-04-05T05:31:37.862664+00:00",
+        "status": "partial"
+      },
+      "Intrinsic Curiosity Module (ICM)": {
+        "known": true,
+        "depth": 5,
+        "children": [
+          "Self-supervised Prediction",
+          "Inverse Dynamics Model",
+          "TensorFlow",
+          "OpenAI Gym",
+          "Factorized RL Environment Wrappers",
+          "ICM integration with extrinsic reward frameworks"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-05T05:31:39.898585+00:00",
+        "status": "partial",
+        "cites": [
+          "Self-supervised Prediction",
+          "Inverse Dynamics Model",
+          "TensorFlow",
+          "OpenAI Gym",
+          "Factorized RL Environment Wrappers"
+        ],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "Self-supervised Prediction",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Inverse Dynamics Model",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "TensorFlow",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "OpenAI Gym",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Factorized RL Environment Wrappers",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "ICM integration with extrinsic reward frameworks",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:31:39.903996+00:00",
+        "last_updated": "2026-04-05T05:31:40.775626+00:00",
+        "summary": "【搜索发现】\n关于「Intrinsic Curiosity Module (ICM)」的核心发现：\n1. **[PDF] Curiosity-driven Exploration by Self-supervised Prediction - arXiv**   Intrinsic Curiosity Module (ICM) architecture The in- trinsic curiosity module consists of the forward and the in- verse model. The inverse ...\n2. **Curiosity-driven Ex",
+        "sources": [
+          "https://github.com/bonniesjli/icm",
+          "https://pathak22.github.io/noreward-rl/",
+          "https://www.sciencedirect.com/science/article/pii/S2666827025000970",
+          "https://arxiv.org/pdf/1705.05363",
+          "https://medium.com/@sthanikamsanthosh1994/intrinsic-curiosity-reinforcement-learning-34faf94fcf1b"
+        ],
+        "quality": 6.4,
+        "parents": [],
+        "dreamed_at": "2026-04-05T05:31:48.980717+00:00"
+      },
+      "Self-supervised Prediction": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Intrinsic Curiosity Module (ICM)"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:31:39.903996+00:00",
+        "last_updated": "2026-04-05T05:31:39.911189+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Intrinsic Curiosity Module (ICM)"
+        ]
+      },
+      "Inverse Dynamics Model": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Intrinsic Curiosity Module (ICM)"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:31:39.930703+00:00",
+        "last_updated": "2026-04-05T05:31:39.937524+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Intrinsic Curiosity Module (ICM)"
+        ]
+      },
+      "TensorFlow": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Intrinsic Curiosity Module (ICM)"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:31:39.957167+00:00",
+        "last_updated": "2026-04-05T05:31:39.964573+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Intrinsic Curiosity Module (ICM)"
+        ]
+      },
+      "OpenAI Gym": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Intrinsic Curiosity Module (ICM)"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:31:39.984286+00:00",
+        "last_updated": "2026-04-05T05:31:39.991860+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Intrinsic Curiosity Module (ICM)"
+        ]
+      },
+      "Factorized RL Environment Wrappers": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Intrinsic Curiosity Module (ICM)"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:31:40.011462+00:00",
+        "last_updated": "2026-04-05T05:31:40.018993+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Intrinsic Curiosity Module (ICM)"
+        ]
+      },
+      "Generalization of planner module across different task domains": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Planner module design for task decomposition"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:31:45.259524+00:00",
+        "last_updated": "2026-04-05T05:31:45.259524+00:00",
+        "status": "partial"
+      },
+      "Sandbox": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:31:59.157587+00:00",
+        "last_updated": "2026-04-05T05:31:59.164529+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Harness"
+        ]
+      },
+      "Filesystem abstraction": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:31:59.186054+00:00",
+        "last_updated": "2026-04-05T05:31:59.192857+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Harness"
+        ]
+      },
+      "Zero-shot prompting": {
+        "known": true,
+        "depth": 5,
+        "children": [
+          "Instruction tuning",
+          "RLHF",
+          "Few-shot prompting",
+          "In-Context Learning",
+          "One-Shot Prompting",
+          "Zero-shot prompting vs few-shot prompting performance gap analysis"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-05T05:32:11.148956+00:00",
+        "status": "partial",
+        "cites": [
+          "Instruction tuning",
+          "RLHF",
+          "Few-shot prompting",
+          "In-Context Learning",
+          "One-Shot Prompting"
+        ],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "Instruction tuning",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "RLHF",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Few-shot prompting",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "In-Context Learning",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "One-Shot Prompting",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Zero-shot prompting vs few-shot prompting performance gap analysis",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:32:11.154599+00:00",
+        "last_updated": "2026-04-05T05:32:11.960914+00:00",
+        "summary": "【搜索发现】\n关于「Zero-shot prompting」的核心发现：\n1. **Zero-Shot Prompting - Prompt Engineering Guide**   Zero-shot prompting means that the prompt used to interact with the model won't contain examples or demonstrations.\n2. **What is zero-shot prompting? - IBM**   Zero-shot prompting is a prompt engineering met",
+        "sources": [
+          "https://www.youtube.com/watch?v=QOpPYvj4lDI",
+          "https://learnprompting.org/docs/basics/few_shot?srsltid=AfmBOooAHo7vqvlhdYIcYuvoeeF12xvuBRxOYBFG0IKgm6UzKdu8BjMY",
+          "https://www.promptingguide.ai/techniques/zeroshot",
+          "https://www.ibm.com/think/topics/zero-shot-prompting",
+          "https://www.parloa.com/knowledge-hub/zero-shot-prompting/"
+        ],
+        "quality": 6.4,
+        "parents": [],
+        "dreamed_at": "2026-04-05T05:32:15.768376+00:00"
+      },
+      "Instruction tuning": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Zero-shot prompting"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:32:11.154599+00:00",
+        "last_updated": "2026-04-05T05:32:11.160398+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Zero-shot prompting"
+        ]
+      },
+      "RLHF": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Zero-shot prompting"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:32:11.182791+00:00",
+        "last_updated": "2026-04-05T05:32:11.190157+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Zero-shot prompting"
+        ]
+      },
+      "Few-shot prompting": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Zero-shot prompting"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:32:11.210699+00:00",
+        "last_updated": "2026-04-05T05:32:11.221322+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Zero-shot prompting"
+        ]
+      },
+      "In-Context Learning": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Zero-shot prompting"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:32:11.248249+00:00",
+        "last_updated": "2026-04-05T05:32:11.254184+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Zero-shot prompting"
+        ]
+      },
+      "One-Shot Prompting": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Zero-shot prompting"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:32:11.274065+00:00",
+        "last_updated": "2026-04-05T05:32:11.280753+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Zero-shot prompting"
+        ]
+      },
+      "ICM integration with extrinsic reward frameworks": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Intrinsic Curiosity Module (ICM)"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:32:26.897912+00:00",
+        "last_updated": "2026-04-05T05:32:26.897912+00:00",
+        "status": "partial"
+      },
+      "Tool calling correctness validation in Agent Harness": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:32:43.744984+00:00",
+        "last_updated": "2026-04-05T05:32:43.744984+00:00",
+        "status": "partial"
+      },
+      "Zero-shot prompting vs few-shot prompting performance gap analysis": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Zero-shot prompting"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:32:57.519129+00:00",
+        "last_updated": "2026-04-05T05:32:57.519129+00:00",
+        "status": "partial"
+      },
+      "Agent filesystem abstraction": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:32:57.665145+00:00",
+        "last_updated": "2026-04-05T05:32:57.673254+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Harness"
+        ]
+      },
+      "Sandboxed execution": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Agent Harness"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T05:32:57.695468+00:00",
+        "last_updated": "2026-04-05T05:32:57.703975+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Agent Harness"
+        ]
+      }
+    }
+  },
+  "curiosity_queue": [
+    {
+      "topic": "Edge computing offloading for Zoom hybrid meeting processing",
+      "reason": "Decomposed from: Hybrid with Zoom",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:05:56.077985+00:00",
+      "status": "pending",
+      "original_topic": "Hybrid with Zoom",
+      "priority": 5
+    },
+    {
+      "topic": "Christensen Institute混合学习模型",
+      "reason": "Web citation: 是提供混合学习模式设计参考的框架，展示了线上线下学习结合的具体方式",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:26:52.733266+00:00",
+      "status": "pending",
+      "original_topic": "Hybrid Planning and Learning System",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "反向课程规划法",
+      "reason": "Web citation: 是混合学习系统规划中，从学期目标倒推课程结构的规划方法",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:26:52.738600+00:00",
+      "status": "pending",
+      "original_topic": "Hybrid Planning and Learning System",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "ReAct loop",
+      "reason": "Web citation: 作为Agent Harness中当前主流的主体执行模式，用于支撑模型通过推理-工具调用-结果观测的循环完成任务。",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:26:58.078956+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Filesystem abstractions",
+      "reason": "Web citation: 作为Agent Harness的基础原语，为智能体提供持久化存储、上下文管理以及跨会话/多主体协作的能力。",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:26:58.085859+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Bash code execution",
+      "reason": "Web citation: 作为Agent Harness内置的通用工具，支持模型动态生成代码解决问题，摆脱预定义工具集的限制。",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:26:58.092991+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Sandboxes",
+      "reason": "Web citation: 是Agent Harness中用于提供安全隔离代码执行环境、支撑大规模任务弹性扩缩容的核心组件。",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:26:58.100849+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "AGENTS.md",
+      "reason": "Web citation: 是Agent Harness支持的记忆文件标准，用于实现智能体的持续学习，将过往会话知识注入新会话上下文。",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:26:58.107901+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "沙箱（Sandboxes）",
+      "reason": "Web citation: 它是Agent Harness中用于提供安全隔离代码执行环境、支撑大规模Agent任务扩缩容的核心组件",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:27:09.602509+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Bash工具",
+      "reason": "Web citation: 它是Agent Harness提供的通用工具，支持大模型按需编写执行代码，让Agent自主解决问题而非依赖固定预配置工具",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:27:09.615174+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Context7",
+      "reason": "Web citation: 它是可被Agent Harness集成的MCP工具，用于帮助Agent获取训练截止日期之后的最新信息",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:27:09.631231+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Large language model embedded hybrid task planning",
+      "reason": "Decomposed from: Hybrid Planning and Learning System",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:27:38.795228+00:00",
+      "status": "pending",
+      "original_topic": "Hybrid Planning and Learning System",
+      "priority": 5
+    },
+    {
+      "topic": "Agent Harness multi-agent collaborative scheduling module",
+      "reason": "Decomposed from: Agent Harness",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:27:52.487649+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "priority": 5
+    },
+    {
+      "topic": "Dynamic tool integration framework for Harness",
+      "reason": "Decomposed from: Agent Harness",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:27:53.741800+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "priority": 5
+    },
+    {
+      "topic": "AgentMiddleware",
+      "reason": "Web citation: 它是LangChain提出的面向agent harness核心循环定制的中间件系统，提供多阶段生命周期钩子支持自定义逻辑注入，是该主题的核心技术方案",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:04.239803+00:00",
+      "status": "pending",
+      "original_topic": "Middleware lifecycle hooks agent harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "create_agent",
+      "reason": "Web citation: 它是LangChain提供的实现agent核心循环的基础抽象，是本文所述agent中间件机制的运行载体",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:04.251380+00:00",
+      "status": "pending",
+      "original_topic": "Middleware lifecycle hooks agent harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "PIIMiddleware",
+      "reason": "Web citation: 它是LangChain内置的用于实现业务合规中PII处理的预构建中间件，通过生命周期钩子实现PII检测脱敏，是该主题下的应用实例技术",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:04.261400+00:00",
+      "status": "pending",
+      "original_topic": "Middleware lifecycle hooks agent harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "SummarizationMiddleware",
+      "reason": "Web citation: 它是LangChain内置的用于代理上下文管理的预构建中间件，通过钩子实现上下文汇总避免溢出，是该主题下的应用实例技术",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:04.272015+00:00",
+      "status": "pending",
+      "original_topic": "Middleware lifecycle hooks agent harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "ModelRetryMiddleware",
+      "reason": "Web citation: 它是LangChain内置的用于提升生产就绪性的预构建中间件，通过钩子封装模型调用实现重试逻辑，是该主题下的应用实例技术",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:04.282601+00:00",
+      "status": "pending",
+      "original_topic": "Middleware lifecycle hooks agent harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "上下文压缩",
+      "reason": "Web citation: 是OpenClaw解决长运行智能体上下文窗口溢出问题采用的核心优化方法，属于OpenClaw智能体 harness架构的关键技术组件",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:12.876985+00:00",
+      "status": "pending",
+      "original_topic": "agent harness ACP openclaw autonomous agent framework architecture",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "双分区记忆管理",
+      "reason": "Web citation: OpenClaw用于智能体上下文管理的分层方法，分为工作记忆和检索记忆，平衡上下文信息量和推理性能，属于其agent harness架构的核心设计",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:12.889712+00:00",
+      "status": "pending",
+      "original_topic": "agent harness ACP openclaw autonomous agent framework architecture",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "智能体循环",
+      "reason": "Web citation: 是OpenClaw实现自主智能体行为的核心机制，通过「模型决策调用工具-系统执行工具-结果返回模型-模型决策下一步」的循环实现自主运行，是其agent harness架构的核心运行逻辑",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:12.901714+00:00",
+      "status": "pending",
+      "original_topic": "agent harness ACP openclaw autonomous agent framework architecture",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "会话持久化",
+      "reason": "Web citation: OpenClaw网关与会话层的核心技术，用于解决大语言模型无状态的问题，重建每次推理请求的对话上下文，属于其agent harness架构的基础组件技术",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:12.912949+00:00",
+      "status": "pending",
+      "original_topic": "agent harness ACP openclaw autonomous agent framework architecture",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "自主触发机制",
+      "reason": "Web citation: OpenClaw支持智能体无需人工输入即可激活运行的技术，支持定时器、定时任务、外部事件webhook触发，是实现自主智能体的关键技术，属于其agent harness架构的核心组件",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:12.924786+00:00",
+      "status": "pending",
+      "original_topic": "agent harness ACP openclaw autonomous agent framework architecture",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Bi-Encoder",
+      "reason": "Web citation: Augmented SBERT针对小或无标注数据集的场景，结合Bi-Encoder与Cross-Encoder完成训练，是Augmented SBERT方法的核心模型组件之一",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:22.322287+00:00",
+      "status": "pending",
+      "original_topic": "Augmented SBERT",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Cross-Encoder",
+      "reason": "Web citation: Augmented SBERT利用Cross-Encoder为无标注句对生成伪标签，是Augmented SBERT数据增强流程的核心组件",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:22.337215+00:00",
+      "status": "pending",
+      "original_topic": "Augmented SBERT",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Sentence Transformers",
+      "reason": "Web citation: Augmented SBERT是基于Sentence Transformers框架的句子嵌入微调方法，该页面属于Sentence Transformers官方文档",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:22.350569+00:00",
+      "status": "exploring",
+      "original_topic": "Augmented SBERT",
+      "topic_type": "web_citation",
+      "priority": 10,
+      "claimed_at": "2026-04-05T05:29:05.651557+00:00"
+    },
+    {
+      "topic": "Generative Pseudo-Labeling",
+      "reason": "Web citation: Generative Pseudo-Labeling（GPL）是支持无标注场景下句子嵌入训练的相关方法，和Augmented SBERT同属该文档下的小样本/无样本训练技术体系",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:22.363159+00:00",
+      "status": "pending",
+      "original_topic": "Augmented SBERT",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "MultipleNegativesRankingLoss",
+      "reason": "Web citation: MultipleNegativesRankingLoss是Augmented SBERT训练句子嵌入任务常用的损失函数，在文档的训练部分被关联列出",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:22.376169+00:00",
+      "status": "pending",
+      "original_topic": "Augmented SBERT",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Cross-encoders",
+      "reason": "Cited by: Augmented SBERT",
+      "score": 5.699999999999999,
+      "relevance": 7.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:25.224634+00:00",
+      "status": "pending",
+      "original_topic": "Augmented SBERT",
+      "topic_type": "citation",
+      "priority": 9
+    },
+    {
+      "topic": "Bi-encoders",
+      "reason": "Cited by: Augmented SBERT",
+      "score": 5.699999999999999,
+      "relevance": 7.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:25.232293+00:00",
+      "status": "pending",
+      "original_topic": "Augmented SBERT",
+      "topic_type": "citation",
+      "priority": 9
+    },
+    {
+      "topic": "SBERT",
+      "reason": "Cited by: Augmented SBERT",
+      "score": 5.699999999999999,
+      "relevance": 7.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:28:25.240042+00:00",
+      "status": "pending",
+      "original_topic": "Augmented SBERT",
+      "topic_type": "citation",
+      "priority": 9
+    },
+    {
+      "topic": "Error handling interception hook for agent lifecycle",
+      "reason": "Decomposed from: Middleware lifecycle hooks agent harness",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:29:05.647249+00:00",
+      "status": "pending",
+      "original_topic": "Middleware lifecycle hooks agent harness",
+      "priority": 5
+    },
+    {
+      "topic": "Autonomous agent perception-planning decoupling architecture",
+      "reason": "Decomposed from: agent harness ACP openclaw autonomous agent framework architecture",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:29:10.798017+00:00",
+      "status": "pending",
+      "original_topic": "agent harness ACP openclaw autonomous agent framework architecture",
+      "priority": 5
+    },
+    {
+      "topic": "Augmented SBERT task-specific fine-tuning augmentation",
+      "reason": "Decomposed from: Augmented SBERT",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:29:15.876777+00:00",
+      "status": "pending",
+      "original_topic": "Augmented SBERT",
+      "priority": 5
+    },
+    {
+      "topic": "Cross Encoder",
+      "reason": "Web citation: 作为Sentence Transformers生态的核心模型类型，常用于检索后重排序任务，支持单独训练与使用",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:29:27.105224+00:00",
+      "status": "pending",
+      "original_topic": "Sentence Transformers",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Sparse Encoder",
+      "reason": "Web citation: 是Sentence Transformers支持的稀疏语义编码模型，基于SPLIDE实现，可用于可解释性稀疏语义检索",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:29:27.128883+00:00",
+      "status": "pending",
+      "original_topic": "Sentence Transformers",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Knowledge Distillation",
+      "reason": "Web citation: 用于压缩Sentence Transformers模型，实现速度与精度的平衡，支持对Sentence Transformer和Cross Encoder蒸馏",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:29:27.162741+00:00",
+      "status": "pending",
+      "original_topic": "Sentence Transformers",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "MTEB",
+      "reason": "Web citation: 是用于评估Sentence Transformers模型 embedding 性能的标准评测框架，该库内置了基于MTEB的评估流程",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:29:27.179055+00:00",
+      "status": "pending",
+      "original_topic": "Sentence Transformers",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "TypeScript SDK",
+      "reason": "Web citation: 是官方提供的Tier 1级MCP SDK，可用于构建MCP服务器和客户端",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:29:42.789703+00:00",
+      "status": "pending",
+      "original_topic": "MCP SDKs",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Python SDK",
+      "reason": "Web citation: 是官方提供的Tier 1级MCP SDK，可用于构建MCP服务器和客户端",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:29:42.810489+00:00",
+      "status": "pending",
+      "original_topic": "MCP SDKs",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "C# SDK",
+      "reason": "Web citation: 是官方提供的Tier 1级MCP SDK，可用于构建MCP服务器和客户端",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:29:42.827906+00:00",
+      "status": "pending",
+      "original_topic": "MCP SDKs",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Go SDK",
+      "reason": "Web citation: 是官方提供的Tier 1级MCP SDK，可用于构建MCP服务器和客户端",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:29:42.846406+00:00",
+      "status": "pending",
+      "original_topic": "MCP SDKs",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Java SDK",
+      "reason": "Web citation: 是官方提供的Tier 2级MCP SDK，可用于构建MCP服务器和客户端",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:29:42.864211+00:00",
+      "status": "pending",
+      "original_topic": "MCP SDKs",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Retrieval-augmented generation with Sentence Transformers",
+      "reason": "Decomposed from: Sentence Transformers",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:10.943276+00:00",
+      "status": "pending",
+      "original_topic": "Sentence Transformers",
+      "priority": 5
+    },
+    {
+      "topic": "Harness engineering",
+      "reason": "Web citation: 针对编码Agent构建前置引导与反馈自校正机制，属于面向编码Agent场景的特定上下文工程，是该主题的核心方法",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:22.230933+00:00",
+      "status": "pending",
+      "original_topic": "Agent harness OpenAI context engineering",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Feedforward control (Guide)",
+      "reason": "Web citation: Harness工程中用于提前引导Agent行为、提升首次输出正确率的前置控制方法，是Agent harness的核心组成部分",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:22.251490+00:00",
+      "status": "pending",
+      "original_topic": "Agent harness OpenAI context engineering",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Feedback control (Sensor)",
+      "reason": "Web citation: Harness工程中用于观测Agent输出、驱动Agent自校正错误的反馈控制方法，是Agent harness的核心组成部分",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:22.281889+00:00",
+      "status": "pending",
+      "original_topic": "Agent harness OpenAI context engineering",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Computational control",
+      "reason": "Web citation: 基于确定性工具实现的Harness引导/传感器类型，包含测试、lint检查、类型检查等确定式管控实现方式",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:22.301540+00:00",
+      "status": "pending",
+      "original_topic": "Agent harness OpenAI context engineering",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Inferential control",
+      "reason": "Web citation: 基于大语言模型实现的Harness引导/传感器类型，用于提供语义层面的引导与校验，提升对Agent输出的管控能力",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:22.323042+00:00",
+      "status": "pending",
+      "original_topic": "Agent harness OpenAI context engineering",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "MCP request timeout and error handling strategies",
+      "reason": "Decomposed from: MCP SDKs",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:26.989989+00:00",
+      "status": "pending",
+      "original_topic": "MCP SDKs",
+      "priority": 5
+    },
+    {
+      "topic": "Multi-agent coordination testing in Agent Harness",
+      "reason": "Decomposed from: Agent Harness",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:32.170205+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "priority": 5
+    },
+    {
+      "topic": "RESTful API",
+      "reason": "Web citation: ACP通过标准化的RESTful API实现不同AI代理之间的通信，是ACP的核心通信基础",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:43.734080+00:00",
+      "status": "pending",
+      "original_topic": "Agent Communication Protocol",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "OpenAPI",
+      "reason": "Web citation: ACP提供完整的REST API的OpenAPI规范，用于定义和说明协议的接口",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:43.756290+00:00",
+      "status": "pending",
+      "original_topic": "Agent Communication Protocol",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "BeeAI framework",
+      "reason": "Web citation: ACP可兼容基于BeeAI框架构建的AI代理，且BeeAI是ACP的参考实现项目",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:43.778680+00:00",
+      "status": "pending",
+      "original_topic": "Agent Communication Protocol",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "LangChain",
+      "reason": "Web citation: ACP可兼容基于LangChain构建的AI代理，支持不同框架的代理互操作",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:43.799821+00:00",
+      "status": "pending",
+      "original_topic": "Agent Communication Protocol",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "CrewAI",
+      "reason": "Web citation: ACP可兼容基于CrewAI构建的AI代理，支持不同框架的代理互操作",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:43.822178+00:00",
+      "status": "pending",
+      "original_topic": "Agent Communication Protocol",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "ADaPT",
+      "reason": "Web citation: ADaPT是按需任务分解规划方法，采用单独的规划器模块结合递归算法，仅在执行器无法完成任务时动态分解复杂任务，是任务分解规划器模块设计的核心方法",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:53.082668+00:00",
+      "status": "pending",
+      "original_topic": "Planner module design for task decomposition",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Chain-of-Thought (CoT)",
+      "reason": "Web citation: 常规思维链方法被提及存在任务分解时无法识别错误、易产生误差传播的缺陷，是任务分解规划设计中用于对比的传统方法",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:53.105391+00:00",
+      "status": "pending",
+      "original_topic": "Planner module design for task decomposition",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Corrective Chain-of-Thought (CCoT)",
+      "reason": "Web citation: CCoT在演示示例中同时提供正确和错误推理步骤，用于改进常规CoT在任务分解中的缺陷，被提及用于任务分解相关的推理方案对比",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:53.127722+00:00",
+      "status": "pending",
+      "original_topic": "Planner module design for task decomposition",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "ReAct",
+      "reason": "Web citation: ReAct是被提及用于和ADaPT做对比的现有任务分解规划方法，属于任务分解规划器设计领域的已有方案",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:53.152611+00:00",
+      "status": "pending",
+      "original_topic": "Planner module design for task decomposition",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Plan-And-Execute",
+      "reason": "Web citation: Plan-And-Execute是传统的预分解规划方法，被指出不具备动态适应性，是ADaPT改进的对象，属于任务分解规划器设计领域的已有方案",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:30:53.177466+00:00",
+      "status": "pending",
+      "original_topic": "Planner module design for task decomposition",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Dynamic few-shot example selection for OpenAI agents",
+      "reason": "Decomposed from: Agent harness OpenAI context engineering",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:31:13.811232+00:00",
+      "status": "pending",
+      "original_topic": "Agent harness OpenAI context engineering",
+      "priority": 5
+    },
+    {
+      "topic": "Semantic alignment for inter-agent communication",
+      "reason": "Decomposed from: Agent Communication Protocol",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:31:37.870246+00:00",
+      "status": "pending",
+      "original_topic": "Agent Communication Protocol",
+      "priority": 5
+    },
+    {
+      "topic": "Self-supervised Prediction",
+      "reason": "Web citation: 该方法是ICM构建好奇心 intrinsic 奖励信号的核心基础，通过自监督预测误差来定义好奇心",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:31:39.917405+00:00",
+      "status": "pending",
+      "original_topic": "Intrinsic Curiosity Module (ICM)",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Inverse Dynamics Model",
+      "reason": "Web citation: 用于学习视觉特征空间，是ICM好奇心公式化的关键组件",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:31:39.942873+00:00",
+      "status": "pending",
+      "original_topic": "Intrinsic Curiosity Module (ICM)",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "TensorFlow",
+      "reason": "Web citation: 提供了ICM官方实现所使用的深度学习框架",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:31:39.970830+00:00",
+      "status": "pending",
+      "original_topic": "Intrinsic Curiosity Module (ICM)",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "OpenAI Gym",
+      "reason": "Web citation: ICM实现所依赖的强化学习环境平台，代码基于其构建",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:31:39.998077+00:00",
+      "status": "pending",
+      "original_topic": "Intrinsic Curiosity Module (ICM)",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Factorized RL Environment Wrappers",
+      "reason": "Web citation: ICM代码实现中用到的通用强化学习环境封装工具",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:31:40.026089+00:00",
+      "status": "pending",
+      "original_topic": "Intrinsic Curiosity Module (ICM)",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Generalization of planner module across different task domains",
+      "reason": "Decomposed from: Planner module design for task decomposition",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:31:45.265386+00:00",
+      "status": "pending",
+      "original_topic": "Planner module design for task decomposition",
+      "priority": 5
+    },
+    {
+      "topic": "Sandbox",
+      "reason": "Web citation: 为Agent Harness提供安全隔离的代码执行环境，同时支持按需创建实现大规模代理任务的弹性扩展",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:31:59.170726+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Filesystem abstraction",
+      "reason": "Web citation: 是Agent Harness的基础核心原语，为代理提供持久化存储、状态管理和上下文分流的能力",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:31:59.198473+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Instruction tuning",
+      "reason": "Web citation: 该方法被证实可提升大语言模型的Zero-shot prompting能力，是在指令描述的数据集上微调模型的技术",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:32:11.166666+00:00",
+      "status": "pending",
+      "original_topic": "Zero-shot prompting",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "RLHF",
+      "reason": "Web citation: 即人类反馈强化学习，用于拓展指令调优，对齐模型使其更符合人类偏好，支撑了具备Zero-shot能力的大模型",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:32:11.196794+00:00",
+      "status": "pending",
+      "original_topic": "Zero-shot prompting",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Few-shot prompting",
+      "reason": "Web citation: 当Zero-shot prompting效果不佳时，推荐使用该提示方法，通过在prompt中加入演示样本来完成任务",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:32:11.229897+00:00",
+      "status": "pending",
+      "original_topic": "Zero-shot prompting",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "In-Context Learning",
+      "reason": "Web citation: 是包含zero-shot prompting在内的所有基于示例的shot-based prompting的核心基础能力，让大模型可直接从prompt内的示例学习任务",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:32:11.261101+00:00",
+      "status": "pending",
+      "original_topic": "Zero-shot prompting",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "One-Shot Prompting",
+      "reason": "Web citation: 是基于zero-shot prompting扩展得到的shot-based prompting方法，为zero-shot补充单个示例提升模型任务理解能力",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:32:11.288631+00:00",
+      "status": "pending",
+      "original_topic": "Zero-shot prompting",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "ICM integration with extrinsic reward frameworks",
+      "reason": "Decomposed from: Intrinsic Curiosity Module (ICM)",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:32:26.904300+00:00",
+      "status": "pending",
+      "original_topic": "Intrinsic Curiosity Module (ICM)",
+      "priority": 5
+    },
+    {
+      "topic": "Tool calling correctness validation in Agent Harness",
+      "reason": "Decomposed from: Agent Harness",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:32:43.753010+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "priority": 5
+    },
+    {
+      "topic": "Zero-shot prompting vs few-shot prompting performance gap analysis",
+      "reason": "Decomposed from: Zero-shot prompting",
+      "score": 5.0,
+      "relevance": 5.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:32:57.527534+00:00",
+      "status": "pending",
+      "original_topic": "Zero-shot prompting",
+      "priority": 5
+    },
+    {
+      "topic": "Agent filesystem abstraction",
+      "reason": "Web citation: 它是Agent Harness的基础原语，为Agent提供持久化存储、状态管理和上下文管理能力，解决大模型上下文窗口限制",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:32:57.679820+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Sandboxed execution",
+      "reason": "Web citation: 它是Agent Harness提供的隔离执行环境，为Agent提供安全可扩展的代码与工具运行空间，保障执行安全并支持规模化负载",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T05:32:57.711286+00:00",
+      "status": "pending",
+      "original_topic": "Agent Harness",
+      "topic_type": "web_citation",
+      "priority": 10
+    }
+  ],
+  "exploration_log": [
+    {
+      "timestamp": "2026-04-05T05:26:53.871566+00:00",
+      "topic": "Hybrid Planning and Learning System",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「Hybrid Planning and Learning System」的核心发现：\n1. **Hybrid Planning Strategies - Teaching and Learning Resource Center**   The most basic model of a hybrid class experience is where every week all students attend class in person together one or more times.\n2. **What is hybrid learning? Here's everything you need to know**   Hybrid learning is an educational model where some students attend class in-person, while others join the class virtually from home.\n3. **Hybrid/HyFlex Teaching & Learn",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:26:58.862567+00:00",
+      "topic": "Agent Harness",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「Agent Harness」的核心发现：\n1. **The Anatomy of an Agent Harness - LangChain Blog**   A harness is every piece of code, configuration, and execution logic that isn't the model itself. A raw model is not an agent. But it becomes ...\n2. **Effective harnesses for long-running agents - Anthropic**   The Claude Agent SDK is a powerful, general-purpose agent harness adept at coding, as well as other tasks that require the model to use tools to ...\n3. **Harness engineering for coding agent users - M",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:27:12.867717+00:00",
+      "topic": "Agent Harness",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「Agent Harness」的核心发现：\n1. **The Anatomy of an Agent Harness - LangChain Blog**   A harness is every piece of code, configuration, and execution logic that isn't the model itself. A raw model is not an agent. But it becomes ...\n2. **Effective harnesses for long-running agents - Anthropic**   The Claude Agent SDK is a powerful, general-purpose agent harness adept at coding, as well as other tasks that require the model to use tools to ...\n3. **Harness engineering for coding agent users - M",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:28:04.866645+00:00",
+      "topic": "Middleware lifecycle hooks agent harness",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「Middleware lifecycle hooks agent harness」的核心发现：\n1. **How Middleware Lets You Customize Your Agent Harness**   Agent harnesses are what help build an agent, they connect an LLM to its environment and let it do things. When you're building an agent, ...\n2. **What is Agent Harness? How Does it Work? - PuppyGraph**   Middleware and lifecycle hooks. These are the enforcement points where harness engineers inject custom logic: input validation before tool ...\n3. **LangChain Middlewares: ligh",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:28:13.919849+00:00",
+      "topic": "agent harness ACP openclaw autonomous agent framework architecture",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「agent harness ACP openclaw autonomous agent framework architecture」的核心发现：\n1. **What Is OpenClaw? A Practical Guide to the Agent Harness Behind ...**   OpenClaw is a framework that surrounds an LLM with memory, tools, triggers, instructions, and output channels so the model can behave like ...\n2. **Harness Agents | Harness Developer Hub**   Architecture​. Agents compose three layers: the execution runtime (Harness Pipelines), the intelligence layer (LLM + Knowledge Graph), and the ...\n3",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:28:25.844919+00:00",
+      "topic": "Augmented SBERT",
+      "action": "layer1_search+layer2_arxiv",
+      "findings": "【搜索发现】\n关于「Augmented SBERT」的核心发现：\n1. **Augmented SBERT — Sentence Transformers documentation**   We release an effective data-augmentation strategy known as Augmented SBERT where we utilize a high performing and slow cross-encoder (BERT) to label a larger ...\n2. **Data Augmentation Method for Improving Bi-Encoders for Pairwise ...**   We present a simple yet efficient data augmentation strategy called Augmented SBERT, where we use the cross-encoder to label a larger set of input pairs.\n3. **Data",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:29:27.792704+00:00",
+      "topic": "Sentence Transformers",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「Sentence Transformers」的核心发现：\n1. **SentenceTransformers Documentation — Sentence Transformers ...**   Sentence Transformers (aka SBERT) is the go-to Python module for accessing, using, and training state-of-the-art embedding and reranker models.\n2. **Sentence Transformers - Hugging Face**   SentenceTransformers is a Python framework for state-of-the-art sentence, text and image embeddings. Install the Sentence Transformers library.\n3. **sentence-transformers - PyPI**   This framework pr",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:29:29.654379+00:00",
+      "topic": "Agent Harness",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「Agent Harness」的核心发现：\n1. **The Anatomy of an Agent Harness - LangChain Blog**   A harness is every piece of code, configuration, and execution logic that isn't the model itself. A raw model is not an agent. But it becomes ...\n2. **Effective harnesses for long-running agents - Anthropic**   The Claude Agent SDK is a powerful, general-purpose agent harness adept at coding, as well as other tasks that require the model to use tools to ...\n3. **Harness engineering for coding agent users - M",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:29:43.690429+00:00",
+      "topic": "MCP SDKs",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「MCP SDKs」的核心发现：\n1. **SDKs - Model Context Protocol**   Build MCP servers and clients using our official SDKs. SDKs are classified into tiers based on feature completeness, protocol support, and maintenance ...\n2. **MCP Python SDK - GitHub**   The Model Context Protocol (MCP) lets you build servers that expose data and functionality to LLM applications in a secure, standardized way.\n3. **The official TypeScript SDK for Model Context Protocol ... - GitHub**   This repository contains the",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:30:22.964328+00:00",
+      "topic": "Agent harness OpenAI context engineering",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「Agent harness OpenAI context engineering」的核心发现：\n1. **Harness engineering for coding agent users - Martin Fowler**   Context engineering provides us with the means to make guides and sensors available to the agent. Engineering a user harness for a coding agent ...\n2. **Harness engineering: leveraging Codex in an agent-first world**   Context management is one of the biggest challenges in making agents effective at large and complex tasks. One of the earliest lessons we ...\n3. **Context",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:30:44.731457+00:00",
+      "topic": "Agent Communication Protocol",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「Agent Communication Protocol」的核心发现：\n1. **Agent Communication Protocol: Welcome**   The Agent Communication Protocol (ACP) is an open protocol for agent interoperability that solves the growing challenge of connecting AI agents, applications, ...\n2. **What is Agent Communication Protocol (ACP)? - IBM**   As an AI agent communication standard with open governance, ACP allows artificial intelligence agents to communicate across different frameworks and technology ...\n3. **Agent Client Pro",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:30:54.010816+00:00",
+      "topic": "Planner module design for task decomposition",
+      "action": "layer1_search+layer2_arxiv",
+      "findings": "【搜索发现】\n关于「Planner module design for task decomposition」的核心发现：\n1. **A Deep Dive into AI Coding Agents' Task Decomposition Architecture**   Pattern 1: Explicit Planning (Plan-and-Execute). The agent generates a written plan before touching any code. The plan is a structured artifact ...\n2. **A simple method and case study of task planning for collaborative ...**   This study proposes a simple and efficient task-planning method based on a fuzzy design structure matrix (FDSM), which involves single-",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:31:40.793673+00:00",
+      "topic": "Intrinsic Curiosity Module (ICM)",
+      "action": "layer1_search+layer2_arxiv",
+      "findings": "【搜索发现】\n关于「Intrinsic Curiosity Module (ICM)」的核心发现：\n1. **[PDF] Curiosity-driven Exploration by Self-supervised Prediction - arXiv**   Intrinsic Curiosity Module (ICM) architecture The in- trinsic curiosity module consists of the forward and the in- verse model. The inverse ...\n2. **Curiosity-driven Exploration by Self-supervised Prediction**   Intrinsic Curiosity Module (ICM). We propose intrinsic curiosity formulation to help agent exploration. Curiosity help agent discover the environment out of",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:32:01.311428+00:00",
+      "topic": "Agent Harness",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「Agent Harness」的核心发现：\n1. **The Anatomy of an Agent Harness - LangChain Blog**   A harness is every piece of code, configuration, and execution logic that isn't the model itself. A raw model is not an agent. But it becomes ...\n2. **Effective harnesses for long-running agents - Anthropic**   The Claude Agent SDK is a powerful, general-purpose agent harness adept at coding, as well as other tasks that require the model to use tools to ...\n3. **Harness engineering for coding agent users - M",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:32:11.974465+00:00",
+      "topic": "Zero-shot prompting",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「Zero-shot prompting」的核心发现：\n1. **Zero-Shot Prompting - Prompt Engineering Guide**   Zero-shot prompting means that the prompt used to interact with the model won't contain examples or demonstrations.\n2. **What is zero-shot prompting? - IBM**   Zero-shot prompting is a prompt engineering method that relies on the pretraining of a large language model (LLM) to infer an appropriate response.\n3. **Zero-Shot, One-Shot, and Few-Shot Prompting**   Zero-shot prompting is the simplest form of pr",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T05:32:58.860338+00:00",
+      "topic": "Agent Harness",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「Agent Harness」的核心发现：\n1. **The Anatomy of an Agent Harness - LangChain Blog**   A harness is every piece of code, configuration, and execution logic that isn't the model itself. A raw model is not an agent. But it becomes ...\n2. **Effective harnesses for long-running agents - Anthropic**   The Claude Agent SDK is a powerful, general-purpose agent harness adept at coding, as well as other tasks that require the model to use tools to ...\n3. **Harness engineering for coding agent users - M",
+      "notified_user": true
+    }
+  ],
+  "config": {
+    "curiosity_top_k": 3,
+    "max_knowledge_nodes": 100,
+    "notification_threshold": 7.0
+  }
+}

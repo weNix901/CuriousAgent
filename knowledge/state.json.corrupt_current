@@ -1,0 +1,680 @@
+{
+  "version": "1.0",
+  "last_update": "2026-04-05T04:42:33.995511+00:00",
+  "knowledge": {
+    "topics": {
+      "Hybrid Planning and Learning System": {
+        "known": true,
+        "depth": 5,
+        "children": [
+          "Traditional Hybrid Approach",
+          "Hybrid with Zoom",
+          "Simulcast Hybrid Approach",
+          "Staggered Hybrid Approach",
+          "Frontloading"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-05T04:42:17.453489+00:00",
+        "status": "complete",
+        "cites": [
+          "Traditional Hybrid Approach",
+          "Hybrid with Zoom",
+          "Simulcast Hybrid Approach",
+          "Staggered Hybrid Approach",
+          "Frontloading"
+        ],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "Traditional Hybrid Approach",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Hybrid with Zoom",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Simulcast Hybrid Approach",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Staggered Hybrid Approach",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Frontloading",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:17.453894+00:00",
+        "last_updated": "2026-04-05T04:42:18.445729+00:00",
+        "summary": "【搜索发现】\n关于「Hybrid Planning and Learning System」的核心发现：\n1. **Hybrid Planning Strategies - Teaching and Learning Resource Center**   The most basic model of a hybrid class experience is where every week all students attend class in person together one or more times.\n2. **What is hybrid learning? Here's ",
+        "sources": [
+          "https://resources.owllabs.com/blog/hybrid-learning",
+          "https://feedbackfruits.com/blog/a-comprehensive-guide-to-hybrid-learning",
+          "https://ctl.columbia.edu/resources-and-technology/teaching-with-technology/teaching-online/hyflex/",
+          "https://www.nea.org/professional-excellence/student-engagement/tools-tips/overview-hybrid-learning-models",
+          "https://teaching.resources.osu.edu/teaching-topics/keep-teaching/hybrid-strategies"
+        ],
+        "quality": 5.2,
+        "parents": [],
+        "dreamed_at": "2026-04-05T04:42:21.737571+00:00"
+      },
+      "Traditional Hybrid Approach": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Hybrid Planning and Learning System"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:17.453894+00:00",
+        "last_updated": "2026-04-05T04:42:17.454976+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Hybrid Planning and Learning System"
+        ]
+      },
+      "Hybrid with Zoom": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Hybrid Planning and Learning System"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:17.458545+00:00",
+        "last_updated": "2026-04-05T04:42:17.459697+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Hybrid Planning and Learning System"
+        ]
+      },
+      "Simulcast Hybrid Approach": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Hybrid Planning and Learning System"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:17.463815+00:00",
+        "last_updated": "2026-04-05T04:42:17.465296+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Hybrid Planning and Learning System"
+        ]
+      },
+      "Staggered Hybrid Approach": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Hybrid Planning and Learning System"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:17.468968+00:00",
+        "last_updated": "2026-04-05T04:42:17.470276+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Hybrid Planning and Learning System"
+        ]
+      },
+      "Frontloading": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Hybrid Planning and Learning System"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:17.474833+00:00",
+        "last_updated": "2026-04-05T04:42:17.476601+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Hybrid Planning and Learning System"
+        ]
+      },
+      "TRACE evaluation framework": {
+        "known": false,
+        "depth": 0,
+        "children": [
+          "Hierarchical Trajectory Utility Function",
+          "Scaffolded Capability Assessment",
+          "DeepResearch-Bench",
+          "Pass@1",
+          "Auxiliary Reasoning Sets"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-05T04:42:18.881848+00:00",
+        "status": "partial",
+        "cites": [
+          "Hierarchical Trajectory Utility Function",
+          "Scaffolded Capability Assessment",
+          "DeepResearch-Bench",
+          "Pass@1",
+          "Auxiliary Reasoning Sets"
+        ],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "Hierarchical Trajectory Utility Function",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Scaffolded Capability Assessment",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "DeepResearch-Bench",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Pass@1",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "Auxiliary Reasoning Sets",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:18.882656+00:00",
+        "last_updated": "2026-04-05T04:42:18.912544+00:00"
+      },
+      "Hierarchical Trajectory Utility Function": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "TRACE evaluation framework"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:18.882656+00:00",
+        "last_updated": "2026-04-05T04:42:18.884166+00:00",
+        "status": "partial",
+        "cited_by": [
+          "TRACE evaluation framework"
+        ]
+      },
+      "Scaffolded Capability Assessment": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "TRACE evaluation framework"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:18.888808+00:00",
+        "last_updated": "2026-04-05T04:42:18.890366+00:00",
+        "status": "partial",
+        "cited_by": [
+          "TRACE evaluation framework"
+        ]
+      },
+      "DeepResearch-Bench": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "TRACE evaluation framework"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:18.894875+00:00",
+        "last_updated": "2026-04-05T04:42:18.896512+00:00",
+        "status": "partial",
+        "cited_by": [
+          "TRACE evaluation framework"
+        ]
+      },
+      "Pass@1": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "TRACE evaluation framework"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:18.902537+00:00",
+        "last_updated": "2026-04-05T04:42:18.904352+00:00",
+        "status": "partial",
+        "cited_by": [
+          "TRACE evaluation framework"
+        ]
+      },
+      "Auxiliary Reasoning Sets": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "TRACE evaluation framework"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:18.910606+00:00",
+        "last_updated": "2026-04-05T04:42:18.912544+00:00",
+        "status": "partial",
+        "cited_by": [
+          "TRACE evaluation framework"
+        ]
+      },
+      "Transformer-RND": {
+        "known": true,
+        "depth": 5,
+        "children": [
+          "Active Transformer Direct Interface",
+          "定制绕线输出变压器",
+          "A类分立FET输入级",
+          "变压器耦合输出级",
+          "A类分立电路拓扑"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-05T04:42:25.621607+00:00",
+        "status": "complete",
+        "cites": [
+          "Active Transformer Direct Interface",
+          "定制绕线输出变压器",
+          "A类分立FET输入级",
+          "变压器耦合输出级",
+          "A类分立电路拓扑"
+        ],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "Active Transformer Direct Interface",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "定制绕线输出变压器",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "A类分立FET输入级",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "变压器耦合输出级",
+            "relation": "derived_from",
+            "confidence": 0.8
+          },
+          {
+            "target": "A类分立电路拓扑",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:25.622750+00:00",
+        "last_updated": "2026-04-05T04:42:27.132259+00:00",
+        "summary": "【搜索发现】\n关于「Transformer-RND」的核心发现：\n1. **The RNDI Active Transformer Direct Interface - Rupert Neve Designs**   A powerful and vibrant direct sound that captures the full harmonic depth of basses, guitars, acoustic instruments, and even pre-recorded material.\n2. **The RNDI-M Active Transformer Direct I",
+        "sources": [
+          "https://rnd2021.squarespace.com/s/MBT-User-Guide-web.pdf",
+          "https://rupertneve.com/products/rndi-m",
+          "https://www.amazon.com/Rupert-Neve-Designs-Transformer-Interface/dp/B0F334XKKH",
+          "https://www.perfectcircuit.com/rupert-neve-designs-rndi-48v-powered-di.html?srsltid=AfmBOoqX-P94YITSIg4LoYVSwYSEC-StZ5CUw6md24DkqNzMcMYHMDQh",
+          "https://rupertneve.com/products/rndi"
+        ],
+        "quality": 5.2,
+        "parents": [],
+        "dreamed_at": "2026-04-05T04:42:33.995498+00:00"
+      },
+      "Active Transformer Direct Interface": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Transformer-RND"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:25.622750+00:00",
+        "last_updated": "2026-04-05T04:42:25.624972+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Transformer-RND"
+        ]
+      },
+      "定制绕线输出变压器": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Transformer-RND"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:25.632280+00:00",
+        "last_updated": "2026-04-05T04:42:25.634392+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Transformer-RND"
+        ]
+      },
+      "A类分立FET输入级": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Transformer-RND"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:25.641340+00:00",
+        "last_updated": "2026-04-05T04:42:25.643415+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Transformer-RND"
+        ]
+      },
+      "变压器耦合输出级": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Transformer-RND"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:25.650572+00:00",
+        "last_updated": "2026-04-05T04:42:25.652652+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Transformer-RND"
+        ]
+      },
+      "A类分立电路拓扑": {
+        "known": false,
+        "depth": 0,
+        "parents": [
+          "Transformer-RND"
+        ],
+        "explains": [],
+        "children": [],
+        "explored_children": [],
+        "cross_domain_count": 0,
+        "is_root_candidate": false,
+        "root_score": 0.0,
+        "first_observed": "2026-04-05T04:42:25.659336+00:00",
+        "last_updated": "2026-04-05T04:42:25.661732+00:00",
+        "status": "partial",
+        "cited_by": [
+          "Transformer-RND"
+        ]
+      }
+    }
+  },
+  "curiosity_queue": [
+    {
+      "topic": "Traditional Hybrid Approach",
+      "reason": "Web citation: 这是基础混合教学的一种模式，结合线下一次面授课与线上Carmen平台活动完成教学，属于混合规划学习的经典教学方法",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:17.456062+00:00",
+      "status": "pending",
+      "original_topic": "Hybrid Planning and Learning System",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Hybrid with Zoom",
+      "reason": "Web citation: 这是适配需要大量实时讨论课程的混合教学方法，结合每周一次线下面授、一次同步Zoom直播课与线上作业，是混合规划学习的特定实施方法",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:17.461137+00:00",
+      "status": "pending",
+      "original_topic": "Hybrid Planning and Learning System",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Simulcast Hybrid Approach",
+      "reason": "Web citation: 这是支持学生自主选择每周线下或Zoom线上参与直播教学环节的混合教学方法，属于混合规划学习的复杂实施方法",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:17.466555+00:00",
+      "status": "pending",
+      "original_topic": "Hybrid Planning and Learning System",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Staggered Hybrid Approach",
+      "reason": "Web citation: 这是将学生分组错峰参与线下小班面授、所有学生完成大量线上教学的混合教学方法，属于混合规划学习的复杂实施方法",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:17.471861+00:00",
+      "status": "pending",
+      "original_topic": "Hybrid Planning and Learning System",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Frontloading",
+      "reason": "Web citation: 这是混合教学规划中常用的策略，将基础知识内容放在线上、配套形成性评估，核心内容利用线下完成，属于混合规划学习的常用规划方法",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:17.478085+00:00",
+      "status": "pending",
+      "original_topic": "Hybrid Planning and Learning System",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Hierarchical Trajectory Utility Function",
+      "reason": "Web citation: 该方法是TRACE评价框架的组成部分，用于量化推理过程的效率、认知质量和准确性，解决高分幻觉问题",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:18.885778+00:00",
+      "status": "pending",
+      "original_topic": "TRACE evaluation framework",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Scaffolded Capability Assessment",
+      "reason": "Web citation: 该协议是TRACE评价框架的组成部分，通过确定成功所需的最小引导来量化智能体的潜在能力",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:18.891879+00:00",
+      "status": "pending",
+      "original_topic": "TRACE evaluation framework",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "DeepResearch-Bench",
+      "reason": "Web citation: 它是TRACE评价框架配套的、具备可控复杂度的基准测试集",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:18.898412+00:00",
+      "status": "pending",
+      "original_topic": "TRACE evaluation framework",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Pass@1",
+      "reason": "Web citation: 它是TRACE评价框架提出要解决的现有评价体系中所依赖的单一指标，作为对比基线",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:18.906123+00:00",
+      "status": "pending",
+      "original_topic": "TRACE evaluation framework",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Auxiliary Reasoning Sets",
+      "reason": "Web citation: 它是TRACE框架的核心组成部分，通过紧凑的子问题-答案对分解复杂问题，基于一致性指标评估推理中间步骤",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:18.915822+00:00",
+      "status": "pending",
+      "original_topic": "TRACE evaluation framework",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "Active Transformer Direct Interface",
+      "reason": "Web citation: 该页面明确将其作为RNDI设备的核心相关技术结构，和Transformer-RND主题直接对应",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:25.627779+00:00",
+      "status": "pending",
+      "original_topic": "Transformer-RND",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "定制绕线输出变压器",
+      "reason": "Web citation: 是RNDI-M音频DI的核心组件，提供无源隔离，为音频添加音乐性谐波，实现低阻变压器耦合输出驱动长线缆",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:25.636668+00:00",
+      "status": "pending",
+      "original_topic": "Transformer-RND",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "A类分立FET输入级",
+      "reason": "Web citation: 是RNDI-M的核心电路设计，由+48V幻像供电，提供2.2兆欧高输入阻抗，消除交越失真，优化音频谐波表现",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:25.645462+00:00",
+      "status": "pending",
+      "original_topic": "Transformer-RND",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "变压器耦合输出级",
+      "reason": "Web citation: 低阻抗的变压器耦合输出设计，可驱动长音频线路，将信号传输损耗降到最低，性能不受连接设备影响",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:25.654774+00:00",
+      "status": "pending",
+      "original_topic": "Transformer-RND",
+      "topic_type": "web_citation",
+      "priority": 10
+    },
+    {
+      "topic": "A类分立电路拓扑",
+      "reason": "Web citation: RNDI-M围绕定制变压器搭建的核心电路架构，无集成芯片或数字元件影响音色，实现宽频出色音频性能",
+      "score": 5.35,
+      "relevance": 6.0,
+      "depth": 5.0,
+      "created_at": "2026-04-05T04:42:25.663938+00:00",
+      "status": "pending",
+      "original_topic": "Transformer-RND",
+      "topic_type": "web_citation",
+      "priority": 10
+    }
+  ],
+  "exploration_log": [
+    {
+      "timestamp": "2026-04-05T04:42:18.448329+00:00",
+      "topic": "Hybrid Planning and Learning System",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「Hybrid Planning and Learning System」的核心发现：\n1. **Hybrid Planning Strategies - Teaching and Learning Resource Center**   The most basic model of a hybrid class experience is where every week all students attend class in person together one or more times.\n2. **What is hybrid learning? Here's everything you need to know**   Hybrid learning is an educational model where some students attend class in-person, while others join the class virtually from home.\n3. **Overview: Hybrid Learning Mode",
+      "notified_user": true
+    },
+    {
+      "timestamp": "2026-04-05T04:42:27.136215+00:00",
+      "topic": "Transformer-RND",
+      "action": "layer1_search",
+      "findings": "【搜索发现】\n关于「Transformer-RND」的核心发现：\n1. **The RNDI Active Transformer Direct Interface - Rupert Neve Designs**   A powerful and vibrant direct sound that captures the full harmonic depth of basses, guitars, acoustic instruments, and even pre-recorded material.\n2. **The RNDI-M Active Transformer Direct Interface**   The RNDI-M provides instrument direct injection for electric guitar & basses, synthesizers, keyboards, piezo pickups, or any other instrument-level source.\n3. **Rupert Neve Designs RNDI A",
+      "notified_user": true
+    }
+  ],
+  "config": {
+    "curiosity_top_k": 3,
+    "max_knowledge_nodes": 100,
+    "notification_threshold": 7.0
+  }
+}

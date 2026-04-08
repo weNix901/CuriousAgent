@@ -1,4 +1,3 @@
-# core/assertion_index.py
 """FAISS-powered assertion index for efficient similarity search"""
 import sqlite3
 import numpy as np
@@ -12,19 +11,27 @@ class AssertionIndex:
             root = Path(__file__).parent.parent
             db_path = str(root / "shared_knowledge" / "assertion_index" / "assertions.db")
         
-        self.db_path = Path(db_path)
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self.db_path = db_path
+        self._is_memory = db_path == ":memory:"
+        
+        if not self._is_memory:
+            Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         
         self._faiss_index = None
         self._id_to_text = {}
         self._next_id = 0
         self._faiss_idx_to_row_id = []
         
+        # For :memory:, keep connection open
+        self._conn: Optional[sqlite3.Connection] = None
+        if self._is_memory:
+            self._conn = sqlite3.connect(db_path)
+        
         self._init_db()
         self._load_faiss_index()
     
     def _init_db(self):
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._conn if self._conn else sqlite3.connect(self.db_path)
         
         conn.execute("""
             CREATE TABLE IF NOT EXISTS assertions (
@@ -41,7 +48,8 @@ class AssertionIndex:
         """)
         
         conn.commit()
-        conn.close()
+        if not self._is_memory:
+            conn.close()
     
     def _load_faiss_index(self):
         try:
@@ -50,9 +58,10 @@ class AssertionIndex:
             print("[AssertionIndex] Warning: faiss not installed, using linear scan fallback")
             return
         
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._conn if self._conn else sqlite3.connect(self.db_path)
         rows = conn.execute("SELECT id, text FROM assertions").fetchall()
-        conn.close()
+        if not self._is_memory:
+            conn.close()
         
         dimension = 768
         self._faiss_index = faiss.IndexFlatIP(dimension)
@@ -64,13 +73,14 @@ class AssertionIndex:
     
     def insert(self, text: str, embedding: List[float], 
                topic: Optional[str] = None, source_topic: Optional[str] = None) -> int:
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._conn if self._conn else sqlite3.connect(self.db_path)
         
         cursor = conn.execute("SELECT id FROM assertions WHERE text = ?", (text,))
         existing = cursor.fetchone()
         
         if existing:
-            conn.close()
+            if not self._is_memory:
+                conn.close()
             return existing[0]
         
         cursor = conn.execute(
@@ -81,7 +91,8 @@ class AssertionIndex:
         row_id: int = cursor.lastrowid  # type: ignore[assignment]
         
         conn.commit()
-        conn.close()
+        if not self._is_memory:
+            conn.close()
         
         if self._faiss_index is not None:
             import faiss  # type: ignore[attr-defined, import-not-found]
@@ -122,11 +133,17 @@ class AssertionIndex:
         return results[0][1] if results else 0.0
     
     def get_stats(self) -> dict:
-        conn = sqlite3.connect(str(self.db_path))
+        conn = self._conn if self._conn else sqlite3.connect(self.db_path)
         count = conn.execute("SELECT COUNT(*) FROM assertions").fetchone()[0]
-        conn.close()
+        if not self._is_memory:
+            conn.close()
         
         return {
             "total_assertions": count,
             "faiss_index_size": self._faiss_index.ntotal if self._faiss_index else 0
         }
+    
+    def __del__(self):
+        # Clean up memory connection
+        if self._conn:
+            self._conn.close()

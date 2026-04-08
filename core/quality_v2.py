@@ -9,32 +9,116 @@ class QualityV2Assessor:
     1. Semantic Novelty (40%)
     2. Information Gain (40%)
     3. Graph Topology Change (20%)
+    
+    v0.2.8: Dual-channel evaluation with KnowledgeAssertionEvaluator
     """
     
-    def __init__(self, llm_client):
+    def __init__(self, llm_client, embedding_service=None, 
+                 assertion_index=None, knowledge_graph=None):
         self.llm = llm_client
+        self.embedding_service = embedding_service
+        self.assertion_index = assertion_index
+        self.kg = knowledge_graph
+        self.assertion_evaluator = None
+        
+        if embedding_service and assertion_index and knowledge_graph:
+            from core.knowledge_assertion_evaluator import KnowledgeAssertionEvaluator
+            self.assertion_evaluator = KnowledgeAssertionEvaluator(
+                llm_client, embedding_service, assertion_index, knowledge_graph
+            )
     
     def assess_quality(self, topic: str, findings: dict, knowledge_graph) -> float:
         """
-        Main quality assessment entry
+        Main quality assessment with dual-channel evaluation.
+        
+        Channel 1: Knowledge Assertion Evaluation (Primary)
+        Channel 2: Legacy Information Gain (Fallback/Reference)
+        
         Returns: quality score (0-10)
         """
+        assertion_result = None
+        legacy_quality = None
+        
+        if self.assertion_evaluator:
+            try:
+                assertion_result = self.assertion_evaluator.assess_quality(
+                    topic, findings
+                )
+                print(f"[QualityV2] Assertion quality: {assertion_result['quality']}")
+            except Exception as e:
+                print(f"[QualityV2] Assertion evaluation failed: {e}")
+        
+        try:
+            legacy_quality = self._calculate_legacy_quality(topic, findings, knowledge_graph)
+            print(f"[QualityV2] Legacy quality: {legacy_quality}")
+        except Exception as e:
+            print(f"[QualityV2] Legacy evaluation failed: {e}")
+        
+        return self._aggregate_quality(assertion_result, legacy_quality)
+    
+    def _aggregate_quality(self, assertion_result: Optional[dict], 
+                          legacy_quality: Optional[float]) -> float:
+        """
+        Aggregate quality scores using smart consensus.
+        
+        Rules:
+        1. If both agree on low quality (< 3.0), return low
+        2. If assertion says 0.0 but legacy says high (> 6.0), trust legacy
+        3. If assertion says high but legacy says very low, trust assertion
+        4. Default: prefer assertion when reasonable
+        """
+        if assertion_result is None and legacy_quality is None:
+            print("[QualityV2] Both evaluations failed, returning neutral 5.0")
+            return 5.0
+        
+        if assertion_result is None:
+            print("[QualityV2] Using legacy only")
+            return round(legacy_quality, 1) if legacy_quality is not None else 5.0
+        
+        assertion_quality = assertion_result['quality']
+        
+        if legacy_quality is None:
+            print("[QualityV2] Using assertion only")
+            return assertion_quality
+        
+        if assertion_quality < 3.0 and legacy_quality < 3.0:
+            result = min(assertion_quality, legacy_quality)
+            print(f"[QualityV2] Consensus low: {result}")
+            return round(result, 1)
+        
+        if assertion_quality == 0.0 and legacy_quality > 6.0:
+            print(f"[QualityV2] Warning: Assertion 0.0 but legacy {legacy_quality}, using legacy")
+            return round(legacy_quality, 1)
+        
+        if assertion_quality > 7.0 and legacy_quality < 3.0:
+            blended = assertion_quality * 0.7 + legacy_quality * 0.3
+            print(f"[QualityV2] High assertion, low legacy: blended {blended}")
+            return round(blended, 1)
+        
+        if assertion_quality > 0:
+            print(f"[QualityV2] Using assertion: {assertion_quality}")
+            return assertion_quality
+        
+        print(f"[QualityV2] Fallback to legacy: {legacy_quality}")
+        return round(legacy_quality, 1)
+    
+    def _calculate_legacy_quality(self, topic: str, findings: dict, 
+                                   knowledge_graph) -> float:
+        """Calculate legacy quality score (existing logic)"""
         prev_summary = self._get_previous_summary(topic, knowledge_graph)
         new_summary = findings.get("summary", "")
-
+        
         semantic_novelty = self._calculate_semantic_novelty(prev_summary, new_summary)
         information_gain = self._assess_information_gain(topic, new_summary)
-
-        graph_delta = 0.0
-        if not prev_summary:
-            graph_delta = 0.5
-
+        
+        graph_delta = 0.0 if prev_summary else 0.5
+        
         quality = (
             semantic_novelty * 0.40 +
             information_gain * 0.40 +
             graph_delta * 0.20
         ) * 10
-
+        
         return round(quality, 1)
     
     def _calculate_semantic_novelty(self, prev_summary: str, new_summary: str) -> float:

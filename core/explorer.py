@@ -285,6 +285,10 @@ class Explorer:
         策略：多轮查询增强 + 多 Provider 链式降级 + stub 模式检测。
         """
         import time
+        from core.config import get_config
+
+        config = get_config()
+        search_cfg = config.search
 
         # ===== 预检查：太短的 topics 直接标记为失败，不产生 stub =====
         if len(topic.strip()) < 3:
@@ -292,9 +296,10 @@ class Explorer:
             return {"findings": "", "sources": [], "arxiv_links": [], "search_results": [], "status": "failed_too_short"}
 
         # ===== 生成多轮查询策略 =====
-        queries = self._generate_query_variants(topic)
+        queries = self._generate_query_variants(topic, max_variants=search_cfg.query_variants)
         all_results = []
         used_queries = set()
+        early_stop = search_cfg.early_stop_results
 
         # ===== 链式搜索：每个查询都尝试 Serper + Bocha =====
         for query in queries:
@@ -302,25 +307,36 @@ class Explorer:
                 continue
             used_queries.add(query)
 
-            # Serper
+            # Serper (优先)
             results = self._call_serper_search(query)
             if results:
                 all_results.extend(results)
                 print(f"[Explorer] Serper got {len(results)} results for '{query}'")
+                # Serper 有结果就跳过 Bocha（除非 bocha_fallback=always）
+                if search_cfg.bocha_fallback != "always":
+                    pass
+                else:
+                    # always 模式：即使 Serper 有结果也调用 Bocha
+                    bocha_results = self._call_bocha_search(query)
+                    if bocha_results:
+                        existing_urls = {r.get("url") for r in all_results}
+                        for br in bocha_results:
+                            if br.get("url") not in existing_urls:
+                                all_results.append(br)
+                        print(f"[Explorer] Bocha补充 {len(bocha_results)} results for '{query}'")
+            else:
+                # Serper 无结果时才调用 Bocha（除非 bocha_fallback=never）
+                if search_cfg.bocha_fallback != "never":
+                    bocha_results = self._call_bocha_search(query)
+                    if bocha_results:
+                        existing_urls = {r.get("url") for r in all_results}
+                        for br in bocha_results:
+                            if br.get("url") not in existing_urls:
+                                all_results.append(br)
+                        print(f"[Explorer] Bocha补充 {len(bocha_results)} results for '{query}'")
 
-            # Bocha (补充)
-            bocha_results = self._call_bocha_search(query)
-            if bocha_results:
-                # 去重
-                existing_urls = {r.get("url") for r in all_results}
-                for br in bocha_results:
-                    if br.get("url") not in existing_urls:
-                        all_results.append(br)
-                if bocha_results:
-                    print(f"[Explorer] Bocha补充 {len(bocha_results)} results for '{query}'")
-
-            # 如果已经有足够的结果（>= 5），可以提前停止
-            if len(all_results) >= 5:
+            # 如果已经有足够的结果，提前停止
+            if len(all_results) >= early_stop:
                 print(f"[Explorer] Got {len(all_results)} total results, stopping search")
                 break
 
@@ -399,9 +415,17 @@ class Explorer:
             "status": "success"
         }
 
-    def _generate_query_variants(self, topic: str) -> list:
-        """v0.2.6: 为 topic 生成多个查询变体，按优先级排序"""
+    def _generate_query_variants(self, topic: str, max_variants: int = 2) -> list:
+        """v0.2.6: 为 topic 生成多个查询变体，按优先级排序
+        
+        Args:
+            topic: 要查询的 topic
+            max_variants: 最大查询变体数量（从 config.search.query_variants 传入）
+        """
         queries = [topic]  # 原始查询优先
+
+        if max_variants <= 1:
+            return queries
 
         # 如果 topic 是单字或很通用，添加增强变体
         broad_keywords = {
@@ -414,17 +438,19 @@ class Explorer:
 
         if is_generic:
             # 通用词需要更具体的上下文
-            queries.extend([
+            generic_queries = [
                 f"{topic} AI artificial intelligence agent",
                 f"{topic} machine learning deep learning",
                 f"{topic} autonomous agent LLM",
-            ])
+            ]
+            queries.extend(generic_queries[:max_variants - 1])
         else:
             # 正常 topic 的变体
-            queries.extend([
+            normal_queries = [
                 f"{topic} research 2024 2025",
                 f"{topic} deep learning neural network",
-            ])
+            ]
+            queries.extend(normal_queries[:max_variants - 1])
 
         return queries
 

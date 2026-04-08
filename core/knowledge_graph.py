@@ -417,6 +417,69 @@ def remove_ghost_nodes() -> list:
     return removed
 
 
+def remove_zero_quality_nodes() -> dict:
+    """Remove all nodes with known=False (never successfully explored) and their descendants.
+    
+    These are 'zombie' topics that were created (from decomposition or injection) but
+    never successfully explored. They clutter the KG and their children are also垃圾.
+    
+    Returns dict with 'removed_topics' and 'removed_from_queue' counts.
+    """
+    state = _load_state()
+    topics = state["knowledge"]["topics"]
+    queue = state.get("curiosity_queue", [])
+    completed = state.get("meta_cognitive", {}).get("completed_topics", {})
+
+    # Find all zero-quality nodes (known=False, never successfully explored)
+    zero_quality_topics = [
+        topic for topic, node in topics.items()
+        if not node.get("known")
+    ]
+
+    # For each zero-quality node, collect ALL descendants recursively
+    def get_all_descendants(topic: str, visited: set) -> list:
+        if topic in visited:
+            return []
+        visited.add(topic)
+        children = topics.get(topic, {}).get("children", [])
+        descendants = []
+        for child in children:
+            if child in topics:
+                descendants.append(child)
+                descendants.extend(get_all_descendants(child, visited))
+        return descendants
+
+    all_to_remove = set()
+    for topic in zero_quality_topics:
+        all_to_remove.add(topic)
+        all_to_remove.update(get_all_descendants(topic, set()))
+
+    removed_from_topics = []
+    for topic in all_to_remove:
+        if topic in topics:
+            del topics[topic]
+            removed_from_topics.append(topic)
+
+    # Remove from curiosity_queue
+    original_queue_len = len(queue)
+    queue[:] = [item for item in queue if item["topic"] not in all_to_remove]
+    removed_from_queue = original_queue_len - len(queue)
+
+    # Remove from completed_topics
+    for topic in list(completed.keys()):
+        if topic in all_to_remove:
+            del completed[topic]
+
+    if removed_from_topics or removed_from_queue:
+        _save_state(state)
+
+    return {
+        "removed_topics": removed_from_topics,
+        "removed_topics_count": len(removed_from_topics),
+        "removed_from_queue": removed_from_queue
+    }
+
+
 def mark_topic_done(topic: str, reason: str) -> None:
     """Mark topic as completed, preventing further exploration"""
     state = _load_state()

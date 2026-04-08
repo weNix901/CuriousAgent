@@ -13,7 +13,11 @@ class TestAssertionIndex:
     
     def test_init_creates_db(self, index):
         """Test that initialization creates the database"""
-        assert index.db_path.exists()
+        from pathlib import Path
+        # db_path is now a string
+        assert isinstance(index.db_path, str)
+        if index.db_path != ":memory:":
+            assert Path(index.db_path).exists()
         stats = index.get_stats()
         assert stats["total_assertions"] == 0
     

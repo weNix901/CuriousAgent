@@ -6,6 +6,19 @@ from typing import Optional
 
 
 @dataclass
+class EmbeddingConfig:
+    """Embedding service configuration"""
+    provider: str = "volcengine"
+    model: str = "text-embedding-async"
+    dimension: int = 768
+    similarity_threshold: float = 0.82
+    batch_size: int = 32
+    cache_size: int = 10000
+    api_key_env: str = "EMBEDDING_API_KEY"
+    fallback_chain: list = field(default_factory=lambda: ["volcengine", "llm"])
+
+
+@dataclass
 class MetaCognitiveThresholds:
     max_explore_count: int = 3
     min_marginal_return: float = 0.3
@@ -55,6 +68,13 @@ class ExplorationConfig:
 
 
 @dataclass
+class SearchConfig:
+    query_variants: int = 2           # 每个 topic 的查询变体数量
+    early_stop_results: int = 5       # 达到多少结果后提前停止
+    bocha_fallback: str = "serper_empty"  # bocha 降级策略: serper_empty | always | never
+
+
+@dataclass
 class Config:
     thresholds: MetaCognitiveThresholds
     user_interests: list = field(default_factory=list)
@@ -62,6 +82,8 @@ class Config:
     llm_providers: list = field(default_factory=list)
     default_llm_provider: str = "volcengine"
     exploration: ExplorationConfig = field(default_factory=ExplorationConfig)
+    search: SearchConfig = field(default_factory=SearchConfig)
+    embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
 
 
 def load_config() -> Config:
@@ -133,13 +155,34 @@ def load_config() -> Config:
         injection_priority=inj_cfg
     )
 
+    search_raw = raw.get("search", {})
+    search = SearchConfig(
+        query_variants=search_raw.get("query_variants", 2),
+        early_stop_results=search_raw.get("early_stop_results", 5),
+        bocha_fallback=search_raw.get("bocha_fallback", "serper_empty")
+    )
+
+    emb_raw = raw.get("embedding", {})
+    embedding = EmbeddingConfig(
+        provider=emb_raw.get("provider", "volcengine"),
+        model=emb_raw.get("model", "text-embedding-async"),
+        dimension=emb_raw.get("dimension", 768),
+        similarity_threshold=emb_raw.get("similarity_threshold", 0.82),
+        batch_size=emb_raw.get("batch_size", 32),
+        cache_size=emb_raw.get("cache_size", 10000),
+        api_key_env=emb_raw.get("api_key_env", "EMBEDDING_API_KEY"),
+        fallback_chain=emb_raw.get("fallback_chain", ["volcengine", "llm"])
+    )
+
     return Config(
         thresholds=thresholds,
         user_interests=raw.get("user_interests", []),
         notification=raw.get("notification", {}),
         llm_providers=llm_providers,
         default_llm_provider=llm_config.get("default_provider", "volcengine"),
-        exploration=exploration
+        exploration=exploration,
+        search=search,
+        embedding=embedding
     )
 
 
