@@ -1129,6 +1129,16 @@
       "topic": "parent_7",
       "timestamp": "2026-04-13T03:56:04.475796+00:00",
       "source_insight": "Dream insight: Just as every 3-generation family lineage transmits unwritten, context-specific behavioral patterns that only reveal themselves across time, every 7-layer software parent process hierarchy carries hid"
+    },
+    {
+      "topic": "transformer attention",
+      "timestamp": "2026-04-13T08:29:18.400803+00:00",
+      "source_insight": "API exploration completed - needs decomposition"
+    },
+    {
+      "topic": "LLM chain of thought reasoning",
+      "timestamp": "2026-04-13T08:33:42.205682+00:00",
+      "source_insight": "API exploration completed - needs decomposition"
     }
   ]
 }

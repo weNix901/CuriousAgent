@@ -30,7 +30,7 @@ class LLMClient:
             "providers": {},
             "selection_strategy": "capability"
         }
-        for p in config.llm_providers:
+        for p in config.llm.get("providers", []):
             llm_config["providers"][p.name] = {
                 "api_url": p.api_url,
                 "timeout": p.timeout,

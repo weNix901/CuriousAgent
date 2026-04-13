@@ -87,7 +87,7 @@ def _explore_in_thread(topic: str, score: float, depth: float):
 
             config = get_config()
             llm_config_async = {"providers": {}, "selection_strategy": "capability"}
-            for p in config.llm_providers:
+            for p in config.llm.get("providers", []):
                 llm_config_async["providers"][p.name] = {
                     "api_url": p.api_url,
                     "timeout": p.timeout,

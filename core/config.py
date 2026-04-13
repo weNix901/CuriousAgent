@@ -105,6 +105,9 @@ class KnowledgeSearchConfig:
     primary: str = "bocha"
     fallback: str = "serper"
     bocha_fallback_mode: str = "serper_empty"
+    bocha_fallback: str = "serper_empty"  # When to use Bocha fallback (v0.2.8 legacy: always, never, serper_empty)
+    query_variants: int = 1  # Number of query variants to generate (v0.2.8 legacy)
+    early_stop_results: int = 5  # Early stop when this many results found (v0.2.8 legacy)
     daily_quota: SearchDailyQuotaConfig = field(default_factory=SearchDailyQuotaConfig)
 
 
@@ -181,7 +184,11 @@ class Config:
 
 
 def _load_env_file():
-    """Load environment variables from .env file."""
+    """Load environment variables from .env file.
+    
+    Always uses .env values to ensure config.json API keys take precedence
+    over inherited shell environment variables.
+    """
     env_file = Path(__file__).parent.parent / ".env"
     if env_file.exists():
         with open(env_file, encoding="utf-8") as f:
@@ -190,7 +197,8 @@ def _load_env_file():
                 if line and not line.startswith("#") and "=" in line:
                     key, value = line.split("=", 1)
                     value = value.strip().strip('"').strip("'")
-                    os.environ.setdefault(key.strip(), value)
+                    # Always use .env value (don't check if already exists)
+                    os.environ[key.strip()] = value
 
 
 # Alias for backward compatibility
@@ -264,6 +272,9 @@ def load_config() -> Config:
         primary=search_raw.get("primary", "bocha"),
         fallback=search_raw.get("fallback", "serper"),
         bocha_fallback_mode=search_raw.get("bocha_fallback_mode", "serper_empty"),
+        bocha_fallback=search_raw.get("bocha_fallback", "serper_empty"),
+        query_variants=search_raw.get("query_variants", 1),
+        early_stop_results=search_raw.get("early_stop_results", 5),
         daily_quota=quota_cfg
     )
     embedding_raw = knowledge_raw.get("embedding", {})
