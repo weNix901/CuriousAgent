@@ -62,10 +62,26 @@ class InjectionPriorityConfig:
 
 
 @dataclass
+class ExploreDaemonConfig:
+    """ExploreDaemon configuration."""
+    poll_interval_seconds: int = 300      # claim 间隔（默认 5 分钟）
+    max_retries: int = 3                 # 失败重试次数
+    retry_delay_seconds: int = 15        # 失败重试间隔
+
+
+@dataclass
+class DreamDaemonConfig:
+    """DreamDaemon configuration."""
+    interval_seconds: int = 21600         # 触发间隔（默认 6 小时）
+
+
+@dataclass
 class ExplorationConfig:
     mode: str = "daemon"  # daemon | api_only | hybrid
     daemon_interval_minutes: int = 60
     daemon_explore_per_round: int = 1
+    explore_daemon: ExploreDaemonConfig = field(default_factory=ExploreDaemonConfig)
+    dream_daemon: DreamDaemonConfig = field(default_factory=DreamDaemonConfig)
     injection_priority: InjectionPriorityConfig = field(default_factory=InjectionPriorityConfig)
 
 
@@ -150,10 +166,27 @@ def load_config() -> Config:
         trigger_immediate=inj_raw.get("trigger_immediate", True)
     )
     daemon_raw = exp_raw.get("daemon", {})
+    
+    # ExploreDaemon config
+    explore_daemon_raw = exp_raw.get("explore_daemon", {})
+    explore_daemon_cfg = ExploreDaemonConfig(
+        poll_interval_seconds=explore_daemon_raw.get("poll_interval_seconds", 300),
+        max_retries=explore_daemon_raw.get("max_retries", 3),
+        retry_delay_seconds=explore_daemon_raw.get("retry_delay_seconds", 15)
+    )
+    
+    # DreamDaemon config
+    dream_daemon_raw = exp_raw.get("dream_daemon", {})
+    dream_daemon_cfg = DreamDaemonConfig(
+        interval_seconds=dream_daemon_raw.get("interval_seconds", 21600)
+    )
+    
     exploration = ExplorationConfig(
         mode=exp_raw.get("mode", "daemon"),
         daemon_interval_minutes=daemon_raw.get("interval_minutes", 60),
         daemon_explore_per_round=daemon_raw.get("explore_per_round", 1),
+        explore_daemon=explore_daemon_cfg,
+        dream_daemon=dream_daemon_cfg,
         injection_priority=inj_cfg
     )
 

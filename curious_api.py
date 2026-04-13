@@ -885,13 +885,24 @@ def api_agents_daemon_explore():
         from core.tools.registry import ToolRegistry
         from core.tools.queue_tools import QueueStorage
         
+        # Read config from config.json
+        cfg = get_config()
+        daemon_cfg = getattr(cfg, "exploration", {}).get("explore_daemon", {})
+        poll_interval = daemon_cfg.get("poll_interval_seconds", 300)
+        max_retries = daemon_cfg.get("max_retries", 3)
+        retry_delay = daemon_cfg.get("retry_delay_seconds", 15)
+        
         tool_registry = ToolRegistry()
         agent_config = ExploreAgentConfig(name="explore_agent")
         agent = ExploreAgent(config=agent_config, tool_registry=tool_registry)
         
         queue_storage = QueueStorage()
         queue_storage.initialize()
-        daemon_config = ExploreDaemonConfig(poll_interval=5.0)
+        daemon_config = ExploreDaemonConfig(
+            poll_interval=poll_interval,
+            max_retries=max_retries,
+            retry_delay=retry_delay
+        )
         
         daemon = ExploreDaemon(
             explore_agent=agent,
@@ -904,7 +915,9 @@ def api_agents_daemon_explore():
         return jsonify({
             "status": "started",
             "daemon_name": "explore_daemon",
-            "poll_interval": daemon_config.poll_interval
+            "poll_interval_seconds": poll_interval,
+            "max_retries": max_retries,
+            "retry_delay_seconds": retry_delay
         })
     except Exception as e:
         import traceback
@@ -920,8 +933,15 @@ def api_agents_daemon_dream():
         from pathlib import Path
         from core.daemon.dream_daemon import DreamDaemon, DreamDaemonConfig
         
+        # Read config from config.json (default: 6 hours)
+        cfg = get_config()
+        daemon_cfg = getattr(cfg, "exploration", {}).get("dream_daemon", {})
+        interval_s = daemon_cfg.get("interval_seconds", 6 * 60 * 60)
+        
+        # Allow override via request body
         data = request.get_json() or {}
-        interval_s = data.get("interval_s", 6 * 60 * 60)
+        if "interval_s" in data:
+            interval_s = data["interval_s"]
         
         workspace = Path(".")
         config = DreamDaemonConfig(interval_s=interval_s, enabled=True)
@@ -933,7 +953,7 @@ def api_agents_daemon_dream():
         return jsonify({
             "status": "started",
             "daemon_name": "dream_daemon",
-            "interval_s": interval_s
+            "interval_seconds": interval_s
         })
     except Exception as e:
         import traceback
