@@ -5,23 +5,43 @@ import subprocess
 from typing import Optional
 
 from core.search_provider import SearchProvider
+from core.search_quota import get_quota_manager
+from core.config import get_config
 
 
 class BochaSearchProvider(SearchProvider):
-    """Bocha AI Search API Provider"""
+    """Bocha AI Search API Provider with quota management"""
     
     def __init__(self, api_key: Optional[str] = None):
         self._api_key = api_key or os.environ.get("BOCHA_API_KEY", "")
         self._name = "bocha"
+        self._quota = None  # Lazy init
     
     @property
     def name(self) -> str:
         return self._name
     
+    def _get_quota_config(self):
+        if self._quota is None:
+            cfg = get_config()
+            self._quota = cfg.knowledge.get("search", {}).daily_quota
+        return self._quota
+    
     async def search(self, query: str) -> dict:
-        """Execute Bocha search"""
+        """Execute Bocha search with quota enforcement"""
         if not self._api_key:
-            return {"results": [], "result_count": 0, "raw": {}}
+            return {"results": [], "result_count": 0, "raw": {"error": "No API key"}}
+        
+        # Check quota
+        quota_cfg = self._get_quota_config()
+        quota_mgr = get_quota_manager()
+        allowed, status = quota_mgr.check_quota("bocha", quota_cfg.bocha, quota_cfg.enabled)
+        if not allowed:
+            return {
+                "results": [],
+                "result_count": 0,
+                "raw": {"error": f"Daily quota exceeded ({status.used}/{status.limit})"}
+            }
         
         url = "https://api.bochaai.com/v1/web-search"
         payload = {"query": query, "count": 5}
@@ -39,6 +59,8 @@ class BochaSearchProvider(SearchProvider):
             if isinstance(data, dict) and data.get("code") == 200:
                 web_pages = data.get("data", {}).get("webPages", {})
                 items = web_pages.get("value", [])
+                # Record successful API call
+                get_quota_manager().record_usage("bocha")
                 return {
                     "results": self._parse_results(items),
                     "result_count": len(items),

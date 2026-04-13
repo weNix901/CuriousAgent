@@ -91,11 +91,21 @@ class DreamDaemonConfig:
 # ============================================================
 
 @dataclass
+class SearchDailyQuotaConfig:
+    """Daily search API quota configuration."""
+    enabled: bool = True
+    serper: int = 100      # Serper daily limit
+    bocha: int = 50        # Bocha daily limit
+    reset_hour: int = 0    # Reset at midnight (UTC)
+
+
+@dataclass
 class KnowledgeSearchConfig:
     """Search provider configuration."""
     primary: str = "bocha"
     fallback: str = "serper"
     bocha_fallback_mode: str = "serper_empty"
+    daily_quota: SearchDailyQuotaConfig = field(default_factory=SearchDailyQuotaConfig)
 
 
 @dataclass
@@ -243,10 +253,18 @@ def load_config() -> Config:
     # Parse knowledge
     knowledge_raw = raw.get("knowledge", {})
     search_raw = knowledge_raw.get("search", {})
+    quota_raw = search_raw.get("daily_quota", {})
+    quota_cfg = SearchDailyQuotaConfig(
+        enabled=quota_raw.get("enabled", True),
+        serper=quota_raw.get("serper", 100),
+        bocha=quota_raw.get("bocha", 50),
+        reset_hour=quota_raw.get("reset_hour", 0)
+    )
     search_cfg = KnowledgeSearchConfig(
         primary=search_raw.get("primary", "bocha"),
         fallback=search_raw.get("fallback", "serper"),
-        bocha_fallback_mode=search_raw.get("bocha_fallback_mode", "serper_empty")
+        bocha_fallback_mode=search_raw.get("bocha_fallback_mode", "serper_empty"),
+        daily_quota=quota_cfg
     )
     embedding_raw = knowledge_raw.get("embedding", {})
     embedding_cfg = KnowledgeEmbeddingConfig(

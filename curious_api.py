@@ -23,6 +23,64 @@ def index():
     return send_from_directory(UI_DIR, "index.html")
 
 
+@app.route("/api/quota/status")
+def api_quota_status():
+    """Get current search API quota status."""
+    try:
+        from core.search_quota import get_quota_manager
+        from core.config import get_config
+        
+        cfg = get_config()
+        quota = cfg.knowledge.get("search").daily_quota
+        qm = get_quota_manager()
+        
+        serper = qm.get_status("serper", quota.serper, quota.enabled)
+        bocha = qm.get_status("bocha", quota.bocha, quota.enabled)
+        
+        return jsonify({
+            "enabled": quota.enabled,
+            "reset_hour": quota.reset_hour,
+            "providers": {
+                "serper": {
+                    "used": serper.used,
+                    "limit": serper.limit,
+                    "remaining": serper.remaining
+                },
+                "bocha": {
+                    "used": bocha.used,
+                    "limit": bocha.limit,
+                    "remaining": bocha.remaining
+                }
+            }
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/quota/reset", methods=["POST"])
+def api_quota_reset():
+    """Reset quota for a specific provider or all providers."""
+    try:
+        from core.search_quota import get_quota_manager
+        
+        data = request.get_json() or {}
+        provider = data.get("provider")  # "serper", "bocha", or None for all
+        
+        qm = get_quota_manager()
+        qm.reset(provider)
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Quota reset for {provider or 'all providers'}"
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
 @app.route("/api/curious/state")
 def api_state():
     from core import knowledge_graph as kg
