@@ -664,23 +664,31 @@ def list_pending():
 
 
 def _get_config_mode() -> str:
-    """T-13: Read exploration mode from config.json"""
+    """T-13: Read exploration mode from config.json (legacy, for backward compat)"""
     try:
         from core.config import get_config
         cfg = get_config()
-        return cfg.exploration.mode
+        # Legacy: try old location first
+        if hasattr(cfg, 'exploration') and hasattr(cfg.exploration, 'mode'):
+            return cfg.exploration.mode
+        return "daemon"
     except Exception:
-        return "hybrid"
+        return "daemon"
 
 
 def _get_config_interval() -> int:
-    """T-13: Read daemon interval from config.json"""
+    """T-13: Read daemon interval from config.json (legacy, for backward compat)"""
     try:
         from core.config import get_config
         cfg = get_config()
-        return cfg.exploration.daemon_interval_minutes
+        # Legacy: try old location first, then new location
+        if hasattr(cfg, 'exploration') and hasattr(cfg.exploration, 'daemon_interval_minutes'):
+            return cfg.exploration.daemon_interval_minutes
+        if hasattr(cfg, 'daemon') and 'explore' in cfg.daemon:
+            return cfg.daemon['explore'].poll_interval_seconds // 60
+        return 5
     except Exception:
-        return 60
+        return 5
 
 
 def _run_api_only():

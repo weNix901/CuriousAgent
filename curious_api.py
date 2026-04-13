@@ -887,10 +887,10 @@ def api_agents_daemon_explore():
         
         # Read config from config.json
         cfg = get_config()
-        daemon_cfg = getattr(cfg, "exploration", {}).get("explore_daemon", {})
-        poll_interval = daemon_cfg.get("poll_interval_seconds", 300)
-        max_retries = daemon_cfg.get("max_retries", 3)
-        retry_delay = daemon_cfg.get("retry_delay_seconds", 15)
+        daemon_cfg = cfg.daemon.get("explore")
+        poll_interval = daemon_cfg.poll_interval_seconds
+        max_retries = daemon_cfg.max_retries
+        retry_delay = daemon_cfg.retry_delay_seconds
         
         tool_registry = ToolRegistry()
         agent_config = ExploreAgentConfig(name="explore_agent")
@@ -935,8 +935,8 @@ def api_agents_daemon_dream():
         
         # Read config from config.json (default: 6 hours)
         cfg = get_config()
-        daemon_cfg = getattr(cfg, "exploration", {}).get("dream_daemon", {})
-        interval_s = daemon_cfg.get("interval_seconds", 6 * 60 * 60)
+        daemon_cfg = cfg.daemon.get("dream")
+        interval_s = daemon_cfg.interval_seconds
         
         # Allow override via request body
         data = request.get_json() or {}
