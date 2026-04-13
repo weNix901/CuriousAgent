@@ -149,7 +149,6 @@ class CuriosityEngine:
         
         recency = 5.0  # 默认
         if last_updated:
-            from datetime import timedelta
             try:
                 last_dt = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
                 hours_old = (datetime.now(timezone.utc) - last_dt).total_seconds() / 3600

@@ -8,14 +8,16 @@ from typing import Optional
 @dataclass
 class EmbeddingConfig:
     """Embedding service configuration"""
-    provider: str = "volcengine"
-    model: str = "text-embedding-async"
+    provider: str = "siliconflow"
+    model: str = "BAAI/bge-large-zh-v1.5"
     dimension: int = 768
     similarity_threshold: float = 0.82
     batch_size: int = 32
     cache_size: int = 10000
-    api_key_env: str = "EMBEDDING_API_KEY"
-    fallback_chain: list = field(default_factory=lambda: ["volcengine", "llm"])
+    api_key_env: str = "SILICONFLOW_API_KEY"
+    fallback_chain: list = field(default_factory=lambda: ["siliconflow", "llm"])
+    siliconflow_base_url: str = "https://api.siliconflow.cn/v1"
+    siliconflow_model: str = "BAAI/bge-large-zh-v1.5"
 
 
 @dataclass

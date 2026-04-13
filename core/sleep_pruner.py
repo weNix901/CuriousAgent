@@ -1,6 +1,6 @@
 """SleepPruner - Periodic pruning agent with adaptive intervals."""
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional
 
 from core.base_agent import BaseAgent

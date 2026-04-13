@@ -23,7 +23,6 @@ except ImportError:
     PdfReader = None
 
 from core.llm_client import LLMClient
-from core import knowledge_graph as kg
 
 
 # ============ 方案 A: LLM 分析 ============

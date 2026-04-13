@@ -131,7 +131,6 @@ Scoring criteria:
             Dict with keys: has_insight, insight, insight_type, surprise, novelty, trigger_topic
         """
         import json
-        import random
         
         prompt = f"""You are a creative insight generator. Combine these two topics to discover unexpected connections:
 

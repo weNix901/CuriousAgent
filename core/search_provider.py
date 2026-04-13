@@ -1,6 +1,5 @@
 """Search Provider Abstract Interface"""
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class SearchProvider(ABC):

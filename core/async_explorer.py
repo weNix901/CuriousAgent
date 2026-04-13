@@ -8,6 +8,10 @@ import logging
 import threading
 from typing import Optional
 
+from core.embedding_service import EmbeddingService
+from core.assertion_index import AssertionIndex
+from core import knowledge_graph as kg_module
+
 logger = logging.getLogger(__name__)
 
 _explorer_instance = None
@@ -24,8 +28,17 @@ def _get_instances(depth: float = 6.0):
         from core.llm_client import LLMClient
         from core.quality_v2 import QualityV2Assessor
         llm = LLMClient()
+        from core.config import EmbeddingConfig
+        embedding_config = EmbeddingConfig()
+        embedding_service = EmbeddingService(embedding_config)
+        assertion_index = AssertionIndex()
         _explorer_instance = Explorer(exploration_depth=depth_str)
-        _quality_assessor_instance = QualityV2Assessor(llm)
+        _quality_assessor_instance = QualityV2Assessor(
+            llm,
+            embedding_service=embedding_service,
+            assertion_index=assertion_index,
+            knowledge_graph=kg_module
+        )
         _cached_depth = depth_str
     return _explorer_instance, _quality_assessor_instance
 

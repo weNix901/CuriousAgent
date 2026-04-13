@@ -98,6 +98,16 @@ class AssertionIndex:
             import faiss  # type: ignore[attr-defined, import-not-found]
             emb_array = np.array([embedding], dtype=np.float32)
             faiss.normalize_L2(emb_array)
+
+            # Handle dimension mismatch: rebuild index if needed
+            expected_dim = self._faiss_index.d
+            if emb_array.shape[1] != expected_dim:
+                print(f"[AssertionIndex] Dimension mismatch: index={expected_dim}, got={emb_array.shape[1]}. Rebuilding index (old entries will be re-embedded on next use).")
+                self._faiss_index = faiss.IndexFlatIP(emb_array.shape[1])
+                self._faiss_idx_to_row_id = []
+                self._id_to_text = {}
+                self._next_id = 0
+
             self._faiss_index.add(emb_array)
             self._faiss_idx_to_row_id.append(row_id)
         

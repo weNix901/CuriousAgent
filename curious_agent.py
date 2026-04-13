@@ -526,6 +526,10 @@ def daemon_mode(interval_minutes: int = 30):
         if cycle_count % 60 == 0:
             try:
                 from core import knowledge_graph as kg_main
+                # Periodically revive stuck items (claimed but not completed within timeout)
+                revived = kg_main.revive_stuck_items(timeout_seconds=300)
+                if revived > 0:
+                    print(f"[v0.2.6] Revived {revived} stuck items")
                 # Use claim_pending_item instead of list_pending()[0]
                 # to atomically claim and move topic from pending -> exploring
                 claimed = kg_main.claim_pending_item()
@@ -686,6 +690,125 @@ def _run_api_only():
     app.run(host="0.0.0.0", port=4848, debug=False)
 
 
+def run_explore_agent(topic: str) -> dict:
+    """Run ExploreAgent on a specific topic."""
+    import asyncio
+    from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig
+    from core.tools.registry import ToolRegistry
+    
+    print(f"[ExploreAgent] Starting exploration of: {topic}")
+    
+    tool_registry = ToolRegistry()
+    config = ExploreAgentConfig(name="explore_agent")
+    agent = ExploreAgent(config=config, tool_registry=tool_registry)
+    
+    result = asyncio.run(agent.run(topic))
+    
+    print(f"[ExploreAgent] Completed: {result.success}")
+    print(f"[ExploreAgent] Iterations used: {result.iterations_used}")
+    print(f"[ExploreAgent] Content: {result.content[:200]}...")
+    
+    return {
+        "status": "success" if result.success else "failed",
+        "topic": topic,
+        "iterations": result.iterations_used,
+        "content": result.content
+    }
+
+
+def run_dream_agent() -> dict:
+    """Run DreamAgent to generate insight topics."""
+    from core.agents.dream_agent import DreamAgent, DreamAgentConfig
+    from core.tools.registry import ToolRegistry
+    
+    print("[DreamAgent] Starting insight generation...")
+    
+    tool_registry = ToolRegistry()
+    config = DreamAgentConfig(
+        name="dream_agent",
+        system_prompt="DreamAgent multi-cycle architecture for insight generation"
+    )
+    agent = DreamAgent(config=config, tool_registry=tool_registry)
+    
+    result = agent.run()
+    
+    print(f"[DreamAgent] Generated {len(result.topics_generated)} topics")
+    print(f"[DreamAgent] Candidates: {result.candidates_selected}")
+    
+    return {
+        "status": "success" if result.success else "failed",
+        "topics_generated": result.topics_generated,
+        "candidates_selected": result.candidates_selected,
+        "content": result.content
+    }
+
+
+def start_explore_daemon():
+    """Start ExploreDaemon for continuous exploration."""
+    import asyncio
+    from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig
+    from core.daemon.explore_daemon import ExploreDaemon, ExploreDaemonConfig
+    from core.tools.registry import ToolRegistry
+    from core.tools.queue_tools import QueueStorage
+    
+    print("[ExploreDaemon] Starting continuous exploration daemon...")
+    
+    tool_registry = ToolRegistry()
+    agent_config = ExploreAgentConfig(name="explore_agent")
+    agent = ExploreAgent(config=agent_config, tool_registry=tool_registry)
+    
+    queue_storage = QueueStorage()
+    queue_storage.initialize()
+    daemon_config = ExploreDaemonConfig(poll_interval=5.0)
+    
+    daemon = ExploreDaemon(
+        explore_agent=agent,
+        queue_storage=queue_storage,
+        config=daemon_config
+    )
+    
+    daemon.start()
+    print("[ExploreDaemon] Daemon started. Press Ctrl+C to stop.")
+    
+    try:
+        daemon.join()
+    except KeyboardInterrupt:
+        print("[ExploreDaemon] Stopping...")
+        daemon.stop()
+        daemon.join(timeout=5.0)
+    
+    return {"status": "stopped"}
+
+
+def start_dream_daemon():
+    """Start DreamDaemon for heartbeat-triggered dreaming."""
+    import asyncio
+    from pathlib import Path
+    from core.daemon.dream_daemon import DreamDaemon, DreamDaemonConfig
+    
+    print("[DreamDaemon] Starting heartbeat-triggered dream daemon...")
+    
+    workspace = Path(".")
+    config = DreamDaemonConfig(interval_s=6 * 60 * 60, enabled=True)
+    
+    daemon = DreamDaemon(workspace=workspace, config=config)
+    
+    asyncio.run(daemon.start())
+    print("[DreamDaemon] Daemon started. Press Ctrl+C to stop.")
+    
+    try:
+        # Keep running until interrupted
+        import signal
+        import time
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("[DreamDaemon] Stopping...")
+        daemon.stop()
+    
+    return {"status": "stopped"}
+
+
 def main():
     parser = argparse.ArgumentParser(description="Curious Agent MVP")
     parser.add_argument("--daemon", action="store_true", help="守护进程模式（覆盖 config.mode）")
@@ -705,6 +828,10 @@ def main():
     parser.add_argument("--delete", type=str, help="删除指定话题")
     parser.add_argument("--force", action="store_true", help="强制删除（忽略状态）")
     parser.add_argument("--list-pending", action="store_true", help="列出待探索条目")
+    parser.add_argument("--explore", type=str, help="运行 ExploreAgent 探索指定话题")
+    parser.add_argument("--dream", action="store_true", help="运行 DreamAgent 生成洞察话题")
+    parser.add_argument("--daemon-explore", action="store_true", help="启动 ExploreDaemon 持续探索")
+    parser.add_argument("--daemon-dream", action="store_true", help="启动 DreamDaemon 心跳触发梦境")
     
     args = parser.parse_args()
     
@@ -716,6 +843,18 @@ def main():
         list_pending()
     elif args.delete:
         delete_curiosity(args.delete, force=args.force)
+    elif args.explore:
+        result = run_explore_agent(args.explore)
+        print(f"\n✅ ExploreAgent result: {result['status']}")
+    elif args.dream:
+        result = run_dream_agent()
+        print(f"\n✅ DreamAgent result: {result['status']}")
+        if result['topics_generated']:
+            print(f"   Generated topics: {result['topics_generated']}")
+    elif args.daemon_explore:
+        start_explore_daemon()
+    elif args.daemon_dream:
+        start_dream_daemon()
     elif args.inject:
         inject_curiosity(args.inject, args.score, args.depth, args.reason, alpha=alpha)
     elif args.daemon:

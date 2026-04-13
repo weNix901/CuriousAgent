@@ -1,6 +1,5 @@
 """Competence Tracker - Track agent competence across topics"""
 from datetime import datetime, timezone
-from typing import Optional
 from core import knowledge_graph as kg
 
 

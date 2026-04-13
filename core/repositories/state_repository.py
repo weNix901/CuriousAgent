@@ -7,7 +7,7 @@ import json
 import shutil
 from datetime import datetime
 from typing import Optional, Dict, List
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 
 from core.persistence.file_lock_manager import FileLockManager
 

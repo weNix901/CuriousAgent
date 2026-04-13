@@ -9,6 +9,8 @@ from core import knowledge_graph as kg
 from core.node_lock_registry import NodeLockRegistry
 from core.quality_v2 import QualityV2Assessor
 from core.llm_client import LLMClient
+from core.embedding_service import EmbeddingService
+from core.assertion_index import AssertionIndex
 
 
 class SpiderAgent(BaseAgent):
@@ -80,6 +82,14 @@ class SpiderAgent(BaseAgent):
         inbox_items = kg.fetch_and_clear_dream_inbox()
 
         if not inbox_items:
+            # === v0.2.9: 搜索耗尽时停止新 topic 生成，只做关联巩固 ===
+            if kg.is_search_exhausted():
+                self._consecutive_empty_inbox += 1
+                if self._consecutive_empty_inbox >= 5:
+                    print(f"[SpiderAgent] Search exhausted, skipping topic generation (cycle {self._consecutive_empty_inbox})")
+                    self._consecutive_empty_inbox = 0
+                return
+
             # === v0.2.8: 批量 claim 填满并发槽位 ===
             MAX_CLAIM_PER_CYCLE = 20  # 每次最多 claim 20 个，平衡速率和调度粒度
             claimed = 0
@@ -159,7 +169,16 @@ class SpiderAgent(BaseAgent):
                         # === G6-Fix: SpiderAgent 同步路径调用 QualityV2 ===
                         try:
                             llm = LLMClient()
-                            quality_assessor = QualityV2Assessor(llm)
+                            from core.config import EmbeddingConfig
+                            embedding_config = EmbeddingConfig()
+                            embedding_service = EmbeddingService(embedding_config)
+                            assertion_index = AssertionIndex()
+                            quality_assessor = QualityV2Assessor(
+                                llm,
+                                embedding_service=embedding_service,
+                                assertion_index=assertion_index,
+                                knowledge_graph=kg
+                            )
                             findings = {
                                 "summary": result.get("findings", ""),
                                 "sources": result.get("sources", [])

@@ -1,0 +1,107 @@
+{
+  "active_plan": "/root/dev/curious-agent/.sisyphus/plans/v0.2.9-implementation-plan.md",
+  "started_at": "2026-04-12T02:15:10.479Z",
+  "session_ids": [
+    "ses_2810fa92dffeO12juhOZrYTfwX",
+    "ses_28029d0f2ffe6z99tfqoWuNjiU",
+    "ses_28029b47affeHHk6Zr2XC3pSxR",
+    "ses_280299a30ffe8wHj1UTw3Mf9XX",
+    "ses_280298251ffeXlnphcNr6s5Y6Q",
+    "ses_2801e7053ffeXiFWUuFZpBlwaU",
+    "ses_2801e591dffe8QM4FsENx2dq64",
+    "ses_2801e3f5cffeaG419kd0RqBaoe",
+    "ses_2801e270bffeY5AR5jMCmsuKM2",
+    "ses_2801de5c1ffegTopv5FdMoEucY",
+    "ses_2801d7910ffeRk3bFnuSJZc0xr",
+    "ses_28019fd81ffefVZB0qEvXSz0Ch",
+    "ses_28019eaa3ffevXFAyHcGr5NqWy",
+    "ses_28019d172ffe8IHbvXHc0C8Rfz",
+    "ses_2800a85eeffeqgFfJ6zaAkOEJz",
+    "ses_2800a6a5affe4Vug8yGvzvSyCI",
+    "ses_2800a5438ffexySZfSks0Qn2UM",
+    "ses_2800a38e7ffeY5qSR59IgHXDzc"
+  ],
+  "plan_name": "v0.2.9-implementation-plan",
+  "worktree_path": null,
+  "current_wave": 1,
+  "progress": {
+    "completed": 0,
+    "total": 30
+  },
+  "session_origins": {
+    "ses_2810fa92dffeO12juhOZrYTfwX": "direct",
+    "ses_28029d0f2ffe6z99tfqoWuNjiU": "appended",
+    "ses_28029b47affeHHk6Zr2XC3pSxR": "appended",
+    "ses_280299a30ffe8wHj1UTw3Mf9XX": "appended",
+    "ses_280298251ffeXlnphcNr6s5Y6Q": "appended",
+    "ses_2801e7053ffeXiFWUuFZpBlwaU": "appended",
+    "ses_2801e591dffe8QM4FsENx2dq64": "appended",
+    "ses_2801e3f5cffeaG419kd0RqBaoe": "appended",
+    "ses_2801e270bffeY5AR5jMCmsuKM2": "appended",
+    "ses_2801de5c1ffegTopv5FdMoEucY": "appended",
+    "ses_2801d7910ffeRk3bFnuSJZc0xr": "appended",
+    "ses_28019fd81ffefVZB0qEvXSz0Ch": "appended",
+    "ses_28019eaa3ffevXFAyHcGr5NqWy": "appended",
+    "ses_28019d172ffe8IHbvXHc0C8Rfz": "appended",
+    "ses_2800a85eeffeqgFfJ6zaAkOEJz": "appended",
+    "ses_2800a6a5affe4Vug8yGvzvSyCI": "appended",
+    "ses_2800a5438ffexySZfSks0Qn2UM": "appended",
+    "ses_2800a38e7ffeY5qSR59IgHXDzc": "appended"
+  },
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "**Copy error_classifier.py from Hermes**",
+      "session_id": "ses_2803800b4fferBU29ji3j6u8Bt",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-04-12T03:53:11.100Z"
+    },
+    "todo:15": {
+      "task_key": "todo:15",
+      "task_label": "15",
+      "task_title": "**Create CAAgent unified class**",
+      "session_id": "ses_2802c2cf1ffesHo80v3BD79YEX",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-04-12T03:56:48.490Z"
+    },
+    "todo:16": {
+      "task_key": "todo:16",
+      "task_label": "16",
+      "task_title": "**Implement ExploreAgent (ReAct)**",
+      "session_id": "ses_280298251ffeXlnphcNr6s5Y6Q",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-04-12T04:08:55.996Z"
+    },
+    "todo:20": {
+      "task_key": "todo:20",
+      "task_label": "20",
+      "task_title": "**Implement explore_daemon.py**",
+      "session_id": "ses_2801e591dffe8QM4FsENx2dq64",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-12T04:12:09.303Z"
+    },
+    "todo:24": {
+      "task_key": "todo:24",
+      "task_label": "24",
+      "task_title": "**Create migration script**",
+      "session_id": "ses_28019d172ffe8IHbvXHc0C8Rfz",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-04-12T04:28:08.766Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — oracle",
+      "session_id": "ses_2800a38e7ffeY5qSR59IgHXDzc",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-04-12T04:35:28.948Z"
+    }
+  }
+}

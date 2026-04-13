@@ -797,7 +797,7 @@ def assess_quality_assertion():
     llm = LLMClient()
     embedding_service = EmbeddingService(config.embedding)
     assertion_index = AssertionIndex()
-    kg = KGGraph()  # Get existing KG instance
+    kg = KGGraph()
     
     assessor = QualityV2Assessor(
         llm,
@@ -813,6 +813,424 @@ def assess_quality_assertion():
         'quality': quality,
         'method': 'assertion_based'
     })
+
+
+@app.route("/api/agents/explore", methods=["POST"])
+def api_agents_explore():
+    """Run ExploreAgent on a specific topic."""
+    try:
+        import asyncio
+        from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig
+        from core.tools.registry import ToolRegistry
+        
+        data = request.get_json() or {}
+        topic = data.get("topic", "").strip()
+        
+        if not topic:
+            return jsonify({"error": "topic is required"}), 400
+        
+        tool_registry = ToolRegistry()
+        config = ExploreAgentConfig(name="explore_agent")
+        agent = ExploreAgent(config=config, tool_registry=tool_registry)
+        
+        result = asyncio.run(agent.run(topic))
+        
+        return jsonify({
+            "status": "success" if result.success else "failed",
+            "topic": topic,
+            "iterations": result.iterations_used,
+            "content": result.content
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/agents/dream", methods=["POST"])
+def api_agents_dream():
+    """Run DreamAgent to generate insight topics."""
+    try:
+        from core.agents.dream_agent import DreamAgent, DreamAgentConfig
+        from core.tools.registry import ToolRegistry
+        
+        tool_registry = ToolRegistry()
+        config = DreamAgentConfig(
+            name="dream_agent",
+            system_prompt="DreamAgent multi-cycle architecture for insight generation"
+        )
+        agent = DreamAgent(config=config, tool_registry=tool_registry)
+        
+        result = agent.run()
+        
+        return jsonify({
+            "status": "success" if result.success else "failed",
+            "topics_generated": result.topics_generated,
+            "candidates_selected": result.candidates_selected,
+            "content": result.content
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/agents/daemon/explore", methods=["POST"])
+def api_agents_daemon_explore():
+    """Start ExploreDaemon for continuous exploration."""
+    try:
+        import threading
+        from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig
+        from core.daemon.explore_daemon import ExploreDaemon, ExploreDaemonConfig
+        from core.tools.registry import ToolRegistry
+        from core.tools.queue_tools import QueueStorage
+        
+        tool_registry = ToolRegistry()
+        agent_config = ExploreAgentConfig(name="explore_agent")
+        agent = ExploreAgent(config=agent_config, tool_registry=tool_registry)
+        
+        queue_storage = QueueStorage()
+        queue_storage.initialize()
+        daemon_config = ExploreDaemonConfig(poll_interval=5.0)
+        
+        daemon = ExploreDaemon(
+            explore_agent=agent,
+            queue_storage=queue_storage,
+            config=daemon_config
+        )
+        
+        daemon.start()
+        
+        return jsonify({
+            "status": "started",
+            "daemon_name": "explore_daemon",
+            "poll_interval": daemon_config.poll_interval
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/agents/daemon/dream", methods=["POST"])
+def api_agents_daemon_dream():
+    """Start DreamDaemon for heartbeat-triggered dreaming."""
+    try:
+        import asyncio
+        from pathlib import Path
+        from core.daemon.dream_daemon import DreamDaemon, DreamDaemonConfig
+        
+        data = request.get_json() or {}
+        interval_s = data.get("interval_s", 6 * 60 * 60)
+        
+        workspace = Path(".")
+        config = DreamDaemonConfig(interval_s=interval_s, enabled=True)
+        
+        daemon = DreamDaemon(workspace=workspace, config=config)
+        
+        threading.Thread(target=lambda: asyncio.run(daemon.start()), daemon=True).start()
+        
+        return jsonify({
+            "status": "started",
+            "daemon_name": "dream_daemon",
+            "interval_s": interval_s
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/agents/status", methods=["GET"])
+def api_agents_status():
+    """Get status of running agents."""
+    try:
+        from core.tools.queue_tools import QueueStorage
+        
+        queue_storage = QueueStorage()
+        pending = queue_storage.get_pending_items()
+        
+        return jsonify({
+            "status": "ok",
+            "queue_pending_count": len(pending),
+            "agents": {
+                "explore_agent": "available",
+                "dream_agent": "available",
+                "explore_daemon": "available",
+                "dream_daemon": "available"
+            }
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+
+
+# Queue API endpoints
+@app.route("/api/queue", methods=["GET"])
+def api_queue_status():
+    """Get queue status - pending, claimed, completed items."""
+    try:
+        from core.tools.queue_tools import QueueStorage
+        
+        queue = QueueStorage()
+        queue.initialize()
+        
+        pending = queue.get_pending_items()
+        completed = queue.get_completed_items(limit=20)
+        
+        stats = {
+            "pending": len(pending),
+            "completed": len(completed),
+        }
+        
+        return jsonify({
+            "status": "ok",
+            "stats": stats,
+            "pending": pending,
+            "recent_completed": completed
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/queue/add", methods=["POST"])
+def api_queue_add():
+    """Add topic to queue."""
+    try:
+        from core.tools.queue_tools import QueueStorage
+        
+        data = request.get_json() or {}
+        topic = data.get("topic", "").strip()
+        priority = data.get("priority", 5)
+        metadata = data.get("metadata", {})
+        
+        if not topic:
+            return jsonify({"error": "topic is required"}), 400
+            
+        queue = QueueStorage()
+        queue.initialize()
+        
+        item_id = queue.add_item(topic, priority=priority, metadata=metadata)
+        
+        return jsonify({
+            "status": "ok",
+            "item_id": item_id,
+            "topic": topic
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/queue/claim", methods=["POST"])
+def api_queue_claim():
+    """Atomic claim a pending item."""
+    try:
+        from core.tools.queue_tools import QueueStorage
+        
+        data = request.get_json() or {}
+        holder_id = data.get("holder_id", "")
+        timeout_s = data.get("timeout_s", 300)
+        
+        if not holder_id:
+            return jsonify({"error": "holder_id is required"}), 400
+            
+        queue = QueueStorage()
+        queue.initialize()
+        
+        item = queue.claim_pending(holder_id=holder_id, timeout_seconds=timeout_s)
+        
+        if item:
+            return jsonify({
+                "status": "claimed",
+                "item": item
+            })
+        else:
+            return jsonify({
+                "status": "idle",
+                "item": None
+            })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/queue/done", methods=["POST"])
+def api_queue_done():
+    """Mark item as done."""
+    try:
+        from core.tools.queue_tools import QueueStorage
+        
+        data = request.get_json() or {}
+        item_id = data.get("item_id")
+        
+        if item_id is None:
+            return jsonify({"error": "item_id is required"}), 400
+            
+        queue = QueueStorage()
+        queue.initialize()
+        success = queue.mark_done(item_id)
+        
+        return jsonify({
+            "status": "ok" if success else "failed",
+            "marked_done": success
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/queue/failed", methods=["POST"])
+def api_queue_failed():
+    """Mark item as failed."""
+    try:
+        from core.tools.queue_tools import QueueStorage
+        
+        data = request.get_json() or {}
+        item_id = data.get("item_id")
+        reason = data.get("reason", "unknown")
+        requeue = data.get("requeue", False)
+        
+        if item_id is None:
+            return jsonify({"error": "item_id is required"}), 400
+            
+        queue = QueueStorage()
+        queue.initialize()
+        success = queue.mark_failed(item_id, reason=reason, requeue=requeue)
+        
+        return jsonify({
+            "status": "ok" if success else "failed",
+            "marked_failed": success
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+# Discoveries API endpoints
+@app.route("/api/discoveries", methods=["GET"])
+def api_discoveries_list():
+    """List all discoveries."""
+    try:
+        import os
+        import json
+        from pathlib import Path
+        
+        shared_knowledge = Path(__file__).parent / "shared_knowledge" / "ca" / "discoveries"
+        if not shared_knowledge.exists():
+            return jsonify({"status": "ok", "discoveries": [], "count": 0})
+            
+        discoveries = []
+        for json_file in shared_knowledge.glob("*.json"):
+            try:
+                with open(json_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    data["filename"] = json_file.name
+                    discoveries.append(data)
+            except (json.JSONDecodeError, IOError):
+                continue
+            
+        # Sort by created_at descending
+        discoveries.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+        
+        return jsonify({
+            "status": "ok",
+            "discoveries": discoveries,
+            "count": len(discoveries)
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/discoveries/<id>/share", methods=["POST"])
+def api_discoveries_share(id):
+    """Mark discovery as shared."""
+    try:
+        import os
+        import json
+        from pathlib import Path
+        from datetime import datetime, timezone
+        
+        shared_knowledge = Path(__file__).parent / "shared_knowledge" / "ca" / "discoveries"
+        discovery_file = shared_knowledge / f"{id}.json"
+        
+        if not discovery_file.exists():
+            return jsonify({"error": "Discovery not found"}), 404
+            
+        with open(discovery_file, "r+", encoding="utf-8") as f:
+            data = json.load(f)
+            data["shared"] = True
+            data["shared_at"] = datetime.now(timezone.utc).isoformat()
+            f.seek(0)
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            f.truncate()
+            
+        return jsonify({
+            "status": "ok",
+            "marked_shared": True,
+            "discovery_id": id
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+# Auth API endpoints
+@app.route("/api/auth/register", methods=["POST"])
+def api_auth_register():
+    """Register new API key for consumer."""
+    try:
+        import os
+        import json
+        import secrets
+        from pathlib import Path
+        from datetime import datetime, timezone
+        
+        data = request.get_json() or {}
+        consumer = data.get("consumer", "").strip()
+        
+        if not consumer:
+            return jsonify({"error": "consumer name is required"}), 400
+            
+        # Generate API key
+        api_key = f"ca_{secrets.token_hex(16)}"
+        
+        # Load existing keys
+        api_keys_file = Path(__file__).parent / "knowledge" / "api_keys.json"
+        api_keys_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        api_keys = {}
+        if api_keys_file.exists():
+            with open(api_keys_file, "r", encoding="utf-8") as f:
+                api_keys = json.load(f)
+                
+        api_keys[api_key] = {
+            "consumer": consumer,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "enabled": True
+        }
+        
+        with open(api_keys_file, "w", encoding="utf-8") as f:
+            json.dump(api_keys, f, indent=2, ensure_ascii=False)
+            
+        return jsonify({
+            "status": "ok",
+            "api_key": api_key,
+            "consumer": consumer
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 if __name__ == "__main__":

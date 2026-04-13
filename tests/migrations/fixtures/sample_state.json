@@ -1,0 +1,143 @@
+{
+  "version": "1.0",
+  "last_update": "2026-04-12T10:00:00.000000+00:00",
+  "knowledge": {
+    "topics": {
+      "Agent Memory Systems": {
+        "known": true,
+        "depth": 5,
+        "children": [
+          "Short-term memory",
+          "Long-term memory",
+          "Working memory capacity"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-12T10:00:00.000000+00:00",
+        "status": "partial",
+        "cites": ["https://arxiv.org/abs/1234"],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "Short-term memory",
+            "relation": "derived_from",
+            "confidence": 0.8
+          }
+        ]
+      },
+      "Short-term memory": {
+        "known": true,
+        "depth": 3,
+        "children": [
+          "Episodic buffer",
+          "Working memory"
+        ],
+        "explored_children": ["Episodic buffer"],
+        "created_at": "2026-04-12T10:01:00.000000+00:00",
+        "status": "done",
+        "cites": [],
+        "cited_by": ["Agent Memory Systems"],
+        "explains": []
+      },
+      "Long-term memory": {
+        "known": true,
+        "depth": 4,
+        "children": [
+          "Procedural memory",
+          "Declarative memory"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-12T10:02:00.000000+00:00",
+        "status": "pending",
+        "cites": ["https://example.com/memory"],
+        "cited_by": ["Agent Memory Systems"],
+        "explains": []
+      },
+      "Working memory capacity": {
+        "known": false,
+        "depth": 2,
+        "children": [],
+        "explored_children": [],
+        "created_at": "2026-04-12T10:03:00.000000+00:00",
+        "status": "pending",
+        "cites": [],
+        "cited_by": ["Agent Memory Systems"],
+        "explains": []
+      },
+      "Episodic buffer": {
+        "known": true,
+        "depth": 1,
+        "children": [],
+        "explored_children": [],
+        "created_at": "2026-04-12T10:04:00.000000+00:00",
+        "status": "done",
+        "cites": [],
+        "cited_by": ["Short-term memory"],
+        "explains": []
+      },
+      "Procedural memory": {
+        "known": false,
+        "depth": 1,
+        "children": [],
+        "explored_children": [],
+        "created_at": "2026-04-12T10:05:00.000000+00:00",
+        "status": "pending",
+        "cites": [],
+        "cited_by": ["Long-term memory"],
+        "explains": []
+      },
+      "Declarative memory": {
+        "known": false,
+        "depth": 1,
+        "children": [],
+        "explored_children": [],
+        "created_at": "2026-04-12T10:06:00.000000+00:00",
+        "status": "pending",
+        "cites": [],
+        "cited_by": ["Long-term memory"],
+        "explains": []
+      },
+      "Metacognitive Monitoring": {
+        "known": true,
+        "depth": 6,
+        "children": [
+          "Self-reflection",
+          "Confidence calibration"
+        ],
+        "explored_children": [],
+        "created_at": "2026-04-12T10:07:00.000000+00:00",
+        "status": "partial",
+        "cites": ["https://arxiv.org/abs/5678"],
+        "cited_by": [],
+        "explains": [
+          {
+            "target": "Self-reflection",
+            "relation": "derived_from",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "Self-reflection": {
+        "known": true,
+        "depth": 2,
+        "children": [],
+        "explored_children": [],
+        "created_at": "2026-04-12T10:08:00.000000+00:00",
+        "status": "done",
+        "cites": [],
+        "cited_by": ["Metacognitive Monitoring"],
+        "explains": []
+      },
+      "Confidence calibration": {
+        "known": false,
+        "depth": 2,
+        "children": [],
+        "explored_children": [],
+        "created_at": "2026-04-12T10:09:00.000000+00:00",
+        "status": "pending",
+        "cites": [],
+        "cited_by": ["Metacognitive Monitoring"],
+        "explains": []
+      }
+    }
+  }
+}

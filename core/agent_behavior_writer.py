@@ -1,5 +1,4 @@
 """Agent Behavior Writer - Convert discoveries to behavior rules"""
-import os
 import re
 from pathlib import Path
 from datetime import datetime

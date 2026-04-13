@@ -1,6 +1,5 @@
 """ThreePhaseExplorer - Monitor-Generate-Verify cycle"""
 import json
-from typing import Optional
 
 
 class ThreePhaseExplorer:

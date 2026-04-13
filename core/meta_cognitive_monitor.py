@@ -3,8 +3,6 @@ Meta-cognitive monitor - Pure monitoring module
 Responsible for evaluating exploration quality, computing marginal returns, recording exploration history
 """
 import re
-import json
-from typing import Optional
 from core import knowledge_graph as kg
 
 

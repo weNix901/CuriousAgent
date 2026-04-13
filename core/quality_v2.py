@@ -109,7 +109,7 @@ class QualityV2Assessor:
         new_summary = findings.get("summary", "")
         
         semantic_novelty = self._calculate_semantic_novelty(prev_summary, new_summary)
-        information_gain = self._assess_information_gain(topic, new_summary)
+        information_gain = self._assess_information_gain(topic, prev_summary, new_summary)
         
         graph_delta = 0.0 if prev_summary else 0.5
         
@@ -173,21 +173,23 @@ Return only a number between 0.0-1.0."""
         except Exception:
             return 0.5
 
-    def _assess_information_gain(self, topic: str, new_summary: str) -> float:
+    def _assess_information_gain(self, topic: str, prev_summary: str, new_summary: str) -> float:
         """
-        评估信息增益：相比只知 topic 名称，探索获得了多少新知识。
+        评估信息增益：相比之前的 summary，新 summary 提供了多少新信息。
 
         评分标准（0.0-1.0）：
-        - 0.0: 总结 = topic 名称的同义改写，无任何新知识
-        - 0.3: 知道基本定义，但无法解释如何运作/适用场景/局限性
-        - 0.6: 有概念理解，能举出 1-2 个具体例子或方法名称
-        - 0.8: 有较深理解，知道多种方法/框架/对比/局限性
-        - 1.0: 获得可操作的详细知识，能解释具体原理/算法步骤/应用方式
+        - 0.0: 新 summary 与旧 summary 完全相同或只是同义改写，无新信息
+        - 0.3: 有少量新信息，但大部分内容与之前重复
+        - 0.6: 有明显新内容，约一半信息与之前不同
+        - 0.8: 有大量新信息，与之前总结互补
+        - 1.0: 全新信息，与之前总结几乎无重叠
         """
         if not new_summary or not new_summary.strip():
             return 0.0
-
-        prompt = f"""你是知识质量评估专家。
+        
+        # 如果没有之前的 summary，使用原始逻辑评估绝对信息增益
+        if not prev_summary or not prev_summary.strip():
+            prompt = f"""你是知识质量评估专家。
 
 Task: 评估这次探索相比"只知道 topic 名称"的信息增益。
 
@@ -202,6 +204,28 @@ Topic: {topic}
 - 0.6: 有基本概念理解，能举出 1-2 个具体例子或方法名称
 - 0.8: 有较深理解，知道多种方法/框架/对比/局限性
 - 1.0: 获得可操作的详细知识，能解释具体原理、算法步骤或实际应用方式
+
+Return only a number between 0.0-1.0."""
+        else:
+            # 有之前的 summary，评估相对信息增益（对比新旧）
+            prompt = f"""你是知识质量评估专家。
+
+Task: 评估这次探索相比上一次探索的信息增益。
+
+Topic: {topic}
+
+之前的发现:
+{prev_summary[:500]}
+
+新的发现:
+{new_summary[:500]}
+
+评估问题：新的发现相比之前的发现，增加了多少新信息？
+- 0.0: 新发现与旧发现完全相同，只是改写了措辞，无任何新信息
+- 0.3: 有少量新信息（约 20-30%），但大部分内容与之前重复
+- 0.6: 有明显新内容（约 50%），与之前的发现互补
+- 0.8: 有大量新信息（约 70-80%），显著扩展了对该话题的理解
+- 1.0: 几乎全是新信息（>90%），与之前的发现几乎没有重叠
 
 Return only a number between 0.0-1.0."""
 

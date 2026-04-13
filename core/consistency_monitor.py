@@ -6,8 +6,8 @@ Consistency Monitor - 数据一致性监控
 
 import time
 import threading
-from datetime import datetime, timedelta
-from typing import List, Dict, Callable, Optional
+from datetime import datetime
+from typing import List, Callable, Optional
 from dataclasses import dataclass
 from enum import Enum
 

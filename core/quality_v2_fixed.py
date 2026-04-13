@@ -5,7 +5,7 @@ Quality V2 Assessor - 修复版
 """
 
 import threading
-from typing import Optional, Dict
+from typing import Dict
 from difflib import SequenceMatcher
 
 

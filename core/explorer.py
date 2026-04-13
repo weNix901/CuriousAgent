@@ -11,6 +11,8 @@ from .insight_synthesizer import InsightSynthesizer
 from .paper_citation_extractor import PaperCitationExtractor
 from .web_citation_extractor import WebCitationExtractor
 from .quality_v2 import QualityV2Assessor
+from .embedding_service import EmbeddingService
+from .assertion_index import AssertionIndex
 
 
 VALID_EXPLORATION_DEPTHS = {"shallow", "medium", "deep"}
@@ -41,13 +43,26 @@ class Explorer:
 
         try:
             result = subprocess.run(
-                ["curl", "-s", "-X", "POST", url,
+                ["curl", "-s", "-w", "%{http_code}", "-X", "POST", url,
                  "-H", f"Authorization: Bearer {self.bocha_key}",
                  "-H", "Content-Type: application/json",
                  "-d", json.dumps(payload)],
                 capture_output=True, text=True, timeout=15
             )
-            data = json.loads(result.stdout)
+            # curl -w "%{http_code}" appends status code to stdout
+            stdout = result.stdout
+            http_code = ""
+            if len(stdout) >= 3:
+                http_code = stdout[-3:]
+                stdout = stdout[:-3]
+
+            # 检测额度错误
+            if http_code in ("403", "402", "429", "401", "400"):
+                print(f"[Explorer] Bocha quota error: HTTP {http_code}")
+                kg.set_search_exhausted(True, f"Bocha HTTP {http_code}")
+                return []
+
+            data = json.loads(stdout)
 
             # Bocha 返回格式: {"code": 200, "data": {"webPages": {"value": [...]}}}
             if isinstance(data, dict) and data.get("code") == 200:
@@ -66,13 +81,25 @@ class Explorer:
 
         try:
             result = subprocess.run(
-                ["curl", "-s", "-X", "POST", url,
+                ["curl", "-s", "-w", "%{http_code}", "-X", "POST", url,
                  "-H", f"X-API-KEY: {serper_key}",
                  "-H", "Content-Type: application/json",
                  "-d", json.dumps(payload)],
                 capture_output=True, text=True, timeout=30
             )
-            data = json.loads(result.stdout)
+            stdout = result.stdout
+            http_code = ""
+            if len(stdout) >= 3:
+                http_code = stdout[-3:]
+                stdout = stdout[:-3]
+
+            # 检测额度/认证错误
+            if http_code in ("403", "402", "429", "401", "400"):
+                print(f"[Explorer] Serper quota error: HTTP {http_code}")
+                kg.set_search_exhausted(True, f"Serper HTTP {http_code}")
+                return []
+
+            data = json.loads(stdout)
             if isinstance(data, dict) and "organic" in data:
                 return self._parse_serper_results(data["organic"])
         except Exception:
@@ -150,7 +177,16 @@ class Explorer:
         # === G6-Fix: explorer 路径调用 QualityV2 评估质量 ===
         try:
             llm_client = LLMClient()
-            quality_assessor = QualityV2Assessor(llm_client)
+            from core.config import EmbeddingConfig
+            embedding_config = EmbeddingConfig()
+            embedding_service = EmbeddingService(embedding_config)
+            assertion_index = AssertionIndex()
+            quality_assessor = QualityV2Assessor(
+                llm_client,
+                embedding_service=embedding_service,
+                assertion_index=assertion_index,
+                knowledge_graph=kg
+            )
             quality_findings = {
                 "summary": findings,
                 "sources": sources

@@ -8,7 +8,7 @@ from typing import Optional, List, Callable, Dict
 from datetime import datetime
 
 from core.repositories import QueueRepository, QueueItem, LineageInfo
-from core.state_machine import ExplorationStateMachine, TransitionResult
+from core.state_machine import ExplorationStateMachine
 from core.repositories.queue_repository import State, Actor
 
 

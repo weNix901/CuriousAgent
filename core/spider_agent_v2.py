@@ -6,9 +6,7 @@ SpiderAgent - 重构版
 
 import time
 import threading
-from typing import Optional
 
-from core.repositories.queue_repository import State
 from core.queue_service import QueueService, ExplorationResult
 
 

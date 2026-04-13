@@ -1,10 +1,8 @@
 """Curiosity Decomposer - Break down broad topics into specific sub-topics"""
 import asyncio
-import re
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core.search_provider import SearchProvider
     from core.provider_registry import ProviderRegistry
 
 from core.exceptions import ClarificationNeeded

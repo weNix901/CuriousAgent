@@ -6,11 +6,11 @@ Timeout Monitor
 
 import time
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, Callable
 
 from core.state_machine import ExplorationStateMachine, State, Actor
-from core.repositories import StateRepository, QueueRepository
+from core.repositories import QueueRepository
 from core.repositories.queue_repository import QueueItem
 
 

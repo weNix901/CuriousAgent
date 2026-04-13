@@ -8,8 +8,8 @@ from typing import Optional, Dict, List
 
 from core.feature_toggle import is_enabled
 from core.queue_service import QueueService
-from core.repositories import LineageInfo, QueueItem
-from core.repositories.queue_repository import Actor, State
+from core.repositories import LineageInfo
+from core.repositories.queue_repository import Actor
 
 
 class CompatibilityLayer:

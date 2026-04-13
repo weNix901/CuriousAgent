@@ -56,6 +56,42 @@ class VolcengineEmbeddingProvider(BaseEmbeddingProvider):
         return embeddings
 
 
+class SiliconFlowEmbeddingProvider(BaseEmbeddingProvider):
+    """SiliconFlow embedding API provider (OpenAI-compatible)"""
+
+    def embed(self, texts: List[str]) -> List[List[float]]:
+        import requests
+
+        api_key = os.environ.get(self.config.api_key_env)
+        if not api_key:
+            raise EmbeddingError(f"API key not found in {self.config.api_key_env}")
+
+        base_url = getattr(self.config, 'siliconflow_base_url', 'https://api.siliconflow.cn/v1')
+        model = getattr(self.config, 'siliconflow_model', 'BAAI/bge-large-zh-v1.5')
+        url = f"{base_url.rstrip('/')}/embeddings"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+
+        embeddings = []
+        for i in range(0, len(texts), self.config.batch_size):
+            batch = texts[i:i + self.config.batch_size]
+            payload = {
+                "model": model,
+                "input": batch
+            }
+
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+
+            data = response.json()
+            batch_embeddings = [item["embedding"] for item in data["data"]]
+            embeddings.extend(batch_embeddings)
+
+        return embeddings
+
+
 class LLMBasedEmbeddingProvider(BaseEmbeddingProvider):
     """Fallback: use hash-based pseudo-embeddings (last resort)"""
 
@@ -87,6 +123,7 @@ class EmbeddingService:
     def _init_providers(self):
         """Initialize all available providers"""
         self.providers = {
+            "siliconflow": SiliconFlowEmbeddingProvider(self.config),
             "volcengine": VolcengineEmbeddingProvider(self.config),
             "llm": LLMBasedEmbeddingProvider(self.config)
         }

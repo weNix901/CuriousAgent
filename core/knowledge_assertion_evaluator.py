@@ -1,6 +1,6 @@
 # core/knowledge_assertion_evaluator.py
 """Knowledge assertion-based quality evaluator"""
-from typing import Dict, List, Optional
+from typing import Dict
 
 from core.embedding_service import EmbeddingService
 from core.assertion_index import AssertionIndex

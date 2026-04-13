@@ -25,7 +25,11 @@ DEFAULT_STATE = {
         "curiosity_top_k": 3,        # 每次探索 Top K 个好奇心
         "max_knowledge_nodes": 5000,  # 知识图谱最大节点数（100太小，会导致探索成果被截断丢失）
         "notification_threshold": 7.0  # 超过此分数才通知用户
-    }
+    },
+    # v0.2.9: 搜索额度耗尽标志。当所有搜索 API 都返回 quota 错误时设为 True，
+    # 阻止 DreamAgent / web_citation / decomposition 生成新 topic，只做关联和巩固。
+    "search_exhausted": False,
+    "search_exhausted_reason": None,
 }
 
 
@@ -125,6 +129,20 @@ def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float 
     for item in state["curiosity_queue"]:
         if item["topic"].lower() == topic.lower():
             return
+
+    # v0.2.9 fix: 如果 KG 中已存在该 topic（已探索过），不再重复加入队列
+    kg_topics = state.get("knowledge", {}).get("topics", {})
+    if topic in kg_topics:
+        existing = kg_topics[topic]
+        if existing.get("known") or existing.get("status") in ("complete", "partial", "done"):
+            return
+
+    # v0.2.9: 搜索耗尽时阻止 Dream/decomposition 生成新 topic
+    # Web citation / Cited by 仍允许入队 — 因为它们来自真实网页，是有价值的内容
+    if state.get("search_exhausted", False):
+        blocked_prefixes = ("Dream", "Decomposed from")
+        if any(reason.startswith(p) for p in blocked_prefixes):
+            return  # 静默跳过 Dream/decomposition，不写入队列
     
     score = min(10.0, relevance * 0.35 + depth * 0.25 + 5.0 * 0.4)
     queue_item = {
@@ -648,6 +666,24 @@ def is_topic_completed(topic: str) -> bool:
     mc = state.get("meta_cognitive", {})
     completed = mc.get("completed_topics", {})
     return topic in completed
+
+
+def is_search_exhausted() -> bool:
+    """Check if all search APIs are exhausted (quota errors)"""
+    state = _load_state()
+    return state.get("search_exhausted", False)
+
+
+def set_search_exhausted(exhausted: bool, reason: str = None) -> None:
+    """Set the search exhausted flag. When True, new topic generation is blocked."""
+    state = _load_state()
+    state["search_exhausted"] = exhausted
+    state["search_exhausted_reason"] = reason
+    _save_state(state)
+    if exhausted:
+        print(f"[KG] Search exhausted: {reason}")
+    else:
+        print(f"[KG] Search restored: {reason or 'manual reset'}")
 
 
 def update_meta_exploration(topic: str, quality: float, marginal_return: float, notified: bool) -> None:
@@ -1364,7 +1400,6 @@ def get_dormant_nodes() -> list[str]:
 def has_recent_dreams(topic: str, within_days: int) -> bool:
     """Check if topic has been dreamed recently."""
     from core.node_lock_registry import NodeLockRegistry
-    from datetime import timedelta
     with NodeLockRegistry.global_write_lock():
         state = _load_state()
         topics = state["knowledge"]["topics"]
