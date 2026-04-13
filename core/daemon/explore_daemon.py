@@ -37,7 +37,8 @@ class ExploreDaemon(threading.Thread):
     ):
         super().__init__(name="explore_daemon", daemon=True)
         self.explore_agent = explore_agent
-        self.queue_storage = queue_storage
+        # QueueStorage uses SQLite which is not thread-safe, so create it in the thread
+        self._external_queue_storage = queue_storage
         self.config = config or ExploreDaemonConfig()
         self.running = True
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -59,6 +60,12 @@ class ExploreDaemon(threading.Thread):
     
     def run(self):
         """Main daemon loop: claim → explore → mark done."""
+        # Create QueueStorage in this thread to avoid SQLite threading issues
+        from core.tools.queue_tools import QueueStorage
+        queue_storage = QueueStorage()
+        queue_storage.initialize()
+        self.queue_storage = queue_storage
+        
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         

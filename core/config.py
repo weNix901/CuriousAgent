@@ -120,6 +120,7 @@ class KnowledgeEmbeddingConfig:
     api_key_env: str = "SILICONFLOW_API_KEY"
     fallback_chain: list[str] = field(default_factory=lambda: ["siliconflow", "llm"])
     siliconflow_base_url: str = "https://api.siliconflow.cn/v1"
+    cache_size: int = 1000  # Embedding cache size
 
 
 @dataclass

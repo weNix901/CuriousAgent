@@ -40,6 +40,14 @@ class Explorer:
         if not self.bocha_key:
             return []
 
+        # 检查 Bocha 配额
+        qm = get_quota_manager()
+        status = qm.get_status("bocha", 50, enabled=True)
+        if status.remaining <= 0:
+            print(f"[Explorer] Bocha quota exhausted ({status.remaining}/{status.limit}), skipping")
+            kg.set_search_exhausted(True, f"Bocha quota exhausted")
+            return []
+
         url = "https://api.bochaai.com/v1/web-search"
         payload = {"query": query, "count": count}
 
@@ -80,6 +88,17 @@ class Explorer:
     def _call_serper_search(self, query: str, count: int = 3) -> list:
         """调用 Serper Google Search API - Bocha 失效时的备用"""
         serper_key = os.environ.get("SERPER_API_KEY", "")
+        if not serper_key:
+            return []
+
+        # 检查 Serper 配额
+        qm = get_quota_manager()
+        status = qm.get_status("serper", 100, enabled=True)
+        if status.remaining <= 0:
+            print(f"[Explorer] Serper quota exhausted ({status.remaining}/{status.limit}), skipping")
+            kg.set_search_exhausted(True, f"Serper quota exhausted")
+            return []
+
         url = "https://google.serper.dev/search"
         payload = {"q": query, "numResults": count}
 

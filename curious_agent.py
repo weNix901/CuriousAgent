@@ -350,7 +350,6 @@ def daemon_mode(interval_minutes: int = 30):
     - Feature toggle support via config
     - PID file check to prevent multiple instances
     """
-    import queue
     import signal
     import os
 
@@ -398,9 +397,10 @@ def daemon_mode(interval_minutes: int = 30):
         if os.path.exists(pid_file):
             os.remove(pid_file)
 
-    from core.spider_agent import SpiderAgent
-    from core.dream_agent import DreamAgent
-    from core.sleep_pruner import SleepPruner
+    from core.daemon.explore_daemon import ExploreDaemon, ExploreDaemonConfig
+    from core.daemon.dream_daemon import DreamDaemon, DreamDaemonConfig
+    from core.tools.registry import ToolRegistry
+    from core.tools.queue_tools import QueueStorage
 
     from core.config import get_config
     cfg = get_config()
@@ -413,9 +413,9 @@ def daemon_mode(interval_minutes: int = 30):
         _daemon_mode_legacy(interval_minutes)
         return
     
-    print(f"🚀 Curious Agent 进入三代理守护进程模式 (v0.2.6)")
-    print("   SpiderAgent: 持续探索代理")
-    print("   DreamAgent: 创意洞察代理")
+    print(f"🚀 Curious Agent 进入三代理守护进程模式 (v0.2.9)")
+    print("   ExploreDaemon: 持续探索代理 (ReAct nanobot)")
+    print("   DreamDaemon: 创意洞察代理 (多周期 nanobot)")
     print("   SleepPruner: 周期修剪代理")
     print("   按 Ctrl+C 停止")
     print()
@@ -429,140 +429,142 @@ def daemon_mode(interval_minutes: int = 30):
         "uncertainty quantification"
     ])
     kg.init_root_pool(seeds)
-    print(f"[v0.2.6] Root pool initialized with {len(seeds)} seeds")
+    print(f"[v0.2.9] Root pool initialized with {len(seeds)} seeds")
     
-    notification_queue = queue.Queue(maxsize=100)
+    # Initialize new agents
+    tool_registry = ToolRegistry()
+    queue_storage = QueueStorage()
+    queue_storage.initialize()
     
-    spider_agent = SpiderAgent(
-        name="SpiderAgent",
-        notification_queue=notification_queue,
-        exploration_depth="medium",
-        poll_interval=1.0
+    # ExploreDaemon: continuous exploration using ExploreAgent (ReAct nanobot)
+    from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig
+    explore_config = ExploreAgentConfig(name="ExploreAgent", model="doubao-pro")
+    explore_agent = ExploreAgent(config=explore_config, tool_registry=tool_registry)
+    explore_daemon = ExploreDaemon(
+        explore_agent=explore_agent,
+        queue_storage=queue_storage,
+        config=ExploreDaemonConfig(poll_interval=30.0)
     )
     
-    dream_agent = DreamAgent(
-        name="DreamAgent",
-        high_priority_queue=notification_queue,
-        poll_interval=2.0  # v0.2.6: reduced from 1.0 to lower insight generation rate
+    # DreamDaemon: heartbeat-triggered dreaming using DreamAgent (multi-cycle nanobot)
+    # DreamDaemon.start() is async, so run it in a separate thread
+    import threading
+    from pathlib import Path
+    dream_daemon = DreamDaemon(
+        workspace=Path("."),
+        config=DreamDaemonConfig(interval_s=6 * 60 * 60, enabled=True)
     )
     
+    def run_dream_daemon_async():
+        asyncio.run(dream_daemon.start())
+    
+    dream_thread = threading.Thread(target=run_dream_daemon_async, name="DreamDaemon", daemon=True)
+    
+    # Keep SleepPruner for now
+    from core.sleep_pruner import SleepPruner
     sleep_pruner = SleepPruner(
         name="SleepPruner",
         initial_interval_minutes=240,
         max_interval_minutes=1440
     )
     
-    agents = [spider_agent, dream_agent, sleep_pruner]
-    
     shutdown_requested = False
     
     def handle_shutdown(signum, frame):
         nonlocal shutdown_requested
-        print("\n[v0.2.6] Shutdown signal received, stopping agents...")
+        print("\n[v0.2.9] Shutdown signal received, stopping agents...")
         shutdown_requested = True
-        for agent in agents:
-            agent.stop()
+        explore_daemon.stop()
+        sleep_pruner.stop()
+        dream_daemon.stop()
         cleanup_pid()
     
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)
     
-    print("[v0.2.6] Starting agents...")
-    for agent in agents:
+    print("[v0.2.9] Starting agents...")
+    # Start ExploreDaemon and SleepPruner (Thread-based)
+    for agent in [explore_daemon, sleep_pruner]:
         agent.start()
-        print(f"[v0.2.6]   ✓ {agent.name} started")
+        print(f"[v0.2.9]   ✓ {agent.name} started")
+    # Start DreamDaemon in its own thread (async)
+    dream_thread.start()
+    print(f"[v0.2.9]   ✓ DreamDaemon started (thread)")
     
     print("[v0.2.6] All agents running. Monitoring status...")
     print()
     
-    # G1-Fix: Add health monitoring variables
-    last_explored_count = 0
+    # v0.2.9: Health monitoring
     last_explored_check_time = time.time()
     stuck_check_interval = 60  # Check every 60 seconds
-    stuck_threshold = 300  # 5 minutes
-    
-    # G2-Fix: Track main queue consumption
-    main_queue_consumed = 0
     
     cycle_count = 0
     while not shutdown_requested:
         cycle_count += 1
         current_time = time.time()
         
-        alive_agents = [a.name for a in agents if a.is_alive()]
-        dead_agents = [a.name for a in agents if not a.is_alive()]
+        # Check ExploreDaemon (Thread-based)
+        explore_alive = explore_daemon.is_alive() if hasattr(explore_daemon, 'is_alive') else explore_daemon._running
         
-        # G1-Fix: Check for dead agents and restart
-        if dead_agents:
-            print(f"[v0.2.6] ⚠️ Dead agents detected: {dead_agents}")
-            for agent in agents:
-                if not agent.is_alive():
-                    print(f"[v0.2.6] Restarting {agent.name}...")
-                    agent.start()
+        # Check DreamDaemon (async, uses _running flag)
+        dream_running = getattr(dream_daemon, '_running', False)
         
-        # G1-Fix: Check SpiderAgent health every 60 seconds
+        # Check SleepPruner (Thread-based)
+        sleep_alive = sleep_pruner.is_alive() if hasattr(sleep_pruner, 'is_alive') else True
+        
+        # Check ExploreDaemon health every 60 seconds
         if current_time - last_explored_check_time >= stuck_check_interval:
-            current_explored_count = spider_agent.get_explored_count()
-            idle_time = spider_agent.get_idle_time()
-            if idle_time > stuck_threshold:
-                if spider_agent.is_alive():
-                    print(f"[v0.2.6] ⚠️ SpiderAgent idle for {idle_time:.0f}s (DreamInbox may be empty, waiting for G2). Skipping restart.")
-                else:
-                    print(f"[v0.2.6] ⚠️ SpiderAgent dead! Restarting...")
-                    spider_agent.stop()
-                    spider_agent.join(timeout=5.0)
-                    spider_agent = SpiderAgent(
-                        name="SpiderAgent",
-                        notification_queue=notification_queue,
-                        exploration_depth="medium",
-                        poll_interval=1.0
-                    )
-                    spider_agent.start()
-                    print("[v0.2.6] ✓ SpiderAgent restarted")
-            last_explored_count = current_explored_count
+            if not explore_daemon.is_alive():
+                print(f"[v0.2.9] ⚠️ ExploreDaemon dead! Restarting...")
+                explore_daemon.stop()
+                explore_daemon.join(timeout=5.0)
+                explore_daemon = ExploreDaemon(
+                    explore_agent=explore_agent,
+                    queue_storage=queue_storage,
+                    config=ExploreDaemonConfig(poll_interval=30.0)
+                )
+                explore_daemon.start()
+                print("[v0.2.9] ✓ ExploreDaemon restarted")
             last_explored_check_time = current_time
         
-        # G2-Fix: Consume main curiosity_queue (every 60 cycles = ~60s)
+        # Revive stuck items periodically
         if cycle_count % 60 == 0:
             try:
                 from core import knowledge_graph as kg_main
-                # Periodically revive stuck items (claimed but not completed within timeout)
                 revived = kg_main.revive_stuck_items(timeout_seconds=300)
                 if revived > 0:
-                    print(f"[v0.2.6] Revived {revived} stuck items")
-                # Use claim_pending_item instead of list_pending()[0]
-                # to atomically claim and move topic from pending -> exploring
-                claimed = kg_main.claim_pending_item()
-                if claimed:
-                    topic = claimed.get("topic")
-                    print(f"[v0.2.6] Consuming main queue: {topic}")
-                    kg_main.add_to_dream_inbox(topic, source_insight="Main curiosity queue")
-                    main_queue_consumed += 1
+                    print(f"[v0.2.9] Revived {revived} stuck items")
             except Exception as e:
-                print(f"[v0.2.6] Error consuming main queue: {e}")
+                print(f"[v0.2.9] Error reviving stuck items: {e}")
         
         if cycle_count % 10 == 0:
             print(f"\n{'='*50}")
             print(f"🔄 监控循环 #{cycle_count // 10} @ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             print(f"{'='*50}")
-            print(f"[v0.2.6] Active agents: {', '.join(alive_agents)}")
-            print(f"[v0.2.6] SpiderAgent explored: {len(spider_agent._explored_topics)} topics")
-            print(f"[v0.2.6] DreamAgent status: {dream_agent.get_status()}")
-            print(f"[v0.2.6] SleepPruner status: {sleep_pruner.get_status()}")
-            if main_queue_consumed > 0:
-                print(f"[v0.2.6] Main queue consumed: {main_queue_consumed} topics")
+            print(f"[v0.2.9] ExploreDaemon: alive={explore_alive}")
+            print(f"[v0.2.9] DreamDaemon: running={dream_running}")
+            print(f"[v0.2.9] SleepPruner: alive={sleep_alive}")
+            print(f"[v0.2.9] SleepPruner status: {sleep_pruner.get_status()}")
         
         time.sleep(1.0)
     
-    print("[v0.2.6] Waiting for agents to stop...")
-    for agent in agents:
-        agent.join(timeout=5.0)
-        if agent.is_alive():
-            print(f"[v0.2.6]   ⚠️ {agent.name} did not stop gracefully")
-        else:
-            print(f"[v0.2.6]   ✓ {agent.name} stopped")
+    print("[v0.2.9] Stopping agents...")
     
-    print("[v0.2.6] All agents stopped. Exiting.")
+    # Stop ExploreDaemon (Thread)
+    explore_daemon.stop()
+    explore_daemon.join(timeout=5.0)
+    print("[v0.2.9] ✓ ExploreDaemon stopped")
+    
+    # Stop DreamDaemon (the thread will be stopped when the process exits)
+    dream_daemon.stop()
+    print("[v0.2.9] ✓ DreamDaemon stop signaled")
+    
+    # Stop SleepPruner (Thread)
+    sleep_pruner.stop()
+    sleep_pruner.join(timeout=5.0)
+    print("[v0.2.9] ✓ SleepPruner stopped")
+    
+    print("[v0.2.9] All agents stopped. Exiting.")
 
 
 def _daemon_mode_legacy(interval_minutes: int = 30):
