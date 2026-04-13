@@ -147,6 +147,15 @@ class NotificationBehaviorConfig:
     min_quality: float = 7.0
 
 
+@dataclass
+class BehaviorConfig:
+    """Root behavior configuration."""
+    curiosity: CuriosityBehaviorConfig = field(default_factory=CuriosityBehaviorConfig)
+    injection: InjectionBehaviorConfig = field(default_factory=InjectionBehaviorConfig)
+    notification: NotificationBehaviorConfig = field(default_factory=NotificationBehaviorConfig)
+    user_interests: list[str] = field(default_factory=list)
+
+
 # ============================================================
 # Root Config
 # ============================================================
@@ -172,6 +181,10 @@ def _load_env_file():
                     key, value = line.split("=", 1)
                     value = value.strip().strip('"').strip("'")
                     os.environ.setdefault(key.strip(), value)
+
+
+# Alias for backward compatibility
+EmbeddingConfig = KnowledgeEmbeddingConfig
 
 
 def load_config() -> Config:
@@ -273,6 +286,7 @@ def load_config() -> Config:
         enabled=notification_raw.get("enabled", True),
         min_quality=notification_raw.get("min_quality", 7.0)
     )
+    user_interests = behavior_raw.get("user_interests", [])
 
     # Parse LLM
     llm_raw = raw.get("llm", {})
@@ -321,7 +335,8 @@ def load_config() -> Config:
         behavior={
             "curiosity": curiosity_cfg,
             "injection": injection_cfg,
-            "notification": notification_cfg
+            "notification": notification_cfg,
+            "user_interests": user_interests
         },
         llm={
             "providers": llm_providers,

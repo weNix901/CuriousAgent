@@ -184,7 +184,7 @@ def api_inject():
         config = get_config()
         from core.knowledge_graph import update_curiosity_score
         source = data.get("source", "default")
-        priority_cfg = get_config().exploration.injection_priority
+        priority_cfg = get_config().behavior.get("injection")
 
         priority_triggered = False
         if priority_cfg.enabled and source in priority_cfg.priority_sources:
@@ -795,7 +795,7 @@ def assess_quality_assertion():
     
     config = get_config()
     llm = LLMClient()
-    embedding_service = EmbeddingService(config.embedding)
+    embedding_service = EmbeddingService(config.knowledge.get("embedding"))
     assertion_index = AssertionIndex()
     kg = KGGraph()
     

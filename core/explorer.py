@@ -324,7 +324,7 @@ class Explorer:
         from core.config import get_config
 
         config = get_config()
-        search_cfg = config.search
+        search_cfg = config.knowledge.get("search")
 
         # ===== 预检查：太短的 topics 直接标记为失败，不产生 stub =====
         if len(topic.strip()) < 3:

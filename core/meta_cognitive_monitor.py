@@ -127,7 +127,7 @@ Return only keywords, nothing else."""
         """Compute relevance to user interests (0-1)"""
         try:
             from core.config import get_config
-            user_interests = get_config().user_interests
+            user_interests = get_config().behavior.get("user_interests", [])
         except:
             user_interests = []
 

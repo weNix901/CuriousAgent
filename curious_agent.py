@@ -49,7 +49,7 @@ def run_one_cycle(depth: str = "medium") -> dict:
         "providers": {},
         "selection_strategy": "capability"
     }
-    for p in config.llm_providers:
+    for p in config.llm.get("providers", []):
         llm_config["providers"][p.name] = {
             "api_url": p.api_url,
             "timeout": p.timeout,
@@ -420,7 +420,7 @@ def daemon_mode(interval_minutes: int = 30):
     print("   按 Ctrl+C 停止")
     print()
     
-    seeds = getattr(cfg, 'root_technology_seeds', [
+    seeds = cfg.knowledge.get("root_seeds", [
         "transformer attention",
         "gradient descent",
         "backpropagation",
@@ -573,7 +573,7 @@ def _daemon_mode_legacy(interval_minutes: int = 30):
     
     from core.config import get_config
     cfg = get_config()
-    seeds = getattr(cfg, 'root_technology_seeds', [
+    seeds = cfg.knowledge.get("root_seeds", [
         "transformer attention",
         "gradient descent",
         "backpropagation",
