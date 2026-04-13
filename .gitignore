@@ -1,54 +1,52 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
 *$py.class
-*.so
-
-# Distribution / packaging
-.Python
+*.bak
 build/
+# Byte-compiled / optimized / DLL files
+config.json
 dist/
-*.egg-info/
-
-# Virtual environments
-venv/
-env/
-.venv/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
+# Distribution / packaging
 .DS_Store
-Thumbs.db
-
-# Project specific
+*.egg-info/
+.env
+env/
+.env.local
+# Git worktrees
+# IDE
+.idea/
+*.key
+knowledge/.curious_last_sync
+knowledge/dream_insights/
+knowledge/dream_topic_inbox.json
+knowledge/queue.db
+knowledge/search_quota.json
+knowledge/state.json
+knowledge/state.json.bak*
 *.log
 logs/
-knowledge/state.json
-knowledge/.curious_last_sync
-ui/.DS_Store
-knowledge/dream_insights/
-
-# Sensitive
-.env
-.env.local
-*.pem
-*.key
-
-# OpenClaw workspace
 .openclaw/
+# OpenClaw workspace
+# OS
+*.pem
+# Project specific
+__pycache__/
+*.py[cod]
+.Python
+# Runtime data
+# Runtime data files (already tracked but should be ignored)
+# Sensitive
+shared_knowledge/assertion_index/
+shared_knowledge/assertion_index/assertions.db
+*.so
+*.swo
+*.swp
+# Temp
+Thumbs.db
+tmp/
+ui/.DS_Store
+.venv/
+venv/
+# Virtual environments
+.vscode/
 workspace/
 workspace-researcher/
-
-# Git worktrees
 .worktrees/
-
-# Temp
-tmp/
-*.bak
-config.json
-.env
