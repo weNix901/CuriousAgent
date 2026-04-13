@@ -4,10 +4,12 @@
 import json
 import os
 import subprocess
+from typing import List, Optional, Dict, Any
 from . import knowledge_graph as kg
 from .arxiv_analyzer import ArxivAnalyzer
 from .llm_client import LLMClient
 from .insight_synthesizer import InsightSynthesizer
+from .search_quota import get_quota_manager
 from .paper_citation_extractor import PaperCitationExtractor
 from .web_citation_extractor import WebCitationExtractor
 from .quality_v2 import QualityV2Assessor
@@ -68,6 +70,8 @@ class Explorer:
             if isinstance(data, dict) and data.get("code") == 200:
                 web_pages = data.get("data", {}).get("webPages", {})
                 items = web_pages.get("value", [])
+                # Record Bocha quota usage
+                get_quota_manager().record_usage("bocha")
                 return self._parse_bocha_results(items)
         except Exception:
             pass
@@ -101,6 +105,8 @@ class Explorer:
 
             data = json.loads(stdout)
             if isinstance(data, dict) and "organic" in data:
+                # Record Serper quota usage
+                get_quota_manager().record_usage("serper")
                 return self._parse_serper_results(data["organic"])
         except Exception:
             pass
