@@ -12,27 +12,30 @@ DEFAULT_DREAM_INTERVAL_S = 6 * 60 * 60
 
 @dataclass
 class DreamDaemonConfig:
-    interval_s: int = DEFAULT_DREAM_INTERVAL_S
+    interval_seconds: int = DEFAULT_DREAM_INTERVAL_S
     enabled: bool = True
 
 
 class DreamDaemon:
-    def __init__(self, workspace: Path, config: DreamDaemonConfig | None = None):
+    def __init__(
+        self,
+        workspace: Path,
+        config: DreamDaemonConfig | None = None,
+        agent_config: DreamAgentConfig | None = None,
+    ):
         self.workspace = workspace
         self.config = config or DreamDaemonConfig()
         self._running = False
-        
+
         tool_registry = ToolRegistry()
-        agent_config = DreamAgentConfig(
-            name="DreamAgent",
-            system_prompt="DreamAgent multi-cycle architecture for insight generation",
-        )
+        if agent_config is None:
+            agent_config = DreamAgentConfig(name="DreamAgent")
         self.agent = DreamAgent(config=agent_config, tool_registry=tool_registry)
-        
+
         self.heartbeat = HeartbeatService(
             workspace=workspace,
             on_heartbeat=self._on_heartbeat,
-            interval_s=self.config.interval_s,
+            interval_s=self.config.interval_seconds,
             enabled=self.config.enabled,
         )
 

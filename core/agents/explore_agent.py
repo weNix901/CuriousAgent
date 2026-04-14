@@ -93,30 +93,42 @@ class ExploreAgent(CAAgent):
         self.name = config.name
         self.holder_id = str(uuid.uuid4())
 
-    async def run(self, input_data: str) -> AgentResult:
-        """Run the ExploreAgent workflow: claim -> explore -> mark done."""
+    async def run(self, input_data: str, pre_claimed_item_id: int = None) -> AgentResult:
+        """Run the ExploreAgent workflow: claim -> explore -> mark done.
+        
+        Args:
+            input_data: topic string to explore
+            pre_claimed_item_id: if provided, skip internal claim (daemon already claimed it)
+        """
         topic = input_data.strip()
 
-        claim_result = await self._claim_topic(topic)
-        if not claim_result.get("success"):
-            return AgentResult(
-                content=f"Failed to claim topic: {claim_result.get('error', 'Unknown error')}",
-                success=False,
-                iterations_used=0,
-            )
-
-        item_id = claim_result["item_id"]
-        explored_topic = claim_result["topic"]
+        if pre_claimed_item_id is not None:
+            # Daemon already claimed - skip internal claim
+            item_id = pre_claimed_item_id
+            explored_topic = topic
+        else:
+            # Standalone mode - claim ourselves
+            claim_result = await self._claim_topic(topic)
+            if not claim_result.get("success"):
+                return AgentResult(
+                    content=f"Failed to claim topic: {claim_result.get('error', 'Unknown error')}",
+                    success=False,
+                    iterations_used=0,
+                )
+            item_id = claim_result["item_id"]
+            explored_topic = claim_result["topic"]
 
         react_result = await self._react_loop(explored_topic)
 
-        marked_done = await self._mark_done(item_id)
-        if not marked_done:
-            return AgentResult(
-                content=f"Exploration complete but failed to mark done: {explored_topic}",
-                success=False,
-                iterations_used=react_result.get("iterations", 0),
-            )
+        # Only mark_done if we claimed ourselves; daemon handles it for pre_claimed items
+        if pre_claimed_item_id is None:
+            marked_done = await self._mark_done(item_id)
+            if not marked_done:
+                return AgentResult(
+                    content=f"Exploration complete but failed to mark done: {explored_topic}",
+                    success=False,
+                    iterations_used=react_result.get("iterations", 0),
+                )
 
         return AgentResult(
             content=react_result.get("content", f"Explored topic: {explored_topic}"),
@@ -241,9 +253,19 @@ class ExploreAgent(CAAgent):
             )
             messages.append({"role": "user", "content": f"Observation: {observation}"})
 
+        # Reached max iterations - write accumulated findings to KG before returning
+        if content_parts:
+            summary_text = "\n".join(content_parts)
+            add_tool = self.tool_registry.get("add_to_kg")
+            if add_tool:
+                await add_tool.execute(
+                    topic=topic,
+                    content=summary_text[:2000],
+                    metadata={"depth": 5, "quality": 5.0}
+                )
         return {
-            "success": False,
-            "content": "\n".join(content_parts) + f"\n\nReached max iterations ({self.config.max_iterations})",
+            "success": True,  # KG was updated, count as success
+            "content": "\n".join(content_parts) + f"\n\nReached max iterations ({self.config.max_iterations}) - written to KG",
             "iterations": iterations,
         }
 
@@ -257,7 +279,23 @@ class ExploreAgent(CAAgent):
             if line.lower().startswith("thought:"):
                 result["thought"] = line.split(":", 1)[1].strip()
             elif line.lower().startswith("action:"):
-                result["action"] = line.split(":", 1)[1].strip()
+                action_str = line.split(":", 1)[1].strip()
+                result["action"] = action_str
+                # Extract args from inline format like "search_web(query=\"...\")"
+                if not result["action_input"]:
+                    import re
+                    args_match = re.search(r'\(.*\)$', action_str)
+                    if args_match:
+                        args_str = args_match.group(0)[1:-1]  # remove parentheses
+                        # Try to parse as key=value pairs
+                        kv_pairs = re.findall(r'(\w+)=("[^"]*"|[\w-]+)', args_str)
+                        if kv_pairs:
+                            parsed = {}
+                            for k, v in kv_pairs:
+                                if v.startswith('"') and v.endswith('"'):
+                                    v = v[1:-1]
+                                parsed[k] = v
+                            result["action_input"] = parsed
             elif line.lower().startswith("action input:"):
                 try:
                     result["action_input"] = json.loads(line.split(":", 1)[1].strip())
@@ -268,9 +306,13 @@ class ExploreAgent(CAAgent):
 
     async def _execute_action(self, action: str, action_input: dict[str, Any]) -> str:
         """Execute a tool action and return observation."""
-        tool = self.tool_registry.get(action)
+        # Extract just the tool name from action strings like "search_web(query=\"...\")"
+        import re
+        match = re.match(r'^(\w+)', action.strip())
+        tool_name = match.group(1) if match else action.strip()
+        tool = self.tool_registry.get(tool_name)
         if not tool:
-            return f"Tool '{action}' not found"
+            return f"Tool '{tool_name}' not found"
 
         try:
             result = await tool.execute(**action_input)

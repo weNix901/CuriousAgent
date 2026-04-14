@@ -230,12 +230,16 @@ def api_inject():
             print(f"[Phase2] Linked '{topic}' -> '{parent}' in KG")
         # === Phase 2 结束 ===
 
-        add_curiosity(
-            topic=topic,
-            reason=str(data.get("reason", "Web UI 注入")),
-            relevance=final_score,
-            depth=depth
-        )
+        # === v0.2.9: 只写入 SQLite 队列（ExploreDaemon 专用）===
+        from core.tools.queue_tools import QueueStorage
+        qs = QueueStorage()
+        qs.initialize()
+        qs.add_item(topic=topic, priority=data.get("priority", 5), metadata={
+            "reason": str(data.get("reason", "Web UI 注入")),
+            "score": final_score,
+            "depth": depth
+        })
+        # === END ===
 
         # ===== T-9 集成点 开始 =====
         # 【集成点 6】inject_priority: source=r1d3 时优先处理
@@ -887,8 +891,16 @@ def api_agents_explore():
         if not topic:
             return jsonify({"error": "topic is required"}), 400
         
+        # Read from config
+        cfg = get_config()
+        agent_cfg = cfg.agents.get("explore", {})
+        
         tool_registry = ToolRegistry()
-        config = ExploreAgentConfig(name="explore_agent")
+        config = ExploreAgentConfig(
+            name="explore_agent",
+            model=agent_cfg.get("model", "volcengine"),
+            max_iterations=agent_cfg.get("max_iterations", 10),
+        )
         agent = ExploreAgent(config=config, tool_registry=tool_registry)
         
         result = asyncio.run(agent.run(topic))
@@ -912,10 +924,20 @@ def api_agents_dream():
         from core.agents.dream_agent import DreamAgent, DreamAgentConfig
         from core.tools.registry import ToolRegistry
         
+        # Read from config
+        cfg = get_config()
+        agent_cfg = cfg.agents.get("dream", {})
+        weights_raw = agent_cfg.get("scoring_weights", {})
+        
         tool_registry = ToolRegistry()
         config = DreamAgentConfig(
             name="dream_agent",
-            system_prompt="DreamAgent multi-cycle architecture for insight generation"
+            scoring_weights=weights_raw or {
+                "relevance": 0.25, "frequency": 0.15, "recency": 0.15,
+                "quality": 0.20, "surprise": 0.15, "cross_domain": 0.10
+            },
+            min_score_threshold=agent_cfg.get("min_score_threshold", 0.8),
+            min_recall_count=agent_cfg.get("min_recall_count", 3),
         )
         agent = DreamAgent(config=config, tool_registry=tool_registry)
         
@@ -946,20 +968,25 @@ def api_agents_daemon_explore():
         # Read config from config.json
         cfg = get_config()
         daemon_cfg = cfg.daemon.get("explore")
+        agent_cfg = cfg.agents.get("explore")
         poll_interval = daemon_cfg.poll_interval_seconds
         max_retries = daemon_cfg.max_retries
         retry_delay = daemon_cfg.retry_delay_seconds
         
         tool_registry = ToolRegistry()
-        agent_config = ExploreAgentConfig(name="explore_agent")
+        agent_config = ExploreAgentConfig(
+            name="explore_agent",
+            model=agent_cfg.model,
+            max_iterations=agent_cfg.max_iterations
+        )
         agent = ExploreAgent(config=agent_config, tool_registry=tool_registry)
         
         queue_storage = QueueStorage()
         queue_storage.initialize()
         daemon_config = ExploreDaemonConfig(
-            poll_interval=poll_interval,
+            poll_interval_seconds=poll_interval,
             max_retries=max_retries,
-            retry_delay=retry_delay
+            retry_delay_seconds=retry_delay
         )
         
         daemon = ExploreDaemon(
@@ -989,25 +1016,40 @@ def api_agents_daemon_dream():
     try:
         import asyncio
         from pathlib import Path
+        from core.agents.dream_agent import DreamAgentConfig as DreamAgentAgentConfig
         from core.daemon.dream_daemon import DreamDaemon, DreamDaemonConfig
-        
-        # Read config from config.json (default: 6 hours)
+
         cfg = get_config()
         daemon_cfg = cfg.daemon.get("dream")
+        agent_dream_cfg = cfg.agents.get("dream")
+
         interval_s = daemon_cfg.interval_seconds
-        
         # Allow override via request body
         data = request.get_json() or {}
         if "interval_s" in data:
             interval_s = data["interval_s"]
-        
-        workspace = Path(".")
-        config = DreamDaemonConfig(interval_s=interval_s, enabled=True)
-        
-        daemon = DreamDaemon(workspace=workspace, config=config)
-        
+
+        def _sw_to_dict(w):
+            return {"relevance": w.relevance, "frequency": w.frequency,
+                    "recency": w.recency, "quality": w.quality,
+                    "surprise": w.surprise, "cross_domain": w.cross_domain}
+
+        agent_config = DreamAgentAgentConfig(
+            name="DreamAgent",
+            scoring_weights=_sw_to_dict(agent_dream_cfg.scoring_weights),
+            min_score_threshold=agent_dream_cfg.min_score_threshold,
+            min_recall_count=agent_dream_cfg.min_recall_count,
+        )
+        daemon_config = DreamDaemonConfig(interval_seconds=interval_s, enabled=True)
+
+        daemon = DreamDaemon(
+            workspace=Path("."),
+            config=daemon_config,
+            agent_config=agent_config,
+        )
+
         threading.Thread(target=lambda: asyncio.run(daemon.start()), daemon=True).start()
-        
+
         return jsonify({
             "status": "started",
             "daemon_name": "dream_daemon",

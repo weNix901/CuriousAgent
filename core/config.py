@@ -84,6 +84,7 @@ class ExploreDaemonConfig:
 class DreamDaemonConfig:
     """DreamDaemon process configuration."""
     interval_seconds: int = 21600
+    enabled: bool = True
 
 
 # ============================================================

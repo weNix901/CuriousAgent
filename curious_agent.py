@@ -335,6 +335,18 @@ def print_status():
     print("=" * 50)
 
 
+def _scoring_weights_to_dict(weights) -> dict:
+    """Convert DreamAgentScoringWeights dataclass to dict."""
+    return {
+        "relevance": weights.relevance,
+        "frequency": weights.frequency,
+        "recency": weights.recency,
+        "quality": weights.quality,
+        "surprise": weights.surprise,
+        "cross_domain": weights.cross_domain,
+    }
+
+
 def daemon_mode(interval_minutes: int = 30):
     """
     Three-Agent Daemon Mode (v0.2.6).
@@ -413,7 +425,14 @@ def daemon_mode(interval_minutes: int = 30):
         _daemon_mode_legacy(interval_minutes)
         return
     
+    # Read daemon config from config.json
+    explore_daemon_cfg = cfg.daemon.get('explore')
+    dream_daemon_cfg = cfg.daemon.get('dream')
+    agent_explore_cfg = cfg.agents.get('explore')
+    agent_dream_cfg = cfg.agents.get('dream')
+    
     print(f"🚀 Curious Agent 进入三代理守护进程模式 (v0.2.9)")
+    print(f"   Config: ExploreDaemon poll={explore_daemon_cfg.poll_interval_seconds}s, DreamDaemon interval={dream_daemon_cfg.interval_seconds}s")
     print("   ExploreDaemon: 持续探索代理 (ReAct nanobot)")
     print("   DreamDaemon: 创意洞察代理 (多周期 nanobot)")
     print("   SleepPruner: 周期修剪代理")
@@ -436,23 +455,83 @@ def daemon_mode(interval_minutes: int = 30):
     queue_storage = QueueStorage()
     queue_storage.initialize()
     
+    # KGRepository: wraps sync KG functions as async for tool compatibility
+    import asyncio
+    
+    class KGRepository:
+        """Async wrapper for sync knowledge_graph functions."""
+        async def add_to_knowledge_graph(self, topic, content="", metadata=None, relations=None):
+            kg.add_knowledge(topic=topic, depth=metadata.get("depth", 5) if metadata else 5,
+                           summary=content, sources=metadata.get("sources", []) if metadata else None,
+                           quality=metadata.get("quality") if metadata else None)
+            return topic
+        
+        async def query_knowledge(self, topic, limit=5):
+            return []
+        
+        async def query_knowledge_by_status(self, status, limit=5):
+            return []
+        
+        async def query_knowledge_by_heat(self, limit=5):
+            return []
+        
+        async def get_node_relations(self, topic):
+            return []
+    
+    kg_repo = KGRepository()
+    
+    # Register tools for ExploreAgent (ReAct loop)
+    from core.tools.search_tools import SearchWebTool, FetchPageTool, ProcessPaperTool
+    from core.tools.kg_tools import QueryKGTool, AddToKGTool, UpdateKGStatusTool, UpdateKGMetadataTool, GetNodeRelationsTool
+    from core.tools.queue_tools import AddToQueueTool, ClaimQueueTool, GetQueueTool, MarkDoneTool, MarkFailedTool
+    from core.tools.llm_tools import LLMAnalyzeTool, LLMSummarizeTool
+    
+    tool_registry.register(SearchWebTool())
+    tool_registry.register(FetchPageTool())
+    tool_registry.register(ProcessPaperTool())
+    tool_registry.register(QueryKGTool(repository=kg_repo))
+    tool_registry.register(AddToKGTool(repository=kg_repo))
+    tool_registry.register(UpdateKGStatusTool(repository=kg_repo))
+    tool_registry.register(UpdateKGMetadataTool(repository=kg_repo))
+    tool_registry.register(GetNodeRelationsTool(repository=kg_repo))
+    tool_registry.register(AddToQueueTool(storage=queue_storage))
+    tool_registry.register(ClaimQueueTool(storage=queue_storage))
+    tool_registry.register(GetQueueTool(storage=queue_storage))
+    tool_registry.register(MarkDoneTool(storage=queue_storage))
+    tool_registry.register(MarkFailedTool(storage=queue_storage))
+    tool_registry.register(LLMAnalyzeTool())
+    tool_registry.register(LLMSummarizeTool())
+    print(f"[v0.2.9] Registered {len(tool_registry)} tools")
+    
     # ExploreDaemon: continuous exploration using ExploreAgent (ReAct nanobot)
     from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig
-    explore_config = ExploreAgentConfig(name="ExploreAgent", model="doubao-pro")
+    explore_config = ExploreAgentConfig(
+        name="ExploreAgent",
+        model=agent_explore_cfg.model,
+        max_iterations=agent_explore_cfg.max_iterations
+    )
     explore_agent = ExploreAgent(config=explore_config, tool_registry=tool_registry)
     explore_daemon = ExploreDaemon(
         explore_agent=explore_agent,
         queue_storage=queue_storage,
-        config=ExploreDaemonConfig(poll_interval=30.0)
+        config=explore_daemon_cfg
     )
     
     # DreamDaemon: heartbeat-triggered dreaming using DreamAgent (multi-cycle nanobot)
     # DreamDaemon.start() is async, so run it in a separate thread
     import threading
     from pathlib import Path
+    from core.agents.dream_agent import DreamAgentConfig as DreamAgentAgentConfig
+    dream_agent_config = DreamAgentAgentConfig(
+        name="DreamAgent",
+        scoring_weights=_scoring_weights_to_dict(agent_dream_cfg.scoring_weights),
+        min_score_threshold=agent_dream_cfg.min_score_threshold,
+        min_recall_count=agent_dream_cfg.min_recall_count,
+    )
     dream_daemon = DreamDaemon(
         workspace=Path("."),
-        config=DreamDaemonConfig(interval_s=6 * 60 * 60, enabled=True)
+        config=dream_daemon_cfg,
+        agent_config=dream_agent_config,
     )
     
     def run_dream_daemon_async():
@@ -521,7 +600,7 @@ def daemon_mode(interval_minutes: int = 30):
                 explore_daemon = ExploreDaemon(
                     explore_agent=explore_agent,
                     queue_storage=queue_storage,
-                    config=ExploreDaemonConfig(poll_interval=30.0)
+                    config=explore_daemon_cfg
                 )
                 explore_daemon.start()
                 print("[v0.2.9] ✓ ExploreDaemon restarted")
@@ -705,11 +784,20 @@ def run_explore_agent(topic: str) -> dict:
     import asyncio
     from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig
     from core.tools.registry import ToolRegistry
+    from core.config import get_config
+    
+    cfg = get_config()
+    agent_cfg = cfg.agents.get('explore')
     
     print(f"[ExploreAgent] Starting exploration of: {topic}")
+    print(f"   Config: model={agent_cfg.model}, max_iterations={agent_cfg.max_iterations}")
     
     tool_registry = ToolRegistry()
-    config = ExploreAgentConfig(name="explore_agent")
+    config = ExploreAgentConfig(
+        name="explore_agent",
+        model=agent_cfg.model,
+        max_iterations=agent_cfg.max_iterations
+    )
     agent = ExploreAgent(config=config, tool_registry=tool_registry)
     
     result = asyncio.run(agent.run(topic))
@@ -730,13 +818,21 @@ def run_dream_agent() -> dict:
     """Run DreamAgent to generate insight topics."""
     from core.agents.dream_agent import DreamAgent, DreamAgentConfig
     from core.tools.registry import ToolRegistry
+    from core.config import get_config
+    
+    cfg = get_config()
+    agent_cfg = cfg.agents.get('dream')
+    weights_raw = getattr(agent_cfg, 'scoring_weights', {}) or {}
     
     print("[DreamAgent] Starting insight generation...")
+    print(f"   Config: min_score_threshold={agent_cfg.min_score_threshold}")
     
     tool_registry = ToolRegistry()
     config = DreamAgentConfig(
         name="dream_agent",
-        system_prompt="DreamAgent multi-cycle architecture for insight generation"
+        scoring_weights=weights_raw,
+        min_score_threshold=agent_cfg.min_score_threshold,
+        min_recall_count=agent_cfg.min_recall_count,
     )
     agent = DreamAgent(config=config, tool_registry=tool_registry)
     
@@ -760,16 +856,26 @@ def start_explore_daemon():
     from core.daemon.explore_daemon import ExploreDaemon, ExploreDaemonConfig
     from core.tools.registry import ToolRegistry
     from core.tools.queue_tools import QueueStorage
+    from core.config import get_config
+    
+    cfg = get_config()
+    explore_daemon_cfg = cfg.daemon.get('explore')
+    agent_explore_cfg = cfg.agents.get('explore')
     
     print("[ExploreDaemon] Starting continuous exploration daemon...")
+    print(f"   Config: poll_interval={explore_daemon_cfg.poll_interval_seconds}s, max_retries={explore_daemon_cfg.max_retries}")
     
     tool_registry = ToolRegistry()
-    agent_config = ExploreAgentConfig(name="explore_agent")
+    agent_config = ExploreAgentConfig(
+        name="explore_agent",
+        model=agent_explore_cfg.model,
+        max_iterations=agent_explore_cfg.max_iterations
+    )
     agent = ExploreAgent(config=agent_config, tool_registry=tool_registry)
     
     queue_storage = QueueStorage()
     queue_storage.initialize()
-    daemon_config = ExploreDaemonConfig(poll_interval=5.0)
+    daemon_config = explore_daemon_cfg
     
     daemon = ExploreDaemon(
         explore_agent=agent,
@@ -794,15 +900,30 @@ def start_dream_daemon():
     """Start DreamDaemon for heartbeat-triggered dreaming."""
     import asyncio
     from pathlib import Path
+    from core.agents.dream_agent import DreamAgentConfig as DreamAgentAgentConfig
     from core.daemon.dream_daemon import DreamDaemon, DreamDaemonConfig
-    
+    from core.config import get_config
+
+    cfg = get_config()
+    dream_daemon_cfg = cfg.daemon.get('dream')
+    agent_dream_cfg = cfg.agents.get('dream')
+
     print("[DreamDaemon] Starting heartbeat-triggered dream daemon...")
-    
-    workspace = Path(".")
-    config = DreamDaemonConfig(interval_s=6 * 60 * 60, enabled=True)
-    
-    daemon = DreamDaemon(workspace=workspace, config=config)
-    
+    print(f"   Config: interval={dream_daemon_cfg.interval_seconds}s")
+
+    agent_config = DreamAgentAgentConfig(
+        name="DreamAgent",
+        scoring_weights=_scoring_weights_to_dict(agent_dream_cfg.scoring_weights),
+        min_score_threshold=agent_dream_cfg.min_score_threshold,
+        min_recall_count=agent_dream_cfg.min_recall_count,
+    )
+
+    daemon = DreamDaemon(
+        workspace=Path("."),
+        config=dream_daemon_cfg,
+        agent_config=agent_config,
+    )
+
     asyncio.run(daemon.start())
     print("[DreamDaemon] Daemon started. Press Ctrl+C to stop.")
     

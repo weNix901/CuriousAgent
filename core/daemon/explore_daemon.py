@@ -11,10 +11,13 @@ from loguru import logger
 
 @dataclass
 class ExploreDaemonConfig:
-    """Configuration for ExploreDaemon."""
-    poll_interval: float = 5.0
+    """Configuration for ExploreDaemon.
+    
+    Field names match config.json daemon.explore.* for direct config binding.
+    """
+    poll_interval_seconds: float = 300.0
     max_retries: int = 3
-    retry_delay: float = 1.0
+    retry_delay_seconds: float = 15.0
 
 
 class ExploreDaemon(threading.Thread):
@@ -72,7 +75,7 @@ class ExploreDaemon(threading.Thread):
         try:
             while self.running:
                 self._loop.run_until_complete(self._tick())
-                time.sleep(self.config.poll_interval)
+                time.sleep(self.config.poll_interval_seconds)
         finally:
             self._loop.close()
     
@@ -100,21 +103,34 @@ class ExploreDaemon(threading.Thread):
         retries = 0
         while retries < self.config.max_retries and self.running:
             try:
-                result = await self.explore_agent.run(topic)
+                result = await self.explore_agent.run(topic, pre_claimed_item_id=item_id)
                 
                 if result.success:
                     self.queue_storage.mark_done(item_id, self.explore_agent.holder_id)
-                    logger.info(f"ExploreDaemon: completed item {item_id}")
+                    # Write findings to KG
+                    try:
+                        import core.knowledge_graph as kg
+                        kg.add_knowledge(
+                            topic=topic,
+                            depth=5,
+                            summary=result.content[:2000] if result.content else f"Explored: {topic}",
+                            sources=[],
+                            quality=5.0
+                        )
+                        logger.info(f"ExploreDaemon: completed item {item_id} and wrote to KG")
+                    except Exception as kg_err:
+                        logger.error(f"ExploreDaemon: KG write error - {kg_err}")
+                        logger.info(f"ExploreDaemon: completed item {item_id}")
                     return
                 else:
                     retries += 1
                     if retries < self.config.max_retries:
-                        await asyncio.sleep(self.config.retry_delay)
+                        await asyncio.sleep(self.config.retry_delay_seconds)
             except Exception as e:
                 logger.error(f"ExploreDaemon: exploration error - {e}")
                 retries += 1
                 if retries < self.config.max_retries:
-                    await asyncio.sleep(self.config.retry_delay)
+                    await asyncio.sleep(self.config.retry_delay_seconds)
         
         if retries >= self.config.max_retries:
             self.queue_storage.mark_failed(
