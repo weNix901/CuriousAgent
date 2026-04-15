@@ -1,5 +1,6 @@
-"""CA agent hook implementations."""
-from core.agents.hooks.explore_hook import ExploreHook
-from core.agents.hooks.dream_hook import DreamHook
+"""CA agent hook implementations.
 
-__all__ = ['ExploreHook', 'DreamHook']
+Note: ExploreHook and DreamHook were removed in v0.3.0.
+They were dead code (never wired into AgentRunner).
+Use core/hooks/cognitive_hook.py instead.
+"""
