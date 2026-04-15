@@ -841,6 +841,185 @@ def api_kg_calibration():
     })
 
 
+# =============================================================================
+# Knowledge API Endpoints (v0.3.0 Cognitive Framework)
+# =============================================================================
+
+@app.route("/api/knowledge/check", methods=["POST"])
+def api_knowledge_check():
+    """Query KG confidence and guidance for a topic."""
+    try:
+        import traceback
+        from core.hooks.cognitive_hook import CognitiveHook
+        from core.kg.repository_factory import KGRepositoryFactory
+        from core.config import get_config
+        
+        data = request.get_json() or {}
+        topic = data.get("topic", "").strip()
+        
+        if not topic:
+            return jsonify({"error": "topic is required"}), 400
+        
+        config = get_config()
+        hook_config = {
+            "confidence_threshold": config.hooks.confidence_threshold,
+            "auto_inject_unknowns": config.hooks.auto_inject_unknowns,
+            "search_before_llm": config.hooks.search_before_llm,
+        }
+        
+        cognitive_hook = CognitiveHook(hook_config)
+        kg_factory = KGRepositoryFactory.get_instance()
+        
+        kg_node = kg_factory.get_node_sync(topic)
+        
+        if kg_node:
+            kg_confidence = kg_node.get("confidence", 0.0)
+            gaps = kg_node.get("gaps", [])
+        else:
+            kg_confidence = 0.0
+            gaps = ["No knowledge graph entry found"]
+        
+        guidance = cognitive_hook.check_confidence(topic, kg_confidence, gaps)
+        
+        return jsonify({
+            "success": True,
+            "result": {
+                "topic": topic,
+                "confidence": kg_confidence,
+                "level": guidance.level.value,
+                "gaps": gaps,
+                "guidance": guidance.guidance_message,
+                "should_search": guidance.should_search,
+                "should_inject": guidance.should_inject,
+            }
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/knowledge/learn", methods=["POST"])
+def api_knowledge_learn():
+    """Inject unknown topic to CA queue."""
+    try:
+        import traceback
+        from core.hooks.cognitive_hook import CognitiveHook, AnswerStrategy
+        from core.config import get_config
+        
+        data = request.get_json() or {}
+        topic = data.get("topic", "").strip()
+        strategy_str = data.get("strategy", "llm_answer")
+        
+        if not topic:
+            return jsonify({"error": "topic is required"}), 400
+        
+        config = get_config()
+        hook_config = {
+            "confidence_threshold": config.hooks.confidence_threshold,
+            "auto_inject_unknowns": config.hooks.auto_inject_unknowns,
+            "search_before_llm": config.hooks.search_before_llm,
+        }
+        
+        cognitive_hook = CognitiveHook(hook_config)
+        
+        strategy_map = {
+            "kg_answer": AnswerStrategy.KG_ANSWER,
+            "search_answer": AnswerStrategy.SEARCH_ANSWER,
+            "llm_answer": AnswerStrategy.LLM_ANSWER,
+        }
+        strategy = strategy_map.get(strategy_str, AnswerStrategy.LLM_ANSWER)
+        
+        result = cognitive_hook.inject_unknown(
+            topic=topic,
+            context=f"Manually injected via API for exploration",
+            strategy=strategy,
+            priority=False,
+        )
+        
+        return jsonify({
+            "success": True,
+            "result": {
+                "queue_id": result["queue_id"],
+                "topic": result["topic"],
+                "status": result["status"],
+                "estimated_exploration": result["estimated_exploration"],
+            }
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/knowledge/analytics", methods=["GET"])
+def api_knowledge_analytics():
+    """Get interaction statistics."""
+    try:
+        import traceback
+        from core.hooks.cognitive_hook import CognitiveHook
+        from core.config import get_config
+        
+        config = get_config()
+        hook_config = {
+            "confidence_threshold": config.hooks.confidence_threshold,
+            "auto_inject_unknowns": config.hooks.auto_inject_unknowns,
+            "search_before_llm": config.hooks.search_before_llm,
+        }
+        
+        cognitive_hook = CognitiveHook(hook_config)
+        stats = cognitive_hook.get_stats()
+        
+        return jsonify({
+            "kg_hits": stats.get("kg_hits", 0),
+            "search_hits": stats.get("search_hits", 0),
+            "llm_fallbacks": stats.get("llm_fallbacks", 0),
+            "topics_learned": stats.get("topics_injected", 0),
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/knowledge/record", methods=["POST"])
+def api_knowledge_record():
+    """Record search results to KG."""
+    try:
+        import traceback
+        from core.kg.repository_factory import KGRepositoryFactory
+        from core.config import get_config
+        
+        data = request.get_json() or {}
+        topic = data.get("topic", "").strip()
+        content = data.get("content", "")
+        sources = data.get("sources", [])
+        
+        if not topic:
+            return jsonify({"error": "topic is required"}), 400
+        
+        kg_factory = KGRepositoryFactory.get_instance()
+        
+        queue_id = kg_factory.create_knowledge_node_sync(
+            topic=topic,
+            content=content,
+            source_urls=sources,
+            metadata={"source": "api_record"}
+        )
+        
+        return jsonify({
+            "success": True,
+            "result": {
+                "node_id": queue_id,
+                "topic": topic,
+            }
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/curious/quality/assertion", methods=["POST"])
 def assess_quality_assertion():
     """Test assertion-based quality assessment"""
