@@ -54,6 +54,37 @@ class CognitiveGuidance:
     should_inject: bool
 
 
+DEFAULT_GUIDANCE_TEMPLATES = {
+    ConfidenceLevel.EXPERT: (
+        "🟢 Answer from KG knowledge. Cite sources. "
+        "No need to search or guess."
+    ),
+    ConfidenceLevel.INTERMEDIATE: (
+        "🟡 Partial KG knowledge. Supplement with web search. "
+        "Record findings. Inject to CA for deep exploration."
+    ),
+    ConfidenceLevel.BEGINNER: (
+        "🟠 KG has limited knowledge. Search the web first. "
+        "If found → record to KG + inject to CA. "
+        "If not found → answer from LLM + inject to CA (mark as uncertain)."
+    ),
+    ConfidenceLevel.NOVICE: (
+        "🔴 No KG knowledge. Search the web. "
+        "Then answer from LLM if search fails. "
+        "ALWAYS inject this topic to CA for exploration. "
+        "Next time it will be in KG!"
+    ),
+}
+
+
+_GLOBAL_STATS = {
+    "kg_hits": 0,
+    "search_hits": 0,
+    "llm_fallbacks": 0,
+    "topics_injected": 0,
+}
+
+
 class CognitiveHook(AgentHook):
     """
     Hook that enforces the cognitive answer loop.
@@ -66,28 +97,6 @@ class CognitiveHook(AgentHook):
     Called by AgentRunner during ReAct loop iterations.
     """
     
-    GUIDANCE_TEMPLATES = {
-        ConfidenceLevel.EXPERT: (
-            "🟢 Answer from KG knowledge. Cite sources. "
-            "No need to search or guess."
-        ),
-        ConfidenceLevel.INTERMEDIATE: (
-            "🟡 Partial KG knowledge. Supplement with web search. "
-            "Record findings. Inject to CA for deep exploration."
-        ),
-        ConfidenceLevel.BEGINNER: (
-            "🟠 KG has limited knowledge. Search the web first. "
-            "If found → record to KG + inject to CA. "
-            "If not found → answer from LLM + inject to CA (mark as uncertain)."
-        ),
-        ConfidenceLevel.NOVICE: (
-            "🔴 No KG knowledge. Search the web. "
-            "Then answer from LLM if search fails. "
-            "ALWAYS inject this topic to CA for exploration. "
-            "Next time it will be in KG!"
-        ),
-    }
-    
     def __init__(self, config: dict):
         """
         Initialize CognitiveHook with configuration.
@@ -97,17 +106,19 @@ class CognitiveHook(AgentHook):
                 - confidence_threshold: float (default 0.6)
                 - auto_inject_unknowns: bool (default True)
                 - search_before_llm: bool (default True)
+                - guidance_templates: dict (optional, overrides defaults)
         """
         self.confidence_threshold = config.get("confidence_threshold", 0.6)
         self.auto_inject = config.get("auto_inject_unknowns", True)
         self.search_before_llm = config.get("search_before_llm", True)
         
-        self._stats = {
-            "kg_hits": 0,
-            "search_hits": 0,
-            "llm_fallbacks": 0,
-            "topics_injected": 0,
-        }
+        self.guidance_templates = config.get("guidance_templates", DEFAULT_GUIDANCE_TEMPLATES)
+        if self.guidance_templates:
+            for level in ConfidenceLevel:
+                if level.value in self.guidance_templates:
+                    self.guidance_templates[level] = self.guidance_templates[level.value]
+        
+        self._stats = _GLOBAL_STATS
     
     def check_confidence(self, topic: str, kg_confidence: float, gaps: List[str]) -> CognitiveGuidance:
         """
@@ -122,7 +133,7 @@ class CognitiveHook(AgentHook):
             CognitiveGuidance with recommended actions
         """
         level = ConfidenceLevel.from_confidence(kg_confidence)
-        template = self.GUIDANCE_TEMPLATES[level]
+        template = self.guidance_templates.get(level, DEFAULT_GUIDANCE_TEMPLATES[level])
         
         should_search = kg_confidence < self.confidence_threshold and self.search_before_llm
         should_inject = kg_confidence < self.confidence_threshold and self.auto_inject

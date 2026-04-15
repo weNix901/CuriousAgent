@@ -849,7 +849,6 @@ def api_kg_calibration():
 def api_knowledge_check():
     """Query KG confidence and guidance for a topic."""
     try:
-        import traceback
         from core.hooks.cognitive_hook import CognitiveHook
         from core.kg.repository_factory import KGRepositoryFactory
         from core.config import get_config
@@ -894,7 +893,6 @@ def api_knowledge_check():
             }
         })
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
@@ -903,7 +901,6 @@ def api_knowledge_check():
 def api_knowledge_learn():
     """Inject unknown topic to CA queue."""
     try:
-        import traceback
         from core.hooks.cognitive_hook import CognitiveHook, AnswerStrategy
         from core.config import get_config
         
@@ -947,7 +944,6 @@ def api_knowledge_learn():
             }
         })
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
@@ -956,7 +952,6 @@ def api_knowledge_learn():
 def api_knowledge_analytics():
     """Get interaction statistics."""
     try:
-        import traceback
         from core.hooks.cognitive_hook import CognitiveHook
         from core.config import get_config
         
@@ -977,7 +972,6 @@ def api_knowledge_analytics():
             "topics_learned": stats.get("topics_injected", 0),
         })
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
@@ -986,17 +980,17 @@ def api_knowledge_analytics():
 def api_knowledge_record():
     """Record search results to KG."""
     try:
-        import traceback
         from core.kg.repository_factory import KGRepositoryFactory
-        from core.config import get_config
         
         data = request.get_json() or {}
         topic = data.get("topic", "").strip()
-        content = data.get("content", "")
+        content = data.get("content", "").strip()
         sources = data.get("sources", [])
         
         if not topic:
             return jsonify({"error": "topic is required"}), 400
+        if not content:
+            return jsonify({"error": "content is required"}), 400
         
         kg_factory = KGRepositoryFactory.get_instance()
         
@@ -1015,7 +1009,6 @@ def api_knowledge_record():
             }
         })
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 

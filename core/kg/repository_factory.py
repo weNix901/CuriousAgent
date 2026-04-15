@@ -48,8 +48,8 @@ class KGRepositoryFactory:
         self,
         topic: str,
         content: str = "",
-        source_urls: list = None,
-        metadata: dict = None
+        source_urls: Optional[list] = None,
+        metadata: Optional[dict] = None
     ) -> str:
         """Sync wrapper for create_knowledge_node."""
         async def _create():
