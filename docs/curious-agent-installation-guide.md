@@ -142,7 +142,7 @@ Curious Agent v0.2.3 后台服务
 │   └── state.json                ← 探索状态文件
 ├── ui/                           ← Web UI
 ├── tests/                        ← 678 测试项，99.5% 通过率
-└── run_curious.sh                ← 一键启动脚本
+└── start.sh                ← 一键启动脚本
 
 /root/.openclaw/workspace-researcher/  ← OpenClaw Agent 工作空间
 ├── HEARTBEAT.md                  ← 心跳任务清单（关键！）
@@ -204,7 +204,7 @@ source ~/.bashrc
 cd /root/dev/curious-agent
 
 # 启动 API 服务（后台运行）
-bash run_curious.sh
+bash start.sh
 
 # 验证启动成功
 curl http://localhost:4848/api/curious/state | python3 -m json.tool | head -20
@@ -1115,7 +1115,7 @@ ls -la /root/dev/curious-agent/knowledge/state.json
 **解决**：启动 Curious Agent 服务
 ```bash
 cd /root/dev/curious-agent
-bash run_curious.sh
+bash start.sh
 ```
 
 ### 问题 3：端口被占用
@@ -1135,7 +1135,7 @@ fuser -k 4848/tcp 4849/tcp
 # 方法2：手动 kill
 pkill -f "curious_api.py"
 sleep 2
-bash run_curious.sh
+bash start.sh
 ```
 
 ### 问题 4：HEARTBEAT_OK 被发送但没有新发现
@@ -1166,7 +1166,7 @@ source ~/.bashrc
 # 重启服务
 cd /root/dev/curious-agent
 pkill -f curious_api.py
-bash run_curious.sh
+bash start.sh
 ```
 
 **说明**：v0.2.3 需要双 Provider 验证（Bocha + Serper），确保两个 API Key 都已配置。
@@ -1257,7 +1257,7 @@ openclaw cron add \
 
 ```bash
 # 为每个用户创建独立端口
-PORT=4850 USER_DIR=/home/user2/.openclaw/workspace-researcher bash run_curious.sh
+PORT=4850 USER_DIR=/home/user2/.openclaw/workspace-researcher bash start.sh
 ```
 
 对应的 `sync_discoveries.py` 路径也需要调整。
@@ -1346,7 +1346,7 @@ cd /root/dev/curious-agent && python3 curious_agent.py --inject "测试配置" -
 | sync_discoveries.py | `/root/.openclaw/workspace-researcher/scripts/sync_discoveries.py` | 同步脚本 |
 | curious_agent.py | `/root/dev/curious-agent/curious_agent.py` | 探索主程序 |
 | curious_api.py | `/root/dev/curious-agent/curious_api.py` | API 服务 |
-| run_curious.sh | `/root/dev/curious-agent/run_curious.sh` | 启动脚本 |
+| start.sh | `/root/dev/curious-agent/start.sh` | 启动脚本 |
 | state.json | `/root/dev/curious-agent/knowledge/state.json` | 探索状态 |
 | curious-discoveries.md | `/root/.openclaw/workspace-researcher/memory/curious-discoveries.md` | 发现索引 |
 | 发现存储 | `/root/.openclaw/workspace-researcher/memory/curious/*.md` | 单条发现 |
@@ -1360,7 +1360,7 @@ cd /root/dev/curious-agent && python3 curious_agent.py --inject "测试配置" -
 
 ```bash
 # === 启动 Curious Agent ===
-cd /root/dev/curious-agent && bash run_curious.sh
+cd /root/dev/curious-agent && bash start.sh
 
 # === 查看状态 ===
 cd /root/dev/curious-agent && python3 curious_agent.py --status

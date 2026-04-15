@@ -323,7 +323,6 @@ curious-agent/
 ├── curious_api.py                # Flask REST API + Web UI (+ /api/knowledge/* endpoints)
 ├── config.json                   # Central configuration (all agents, daemons, models)
 ├── start.sh                      # One-command startup
-├── run_curious.sh                # Alternative start script
 ├── core/
 │   ├── hooks/                   # v0.3.0: Cognitive hook system
 │   │   └── cognitive_hook.py    # CognitiveHook — confidence + guidance
