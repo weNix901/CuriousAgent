@@ -425,6 +425,7 @@ All agent and daemon parameters are controlled via `config.json`. No hard-coded 
 
 | Version | Theme | Date |
 |---------|-------|------|
+| **v0.3.0** | Cognitive Hook — Know what it knows | 2026-04-15 |
 | **v0.2.9** | Agent architecture refactor — CAAgent unified class, ReAct loop, 21 Tools, Neo4j storage, Hermes error handling | 2026-04-13 |
 | **v0.2.8** | Deadlock fixes — SpiderAgent queue stuck, KG quality issues | 2026-04-xx |
 | **v0.2.7** | Queue atomicity + QualityV2 fix + Parent link | 2026-03-31 |
@@ -449,6 +450,9 @@ All agent and daemon parameters are controlled via `config.json`. No hard-coded 
 | ✅ | Hermes error classification + retry utilities |
 | ✅ | Fully config-driven (zero hard-coded values) |
 | ✅ | OpenClaw bidirectional sync |
+| ✅ | CognitiveHook implementation |
+| ✅ | /api/knowledge/* endpoints |
+| ⚪ | OpenClaw external hook integration |
 | ⚪ | Neo4j as primary store (JSON fallback retirement) |
 | ⚪ | Self-Evolution engine (Bayesian weight updates) |
 | ⚪ | Adaptive interval scheduling (based on queue depth) |
