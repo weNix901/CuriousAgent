@@ -16,13 +16,13 @@ const handler = async (event: any) => {
     
     if (response.ok) {
       const result = await response.json();
-      const topics = result.topics || [];
+      const nodes = result.nodes || [];
       
-      if (topics.length > 0) {
-        const summary = topics
+      if (nodes.length > 0) {
+        const summary = nodes
           .slice(0, 5)
-          .map((t: any, i: number) =>
-            `${i + 1}. **${t.title || t}**`
+          .map((n: any, i: number) =>
+            `${i + 1}. **${n.id}** (quality: ${n.quality || 'N/A'})`
           )
           .join('\n');
         
