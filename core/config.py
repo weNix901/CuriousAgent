@@ -172,6 +172,19 @@ class BehaviorConfig:
 
 
 # ============================================================
+# Hooks Configuration (v0.3.0)
+# ============================================================
+
+@dataclass
+class CognitiveHookConfig:
+    """CognitiveHook configuration."""
+    confidence_threshold: float = 0.6
+    auto_inject_unknowns: bool = True
+    search_before_llm: bool = True
+    guidance_templates: dict = field(default_factory=dict)
+
+
+# ============================================================
 # Root Config
 # ============================================================
 
@@ -183,6 +196,7 @@ class Config:
     knowledge: dict = field(default_factory=dict)
     behavior: dict = field(default_factory=dict)
     llm: dict = field(default_factory=dict)
+    hooks: CognitiveHookConfig = field(default_factory=CognitiveHookConfig)
 
 
 def _load_env_file():
@@ -319,6 +333,16 @@ def load_config() -> Config:
     )
     user_interests = behavior_raw.get("user_interests", [])
 
+    # Parse hooks
+    hooks_raw = raw.get("hooks", {})
+    cognitive_raw = hooks_raw.get("cognitive", {})
+    cognitive_cfg = CognitiveHookConfig(
+        confidence_threshold=cognitive_raw.get("confidence_threshold", 0.6),
+        auto_inject_unknowns=cognitive_raw.get("auto_inject_unknowns", True),
+        search_before_llm=cognitive_raw.get("search_before_llm", True),
+        guidance_templates=cognitive_raw.get("guidance_templates", {})
+    )
+
     # Parse LLM
     llm_raw = raw.get("llm", {})
     llm_providers = []
@@ -373,7 +397,8 @@ def load_config() -> Config:
             "providers": llm_providers,
             "default_provider": llm_raw.get("default_provider", "volcengine"),
             "selection_strategy": llm_raw.get("selection_strategy", "capability")
-        }
+        },
+        hooks=cognitive_cfg
     )
 
 
