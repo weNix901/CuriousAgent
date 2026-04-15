@@ -785,18 +785,7 @@ def api_kg_reactivate():
     return jsonify({"status": "ok", "topic": topic})
 
 
-@app.route("/api/dreamer/force", methods=["POST"])
-def api_dreamer_force():
-    """Force DreamAgent to dream about a topic."""
-    data = request.get_json()
-    topic = data.get("topic", "").strip()
 
-    if not topic:
-        return jsonify({"error": "topic is required"}), 400
-
-    # TODO: Actually trigger DreamAgent
-    # For now, just mark as requested
-    return jsonify({"status": "ok", "topic": topic, "requested": True})
 
 
 @app.route("/api/kg/confidence/<path:topic>")
