@@ -1,7 +1,10 @@
 """Neo4j client wrapper for KG operations."""
 import asyncio
+import logging
 from typing import Any, Dict, List, Optional
 from neo4j import GraphDatabase
+
+logger = logging.getLogger(__name__)
 
 
 class Neo4jClient:
@@ -73,7 +76,8 @@ class Neo4jClient:
         try:
             result = await self.execute_query("RETURN 1 as test")
             return len(result) > 0
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Neo4j health check failed: {e}", exc_info=True)
             return False
 
     def is_connected(self) -> bool:

@@ -2,8 +2,11 @@
 Meta-cognitive monitor - Pure monitoring module
 Responsible for evaluating exploration quality, computing marginal returns, recording exploration history
 """
+import logging
 import re
 from core import knowledge_graph as kg
+
+logger = logging.getLogger(__name__)
 
 
 class MetaCognitiveMonitor:
@@ -94,8 +97,8 @@ Return only keywords, nothing else."""
                 keywords = [k.strip().lower() for k in response.split(",") if k.strip()]
                 if len(keywords) >= 3:
                     return keywords[:10]
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to extract keywords via LLM: {e}", exc_info=True)
 
         words_with_numbers = re.findall(r'\b[a-z]*\d+[a-z]*\b', text.lower())
         words_only_letters = re.findall(r'\b[a-z]{4,}\b', text.lower())
@@ -153,8 +156,8 @@ Return only a number."""
                 if numbers:
                     score = float(numbers[0])
                     return max(0.0, min(1.0, score))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to compute user relevance for '{topic}': {e}", exc_info=True)
 
         topic_words = set(topic.lower().split())
         interest_words = set(' '.join(user_interests).lower().split())

@@ -153,7 +153,7 @@ class CuriosityEngine:
                 last_dt = datetime.fromisoformat(last_updated.replace("Z", "+00:00"))
                 hours_old = (datetime.now(timezone.utc) - last_dt).total_seconds() / 3600
                 recency = min(10.0, hours_old / 24)  # 每天 +1 分，上限 10
-            except:
+            except (ValueError, TypeError):
                 recency = 5.0
         
         # Depth: 知识缺口

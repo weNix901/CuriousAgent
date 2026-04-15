@@ -5,8 +5,11 @@ Feature Toggle - 功能开关
 """
 
 import json
+import logging
 import os
 from typing import Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class FeatureToggle:
@@ -38,7 +41,8 @@ class FeatureToggle:
             try:
                 with open(self._config_file, 'r') as f:
                     self._config = json.load(f)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"Failed to load feature config from '{self._config_file}': {e}", exc_info=True)
                 self._config = self.DEFAULT_FEATURES.copy()
         else:
             self._config = self.DEFAULT_FEATURES.copy()

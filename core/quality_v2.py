@@ -1,6 +1,9 @@
 """Quality v2 - Information gain based quality assessment"""
+import logging
 import re
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 class QualityV2Assessor:
@@ -150,82 +153,46 @@ Return only a number between 0.0-1.0."""
             response = self.llm.chat(prompt)
             numbers = re.findall(r'0?\.\d+', response)
             return float(numbers[0]) if numbers else 0.5
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to assess similarity: {e}", exc_info=True)
             return 0.5
     
-    def _assess_confidence(self, text: str) -> float:
-        """Use LLM to assess confidence in understanding (0-1)"""
-        if not text:
-            return 0.5
-
-        prompt = f"""Assess understanding confidence (0.0-1.0):
-
-{text[:500]}
-
-Consider: Can you explain core concepts? Give examples? Identify limitations?
-
-Return only a number between 0.0-1.0."""
-
-        try:
-            response = self.llm.chat(prompt)
-            numbers = re.findall(r'0?\.\d+', response)
-            return float(numbers[0]) if numbers else 0.5
-        except Exception:
-            return 0.5
-
     def _assess_information_gain(self, topic: str, prev_summary: str, new_summary: str) -> float:
-        """
-        评估信息增益：相比之前的 summary，新 summary 提供了多少新信息。
-
-        评分标准（0.0-1.0）：
-        - 0.0: 新 summary 与旧 summary 完全相同或只是同义改写，无新信息
-        - 0.3: 有少量新信息，但大部分内容与之前重复
-        - 0.6: 有明显新内容，约一半信息与之前不同
-        - 0.8: 有大量新信息，与之前总结互补
-        - 1.0: 全新信息，与之前总结几乎无重叠
-        """
+        """Assess information gain between previous and new summary"""
         if not new_summary or not new_summary.strip():
             return 0.0
         
-        # 如果没有之前的 summary，使用原始逻辑评估绝对信息增益
         if not prev_summary or not prev_summary.strip():
-            prompt = f"""你是知识质量评估专家。
+            prompt = f"""Assess information gain from exploring topic '{topic}'.
 
-Task: 评估这次探索相比"只知道 topic 名称"的信息增益。
-
-Topic: {topic}
-
-探索发现:
+New findings:
 {new_summary[:800]}
 
-评估问题：这次探索让你对"{topic}"的理解增加了多少？
-- 0.0: 总结只是 topic 名称的重复或极度泛泛的描述（如"这是一个关于{topic}的领域"），没有提供任何具体知识
-- 0.3: 知道是关于什么的，但无法解释如何运作、有什么方法、适用于什么场景
-- 0.6: 有基本概念理解，能举出 1-2 个具体例子或方法名称
-- 0.8: 有较深理解，知道多种方法/框架/对比/局限性
-- 1.0: 获得可操作的详细知识，能解释具体原理、算法步骤或实际应用方式
+Score 0.0-1.0 based on:
+- 0.0: No substantive information
+- 0.3: Basic concepts mentioned
+- 0.6: Clear explanations with examples
+- 0.8: Deep understanding with methods/limitations
+- 1.0: Comprehensive actionable knowledge
 
 Return only a number between 0.0-1.0."""
         else:
-            # 有之前的 summary，评估相对信息增益（对比新旧）
-            prompt = f"""你是知识质量评估专家。
-
-Task: 评估这次探索相比上一次探索的信息增益。
+            prompt = f"""Assess information gain compared to previous findings.
 
 Topic: {topic}
 
-之前的发现:
+Previous findings:
 {prev_summary[:500]}
 
-新的发现:
+New findings:
 {new_summary[:500]}
 
-评估问题：新的发现相比之前的发现，增加了多少新信息？
-- 0.0: 新发现与旧发现完全相同，只是改写了措辞，无任何新信息
-- 0.3: 有少量新信息（约 20-30%），但大部分内容与之前重复
-- 0.6: 有明显新内容（约 50%），与之前的发现互补
-- 0.8: 有大量新信息（约 70-80%），显著扩展了对该话题的理解
-- 1.0: 几乎全是新信息（>90%），与之前的发现几乎没有重叠
+Score 0.0-1.0 based on:
+- 0.0: Same content, just reworded
+- 0.3: ~20-30% new information
+- 0.6: ~50% new content, complementary
+- 0.8: ~70-80% new information
+- 1.0: >90% new information
 
 Return only a number between 0.0-1.0."""
 
@@ -235,7 +202,8 @@ Return only a number between 0.0-1.0."""
             if numbers:
                 return max(0.0, min(1.0, float(numbers[0])))
             return 0.5
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to assess information gain for '{topic}': {e}", exc_info=True)
             return 0.5
     
     def _get_previous_summary(self, topic: str, kg) -> str:
@@ -244,7 +212,8 @@ Return only a number between 0.0-1.0."""
             state = kg.get_state()
             topic_data = state.get("knowledge", {}).get("topics", {}).get(topic, {})
             return topic_data.get("summary", "")
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to get previous summary for '{topic}': {e}", exc_info=True)
             return ""
 
     def _get_previous_confidence(self, topic: str, kg) -> float:
@@ -253,7 +222,8 @@ Return only a number between 0.0-1.0."""
             state = kg.get_state()
             competence_state = state.get("competence_state", {})
             return competence_state.get(topic, {}).get("confidence", 0.5)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to get previous confidence for '{topic}': {e}", exc_info=True)
             return 0.5
 
     def _get_neighbor_count(self, topic: str, kg) -> int:
@@ -266,7 +236,8 @@ Return only a number between 0.0-1.0."""
             children_count = len(topic_data.get("children", []))
             parent_count = sum(1 for t, v in topics.items() if topic in v.get("children", []))
             return children_count + parent_count
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to get neighbor count for '{topic}': {e}", exc_info=True)
             return 0
     
     def fallback_quality_assessment(self, findings: dict) -> float:

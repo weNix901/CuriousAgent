@@ -4,9 +4,12 @@ Quality V2 Assessor - 修复版
 使用懒加载模式，自动获取 KG 实例
 """
 
+import logging
 import threading
 from typing import Dict
 from difflib import SequenceMatcher
+
+logger = logging.getLogger(__name__)
 
 
 class QualityV2Assessor:
@@ -89,7 +92,8 @@ class QualityV2Assessor:
             
             return ""
             
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to get previous summary for '{topic}': {e}", exc_info=True)
             return ""
     
     def _calculate_novelty(self, prev_summary: str, new_summary: str) -> float:

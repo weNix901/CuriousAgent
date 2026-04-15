@@ -49,8 +49,8 @@ def _explore_in_thread(topic: str, score: float, depth: float):
     from core.knowledge_graph import update_curiosity_status
     try:
         update_curiosity_status(topic, "exploring")
-    except Exception:
-        pass  # 不因为 status 更新失败而阻止探索
+    except Exception as e:
+        logger.warning(f"Failed to update status for '{topic}': {e}", exc_info=True)
     # === Phase 3 结束 ===
 
     try:
@@ -149,8 +149,8 @@ def _explore_in_thread(topic: str, score: float, depth: float):
         try:
             from core.knowledge_graph import update_curiosity_status
             update_curiosity_status(topic, "paused")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to set paused status for '{topic}': {e}", exc_info=True)
     finally:
         # v0.2.6 fix: remove self from active threads tracker
         import threading as t

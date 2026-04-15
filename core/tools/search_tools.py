@@ -1,6 +1,7 @@
 """Search tools for Curious Agent."""
 import asyncio
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -9,6 +10,8 @@ import aiohttp
 import pdfplumber
 
 from core.tools.base import Tool
+
+logger = logging.getLogger(__name__)
 
 
 class SearchProviderRegistry:
@@ -86,8 +89,8 @@ class SearchWebTool(Tool):
                 result = await provider.search(query)
                 if result.get("result_count", 0) > 0:
                     return self._format_results(result)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Primary search provider failed for '{query}': {e}", exc_info=True)
         
         fallback = registry.get_fallback_provider()
         if fallback:
@@ -343,8 +346,8 @@ class ProcessPaperTool(Tool):
                 
                 try:
                     Path(temp_path).unlink()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to delete temp file '{temp_path}': {e}", exc_info=True)
                 
                 if not pages_text:
                     return "Warning: No text could be extracted from PDF"
@@ -354,6 +357,6 @@ class ProcessPaperTool(Tool):
         except Exception as e:
             try:
                 Path(temp_path).unlink()
-            except Exception:
-                pass
+            except Exception as cleanup_err:
+                logger.warning(f"Failed to delete temp file '{temp_path}' on error: {cleanup_err}", exc_info=True)
             return f"Error: Failed to parse PDF - {str(e)}"

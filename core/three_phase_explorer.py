@@ -1,5 +1,8 @@
 """ThreePhaseExplorer - Monitor-Generate-Verify cycle"""
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ThreePhaseExplorer:
@@ -98,7 +101,8 @@ Return ONLY JSON, no other text."""
             if isinstance(result, list):
                 return result
             return result.get("gaps", [])
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to identify knowledge gaps for '{topic}': {e}", exc_info=True)
             return [{"gap_type": "general", "description": "Need more information", "priority": 0.5}]
 
     def _phase2_generate(self, topic: str, gaps: list, depth: str) -> list:

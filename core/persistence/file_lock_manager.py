@@ -4,10 +4,13 @@
 提供进程级的文件锁，解决多进程并发读写 JSON 文件的问题
 """
 
+import logging
 import os
 import threading
 from typing import Optional
 from contextlib import contextmanager
+
+logger = logging.getLogger(__name__)
 
 # 尝试导入 portalocker，如果不存在则使用 fcntl（Unix only）
 try:
@@ -124,7 +127,8 @@ class FileLockManager:
                 warnings.warn("No file locking mechanism available. "
                             "Running in single-process mode only.")
         
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to acquire file lock '{self._lock_file}': {e}", exc_info=True)
             # 获取锁失败，释放线程锁
             self._local_lock.release()
             if self._fd:

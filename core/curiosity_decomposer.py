@@ -1,11 +1,14 @@
 """Curiosity Decomposer - Break down broad topics into specific sub-topics"""
 import asyncio
+import logging
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from core.provider_registry import ProviderRegistry
 
 from core.exceptions import ClarificationNeeded
+
+logger = logging.getLogger(__name__)
 
 
 class CuriosityDecomposer:
@@ -191,7 +194,8 @@ class CuriosityDecomposer:
         try:
             response = self.llm.chat(prompt)
             return self._parse_candidates(response)
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to generate candidates for '{topic}': {e}", exc_info=True)
             return []
     
     def _parse_candidates(self, response: str) -> list[str]:

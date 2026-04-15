@@ -1,11 +1,14 @@
 """ExploreAgent with ReAct loop for knowledge exploration."""
 import json
+import logging
 import uuid
 from typing import Any
 
 from core.agents.ca_agent import CAAgent, CAAgentConfig, AgentResult
 from core.tools.registry import ToolRegistry
 from core.llm_client import LLMClient
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_SYSTEM_PROMPT = """You are an ExploreAgent that autonomously explores knowledge topics.
@@ -329,5 +332,6 @@ class ExploreAgent(CAAgent):
 
             result = await mark_tool.execute(item_id=item_id, holder_id=self.holder_id)
             return "Successfully marked" in result
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to mark item {item_id} as done: {e}", exc_info=True)
             return False

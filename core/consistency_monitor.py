@@ -4,12 +4,15 @@ Consistency Monitor - 数据一致性监控
 实时监控数据一致性，自动修复问题
 """
 
+import logging
 import time
 import threading
 from datetime import datetime
 from typing import List, Callable, Optional
 from dataclasses import dataclass
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 
 class Severity(Enum):
@@ -197,8 +200,8 @@ class ConsistencyMonitor:
                 item.status = State.FAILED
                 self._queue_repo.save(item)
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to repair stale exploring for '{issue.topic}': {e}", exc_info=True)
         return False
     
     def _check_queue_state_mismatch(self) -> List[ConsistencyIssue]:
@@ -246,8 +249,8 @@ class ConsistencyMonitor:
                 item.status = State.PENDING
                 self._queue_repo.save(item)
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to repair dangling claimed for '{issue.topic}': {e}", exc_info=True)
         return False
     
     def _report_issue(self, issue: ConsistencyIssue):

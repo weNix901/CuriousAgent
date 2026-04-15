@@ -2,6 +2,7 @@
 探索器 - 执行实际的知识探索
 """
 import json
+import logging
 import os
 import subprocess
 from typing import List, Optional, Dict, Any
@@ -15,6 +16,8 @@ from .web_citation_extractor import WebCitationExtractor
 from .quality_v2 import QualityV2Assessor
 from .embedding_service import EmbeddingService
 from .assertion_index import AssertionIndex
+
+logger = logging.getLogger(__name__)
 
 
 VALID_EXPLORATION_DEPTHS = {"shallow", "medium", "deep"}
@@ -81,8 +84,8 @@ class Explorer:
                 # Record Bocha quota usage
                 get_quota_manager().record_usage("bocha")
                 return self._parse_bocha_results(items)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Bocha search failed for '{query}': {e}", exc_info=True)
         return []
 
     def _call_serper_search(self, query: str, count: int = 3) -> list:
@@ -127,8 +130,8 @@ class Explorer:
                 # Record Serper quota usage
                 get_quota_manager().record_usage("serper")
                 return self._parse_serper_results(data["organic"])
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Serper search failed for '{query}': {e}", exc_info=True)
         return []
 
     def _parse_serper_results(self, items: list) -> list:

@@ -1,4 +1,7 @@
 from core.meta_cognitive_monitor import MetaCognitiveMonitor
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MetaCognitiveController:
@@ -23,8 +26,8 @@ class MetaCognitiveController:
                     "min_marginal_return": getattr(cfg.thresholds, 'min_marginal_return', 0.3),
                     "high_quality_threshold": getattr(cfg.thresholds, 'high_quality_threshold', 7.0)
                 })
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"Failed to load config thresholds: {e}", exc_info=True)
 
     def should_explore(self, topic: str) -> tuple[bool, str]:
         if self.monitor.is_topic_blocked(topic):

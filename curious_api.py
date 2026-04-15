@@ -691,58 +691,78 @@ def main():
 @app.route("/api/kg/trace/<path:topic>")
 def api_kg_trace(topic: str):
     """使用扩散激活算法向上追溯 topic 的因果链到根技术"""
+    import traceback
     from core.knowledge_graph import get_spreading_activation_trace, get_root_technologies
 
-    topic = topic.strip()
+    try:
+        topic = topic.strip()
 
-    result = get_spreading_activation_trace(topic)
+        result = get_spreading_activation_trace(topic)
 
-    root_technologies = get_root_technologies()
+        root_technologies = get_root_technologies()
 
-    return jsonify({
-        "topic": topic,
-        "origin": result["origin"],
-        "activation_map": result["activation_map"],
-        "ordered_trace": result["ordered_trace"],
-        "root_technologies": result["root_technologies"],
-        "cross_subgraph_connections": result["cross_subgraph_connections"]
-    })
+        return jsonify({
+            "topic": topic,
+            "origin": result["origin"],
+            "activation_map": result["activation_map"],
+            "ordered_trace": result["ordered_trace"],
+            "root_technologies": result["root_technologies"],
+            "cross_subgraph_connections": result["cross_subgraph_connections"]
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @app.route("/api/kg/roots")
 def api_kg_roots():
     """返回所有根技术，按 root_score 降序"""
+    import traceback
     from core.knowledge_graph import get_root_technologies
 
-    roots = get_root_technologies()
-    return jsonify({
-        "roots": roots,
-        "total": len(roots)
-    })
+    try:
+        roots = get_root_technologies()
+        return jsonify({
+            "roots": roots,
+            "total": len(roots)
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @app.route("/api/kg/overview")
 def api_kg_overview():
     """返回 KG 全局视图数据（节点+边）"""
+    import traceback
     from core.knowledge_graph import get_kg_overview
 
-    return jsonify(get_kg_overview())
+    try:
+        return jsonify(get_kg_overview())
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @app.route("/api/kg/promote", methods=["POST"])
 def api_kg_promote():
     """手动将 topic 升为根候选（R1D3 或人工调用）"""
+    import traceback
     from core.knowledge_graph import promote_to_root_candidate
 
-    data = request.get_json()
-    topic = data.get("topic", "").strip()
-    domains = data.get("domains", [])
+    try:
+        data = request.get_json()
+        topic = data.get("topic", "").strip()
+        domains = data.get("domains", [])
 
-    if not topic:
-        return jsonify({"error": "topic is required"}), 400
+        if not topic:
+            return jsonify({"error": "topic is required"}), 400
 
-    promote_to_root_candidate(topic, domains)
-    return jsonify({"status": "ok", "topic": topic})
+        promote_to_root_candidate(topic, domains)
+        return jsonify({"status": "ok", "topic": topic})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 # === v0.2.6 API Extensions (F13) ===
@@ -750,39 +770,63 @@ def api_kg_promote():
 @app.route("/api/kg/dream_insights")
 def api_kg_dream_insights():
     """Get all dream insights."""
+    import traceback
     from core import knowledge_graph as kg
-    insights = kg.get_all_dream_insights()
-    return jsonify({"insights": insights})
+
+    try:
+        insights = kg.get_all_dream_insights()
+        return jsonify({"insights": insights})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @app.route("/api/kg/dream_insights/<topic>")
 def api_kg_dream_insights_topic(topic: str):
     """Get dream insights for specific topic."""
+    import traceback
     from core import knowledge_graph as kg
-    insights = kg.get_dream_insights(topic)
-    return jsonify({"insights": insights})
+
+    try:
+        insights = kg.get_dream_insights(topic)
+        return jsonify({"insights": insights})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @app.route("/api/kg/dormant")
 def api_kg_dormant():
     """Get all dormant nodes."""
+    import traceback
     from core import knowledge_graph as kg
-    nodes = kg.get_dormant_nodes()
-    return jsonify({"dormant_nodes": nodes})
+
+    try:
+        nodes = kg.get_dormant_nodes()
+        return jsonify({"dormant_nodes": nodes})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @app.route("/api/kg/reactivate", methods=["POST"])
 def api_kg_reactivate():
     """Reactivate a dormant node."""
+    import traceback
     from core import knowledge_graph as kg
-    data = request.get_json()
-    topic = data.get("topic", "").strip()
 
-    if not topic:
-        return jsonify({"error": "topic is required"}), 400
+    try:
+        data = request.get_json()
+        topic = data.get("topic", "").strip()
 
-    kg.reactivate(topic)
-    return jsonify({"status": "ok", "topic": topic})
+        if not topic:
+            return jsonify({"error": "topic is required"}), 400
+
+        kg.reactivate(topic)
+        return jsonify({"status": "ok", "topic": topic})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 
@@ -791,43 +835,58 @@ def api_kg_reactivate():
 @app.route("/api/kg/confidence/<path:topic>")
 def api_kg_confidence(topic: str):
     """Get confidence interval for topic."""
+    import traceback
     from core.meta_cognitive_monitor import MetaCognitiveMonitor
 
-    monitor = MetaCognitiveMonitor()
-    low, high = monitor.get_confidence_interval(topic)
+    try:
+        monitor = MetaCognitiveMonitor()
+        low, high = monitor.get_confidence_interval(topic)
 
-    return jsonify({
-        "topic": topic,
-        "confidence_low": low,
-        "confidence_high": high
-    })
+        return jsonify({
+            "topic": topic,
+            "confidence_low": low,
+            "confidence_high": high
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @app.route("/api/kg/frontier")
 def api_kg_frontier():
     """Get knowledge frontier."""
+    import traceback
     from core.meta_cognitive_monitor import MetaCognitiveMonitor
 
-    monitor = MetaCognitiveMonitor()
-    frontiers = monitor.detect_frontier()
+    try:
+        monitor = MetaCognitiveMonitor()
+        frontiers = monitor.detect_frontier()
 
-    return jsonify({"frontiers": frontiers})
+        return jsonify({"frontiers": frontiers})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @app.route("/api/kg/calibration")
 def api_kg_calibration():
     """Get overall calibration error."""
+    import traceback
     from core.meta_cognitive_monitor import MetaCognitiveMonitor
 
-    monitor = MetaCognitiveMonitor()
-    error = monitor.get_calibration_error()
+    try:
+        monitor = MetaCognitiveMonitor()
+        error = monitor.get_calibration_error()
 
-    verdict = "well_calibrated" if error < 0.1 else "overconfident" if error > 0.3 else "moderate"
+        verdict = "well_calibrated" if error < 0.1 else "overconfident" if error > 0.3 else "moderate"
 
-    return jsonify({
-        "calibration_error": error,
-        "verdict": verdict
-    })
+        return jsonify({
+            "calibration_error": error,
+            "verdict": verdict
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 # =============================================================================
@@ -1244,6 +1303,7 @@ def api_agents_status():
     except Exception as e:
         import traceback
         traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 # Queue API endpoints

@@ -1,6 +1,9 @@
 from typing import Optional
+import logging
 from core.repository.base import KnowledgeRepository
 from core.models.topic import Topic
+
+logger = logging.getLogger(__name__)
 
 
 class R1D3ToolHandler:
@@ -90,5 +93,6 @@ class R1D3ToolHandler:
             from core.config.spider_config import SpiderConfig
             config = SpiderConfig()
             return config.__dict__ if hasattr(config, '__dict__') else {}
-        except:
+        except Exception as e:
+            logger.warning(f"Failed to load SpiderConfig: {e}", exc_info=True)
             return {}

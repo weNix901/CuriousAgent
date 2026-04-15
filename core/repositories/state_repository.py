@@ -2,6 +2,7 @@
 State Repository - 状态数据持久化
 """
 
+import logging
 import os
 import json
 import shutil
@@ -10,6 +11,8 @@ from typing import Optional, Dict, List
 from dataclasses import dataclass, field
 
 from core.persistence.file_lock_manager import FileLockManager
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -115,7 +118,8 @@ class BackupManager:
         try:
             shutil.copy2(backup_path, target_path)
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Failed to restore backup from '{backup_path}' to '{target_path}': {e}", exc_info=True)
             return False
 
 
