@@ -1,0 +1,17 @@
+{
+  "name": "@curious-agent/knowledge-gate",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "openclaw": {
+    "hooks": [
+      "dist/index.js"
+    ]
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^5.9.3"
+  }
+}
