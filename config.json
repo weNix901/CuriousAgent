@@ -1,0 +1,150 @@
+{
+  "agents": {
+    "explore": {
+      "max_iterations": 10,
+      "model": "volcengine",
+      "tools": [
+        "search_web",
+        "query_kg",
+        "add_to_kg",
+        "claim_queue",
+        "mark_done",
+        "get_queue",
+        "llm_analyze",
+        "llm_summarize",
+        "fetch_page",
+        "process_paper",
+        "update_kg_status",
+        "update_kg_metadata",
+        "get_node_relations",
+        "add_to_queue"
+      ]
+    },
+    "dream": {
+      "scoring_weights": {
+        "relevance": 0.25,
+        "frequency": 0.15,
+        "recency": 0.15,
+        "quality": 0.2,
+        "surprise": 0.15,
+        "cross_domain": 0.1
+      },
+      "min_score_threshold": 0.8,
+      "min_recall_count": 3,
+      "max_candidates": 100,
+      "max_scored": 20
+    }
+  },
+  "daemon": {
+    "explore": {
+      "poll_interval_seconds": 300,
+      "max_retries": 3,
+      "retry_delay_seconds": 15
+    },
+    "dream": {
+      "interval_seconds": 21600
+    }
+  },
+  "knowledge": {
+    "root_seeds": [
+      "transformer attention",
+      "gradient descent",
+      "backpropagation",
+      "softmax",
+      "RL reward signal",
+      "uncertainty quantification"
+    ],
+    "search": {
+      "primary": "bocha",
+      "fallback": "serper",
+      "bocha_fallback_mode": "serper_empty",
+      "daily_quota": {
+        "enabled": true,
+        "serper": 100,
+        "bocha": 50,
+        "reset_hour": 0
+      }
+    },
+    "embedding": {
+      "provider": "siliconflow",
+      "model": "BAAI/bge-large-zh-v1.5",
+      "dimension": 1024,
+      "api_key_env": "SILICONFLOW_API_KEY",
+      "fallback_chain": [
+        "siliconflow",
+        "llm"
+      ],
+      "siliconflow_base_url": "https://api.siliconflow.cn/v1"
+    },
+    "kg": {
+      "enabled": true,
+      "uri": "bolt://localhost:7687",
+      "username": "neo4j",
+      "password_env": "NEO4J_PASSWORD",
+      "fallback_to_json": false
+    }
+  },
+  "behavior": {
+    "curiosity": {
+      "max_explore_count": 3,
+      "min_marginal_return": 0.3,
+      "high_quality_threshold": 7.0
+    },
+    "injection": {
+      "enabled": true,
+      "priority_sources": [
+        "r1d3"
+      ],
+      "boost_score": 2.0,
+      "trigger_immediate": true
+    },
+    "notification": {
+      "enabled": true,
+      "min_quality": 7.0
+    },
+    "user_interests": [
+      "agent framework",
+      "self-reflection",
+      "metacognition",
+      "curiosity driven",
+      "LLM"
+    ]
+  },
+  "llm": {
+    "default_provider": "volcengine",
+    "selection_strategy": "capability",
+    "providers": {
+      "volcengine": {
+        "api_url": "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
+        "timeout": 60,
+        "enabled": true,
+        "models": [
+          {
+            "model": "ark-code-latest",
+            "weight": 3,
+            "capabilities": [
+              "fast",
+              "general",
+              "keywords",
+              "quality"
+            ],
+            "max_tokens": 2000
+          }
+        ]
+      }
+    }
+  },
+  "hooks": {
+    "cognitive": {
+      "confidence_threshold": 0.6,
+      "auto_inject_unknowns": true,
+      "search_before_llm": true,
+      "guidance_templates": {
+        "expert": "🟢 Answer from KG knowledge. Cite sources. No need to search or guess.",
+        "intermediate": "🟡 Partial KG knowledge. Supplement with web search. Record findings. Inject to CA for deep exploration.",
+        "beginner": "🟠 KG has limited knowledge. Search the web first. If found → record to KG + inject to CA. If not found → answer from LLM + inject to CA (mark as uncertain).",
+        "novice": "🔴 No KG knowledge. Search the web. Then answer from LLM if search fails. ALWAYS inject this topic to CA for exploration. Next time it will be in KG!"
+      }
+    }
+  }
+}
