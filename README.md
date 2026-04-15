@@ -1,9 +1,9 @@
 # 👁️ Curious Agent
 
-[![Status](https://img.shields.io/badge/status-v0.2.9-blue)](#)
+[![Status](https://img.shields.io/badge/status-v0.3.0-blue)](#)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](#)
 [![OpenClaw](https://img.shields.io/badge/openclaw-2026.3+-green)](#)
-[![Tests](https://img.shields.io/badge/tests-90%20modules-brightgreen)](#)
+[![Tests](https://img.shields.io/badge/tests-97%20modules-brightgreen)](#)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#)
 
 **Autonomous knowledge explorer that builds, traces, and evolves a living knowledge graph — without being asked.**
@@ -46,7 +46,7 @@ Spreading activation traces root technologies:
    the fundamental Attention mechanism."
 ```
 
-### Unified Agent Architecture (v0.2.9)
+### Unified Agent Architecture (v0.3.0)
 
 ExploreAgent and DreamAgent are **two configurations of the same `CAAgent` class** — only the config differs. This is a clean, maintainable architecture:
 
@@ -75,6 +75,19 @@ ExploreAgent and DreamAgent are **two configurations of the same `CAAgent` class
 │  • Continuous    │              │  • Heartbeat 6h  │
 │  • Writes KG     │              │  • Writes Queue  │
 └──────────────────┘              └──────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│              CognitiveHook (v0.3.0 NEW)                      │
+│  "Know what it knows, know what it doesn't know"            │
+│                                                             │
+│  POST /api/knowledge/check  → KG confidence + guidance      │
+│  POST /api/knowledge/learn  → Inject unknown to CA queue    │
+│  GET  /api/knowledge/analytics → Interaction stats          │
+│  POST /api/knowledge/record → Save search results to KG     │
+│                                                             │
+│  4-level confidence: Expert → Intermediate → Beginner → Novice │
+│  Auto-inject unknowns for CA exploration                    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 Both agents run under daemons:
@@ -98,6 +111,7 @@ All parameters — models, intervals, thresholds, scoring weights, tool lists �
 - ✅ You want **quality-filtered knowledge** — only high-signal findings enter the graph
 - ✅ You're building a **digital life form** (数字生命体) with intrinsic curiosity, not a tool
 - ✅ You want agents running **autonomously 24/7** with full observability and config-driven control
+- ✅ You need R1D3 to **auto-inject unknowns** — when it doesn't know, CA will explore and learn
 
 ---
 
@@ -148,6 +162,25 @@ All agents, daemons, models, intervals, thresholds, tool lists, and scoring weig
 
 Bidirectional sync via `shared_knowledge/`. R1D3 (host Agent) queries confidence, injects topics, reads discoveries. Curious Agent writes findings back. The two Agents evolve together.
 
+### 🧠 Cognitive Framework (v0.3.0 NEW)
+
+**"Know what it knows, know what it doesn't know"** — R1D3 can now assess its KG confidence before answering:
+
+| Confidence | Level | Action |
+|------------|-------|--------|
+| ≥ 0.85 | Expert 🟢 | Answer from KG, cite sources |
+| 0.6-0.85 | Intermediate 🟡 | KG + web search supplement |
+| 0.3-0.6 | Beginner 🟠 | Search first, inject to CA |
+| < 0.3 | Novice 🔴 | LLM fallback + **ALWAYS** inject to CA |
+
+**When R1D3 doesn't know → automatically triggers CA exploration → next time, topic is in KG.**
+
+**API endpoints:**
+- `POST /api/knowledge/check` — Query KG confidence + get guidance
+- `POST /api/knowledge/learn` — Inject unknown topic to CA queue
+- `GET /api/knowledge/analytics` — KG hit/search/fallback stats
+- `POST /api/knowledge/record` — Save web search results to KG
+
 ---
 
 ## Problems Curious Agent Solves
@@ -161,6 +194,7 @@ Bidirectional sync via `shared_knowledge/`. R1D3 (host Agent) queries confidence
 | ❌ No understanding of how concepts connect at a deep level. | ✅ Spreading activation traces any node to its root technology. |
 | ❌ Agent configuration scattered across code, hardcoded values everywhere. | ✅ Single `config.json` source. All agents and daemons dynamically configured. |
 | ❌ You have to manually kick off each exploration. | ✅ Daemons run 24/7 on configurable schedules. Heartbeat-driven autonomy. |
+| ❌ When R1D3 doesn't know something, it just guesses. | ✅ Auto-inject unknowns to CA. Next time, topic is in KG — no more guessing. |
 
 ---
 
@@ -176,6 +210,7 @@ Bidirectional sync via `shared_knowledge/`. R1D3 (host Agent) queries confidence
 | **Quality-gated knowledge.** | Only findings passing the quality gate enter the graph and shared knowledge layer. |
 | **Root technology tracing.** | Cross-subgraph activation convergence automatically surfaces fundamental mechanisms. |
 | **Config-driven architecture.** | Every parameter in `config.json`. Change intervals, models, thresholds without touching code. |
+| **Cognitive Framework (v0.3.0).** | 4-level confidence assessment. Auto-inject unknowns. R1D3 learns what it doesn't know. |
 
 ---
 
@@ -261,6 +296,21 @@ curl "http://localhost:4848/api/kg/trace/metacognitive%20monitoring"
 
 # Root pool
 curl http://localhost:4848/api/kg/roots
+
+# === v0.3.0 Cognitive Framework ===
+
+# Check KG confidence + get guidance
+curl -X POST http://localhost:4848/api/knowledge/check \
+  -H "Content-Type: application/json" \
+  -d '{"topic":"FlashAttention"}'
+
+# Inject unknown topic for CA exploration
+curl -X POST http://localhost:4848/api/knowledge/learn \
+  -H "Content-Type: application/json" \
+  -d '{"topic":"FlashAttention","strategy":"llm_answer"}'
+
+# Get cognitive stats
+curl http://localhost:4848/api/knowledge/analytics
 ```
 
 ---
@@ -270,18 +320,19 @@ curl http://localhost:4848/api/kg/roots
 ```
 curious-agent/
 ├── curious_agent.py              # CLI entry + daemon orchestration
-├── curious_api.py                # Flask REST API + Web UI
+├── curious_api.py                # Flask REST API + Web UI (+ /api/knowledge/* endpoints)
 ├── config.json                   # Central configuration (all agents, daemons, models)
 ├── start.sh                      # One-command startup
 ├── run_curious.sh                # Alternative start script
-├── spider_engine.py              # Legacy (v0.2.8, superseded by ExploreAgent)
 ├── core/
-│   ├── agents/                   # v0.2.9: Unified Agent framework
-│   │   ├── ca_agent.py           # CAAgent — unified Agent class
-│   │   ├── explore_agent.py      # ExploreAgent (ReAct loop, 14 Tools)
-│   │   ├── dream_agent.py        # DreamAgent (L1→L4 pipeline, 15 Tools)
-│   │   └── evolution.py          # Self-Evolution engine
-│   ├── tools/                    # v0.2.9: Tool system (21 Tools)
+│   ├── hooks/                   # v0.3.0: Cognitive hook system
+│   │   └── cognitive_hook.py    # CognitiveHook — confidence + guidance
+│   ├── agents/                  # v0.2.9: Unified Agent framework
+│   │   ├── ca_agent.py          # CAAgent — unified Agent class
+│   │   ├── explore_agent.py     # ExploreAgent (ReAct loop, 14 Tools)
+│   │   ├── dream_agent.py       # DreamAgent (L1→L4 pipeline, 15 Tools)
+│   │   └── evolution.py         # Self-Evolution engine
+│   ├── tools/                   # v0.2.9: Tool system (21 Tools)
 │   │   ├── registry.py           # ToolRegistry (unified registration)
 │   │   ├── base.py               # Tool base class
 │   │   ├── kg_tools.py           # KG Tools (9): query_kg, add_to_kg, ...
@@ -329,16 +380,18 @@ curious-agent/
 ├── migrations/
 │   └── migrate_json_to_neo4j.py  # JSON → Neo4j migration script
 ├── shared_knowledge/             # Shared knowledge layer (R1D3 ↔ Curious Agent)
-├── tests/                        # 90 test modules
+├── tests/                        # 97 test modules
+│   ├── hooks/                    # CognitiveHook tests (v0.3.0)
 │   ├── agents/                   # CAAgent, ExploreAgent, DreamAgent, hooks
 │   ├── frameworks/               # agent_runner, agent_hook, heartbeat, retry
 │   ├── tools/                    # base, kg_tools, queue_tools, search_tools, llm_tools
 │   ├── daemon/                   # explore_daemon, dream_daemon
-│   ├── kg/                       # kg_repository, neo4j_client
-│   ├── configs/                  # config, llm_providers
+│   ├── kg/                       # kg_repository, neo4j_client, repository_factory
+│   ├── configs/                  # config, llm_providers, hooks_config
 │   └── e2e/                      # Real exploration E2E tests
-├── ui/                           # Web UI (D3.js knowledge graph visualization)
-└── docs/                         # Design documents
+├── docs/                         # Design documents
+│   └── integration-guide.md      # v0.3.0 R1D3 integration guide
+└── ui/                           # Web UI (D3.js knowledge graph visualization)
 ```
 
 ---
@@ -349,6 +402,13 @@ All agent and daemon parameters are controlled via `config.json`. No hard-coded 
 
 ```json
 {
+  "hooks": {
+    "cognitive": {
+      "confidence_threshold": 0.6,
+      "auto_inject_unknowns": true,
+      "search_before_llm": true
+    }
+  },
   "agents": {
     "explore": {
       "model": "volcengine",
@@ -425,7 +485,7 @@ All agent and daemon parameters are controlled via `config.json`. No hard-coded 
 
 | Version | Theme | Date |
 |---------|-------|------|
-| **v0.3.0** | Cognitive Hook — Know what it knows | 2026-04-15 |
+| **v0.3.0** | Cognitive Framework — Know what it knows, know what it doesn't know. 4-level confidence, auto-inject unknowns, `/api/knowledge/*` endpoints, legacy Spider cleanup | 2026-04-15 |
 | **v0.2.9** | Agent architecture refactor — CAAgent unified class, ReAct loop, 21 Tools, Neo4j storage, Hermes error handling | 2026-04-13 |
 | **v0.2.8** | Deadlock fixes — SpiderAgent queue stuck, KG quality issues | 2026-04-xx |
 | **v0.2.7** | Queue atomicity + QualityV2 fix + Parent link | 2026-03-31 |
@@ -450,9 +510,10 @@ All agent and daemon parameters are controlled via `config.json`. No hard-coded 
 | ✅ | Hermes error classification + retry utilities |
 | ✅ | Fully config-driven (zero hard-coded values) |
 | ✅ | OpenClaw bidirectional sync |
-| ✅ | CognitiveHook implementation |
-| ✅ | /api/knowledge/* endpoints |
-| ⚪ | OpenClaw external hook integration |
+| ✅ | **CognitiveHook — 4-level confidence framework** |
+| ✅ | **/api/knowledge/* endpoints for R1D3 integration** |
+| ✅ | **Auto-inject unknown topics to CA queue** |
+| ⚪ | OpenClaw external hook integration (before_turn/after_turn) |
 | ⚪ | Neo4j as primary store (JSON fallback retirement) |
 | ⚪ | Self-Evolution engine (Bayesian weight updates) |
 | ⚪ | Adaptive interval scheduling (based on queue depth) |
@@ -478,8 +539,17 @@ Yes. It's designed as an OpenClaw plugin. The `shared_knowledge/` directory prov
 
 **How does it know what to explore next?**
 Four signals: (1) curiosity queue (manually injected or dream-generated), (2) competence gaps (topics you've never explored), (3) metacognitive quality scoring (diminishing returns detection), (4) root technology tracing (surface-to-fundamental connections).
+**What changed in v0.3.0?**
+
+Cognitive Framework — R1D3 can now "know what it knows and know what it doesn't know":
+- 4-level confidence assessment (Expert → Intermediate → Beginner → Novice)
+- Auto-inject unknown topics to CA queue for exploration
+- `/api/knowledge/*` endpoints for KG confidence check, learning, analytics
+- When R1D3 doesn't know something, CA will explore it — next time it's in KG
+- Legacy Spider code removed (spider_engine.py deleted)
 
 **What changed in v0.2.9?**
+
 The biggest refactor yet. SpiderAgent and DreamAgent became proper Agents (CAAgent) with ReAct loops and Tool interfaces. 21 tools across 4 categories. Hermes error handling from NousResearch. Neo4j storage layer. DreamAgent generates insights without any search API calls. All configuration moved to `config.json` — zero hard-coded values.
 
 ---
