@@ -1,175 +1,138 @@
 ---
-name: curious-agent
-description: "Curious Agent 接入工具包。When an agent needs to check its knowledge confidence on a topic, trigger active exploration, sync discoveries, or share new findings with the user. Covers: (1) confidence checking before answering, (2) injecting topics for exploration, (3) syncing exploration results to memory, (4) proactive sharing of new discoveries. Trigger scenarios: user asks a question, agent wants to check its knowledge boundary, agent wants to explore a topic proactively."
+name: ca-integration
+description: "Curious Agent 集成 — KG 优先认知框架、置信度感知、自动探索触发、OpenClaw Hook 安装指南。当用户提问时，先查 CA 知识图谱，再搜索，最后 LLM 猜测并触发后台探索。包含 4 个脚本工具和 5 个 Hook 的一键安装。Use when: (1) answering questions that may be in CA knowledge graph, (2) checking knowledge confidence on a topic, (3) triggering CA exploration, (4) syncing CA discoveries, (5) sharing CA findings with the user, (6) installing CA OpenClaw hooks for a new agent."
 ---
 
-# Curious Agent Skill
+# Curious Agent 集成
 
-接入 Curious Agent 的完整工具包，包含 4 个工具和 3 个配置注入文件。
+将 CA（Curious Agent）知识图谱集成到 Agent 认知框架中，实现"知道自己知道什么、知道自己不知道什么"。
 
-## 快速安装
+## 首次安装
+
+> 首次加载此 Skill 时，执行以下 5 步安装。完成后只需保留运行时认知框架。
 
 ### Step 1: 安装 scripts
 
-将 `scripts/` 目录下的所有文件复制到 agent workspace 的 `scripts/` 目录：
-
 ```bash
-mkdir -p YOUR_WORKSPACE/scripts
-cp -r skills/curious-agent/scripts/* YOUR_WORKSPACE/scripts/
-chmod +x YOUR_WORKSPACE/scripts/*.sh
+mkdir -p <workspace>/scripts
+cp /root/dev/curious-agent/skills/curious-agent/scripts/*.sh <workspace>/scripts/
+cp /root/dev/curious-agent/skills/curious-agent/scripts/*.py <workspace>/scripts/
+chmod +x <workspace>/scripts/*.sh
 ```
 
-### Step 2: 注入配置规则
+### Step 2: 安装 OpenClaw Hook（Internal）
 
-将 `references/` 下的 3 个文件内容合并到对应配置：
+3 个 Internal Hook 直接从 CA 仓库复制到 OpenClaw hooks 目录：
 
-| 文件 | 注入位置 |
-|------|---------|
-| `references/agents_md_rules.md` | 合并到 `AGENTS.md` 的 "Every Session" 之后 |
-| `references/soul_md_rules.md` | 合并到 `SOUL.md` 的 `## 📋 职责` 之后 |
-| `references/heartbeat_md_rules.md` | 合并到 `HEARTBEAT.md` 的 `## Proactive Behaviors` |
+```bash
+# 复制 3 个 Internal Hook
+for hook in knowledge-query knowledge-learn knowledge-bootstrap; do
+  cp -r /root/dev/curious-agent/openclaw-hooks/internal/$hook ~/.openclaw/hooks/$hook
+done
 
-### Step 3: 注册 Skill
+# 验证
+ls ~/.openclaw/hooks/
+```
 
-在 OpenClaw 的 `openclaw.json` 中添加：
+### Step 3: 编译安装 Plugin SDK Hook
+
+2 个 Plugin Hook 需要编译：
+
+```bash
+# knowledge-inject
+cd /root/dev/curious-agent/openclaw-hooks/plugins/knowledge-inject
+npm install && npm run build
+openclaw plugins link $(pwd)
+
+# knowledge-gate
+cd /root/dev/curious-agent/openclaw-hooks/plugins/knowledge-gate
+npm install && npm run build
+openclaw plugins link $(pwd)
+```
+
+详细安装步骤（含故障排查）见 [references/hook-install.md](references/hook-install.md)。
+
+### Step 4: 配置 CA API 地址
+
+在 `~/.openclaw/openclaw.json` 的 `env` 中确保有：
 
 ```json
-"skills": {
-  "entries": {
-    "curious-agent": {
-      "enabled": true,
-      "env": {
-        "CURIOUS_API_URL": "http://localhost:4848"
-      }
-    }
+{
+  "env": {
+    "CA_API_URL": "http://localhost:4848"
   }
 }
 ```
 
----
-
-## 工具清单
-
-### Tool 1: check_confidence.sh
-
-检查 agent 对某个主题的置信度。
+### Step 5: 重启验证
 
 ```bash
-bash scripts/check_confidence.sh "主题关键词"
+openclaw gateway restart
+openclaw hooks list
+# 应看到 5 个 hook: knowledge-query, knowledge-learn, knowledge-bootstrap, knowledge-inject, knowledge-gate
 ```
 
-**返回字段**：
-- `should_explore: true` → 置信度低，需要探索
-- `should_explore: false` → 置信度足够，可以直接回答
-- `explore_count` → 已探索次数（超过 3 次停止）
+## 认知框架（运行时）
 
-**使用时机**：用户提问后，agent 可以先用此工具判断是否需要触发探索。
+用户提问时，按以下顺序执行（Hook 未安装时手动执行）：
 
-### Tool 2: trigger_explore.sh
-
-主动触发 Curious Agent 定向探索。
+### Level 1：查 KG
 
 ```bash
-bash scripts/trigger_explore.sh "主题" "上下文"
+bash scripts/check_confidence.sh "<话题>"
 ```
 
-**参数**：
-- `$1`: topic（必填）
-- `$2`: context（可选）
+- `confidence > 0.6` 且 `found=true` → 从 KG 构建回答，标注 **"从我的知识中…"**，**停止**
+- 未找到或置信度低 → 进入 Level 2
 
-**返回**：`status: ok` → 任务已加入队列
+### Level 2：Web 搜索
 
-**使用时机**：
-- agent 检查置信度后发现 `should_explore: true`
-- 用户提问但 agent 没有相关记忆
-- agent 想主动延伸当前话题
+调用 `web_search`，有结果 → 标注 **"我刚搜索了一下…"**
 
-### Tool 3: sync_discoveries.py
+### Level 3：LLM 内化
 
-同步 Curious Agent 的探索发现到记忆系统。
+标注 **"基于 LLM 的知识，我猜测…"**，然后触发探索：
 
 ```bash
-python3 scripts/sync_discoveries.py
+bash scripts/trigger_explore.sh "<话题>"
 ```
 
-**行为**：
-- 从 Curious Agent KG 读取新探索结果
-- 写入 `memory/curious/` 目录（每个发现一个 .md 文件）
-- 更新 `memory/curious-discoveries.md` 索引（标记 `shared:false`）
+### 与 Hook 的协作
 
-**使用时机**：每次心跳时调用。
+安装 5 个 Hook 后：
+- Level 1/2/3 会被 Hook **自动增强**（自动查 KG、自动注入上下文、自动记录搜索结果）
+- Agent 的正常回答流程不变，Hook 在后台透明工作
+- Agent 回复中的低置信度标记会被 knowledge-learn 自动检测并注入 CA 队列
 
-### Tool 4: share_new_discoveries.py
-
-检查并返回未分享的发现。
-
-```bash
-# 只列出，不标记
-python3 scripts/share_new_discoveries.py --list
-
-# 列出并标记为已分享
-python3 scripts/share_new_discoveries.py --share
-```
-
-**返回格式**：
-```json
-{
-  "undiscovered": [
-    {"title": "Agent Memory Systems", "score": 8.2, "shared": false},
-    ...
-  ],
-  "count": N
-}
-```
-
----
-
-## 典型工作流
-
-### 回答流程
-
-```
-用户提问 → memory_search → 找到答案 → 直接回答（expert 模式）
-                              ↓ 没找到
-                       check_confidence.sh
-                              ↓
-                   should_explore: true?
-                              ↓ 是
-                    trigger_explore.sh
-                              ↓
-                    先诚实回答（novice 模式）
-                    探索结果后续同步
-```
-
-### 心跳流程
+## 心跳流程
 
 ```
 每次心跳：
-  1. sync_discoveries.py      → 同步最新发现
-  2. share_new_discoveries.py → 检查 shared:false
-  3. 有未分享 → 主动告诉用户："你之前问的 XXX，我现在有答案了..."
-  4. mark shared:true
+  1. sync_discoveries.py      → 同步 CA 最新发现
+  2. share_new_discoveries.py → 检查未分享
+  3. 有未分享 → 主动告诉用户
+  4. 无新发现 → 不打扰
 ```
 
----
+## 工具清单
+
+| 工具 | 用途 | 使用时机 |
+|------|------|---------|
+| `check_confidence.sh` | 查话题置信度 | 用户提问后，判断是否需要探索 |
+| `trigger_explore.sh` | 触发 CA 探索 | 确认需要探索时 |
+| `sync_discoveries.py` | 同步发现到记忆 | 每次心跳 |
+| `share_new_discoveries.py` | 检查未分享发现 | 每次心跳 |
 
 ## 配置项
 
 | 环境变量 | 默认值 | 说明 |
 |---------|--------|------|
-| `CURIOUS_API_URL` | `http://localhost:4848` | Curious Agent API 地址 |
-| `CURIOUS_STATE` | `/root/dev/curious-agent/knowledge/state.json` | KG 状态文件路径 |
+| `CA_API_URL` | `http://localhost:4848` | CA API 地址 |
+| `CURIOUS_STATE` | `/root/dev/curious-agent/knowledge/state.json` | KG 状态文件 |
 | `CURIOUS_DIR` | `memory/curious` | 发现文件目录 |
-| `CURIOUS_INDEX` | `memory/curious-discoveries.md` | 索引文件路径 |
 
----
+## 参考
 
-## API 端点参考
-
-| 功能 | 端点 | 方法 |
-|------|------|------|
-| 置信度检查 | `/api/metacognitive/check?topic=` | GET |
-| 触发探索 | `/api/curious/inject` | POST |
-| 查看状态 | `/api/curious/state` | GET |
-
-Curious Agent Web UI: http://10.1.0.13:4848
+- 完整 API 端点文档：[references/api.md](references/api.md)
+- Hook 详细安装指南：[references/hook-install.md](references/hook-install.md)
+- CA Web UI: http://10.1.0.13:4848
