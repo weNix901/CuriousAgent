@@ -146,9 +146,84 @@ tail -f /root/dev/curious-agent/logs/hook_access.log
 - **只针对 6 个 Hook 端点**拦截(见 2.6 清单),不拦截其他 40+ 个 CA 内部端点
 - 从 `X-OpenClaw-Agent-Id` 请求头识别 Agent 身份
 - 从 `X-OpenClaw-Hook-Name` 请求头识别 Hook 来源
-- 双写：追加到 `logs/hook_access.log` + 写入 SQLite 审计库
-- 同步写入（v0.3.1 先简单实现，每条 Hook 请求增加 <1ms 延迟）
-  - 如果后期延迟成问题，改用 Python queue + 后台线程异步写入
+- 双写:追加到 `logs/hook_access.log` + 写入 SQLite 审计库
+- **异步写入**:使用 Python `queue.Queue` + 后台 daemon 线程,不阻塞主流程
+
+```python
+# core/api/hook_audit_middleware.py
+import queue, threading, json, time
+from datetime import datetime
+
+_audit_queue = queue.Queue(maxsize=10000)  # 防止内存溢出
+
+def _audit_worker():
+    """后台 daemon 线程,持续消费审计队列"""
+    import sqlite3
+    db = sqlite3.connect("hook_audit.db", check_same_thread=False)
+    log_file = open("logs/hook_access.log", "a", encoding="utf-8")
+
+    while True:
+        record = _audit_queue.get()
+        if record is None:  # 停止信号
+            break
+        try:
+            # 写 SQLite
+            db.execute("INSERT INTO hook_calls VALUES (...)" , record)
+            db.commit()
+            # 写日志文件
+            log_line = format_log_line(record)
+            log_file.write(log_line + "\n")
+            log_file.flush()
+        except Exception as e:
+            print(f"[audit] write failed: {e}")
+        finally:
+            _audit_queue.task_done()
+
+_audit_thread = threading.Thread(target=_audit_worker, daemon=True)
+_audit_thread.start()
+```
+
+**Hook 请求入队**(同步操作,<0.1ms):
+```python
+def audit_hook(request, response, latency_ms):
+    record = build_record(request, response, latency_ms)
+    try:
+        _audit_queue.put_nowait(record)  # 非阻塞
+    except queue.Full:
+        print("[audit] queue full, dropping record")
+```
+
+### 2.3.1 紧急修复：Plugin SDK Hook 安装方式错误
+
+**问题确认**：`knowledge-inject` 和 `knowledge-gate` 是 Plugin SDK Hook（有 `package.json` + `dist/` + `node_modules/`），但被安装成了 Internal Hook。
+
+**当前状态**（2026-04-16 实际检查）：
+
+| 检查项 | knowledge-inject | knowledge-gate |
+|--------|-----------------|----------------|
+| hooks list 显示 | ✓ ready | ✓ ready |
+| plugins list 显示 | ❌ 未作为 Plugin 加载 | ❌ 未作为 Plugin 加载 |
+| 安装方式 | hooks.internal.installs (path) | hooks.internal.installs (path) |
+| handler.ts | ❌ 不存在 | ❌ 不存在 |
+| HOOK.md | ✅ 存在（从 dist/ 复制） | ❌ 不存在 |
+| dist/index.js | ✅ 存在 | ✅ 存在 |
+| plugins.load.paths | ❌ 未配置 | ❌ 未配置 |
+
+**为什么显示 ready 但实际可能不工作**：
+- Internal Hook 加载机制是读取 `HOOK.md` + `handler.ts`
+- Plugin SDK Hook 需要读取 `package.json` 的 `openclaw.hooks` + `dist/index.js`
+- 当前它们被当作 Internal Hook 加载，可能**没有正确执行 Plugin SDK 的导出函数**
+- knowledge-gate **没有 HOOK.md 文件**（Plugin SDK 不需要，但 Internal Hook 需要）
+
+**修复方案**：将两个 Plugin 从 `hooks.internal` 移到 `plugins.load.paths`
+
+**修复步骤**：
+1. 从 `hooks.internal.entries` 中移除 knowledge-inject 和 knowledge-gate
+2. 从 `hooks.internal.installs` 中移除 knowledge-inject 和 knowledge-gate
+3. 删除 `~/.openclaw/hooks/knowledge-inject/` 和 `~/.openclaw/hooks/knowledge-gate/`
+4. 在 `plugins.load.paths` 中添加两个 Plugin 路径
+5. `openclaw gateway restart`
+6. 验证：`openclaw plugins list` + `openclaw hooks list`
 
 ### 2.4 Hook 侧改造(5 个 Hook 都需要加 Header)
 
@@ -760,6 +835,9 @@ Phase 2(2天): 外部 Agent 交互可视化
   └── Day 2: Session Context + Webhook 监控
 
 Phase 3(1天): WebUI 集成
+  **串行开发**：Phase 0 完成并验证 → Phase 1 完成并验证 → Phase 2 完成并验证 → Phase 3 WebUI 集成
+  不定义 mock API，不做并行开发，每个 Phase 完成后验证通过再进入下一个。
+
   ├── Tab 重构(现有 2 个 + 新增 2 个 = 4 个 Tab)
   ├── 内部可视化 Tab:
   │   ├── 顶部:Explorer Agent 实时追踪 + Dream Agent 洞察(上下布局,直接可见)
