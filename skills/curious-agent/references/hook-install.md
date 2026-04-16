@@ -52,7 +52,7 @@ cd /root/dev/curious-agent/openclaw-hooks/plugins/knowledge-inject
 npm install
 npm run build
 # 输出到 dist/ 目录
-openclaw plugins link $(pwd)
+openclaw hooks install $(pwd) --link
 echo "✅ Installed: knowledge-inject"
 ```
 
@@ -62,15 +62,20 @@ echo "✅ Installed: knowledge-inject"
 cd /root/dev/curious-agent/openclaw-hooks/plugins/knowledge-gate
 npm install
 npm run build
-openclaw plugins link $(pwd)
+openclaw hooks install $(pwd) --link
 echo "✅ Installed: knowledge-gate"
 ```
 
+> 注：`openclaw hooks install` 底层调用 `openclaw plugins install`，两者均可。
+> **不要**用 `openclaw plugins link`（该命令不存在）。
+
 **验证**:
 ```bash
-openclaw plugins list
-# 应看到 @curious-agent/knowledge-inject 和 @curious-agent/knowledge-gate
+openclaw hooks list
+# 应看到 knowledge-inject 和 knowledge-gate 均为 ✓ ready
 ```
+
+> 注意：这两个包注册在 `hooks.internal.installs` 中，`openclaw plugins list` 不会显示它们。
 
 ## 配置 CA API 地址
 
@@ -120,11 +125,28 @@ ls /root/dev/curious-agent/openclaw-hooks/plugins/knowledge-inject/dist/
 
 ### CA 服务未运行
 
+使用 CA 仓库的 `start.sh` 一键启动（清理旧进程 + 检查 Neo4j + 启动 API + Daemon）：
+
 ```bash
 cd /root/dev/curious-agent
-nohup python3 curious_api.py > /tmp/curious_api.log 2>&1 &
+bash start.sh
 curl -s -o /dev/null -w "%{http_code}" http://localhost:4848/
 # 应返回 200
+```
+
+`start.sh` 会完成以下工作：
+1. 杀掉旧的 curious_agent/curious_api 进程
+2. 检查 Neo4j 状态（未运行则自动启动）
+3. 启动 `curious_api.py`（HTTP API，端口 4848）
+4. 启动 `curious_agent.py --daemon`（后台探索 Daemon）
+5. 验证 API 就绪
+
+> **不要**手动分别启动 API 和 Daemon — 使用 `start.sh` 确保两者同时运行，避免死锁（API 无 Daemon 消费队列会导致任务积压）。
+
+如果需要停止所有 CA 服务：
+```bash
+pkill -f curious_api.py
+pkill -f curious_agent.py
 ```
 
 ### Hook 静默失败（不生效）
@@ -138,10 +160,14 @@ grep -i "knowledge-" ~/.openclaw/logs/*.log 2>/dev/null | tail -20
 ### Plugin 加载失败
 
 ```bash
-# 检查 package.json 是否有 openclaw.hooks 字段
-cat /root/dev/curious-agent/openclaw-hooks/plugins/knowledge-inject/package.json | grep -A2 '"openclaw"'
+# 检查 dist/ 编译输出
+ls /root/dev/curious-agent/openclaw-hooks/plugins/knowledge-inject/dist/
 
-# 重新编译
+# 检查安装记录
+cat ~/.openclaw/openclaw.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d.get('hooks',{}).get('internal',{}).get('installs',{}), indent=2))"
+
+# 重新编译+安装
 cd /root/dev/curious-agent/openclaw-hooks/plugins/knowledge-inject
 rm -rf dist && npm run build
+openclaw hooks install $(pwd) --link
 ```

@@ -36,19 +36,21 @@ ls ~/.openclaw/hooks/
 
 ### Step 3: 编译安装 Plugin SDK Hook
 
-2 个 Plugin Hook 需要编译：
+2 个 Plugin Hook 需要编译后通过 hooks install 安装：
 
 ```bash
 # knowledge-inject
 cd /root/dev/curious-agent/openclaw-hooks/plugins/knowledge-inject
 npm install && npm run build
-openclaw plugins link $(pwd)
+openclaw hooks install $(pwd) --link
 
 # knowledge-gate
 cd /root/dev/curious-agent/openclaw-hooks/plugins/knowledge-gate
 npm install && npm run build
-openclaw plugins link $(pwd)
+openclaw hooks install $(pwd) --link
 ```
+
+> 注：`openclaw hooks install` 标记为 deprecated，底层调用 `openclaw plugins install`，两者均可。不要用 `openclaw plugins link`（该命令不存在）。
 
 详细安装步骤（含故障排查）见 [references/hook-install.md](references/hook-install.md)。
 
@@ -64,7 +66,28 @@ openclaw plugins link $(pwd)
 }
 ```
 
-### Step 5: 重启验证
+### Step 5: 启动 CA 服务
+
+> ⚠️ 必须先启动 CA 服务，否则所有 hook 会静默失败（连接不到 API）。
+
+使用 CA 仓库的 `start.sh` 一键启动：
+
+```bash
+cd /root/dev/curious-agent
+bash start.sh
+```
+
+`start.sh` 会自动：清理旧进程 → 检查 Neo4j → 启动 API（端口 4848）→ 启动 Daemon（后台探索）→ 验证就绪。
+
+验证 CA 服务运行：
+
+```bash
+curl -s http://localhost:4848/api/kg/overview | python3 -c "import sys,json; d=json.load(sys.stdin); print(f'KG: {len(d.get(\"nodes\",[]))} nodes, {len(d.get(\"edges\",[]))} edges')"
+```
+
+> **不要**手动分别启动 `curious_api.py` 和 `curious_agent.py`。必须同时运行两者，否则 Daemon 不消费队列会导致任务积压死锁。
+
+### Step 6: 重启 OpenClaw 并验证
 
 ```bash
 openclaw gateway restart
@@ -135,4 +158,5 @@ bash scripts/trigger_explore.sh "<话题>"
 
 - 完整 API 端点文档：[references/api.md](references/api.md)
 - Hook 详细安装指南：[references/hook-install.md](references/hook-install.md)
+- CA 服务启动：`cd /root/dev/curious-agent && bash start.sh`
 - CA Web UI: http://10.1.0.13:4848
