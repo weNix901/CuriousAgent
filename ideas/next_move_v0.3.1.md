@@ -143,11 +143,12 @@ tail -f /root/dev/curious-agent/logs/hook_access.log
 ```
 
 **实现方式**: Flask `after_request` 钩子 + 白名单匹配
-- **只针对 6 个 Hook 端点**拦截（见 2.6 清单），不拦截其他 40+ 个 CA 内部端点
+- **只针对 6 个 Hook 端点**拦截(见 2.6 清单),不拦截其他 40+ 个 CA 内部端点
 - 从 `X-OpenClaw-Agent-Id` 请求头识别 Agent 身份
 - 从 `X-OpenClaw-Hook-Name` 请求头识别 Hook 来源
 - 双写：追加到 `logs/hook_access.log` + 写入 SQLite 审计库
-- 异步写入（不阻塞主流程）
+- 同步写入（v0.3.1 先简单实现，每条 Hook 请求增加 <1ms 延迟）
+  - 如果后期延迟成问题，改用 Python queue + 后台线程异步写入
 
 ### 2.4 Hook 侧改造(5 个 Hook 都需要加 Header)
 
@@ -269,88 +270,176 @@ GET /api/kg/quality-distribution                           → 质量分布
 
 **需求**: 实时展示 Explorer Agent 的探索进度,让"AI 在做什么"一目了然
 
-**实现方案**:
+**实现方案**: 在 ExploreAgent `_react_loop` 中注入 TraceWriter
 
 ```python
-# core/models/explorer_trace.py
+# core/trace/explorer_trace.py
+@dataclass
+class TraceStep:
+    step_id: str
+    trace_id: str
+    step_num: int            # 1, 2, 3...
+    timestamp: str
+    action: str              # "search_web" / "fetch_page" / "query_kg" / ...
+    action_input: str        # JSON 截断到 500 字
+    output_summary: str      # 截断到 300 字
+    output_size: int         # 原始输出字节数
+    duration_ms: int         # 该步骤耗时
+    llm_call: bool           # 是否调用了 LLM
+    llm_tokens: Optional[int] # LLM token 消耗
+
 @dataclass
 class ExplorerTrace:
     trace_id: str
     topic: str
     queue_item_id: str
     started_at: str
-    status: str  # searching → analyzing → writing_kg → done/failed
-
-    # 实时步骤
-    current_step: str        # "searching via serper" / "analyzing results" / ...
-    step_started_at: str
-
-    # 搜索阶段
-    search_providers: list   # ["serper", "bocha"]
-    search_queries: list     # 实际搜索词
-    search_results_count: dict  # {"serper": 7, "bocha": 3}
-
-    # 分析阶段
-    findings: list           # 发现的知识点
-    kg_nodes_created: list   # 新建的 KG 节点名
-    kg_edges_created: int
-
-    # 质量
-    quality_score: float
-    confidence_level: str
-
+    finished_at: Optional[str]
+    status: str              # running / done / failed
+    total_steps: int         # ReAct 循环执行次数
+    steps_completed: int     # 已完成步骤数
+    tools_used: list         # ["search_web", "fetch_page", "add_to_kg", ...]
+    kg_nodes_created: list   # ["Attention机制", "Transformer架构", ...]
+    quality_score: Optional[float]
     error: Optional[str]
 ```
+
+**注入点**: `core/agents/explore_agent.py` 的 `_execute_action` 方法
+
+```python
+# explore_agent.py _execute_action 方法中注入
+async def _execute_action(self, action, action_input):
+    step_start = time.time()
+
+    # 记录 trace step
+    self.trace_writer.record_step(
+        trace_id=self.current_trace_id,
+        step_num=self.current_step_num,
+        action=action,
+        action_input=truncate_json(action_input, 500),
+    )
+
+    # 执行原始工具调用
+    result = await tool.execute(**action_input)
+
+    duration_ms = int((time.time() - step_start) * 1000)
+
+    # 更新 trace step
+    self.trace_writer.update_step(
+        output_summary=truncate(result, 300),
+        output_size=len(result),
+        duration_ms=duration_ms,
+    )
+
+    return result
+```
+
+**存储**: SQLite `traces.db`,两张表 `explorer_traces` + `trace_steps`
 
 **新增 API**:
 ```
 GET /api/explorer/active              → 正在进行的探索
 GET /api/explorer/recent?limit=20     → 最近完成的探索
-GET /api/explorer/trace/<trace_id>    → 单次探索完整 trace
-WS  /api/explorer/stream              → WebSocket 实时流
+GET /api/explorer/trace/<trace_id>    → 单次探索完整 trace(含所有步骤)
 ```
 
 **UI 呈现**(内部可视化 Tab 顶部,上下布局):
 - 上半部分:Explorer Agent 实时活动流
 - 左侧:实时活动流(类似 Git log),每条探索记录一行:
   ```
-  🔍 [正在] Attention机制 | serper(7) bocha(3) | 分析中... | 45s
-  ✅ [完成] Transformer架构 | quality:7.2 | 3 nodes created | 1m23s
-  ❌ [失败] 量子计算优化 | error: timeout | 12s
+  🔍 [正在] Attention机制 | 7 steps | search_web→fetch_page→... | 45s
+  ✅ [完成] Transformer架构 | 10 steps | quality:7.2 | 3 nodes | 1m23s
+  ❌ [失败] 量子计算优化 | 3 steps | error: timeout | 12s
   ```
 - 点击任意探索记录 → 右侧展开详细 trace:
-  - 搜索词列表
-  - 各 Provider 结果数量
-  - 提取的关键发现
+  - 每一步的动作/工具/输入摘要/输出摘要/耗时
+  - LLM 调用标识和 token 消耗
   - 创建的 KG 节点
   - 质量评分和置信度
-  - 时间线(每个阶段耗时)
+  - 时间线可视化
 
 ### 3.4 Dream Agent 可视化
 
 **需求**: Dream Agent 在后台"做梦"时做了什么加工
 
+**实现方案**: Dream Agent 已有 L1-L4 线性管道结构,在每个阶段注入计时和候选追踪
+
+```python
+# core/trace/dream_trace.py
+@dataclass
+class DreamTrace:
+    trace_id: str
+    started_at: str
+    finished_at: Optional[str]
+    status: str                  # running / done / failed
+
+    # L1-L4 各阶段结果
+    l1_candidates: list          # L1 light sleep: 候选话题列表
+    l1_count: int
+    l1_duration_ms: int
+
+    l2_scored: list              # L2 deep sleep: 带 6 维评分的候选
+    l2_count: int
+    l2_duration_ms: int
+
+    l3_filtered: list            # L3 filtering: 通过阈值的候选
+    l3_count: int
+    l3_duration_ms: int
+
+    l4_topics: list              # L4 rem sleep: 最终生成的话题
+    l4_count: int
+    l4_duration_ms: int
+
+    # 产出洞察
+    insights_generated: list     # [{id, type, source_topics, confidence}, ...]
+    total_duration_ms: int
+    error: Optional[str]
+```
+
+**注入点**: `core/agents/dream_agent.py` 的 `run` 方法和 L1-L4 四个方法
+
+```python
+# dream_agent.py run 方法中注入
+def run(self, input_data: str = "") -> DreamResult:
+    trace = DreamTrace(trace_id=str(uuid.uuid4()), started_at=now())
+    self.dream_trace_writer.start(trace)
+
+    candidates = self._l1_light_sleep()     # 记录候选数和耗时
+    scored = self._l2_deep_sleep(candidates) # 记录评分结果
+    filtered = self._l3_filtering(scored)    # 记录通过数
+    topics = self._l4_rem_sleep(filtered)    # 记录生成话题和洞察
+
+    trace.finished_at = now()
+    trace.status = "done"
+    self.dream_trace_writer.finish(trace)
+
+    return DreamResult(...)
+```
+
+**现有洞察文件兼容**: `knowledge/dream_insights/*.json` 已包含 `source_topics`、`insight_type`、`created_at` 等字段,直接读取即可,无需迁移。
+
+**存储**: SQLite `traces.db` 新增 `dream_traces` 表;insight 内容从 `knowledge/dream_insights/` JSON 文件读取
+
 **新增 API**:
 ```
-GET /api/dream/active               → 当前正在做梦
-GET /api/dream/insights?limit=20    → 最近洞察
+GET /api/dream/active               → 当前正在做梦(如果有)
+GET /api/dream/traces?limit=20      → 最近 Dream 运行记录
+GET /api/dream/trace/<trace_id>     → 单次 Dream 完整 trace(L1-L4 各阶段详情)
+GET /api/dream/insights?limit=20    → 最近洞察(从 JSON 文件读取)
 GET /api/dream/insight/<id>         → 单条洞察详情
 GET /api/dream/stats                → 做梦统计
 ```
 
-**Insight 详情字段**:
-- insight_id, created_at
-- source_topics[](从哪些 KG 节点"梦"出来的)
-- insight_content(洞察内容)
-- insight_type (connection/synthesis/hypothesis/pattern)
-- confidence
-- related_assertions[]
-- processing_time_ms
-
 **UI 呈现**(内部可视化 Tab 上半部分,Explorer 下方):
 - 卡片式展示最近洞察,按 insight_type 分组着色
-- 点击卡片 → 显示来源节点链路 + 推理过程
-- 统计面板:今天产生了多少洞察、各类型分布
+- 点击卡片 → 显示 L1-L4 完整链路:
+  ```
+  L1 light sleep: 47 候选 (120ms)
+  L2 deep sleep:  47 → 12 评分 (350ms)
+  L3 filtering:   12 → 3 通过阈值 (80ms)
+  L4 rem sleep:   3 话题 → 2 洞察 (1.2s)
+  ```
+- 统计面板:今天跑了多少次 Dream、各阶段平均耗时、洞察产出趋势
 
 ### 3.5 Decomposition 可视化(补充)
 
@@ -654,11 +743,16 @@ Phase 0(1天): Hook 审计基础设施
   └── hook_audit.db + logs/ 目录初始化
 
 Phase 1(3天): 内部可视化
-  ├── Day 1: Queue 可视化 + API
-  ├── Day 2: Explorer Agent 追踪 + API
-  ├── Day 2: Dream Agent 可视化 + API
-  ├── Day 3: KG 增强 + Decomposition 树
-  └── Day 3: System Health + Event Timeline
+  ├── Day 1: Queue 可视化 + API + TraceWriter 基础设施
+  │   ├── traces.db (explorer_traces + trace_steps + dream_traces 表)
+  │   ├── TraceWriter 基类
+  │   ├── ExplorerAgent _execute_action 注入 trace
+  │   └── DreamAgent L1-L4 注入 trace
+  ├── Day 2: Explorer Agent 追踪 UI + Dream Agent 可视化 UI
+  │   ├── Explorer 实时活动流
+  │   ├── Dream L1-L4 链路展示
+  │   └── insight 详情面板(从 JSON 文件读取)
+  ├── Day 3: KG 增强 + Decomposition 树 + System Health + Event Timeline
 
 Phase 2(2天): 外部 Agent 交互可视化
   ├── Day 1: Agent Registry + Hook 看板
@@ -690,11 +784,14 @@ Phase 3(1天): WebUI 集成
 ### 6.2 内部可视化
 
 - [ ] Queue 页面展示所有状态项,可搜索/过滤/点击详情
-- [ ] Explorer 页面实时展示探索进度,包含搜索词/结果/产出
+- [ ] Explorer Agent 每次探索自动记录 trace,WebUI 可看到每一步动作
+- [ ] Explorer trace 包含:工具调用、输入摘要、输出摘要、耗时、LLM token
+- [ ] Dream Agent 每次运行记录 L1-L4 各阶段结果,WebUI 可看到完整链路
+- [ ] Dream insight 可从 JSON 文件读取,显示来源话题和洞察内容
 - [ ] KG 图谱支持节点搜索、详情面板、子图展开、路径高亮
-- [ ] Dream 页面展示最近洞察,可追溯来源节点
 - [ ] Decomposition 页面展示树状分解图
 - [ ] System 页面展示进程状态/配额/错误
+- [ ] traces.db 存储: explorer_traces + trace_steps + dream_traces 三张表
 
 ### 6.3 外部 Agent 交互
 
