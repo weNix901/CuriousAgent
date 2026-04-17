@@ -256,6 +256,17 @@ class ExploreAgent(CAAgent):
                 )
                 if not content_parts:
                     content_parts.append(f"Exploration of '{topic}' complete")
+                
+                # Save to KG before returning
+                if content_parts:
+                    summary_text = "\n".join(content_parts)
+                    add_tool = self.tool_registry.get("add_to_kg")
+                    if add_tool:
+                        await add_tool.execute(
+                            topic=topic,
+                            content=summary_text[:2000],
+                            metadata={"depth": 5, "quality": 5.0}
+                        )
                 return {
                     "success": True,
                     "content": "\n".join(content_parts),

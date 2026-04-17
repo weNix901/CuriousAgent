@@ -713,11 +713,86 @@ def _run_api_only():
     app.run(host="0.0.0.0", port=4848, debug=False)
 
 
+def _register_explore_agent_tools(tool_registry, queue_storage):
+    """Register all tools needed for ExploreAgent."""
+    # Ensure env vars are loaded before any KG operations
+    from core.config import load_config
+    load_config()
+    
+    from core.tools.search_tools import SearchWebTool, FetchPageTool, ProcessPaperTool
+    from core.tools.kg_tools import QueryKGTool, AddToKGTool, UpdateKGStatusTool, UpdateKGMetadataTool, GetNodeRelationsTool
+    from core.tools.queue_tools import AddToQueueTool, ClaimQueueTool, GetQueueTool, MarkDoneTool, MarkFailedTool
+    from core.tools.llm_tools import LLMAnalyzeTool, LLMSummarizeTool
+    
+    # KGRepository: async wrapper for proper async KG operations
+    import asyncio
+    import os
+    from core.kg.neo4j_client import Neo4jClient
+    from core.kg.kg_repository import KGRepository as AsyncKGRepository
+    
+    class KGRepository:
+        def __init__(self):
+            self._repo = None
+        
+        async def _ensure_repo(self):
+            if self._repo is None:
+                uri = os.environ.get('NEO4J_URI', 'bolt://localhost:7687')
+                username = os.environ.get('NEO4J_USERNAME', 'neo4j')
+                password = os.environ.get('NEO4J_PASSWORD', '')
+                client = Neo4jClient(uri, username, password)
+                await client.connect()
+                self._repo = AsyncKGRepository(client)
+            return self._repo
+        
+        async def add_to_knowledge_graph(self, topic, content="", metadata=None, relations=None):
+            repo = await self._ensure_repo()
+            await repo.create_knowledge_node(
+                topic=topic,
+                content=content,
+                source_urls=metadata.get("sources", []) if metadata else [],
+                relations=relations or [],
+                metadata={
+                    "depth": metadata.get("depth", 5) if metadata else 5,
+                    "quality": metadata.get("quality", 0) if metadata else 0,
+                    "status": "done"
+                }
+            )
+            return topic
+        
+        async def query_knowledge(self, topic, limit=5):
+            return []
+        async def query_knowledge_by_status(self, status, limit=5):
+            return []
+        async def query_knowledge_by_heat(self, limit=5):
+            return []
+        async def get_node_relations(self, topic):
+            return []
+    
+    kg_repo = KGRepository()
+    
+    tool_registry.register(SearchWebTool())
+    tool_registry.register(FetchPageTool())
+    tool_registry.register(ProcessPaperTool())
+    tool_registry.register(QueryKGTool(repository=kg_repo))
+    tool_registry.register(AddToKGTool(repository=kg_repo))
+    tool_registry.register(UpdateKGStatusTool(repository=kg_repo))
+    tool_registry.register(UpdateKGMetadataTool(repository=kg_repo))
+    tool_registry.register(GetNodeRelationsTool(repository=kg_repo))
+    tool_registry.register(AddToQueueTool(storage=queue_storage))
+    tool_registry.register(ClaimQueueTool(storage=queue_storage))
+    tool_registry.register(GetQueueTool(storage=queue_storage))
+    tool_registry.register(MarkDoneTool(storage=queue_storage))
+    tool_registry.register(MarkFailedTool(storage=queue_storage))
+    tool_registry.register(LLMAnalyzeTool())
+    tool_registry.register(LLMSummarizeTool())
+
+
 def run_explore_agent(topic: str) -> dict:
     """Run ExploreAgent on a specific topic."""
     import asyncio
     from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig
     from core.tools.registry import ToolRegistry
+    from core.tools.queue_tools import QueueStorage
     from core.config import get_config
     
     cfg = get_config()
@@ -727,6 +802,13 @@ def run_explore_agent(topic: str) -> dict:
     print(f"   Config: model={agent_cfg.model}, max_iterations={agent_cfg.max_iterations}")
     
     tool_registry = ToolRegistry()
+    queue_storage = QueueStorage()
+    queue_storage.initialize()
+    
+    # Register all tools needed for ExploreAgent
+    _register_explore_agent_tools(tool_registry, queue_storage)
+    print(f"[ExploreAgent] Registered {len(tool_registry)} tools")
+    
     config = ExploreAgentConfig(
         name="explore_agent",
         model=agent_cfg.model,
@@ -808,6 +890,13 @@ def start_explore_daemon():
     print(f"   Config: poll_interval={explore_daemon_cfg.poll_interval_seconds}s, max_retries={explore_daemon_cfg.max_retries}")
     
     tool_registry = ToolRegistry()
+    queue_storage = QueueStorage()
+    queue_storage.initialize()
+    
+    # Register all tools needed for ExploreAgent
+    _register_explore_agent_tools(tool_registry, queue_storage)
+    print(f"[ExploreDaemon] Registered {len(tool_registry)} tools")
+    
     agent_config = ExploreAgentConfig(
         name="explore_agent",
         model=agent_explore_cfg.model,
@@ -815,8 +904,6 @@ def start_explore_daemon():
     )
     agent = ExploreAgent(config=agent_config, tool_registry=tool_registry)
     
-    queue_storage = QueueStorage()
-    queue_storage.initialize()
     daemon_config = explore_daemon_cfg
     
     daemon = ExploreDaemon(
