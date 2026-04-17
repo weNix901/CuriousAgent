@@ -19,7 +19,7 @@ class QueueStorage:
 
     def _get_connection(self) -> sqlite3.Connection:
         if self._connection is None:
-            self._connection = sqlite3.connect(self._db_path)
+            self._connection = sqlite3.connect(self._db_path, check_same_thread=False)
             self._connection.row_factory = sqlite3.Row
         return self._connection
 
