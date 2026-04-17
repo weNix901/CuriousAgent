@@ -17,12 +17,12 @@ class TestDreamDaemonConfig:
     def test_default_interval_is_6_hours(self):
         """Default heartbeat interval should be 6 hours (21600 seconds)."""
         config = DreamDaemonConfig()
-        assert config.interval_s == 6 * 60 * 60  # 21600 seconds
+        assert config.interval_seconds == 6 * 60 * 60
 
     def test_custom_interval_can_be_set(self):
         """Custom interval can be configured."""
-        config = DreamDaemonConfig(interval_s=3600)  # 1 hour
-        assert config.interval_s == 3600
+        config = DreamDaemonConfig(interval_seconds=3600)
+        assert config.interval_seconds == 3600
 
     def test_enabled_by_default(self):
         """Daemon should be enabled by default."""
@@ -42,7 +42,7 @@ class TestDreamDaemonInit:
         """DreamDaemon should create HeartbeatService with correct interval."""
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
-            config = DreamDaemonConfig(interval_s=3600)
+            config = DreamDaemonConfig(interval_seconds=3600)
             
             daemon = DreamDaemon(workspace=workspace, config=config)
             
@@ -79,7 +79,7 @@ class TestDreamDaemonLifecycle:
         """Starting daemon should start heartbeat service."""
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
-            config = DreamDaemonConfig(interval_s=60)  # Short interval for testing
+            config = DreamDaemonConfig(interval_seconds=60)  # Short interval for testing
             
             daemon = DreamDaemon(workspace=workspace, config=config)
             
@@ -181,7 +181,7 @@ class TestDreamDaemonGracefulShutdown:
         """Daemon can be restarted after being stopped."""
         with tempfile.TemporaryDirectory() as tmpdir:
             workspace = Path(tmpdir)
-            config = DreamDaemonConfig(interval_s=60)
+            config = DreamDaemonConfig(interval_seconds=60)
             
             daemon = DreamDaemon(workspace=workspace, config=config)
             

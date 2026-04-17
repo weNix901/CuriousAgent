@@ -2224,6 +2224,24 @@ def serve_ui_file(filename):
     return send_from_directory(UI_DIR, filename)
 
 
+@app.route("/css/<path:filename>")
+def serve_css_file(filename):
+    """Serve CSS files from ui/css/ directory."""
+    return send_from_directory(os.path.join(UI_DIR, "css"), filename)
+
+
+@app.route("/js/<path:filename>")
+def serve_js_file(filename):
+    """Serve JS files from ui/js/ directory."""
+    return send_from_directory(os.path.join(UI_DIR, "js"), filename)
+
+
+@app.route("/views/<path:filename>")
+def serve_views_file(filename):
+    """Serve view HTML files from ui/views/ directory."""
+    return send_from_directory(os.path.join(UI_DIR, "views"), filename)
+
+
 # =============================================================================
 # Traces API (v0.3.1)
 # =============================================================================

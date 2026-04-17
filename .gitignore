@@ -1,17 +1,13 @@
 *$py.class
 *.bak
 build/
-# Byte-compiled / optimized / DLL files
 config.json
 dist/
-# Distribution / packaging
 .DS_Store
 *.egg-info/
 .env
 env/
 .env.local
-# Git worktrees
-# IDE
 .idea/
 *.key
 knowledge/.curious_last_sync
@@ -26,33 +22,42 @@ knowledge/state.json.bak*
 *.log
 logs/
 .openclaw/
-# Node.js
 node_modules/
 
-# OpenClaw workspace
-# OS
+# Internal docs (tracked in 'internal' branch only)
+ideas/
+docs/plans/
+.sisyphus/
+.worktrees/
+RELEASE_NOTE_v0.2.*
+docs/01-调研报告.md
+docs/02-设计文档.md
+docs/03-实现指南.md
+docs/04-OpenCode完善指南.md
+docs/05-版本路线图.md
+docs/10-双体协作架构设计.md
+docs/参考架构设计.md
+docs/SPEC_v0.2.5.md
+docs/IMPLEMENTATION_PROGRESS.md
+docs/phase3-setup.md
+
 *.pem
-# Project specific
 __pycache__/
 *.py[cod]
 .Python
-# Runtime data
-# Runtime data files (already tracked but should be ignored)
-# Sensitive
 shared_knowledge/assertion_index/
 shared_knowledge/assertion_index/assertions.db
 *.so
 *.swo
 *.swp
-# Temp
 Thumbs.db
 tmp/
 ui/.DS_Store
 .venv/
 venv/
-# Virtual environments
 .vscode/
-workspace/
-workspace-researcher/
+.workspace/
+.workspace-researcher/
 .worktrees/
+GIT_WORKFLOW.md
 .internal-git/

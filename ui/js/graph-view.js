@@ -76,6 +76,23 @@ function renderGraph() {
   var svg = d3.select('#graph-svg');
   if (!svg.node()) return;
   svg.selectAll('*').remove();
+  
+  // 如果 state 还没加载，先加载再渲染
+  if (!state) {
+    svg.append('text').attr('x', '50%').attr('y', '50%').attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'middle').attr('fill', '#8b949e').attr('font-size', '14px')
+      .text('正在加载知识图谱...');
+    loadState().then(function() {
+      renderGraph();
+    }).catch(function(e) {
+      svg.selectAll('*').remove();
+      svg.append('text').attr('x', '50%').attr('y', '50%').attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'middle').attr('fill', '#f85149').attr('font-size', '14px')
+        .text('加载失败: ' + e.message);
+    });
+    return;
+  }
+  
   var data = buildGraphData();
   document.getElementById('graph-controls').style.display = data.nodes.length ? 'flex' : 'none';
   if (!data.nodes.length) {

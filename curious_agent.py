@@ -822,7 +822,15 @@ def run_dream_agent() -> dict:
     
     cfg = get_config()
     agent_cfg = cfg.agents.get('dream')
-    weights_raw = getattr(agent_cfg, 'scoring_weights', {}) or {}
+    weights_raw = getattr(agent_cfg, 'scoring_weights', None)
+    
+    if weights_raw:
+        weights = _scoring_weights_to_dict(weights_raw)
+    else:
+        weights = {
+            "relevance": 0.25, "frequency": 0.15, "recency": 0.15,
+            "quality": 0.20, "surprise": 0.15, "cross_domain": 0.10
+        }
     
     print("[DreamAgent] Starting insight generation...")
     print(f"   Config: min_score_threshold={agent_cfg.min_score_threshold}")
@@ -830,7 +838,7 @@ def run_dream_agent() -> dict:
     tool_registry = ToolRegistry()
     config = DreamAgentConfig(
         name="dream_agent",
-        scoring_weights=weights_raw,
+        scoring_weights=weights,
         min_score_threshold=agent_cfg.min_score_threshold,
         min_recall_count=agent_cfg.min_recall_count,
     )
