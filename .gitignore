@@ -18,6 +18,8 @@ knowledge/.curious_last_sync
 knowledge/dream_insights/
 knowledge/dream_topic_inbox.json
 knowledge/queue.db
+knowledge/hook_audit.db
+knowledge/traces.db
 knowledge/search_quota.json
 knowledge/state.json
 knowledge/state.json.bak*
