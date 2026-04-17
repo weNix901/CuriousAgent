@@ -26,6 +26,9 @@ knowledge/state.json.bak*
 *.log
 logs/
 .openclaw/
+# Node.js
+node_modules/
+
 # OpenClaw workspace
 # OS
 *.pem
