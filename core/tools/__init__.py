@@ -9,6 +9,10 @@ from core.tools.search_tools import (
     ParsePdfTool,
     ProcessPaperTool,
 )
+from core.tools.citation_tools import (
+    ExtractPaperCitationsTool,
+    ExtractWebCitationsTool,
+)
 
 __all__ = [
     "Tool",
@@ -18,4 +22,6 @@ __all__ = [
     "DownloadPaperTool",
     "ParsePdfTool",
     "ProcessPaperTool",
+    "ExtractPaperCitationsTool",
+    "ExtractWebCitationsTool",
 ]
