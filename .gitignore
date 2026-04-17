@@ -61,3 +61,10 @@ venv/
 .worktrees/
 GIT_WORKFLOW.md
 .internal-git/
+
+# Internal-only files (not for public repo)
+knowledge_graph.db
+openclaw-hooks/internal/
+ui/js/internal-view.js
+ui/views/internal-view.html
+RELEASE_NOTE_v0.3.*
