@@ -460,7 +460,6 @@ def api_quota_reset():
 @app.route("/api/curious/state")
 def api_state():
     from core import knowledge_graph_compat as kg
-    from core.tools.queue_tools import QueueStorage
     state = kg.get_state()
     summary = kg.get_knowledge_summary()
     topics = state.get("knowledge", {}).get("topics", {})
@@ -473,10 +472,7 @@ def api_state():
         topic_copy["quality"] = v.get("quality") or quality_map.get(name)
         topics_with_quality[name] = topic_copy
     
-    queue_storage = QueueStorage()
-    pending = queue_storage.get_pending_items()
-    completed = queue_storage.get_completed_items()
-    queue_items = pending + completed
+    queue_items = kg.list_pending()
     
     return jsonify({
         "status": "ok",
