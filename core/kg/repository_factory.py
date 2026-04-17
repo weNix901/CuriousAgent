@@ -44,6 +44,23 @@ class KGRepositoryFactory:
             return await repo.get_node(topic)
         return asyncio.run(_get())
     
+    async def create_knowledge_node_async(
+        self,
+        topic: str,
+        content: str = "",
+        source_urls: Optional[list] = None,
+        metadata: Optional[dict] = None
+    ) -> str:
+        """Async version of create_knowledge_node - for use in async contexts."""
+        repo = await self._ensure_connected()
+        return await repo.create_knowledge_node(
+            topic=topic,
+            content=content,
+            source_urls=source_urls or [],
+            relations=[],
+            metadata=metadata or {}
+        )
+    
     def create_knowledge_node_sync(
         self,
         topic: str,
@@ -51,7 +68,7 @@ class KGRepositoryFactory:
         source_urls: Optional[list] = None,
         metadata: Optional[dict] = None
     ) -> str:
-        """Sync wrapper for create_knowledge_node."""
+        """Sync wrapper for create_knowledge_node - only for truly sync contexts."""
         async def _create():
             repo = await self._ensure_connected()
             return await repo.create_knowledge_node(

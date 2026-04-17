@@ -107,10 +107,9 @@ class ExploreDaemon(threading.Thread):
                 
                 if result.success:
                     self.queue_storage.mark_done(item_id, self.explore_agent.holder_id)
-                    # Write findings to KG
                     try:
                         import core.knowledge_graph_compat as kg
-                        kg.add_knowledge(
+                        await kg.add_knowledge_async(
                             topic=topic,
                             depth=5,
                             summary=result.content[:2000] if result.content else f"Explored: {topic}",

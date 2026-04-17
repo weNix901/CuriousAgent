@@ -297,6 +297,23 @@ def mark_topic_done(topic: str, reason: str) -> None:
     _save_state(state)
 
 
+async def add_knowledge_async(topic: str, depth: int = 5, summary: str = "", sources: Optional[list] = None, quality: Optional[float] = None) -> None:
+    kg_factory = _get_kg_factory()
+    
+    metadata = {
+        "depth": depth,
+        "quality": quality if quality is not None else 0,
+        "status": "done"
+    }
+    
+    await kg_factory.create_knowledge_node_async(
+        topic=topic,
+        content=summary,
+        source_urls=sources or [],
+        metadata=metadata
+    )
+
+
 def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: Optional[list] = None, quality: Optional[float] = None) -> None:
     kg_factory = _get_kg_factory()
     
@@ -1184,6 +1201,7 @@ def _save_state_internal(state: dict) -> None:
 
 
 __all__ = [
+    "add_knowledge_async",
     "add_curiosity",
     "claim_pending_item",
     "list_pending",
