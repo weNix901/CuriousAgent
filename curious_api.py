@@ -1386,6 +1386,7 @@ def api_agents_explore():
         import asyncio
         from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig
         from core.tools.registry import ToolRegistry
+        from core.tools.queue_tools import QueueStorage
         
         data = request.get_json() or {}
         topic = data.get("topic", "").strip()
@@ -1398,10 +1399,34 @@ def api_agents_explore():
         agent_cfg = cfg.agents.get("explore", {})
         
         tool_registry = ToolRegistry()
+        queue_storage = QueueStorage()
+        queue_storage.initialize()
+        
+        from core.tools.search_tools import SearchWebTool, FetchPageTool
+        from core.tools.queue_tools import AddToQueueTool, ClaimQueueTool, GetQueueTool, MarkDoneTool, MarkFailedTool
+        from core.tools.llm_tools import LLMAnalyzeTool, LLMSummarizeTool
+        
+        tool_registry.register(SearchWebTool())
+        tool_registry.register(FetchPageTool())
+        tool_registry.register(AddToQueueTool(storage=queue_storage))
+        tool_registry.register(ClaimQueueTool(storage=queue_storage))
+        tool_registry.register(GetQueueTool(storage=queue_storage))
+        tool_registry.register(MarkDoneTool(storage=queue_storage))
+        tool_registry.register(MarkFailedTool(storage=queue_storage))
+        tool_registry.register(LLMAnalyzeTool())
+        tool_registry.register(LLMSummarizeTool())
+        
+        if hasattr(agent_cfg, 'model'):
+            model = agent_cfg.model
+            max_iter = agent_cfg.max_iterations
+        else:
+            model = agent_cfg.get("model", "volcengine") if isinstance(agent_cfg, dict) else "volcengine"
+            max_iter = agent_cfg.get("max_iterations", 10) if isinstance(agent_cfg, dict) else 10
+        
         config = ExploreAgentConfig(
             name="explore_agent",
-            model=agent_cfg.get("model", "volcengine"),
-            max_iterations=agent_cfg.get("max_iterations", 10),
+            model=model,
+            max_iterations=max_iter,
         )
         agent = ExploreAgent(config=config, tool_registry=tool_registry)
         
@@ -1426,20 +1451,27 @@ def api_agents_dream():
         from core.agents.dream_agent import DreamAgent, DreamAgentConfig
         from core.tools.registry import ToolRegistry
         
-        # Read from config
         cfg = get_config()
         agent_cfg = cfg.agents.get("dream", {})
-        weights_raw = agent_cfg.get("scoring_weights", {})
+        
+        if hasattr(agent_cfg, 'scoring_weights'):
+            weights = agent_cfg.scoring_weights
+            min_threshold = agent_cfg.min_score_threshold
+            min_recall = agent_cfg.min_recall_count
+        else:
+            weights = agent_cfg.get("scoring_weights", {}) if isinstance(agent_cfg, dict) else {}
+            min_threshold = agent_cfg.get("min_score_threshold", 0.8) if isinstance(agent_cfg, dict) else 0.8
+            min_recall = agent_cfg.get("min_recall_count", 3) if isinstance(agent_cfg, dict) else 3
         
         tool_registry = ToolRegistry()
         config = DreamAgentConfig(
             name="dream_agent",
-            scoring_weights=weights_raw or {
+            scoring_weights=weights or {
                 "relevance": 0.25, "frequency": 0.15, "recency": 0.15,
                 "quality": 0.20, "surprise": 0.15, "cross_domain": 0.10
             },
-            min_score_threshold=agent_cfg.get("min_score_threshold", 0.8),
-            min_recall_count=agent_cfg.get("min_recall_count", 3),
+            min_score_threshold=min_threshold,
+            min_recall_count=min_recall,
         )
         agent = DreamAgent(config=config, tool_registry=tool_registry)
         
