@@ -55,3 +55,4 @@ venv/
 workspace/
 workspace-researcher/
 .worktrees/
+.internal-git/
