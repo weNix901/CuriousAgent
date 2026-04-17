@@ -1427,42 +1427,14 @@ def api_kg_subgraph():
 
 @app.route("/api/kg/stats")
 def api_kg_stats():
-    """Get KG statistics summary."""
+    """Get KG statistics summary from Neo4j."""
     try:
-        from core import knowledge_graph as kg
+        from core.kg.repository_factory import get_kg_factory
         
-        state = kg.get_state()
-        topics = state["knowledge"]["topics"]
-        pool = state.get("root_technology_pool", {}).get("candidates", [])
-        root_names = {r["name"] for r in pool}
+        kg_factory = get_kg_factory()
+        stats = kg_factory.get_stats_sync()
         
-        by_status = {}
-        by_quality = {"high": [], "medium": [], "low": [], "none": []}
-        total_edges = 0
-        
-        for name, node in topics.items():
-            s = node.get("status", "unexplored")
-            by_status[s] = by_status.get(s, 0) + 1
-            
-            q = node.get("quality", None)
-            if q is None or q == 0:
-                by_quality["none"].append(name)
-            elif q >= 7:
-                by_quality["high"].append(name)
-            elif q >= 5:
-                by_quality["medium"].append(name)
-            else:
-                by_quality["low"].append(name)
-            
-            total_edges += len(node.get("children", [])) + len(node.get("cites", []))
-        
-        return jsonify({
-            "total_nodes": len(topics),
-            "by_status": by_status,
-            "by_quality": {k: {"count": len(v), "topics": v[:10]} for k, v in by_quality.items()},
-            "total_edges": total_edges,
-            "root_candidates": len(root_names),
-        })
+        return jsonify(stats)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
