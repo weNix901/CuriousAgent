@@ -22,7 +22,8 @@ import asyncio
 
 from core import knowledge_graph_compat as kg
 from core.curiosity_engine import CuriosityEngine
-from core.explorer import Explorer
+from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig
+from core.tools.registry import ToolRegistry
 from core.reasoning_compressor import ReasoningCompressor, CompressionLevel
 from core.curiosity_decomposer import CuriosityDecomposer
 from core.quality_v2 import QualityV2Assessor
@@ -84,70 +85,6 @@ def run_one_cycle(depth: str = "medium") -> dict:
     # Initialize monitor early for potential parent exploration (Bug #26)
     monitor = MetaCognitiveMonitor(llm_client=llm_manager)
 
-    # Bug #26 fix: Explore parent topic first before decomposition
-    parent_state = state.get("knowledge", {}).get("topics", {}).get(topic, {})
-    if not parent_state.get("known"):
-        print(f"[Explorer] Parent '{topic}' not yet explored, exploring first...")
-        kg.update_curiosity_status(topic, "exploring")
-        parent_explorer = Explorer(exploration_depth=depth)
-        parent_result = parent_explorer.explore({"topic": topic, "score": next_curiosity.get("score", 5.0)})
-
-        parent_findings = {
-            "summary": parent_result.get("findings", ""),
-            "sources": parent_result.get("sources", []),
-            "papers": parent_result.get("papers", [])
-        }
-        kg.add_knowledge(topic, depth=5, summary=parent_findings["summary"], sources=parent_findings["sources"])
-
-        parent_quality = monitor.assess_exploration_quality(topic, parent_findings)
-        monitor.record_exploration(topic, parent_quality, marginal_return=0.0, notified=False)
-
-        print(f"[Explorer] Parent '{topic}' explored (Q={parent_quality:.1f})")
-
-    try:
-        subtopics = asyncio.run(decomposer.decompose(topic))
-        
-        if subtopics:
-            subtopics_sorted = sorted(subtopics, key=lambda x: (x.get("signal_strength") != "strong", -x.get("total_count", 0)))
-            best = subtopics_sorted[0]
-            explore_topic = best["sub_topic"]
-            
-            print(f"[Decomposer] '{topic}' -> '{explore_topic}' ({best.get('signal_strength', 'unknown')})")
-            print(f"[Decomposer] Enqueuing {len(subtopics)-1} sibling candidates")
-
-            for sibling in subtopics_sorted[1:]:
-                s_topic = sibling["sub_topic"]
-                s_strength = sibling.get("signal_strength", "unknown")
-                s_relevance = 7.0 if s_strength == "strong" else (6.0 if s_strength == "medium" else 5.0)
-                s_depth = 6.0 if s_strength == "strong" else (5.5 if s_strength == "medium" else 5.0)
-                kg.add_curiosity(topic=s_topic, reason=f"Sibling of: {topic}", relevance=float(s_relevance), depth=float(s_depth), original_topic=topic)
-                kg.add_child(topic, s_topic)
-                print(f"[Decomposer]   + Sibling: '{s_topic}' ({s_strength})")
-
-            next_curiosity["original_topic"] = topic
-            next_curiosity["topic"] = explore_topic
-            next_curiosity["decomposition"] = best
-            
-            # v0.2.5: 立即写入父子关系（Bug #7 fix）
-            kg.add_child(topic, explore_topic)
-        else:
-            explore_topic = topic
-            # v0.2.5: 非 decomposition 路径也写入父子关系（Bug #7 完整修复）
-            if next_curiosity.get("original_topic"):
-                parent = next_curiosity["original_topic"]
-                if parent != topic:
-                    kg.add_child(parent, topic)
-
-    except ClarificationNeeded as e:
-        print(f"[Decomposer] Clarification needed for '{e.topic}': {e.reason}")
-        kg.mark_topic_done(e.topic, f"Needs clarification: {e.reason}")
-        EventBus.emit("decomposer.clarification_needed", {
-            "topic": e.topic,
-            "alternatives": e.alternatives,
-            "reason": e.reason
-        })
-        return {"status": "clarification_needed", "topic": e.topic, "reason": e.reason}
-    
     topic = next_curiosity["topic"]
     controller = MetaCognitiveController(monitor)
     
@@ -158,30 +95,27 @@ def run_one_cycle(depth: str = "medium") -> dict:
         EventBus.emit("exploration.blocked", {"topic": topic, "reason": reason})
         return {"status": "blocked", "topic": topic, "reason": reason}
     
-    explorer = Explorer(exploration_depth=depth)
-
-    # v0.2.5: 设置 exploring 状态以便 parent 追踪
     kg.update_curiosity_status(topic, "exploring")
-
-    from core.three_phase_explorer import ThreePhaseExplorer
-    three_phase = ThreePhaseExplorer(explorer, monitor, llm_manager)
-
-    if next_curiosity.get("score", 5.0) >= 5.0:
-        result = three_phase.explore(next_curiosity)
-        if result.get("status") == "already_known":
-            print(f"[ThreePhaseExplorer] Topic already known: {topic}")
-            return {"status": "blocked", "topic": topic, "reason": "Already known with high confidence"}
-        if "findings" in result:
-            result = {
-                "topic": topic,
-                "action": result.get("plan_used", [{}])[0].get("action", "explore") if result.get("plan_used") else "explore",
-                "findings": result["findings"].get("findings", result["findings"].get("summary", "")),
-                "sources": result["findings"].get("sources", []),
-                "papers": result["findings"].get("papers", []),
-                "score": next_curiosity.get("score", 5.0)
-            }
-    else:
-        result = explorer.explore(next_curiosity)
+    
+    tool_registry = ToolRegistry()
+    agent_config = ExploreAgentConfig(name="explore_agent")
+    explore_agent = ExploreAgent(config=agent_config, tool_registry=tool_registry)
+    
+    agent_result = asyncio.run(explore_agent.run(topic))
+    
+    if not agent_result.success:
+        print(f"[ExploreAgent] Failed: {agent_result.content}")
+        kg.mark_topic_done(topic, f"Exploration failed: {agent_result.content}")
+        return {"status": "failed", "topic": topic, "reason": agent_result.content}
+    
+    result = {
+        "topic": topic,
+        "action": "explore",
+        "findings": agent_result.content,
+        "sources": [],
+        "papers": [],
+        "score": next_curiosity.get("score", 5.0)
+    }
 
     findings = {
         "summary": result.get("findings", ""),
@@ -284,7 +218,7 @@ def run_one_cycle(depth: str = "medium") -> dict:
             auto_queued = engine.auto_queue_topics(keywords, parent_topic=topic)
     
     # 使用压缩后的 formatted（若 should_notify=False 则为空）
-    final_formatted = formatted if should_notify else explorer.format_for_user(result)
+    final_formatted = formatted if should_notify else f"[{topic}] Q={quality:.1f}, findings: {result['findings'][:200]}..."
 
     return {
         "status": "success",

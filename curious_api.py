@@ -483,22 +483,16 @@ def api_state():
 
 @app.route("/api/curious/run", methods=["POST"])
 def api_run():
+    """Inject topic to curiosity queue. ExploreDaemon handles actual exploration."""
     try:
         from core.curiosity_engine import CuriosityEngine
-        from core.explorer import Explorer
         from core.knowledge_graph_compat import add_curiosity, get_top_curiosities
 
         data = request.get_json() if request.is_json else {}
         topic = data.get("topic", "").strip()
-        depth = data.get("depth", "medium")
-
-        if depth not in ["shallow", "medium", "deep"]:
-            return jsonify({"error": f"invalid depth: {depth}"}), 400
-
-        engine = CuriosityEngine()
-        explorer = Explorer(exploration_depth=depth)
 
         if topic:
+            engine = CuriosityEngine()
             result = engine.score_topic(topic, alpha=0.5)
             final_score = result['final_score']
             add_curiosity(
@@ -507,58 +501,20 @@ def api_run():
                 relevance=final_score,
                 depth=7.0
             )
-            next_item = {
+            return jsonify({
+                "status": "queued",
                 "topic": topic,
-                "reason": "API run injection",
                 "score": final_score,
-                "relevance": final_score,
-                "depth": 7.0,
-                "status": "pending"
-            }
+                "message": "Topic added to queue. ExploreDaemon will process it."
+            })
         else:
-            engine.generate_initial_curiosities()
-            engine.rescore_all()
-            next_item = engine.select_next()
+            pending = get_top_curiosities(5)
+            return jsonify({
+                "status": "idle",
+                "message": "No topic provided. Showing pending queue.",
+                "pending": pending
+            })
 
-        if not next_item:
-            return jsonify({"status": "idle", "message": "好奇心队列为空"})
-
-        result = explorer.explore(next_item)
-
-        from core.knowledge_graph_compat import mark_topic_done
-        mark_topic_done(result["topic"], "API exploration completed")
-
-        from core.agent_behavior_writer import AgentBehaviorWriter
-        from core.meta_cognitive_monitor import MetaCognitiveMonitor
-
-        monitor = MetaCognitiveMonitor(llm_client=None)
-        findings = {
-            "summary": result.get("findings", ""),
-            "sources": result.get("sources", []),
-            "papers": result.get("papers", [])
-        }
-        quality = monitor.assess_exploration_quality(result["topic"], findings)
-        monitor.record_exploration(result["topic"], quality, marginal_return=0.0, notified=False)
-
-        if quality >= 7.0:
-            writer = AgentBehaviorWriter()
-            writer.process(result["topic"], findings, quality, result.get("sources", []))
-
-        # G3-Fix: Remove decomposition from API, move to Daemon SpiderAgent
-        # Add topic to DreamInbox for Daemon to process decomposition
-        from core import knowledge_graph_compat as kg
-        kg.add_to_dream_inbox(result["topic"], source_insight="API exploration completed - needs decomposition")
-        print(f"[API] Topic '{result['topic']}' queued for decomposition in Daemon")
-
-        return jsonify({
-            "status": "success",
-            "topic": result["topic"],
-            "action": result["action"],
-            "score": result["score"],
-            "findings": result["findings"],
-            "notified": result["notified"],
-            "sources": result["sources"],
-        })
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -657,67 +613,27 @@ def api_inject():
 
 @app.route("/api/curious/trigger", methods=["POST"])
 def api_trigger():
+    """Inject topic to queue for async exploration. ExploreDaemon handles execution."""
     try:
         data = request.get_json() or {}
         topic = str(data.get("topic", "")).strip()
-        depth = data.get("depth", "medium")
 
         if not topic:
             return jsonify({"error": "topic is required"}), 400
 
-        if depth not in ["shallow", "medium", "deep"]:
-            return jsonify({"error": f"invalid depth: {depth}"}), 400
+        from core.knowledge_graph_compat import add_curiosity
 
-        time_estimates = {
-            "shallow": "30秒",
-            "medium": "3-5分钟",
-            "deep": "10-15分钟"
-        }
-
-        def run_exploration_async():
-            try:
-                from core.curiosity_engine import CuriosityEngine
-                from core.explorer import Explorer
-                from core.knowledge_graph_compat import add_curiosity, mark_topic_done
-                import time as time_module
-
-                add_curiosity(
-                    topic=topic,
-                    reason="API trigger",
-                    relevance=8.0,
-                    depth=7.0
-                )
-
-                time_module.sleep(0.5)
-
-                engine = CuriosityEngine()
-                explorer = Explorer(exploration_depth=depth)
-                next_item = {
-                    "topic": topic,
-                    "reason": "API trigger",
-                    "score": 8.0,
-                    "relevance": 8.0,
-                    "depth": 7.0,
-                    "status": "pending"
-                }
-                result = explorer.explore(next_item)
-                mark_topic_done(topic, "API trigger exploration completed")
-                print(f"[Async] Exploration completed: {topic}, notified: {result.get('notified', False)}")
-
-            except Exception as e:
-                print(f"[Async] Exploration failed: {e}")
-                import traceback
-                traceback.print_exc()
-
-        thread = threading.Thread(target=run_exploration_async, daemon=True)
-        thread.start()
+        add_curiosity(
+            topic=topic,
+            reason="API trigger",
+            relevance=8.0,
+            depth=7.0
+        )
 
         return jsonify({
-            "status": "accepted",
+            "status": "queued",
             "topic": topic,
-            "depth": depth,
-            "estimated_time": time_estimates.get(depth, "未知"),
-            "message": "探索已启动，完成后将通过现有机制通知"
+            "message": "Topic added to queue. ExploreDaemon will process it."
         }), 202
 
     except Exception as e:

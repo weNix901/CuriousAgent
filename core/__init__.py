@@ -16,7 +16,6 @@ from core.knowledge_graph_compat import (
 )
 
 from core.curiosity_engine import CuriosityEngine
-from core.explorer import Explorer
 from core.quality_v2 import QualityV2Assessor
 
 __all__ = [
@@ -26,6 +25,5 @@ __all__ = [
     'claim_pending_item',
     'mark_topic_done',
     'CuriosityEngine',
-    'Explorer',
     'QualityV2Assessor',
 ]
