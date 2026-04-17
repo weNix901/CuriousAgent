@@ -1,6 +1,7 @@
 """ExploreAgent with ReAct loop for knowledge exploration."""
 import json
 import logging
+import time
 import uuid
 from typing import Any
 
@@ -193,6 +194,13 @@ class ExploreAgent(CAAgent):
 
     async def _react_loop(self, topic: str) -> dict[str, Any]:
         """Execute ReAct loop: Thought -> Action -> Observation."""
+        from core.trace.explorer_trace import TraceWriter
+        
+        trace_writer = TraceWriter()
+        trace_id = trace_writer.start_trace(topic)
+        loop_start = time.time()
+        tools_used_set = set()
+        
         client = LLMClient(provider_name=self.config.model)
         system_prompt = self._build_system_prompt()
 
@@ -236,6 +244,14 @@ class ExploreAgent(CAAgent):
                 content_parts.append(f"Thought: {thought}")
 
             if not action or action.lower() == "done":
+                total_duration = int((time.time() - loop_start) * 1000)
+                trace_writer.finish_trace(
+                    trace_id=trace_id,
+                    status="done",
+                    total_steps=iterations,
+                    tools_used=list(tools_used_set),
+                    duration_ms=total_duration,
+                )
                 if not content_parts:
                     content_parts.append(f"Exploration of '{topic}' complete")
                 return {
@@ -244,7 +260,26 @@ class ExploreAgent(CAAgent):
                     "iterations": iterations,
                 }
 
+            step_start = time.time()
+            step_id = trace_writer.record_step(
+                trace_id=trace_id,
+                step_num=iterations,
+                action=action,
+                action_input=json.dumps(action_input, ensure_ascii=False)[:500] if action_input else "",
+                llm_call=(action in ["llm_analyze", "llm_summarize"]),
+            )
+
             observation = await self._execute_action(action, action_input)
+            tools_used_set.add(action)
+            
+            step_duration = int((time.time() - step_start) * 1000)
+            trace_writer.update_step(
+                step_id=step_id,
+                output_summary=observation[:300],
+                output_size=len(observation),
+                duration_ms=step_duration,
+            )
+
             observations.append(f"Iteration {iterations}: {action}({action_input}) -> {observation[:200]}")
             content_parts.append(f"Action: {action}({action_input})\nObservation: {observation[:200]}")
 
@@ -256,7 +291,15 @@ class ExploreAgent(CAAgent):
             )
             messages.append({"role": "user", "content": f"Observation: {observation}"})
 
-        # Reached max iterations - write accumulated findings to KG before returning
+        total_duration = int((time.time() - loop_start) * 1000)
+        trace_writer.finish_trace(
+            trace_id=trace_id,
+            status="done",
+            total_steps=iterations,
+            tools_used=list(tools_used_set),
+            duration_ms=total_duration,
+        )
+
         if content_parts:
             summary_text = "\n".join(content_parts)
             add_tool = self.tool_registry.get("add_to_kg")
@@ -267,7 +310,7 @@ class ExploreAgent(CAAgent):
                     metadata={"depth": 5, "quality": 5.0}
                 )
         return {
-            "success": True,  # KG was updated, count as success
+            "success": True,
             "content": "\n".join(content_parts) + f"\n\nReached max iterations ({self.config.max_iterations}) - written to KG",
             "iterations": iterations,
         }

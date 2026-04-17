@@ -14,7 +14,7 @@ metadata:
 # Knowledge Query Hook
 
 在 Agent 回答前查询 CA 知识图谱置信度，将相关知识注入上下文。
-依赖 v0.3.0 的 `/api/r1d3/confidence` 端点。
+依赖 v0.3.0 的 `/api/knowledge/confidence` 端点。
 
 ## What It Does
 

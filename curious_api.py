@@ -3,19 +3,395 @@ Curious Agent API Server
 提供 RESTful API 和静态文件服务
 """
 import argparse
+import json
 import os
+import queue as queue_mod
+import sqlite3
 import sys
 import threading
 import time
+import traceback
+import uuid
 import webbrowser
+from datetime import datetime, timezone
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, g
 from core.config import get_config
 
 app = Flask(__name__)
 
 # UI 静态文件目录
 UI_DIR = os.path.join(os.path.dirname(__file__), "ui")
+
+
+# =============================================================================
+# Hook Audit Middleware (v0.3.1)
+# =============================================================================
+
+HOOK_ENDPOINTS = {
+    "/api/knowledge/confidence",
+    "/api/knowledge/learn",
+    "/api/kg/overview",
+    "/api/knowledge/check",
+    "/api/knowledge/record",
+}
+
+_audit_db_path = os.path.join(os.path.dirname(__file__), "knowledge", "hook_audit.db")
+_audit_log_path = os.path.join(os.path.dirname(__file__), "logs", "hook_access.log")
+_audit_queue = queue_mod.Queue(maxsize=10000)
+_audit_thread = None
+
+
+def _ensure_audit_db():
+    """Initialize audit database tables."""
+    os.makedirs(os.path.dirname(_audit_db_path), exist_ok=True)
+    conn = sqlite3.connect(_audit_db_path)
+    conn.execute("""CREATE TABLE IF NOT EXISTS hook_calls (
+        id TEXT PRIMARY KEY, timestamp TEXT NOT NULL,
+        direction TEXT NOT NULL DEFAULT 'inbound', hook_name TEXT NOT NULL,
+        hook_type TEXT NOT NULL, hook_event TEXT NOT NULL,
+        agent_id TEXT NOT NULL DEFAULT 'r1d3', agent_session TEXT,
+        endpoint TEXT NOT NULL, method TEXT NOT NULL DEFAULT 'GET',
+        request_headers TEXT, request_payload TEXT, request_raw_topic TEXT,
+        status TEXT NOT NULL DEFAULT 'success', status_code INTEGER NOT NULL DEFAULT 200,
+        response_payload TEXT, latency_ms INTEGER NOT NULL DEFAULT 0,
+        confidence_level TEXT, knowledge_injected INTEGER DEFAULT 0,
+        injection_snippet TEXT, related_topic TEXT, related_queue_item TEXT,
+        ca_trace_id TEXT, error_message TEXT,
+        created_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    )""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_hook_calls_agent_time ON hook_calls(agent_id, timestamp)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_hook_calls_hook_time ON hook_calls(hook_name, timestamp)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_hook_calls_status ON hook_calls(status)")
+    conn.commit()
+    conn.close()
+
+
+def _audit_worker():
+    """Background daemon thread that writes audit records to DB and log file."""
+    os.makedirs(os.path.dirname(_audit_log_path), exist_ok=True)
+    db = sqlite3.connect(_audit_db_path, check_same_thread=False)
+    log_file = open(_audit_log_path, "a", encoding="utf-8")
+
+    while True:
+        try:
+            record = _audit_queue.get(timeout=1)
+        except queue_mod.Empty:
+            continue
+        if record is None:
+            break
+        try:
+            db.execute(
+                """INSERT INTO hook_calls (id, timestamp, direction, hook_name, hook_type,
+                   hook_event, agent_id, agent_session, endpoint, method, request_headers,
+                   request_payload, request_raw_topic, status, status_code, response_payload,
+                   latency_ms, confidence_level, knowledge_injected, injection_snippet,
+                   related_topic, related_queue_item, ca_trace_id, error_message)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (record["id"], record["timestamp"], record["direction"],
+                 record["hook_name"], record["hook_type"], record["hook_event"],
+                 record["agent_id"], record.get("agent_session"),
+                 record["endpoint"], record["method"],
+                 record.get("request_headers"), record.get("request_payload"),
+                 record.get("request_raw_topic"),
+                 record["status"], record["status_code"],
+                 record.get("response_payload"), record["latency_ms"],
+                 record.get("confidence_level"), record.get("knowledge_injected", 0),
+                 record.get("injection_snippet"), record.get("related_topic"),
+                 record.get("related_queue_item"), record.get("ca_trace_id"),
+                 record.get("error_message")),
+            )
+            db.commit()
+            log_line = (
+                f"[{record['timestamp']}] {record['hook_name']:<16} {record['agent_id']}"
+                f"  → {record['method']} {record['endpoint']}"
+                f"  ← {record['status_code']} {record['latency_ms']}ms"
+                f" {record.get('request_raw_topic', '')[:60]}"
+            )
+            log_file.write(log_line + "\n")
+            log_file.flush()
+        except Exception as e:
+            print(f"[audit] write failed: {e}")
+        finally:
+            _audit_queue.task_done()
+
+
+def _is_hook_endpoint(path):
+    """Check if the request path matches one of the Hook endpoints."""
+    if path.startswith("/api/kg/confidence/"):
+        return True
+    return path in HOOK_ENDPOINTS
+
+
+def _build_audit_record(req, resp, latency_ms):
+    """Build audit record from request and response."""
+    headers = {
+        k: v for k, v in dict(req.headers).items()
+        if k.lower() in ("x-openclaw-agent-id", "x-openclaw-hook-name",
+                         "x-openclaw-hook-event", "x-openclaw-hook-type",
+                         "x-openclaw-session-id")
+    }
+    hook_name = headers.get("X-OpenClaw-Hook-Name", "unknown")
+    hook_type = headers.get("X-OpenClaw-Hook-Type", "unknown")
+    hook_event = headers.get("X-OpenClaw-Hook-Event", "unknown")
+
+    req_payload = None
+    try:
+        if req.is_json and req.data and len(req.data) < 4096:
+            req_payload = req.get_data(as_text=True)
+    except Exception:
+        pass
+
+    resp_payload = None
+    try:
+        if resp.is_json and len(resp.get_data(as_text=True)) < 4096:
+            resp_payload = resp.get_data(as_text=True)
+    except Exception:
+        pass
+
+    raw_topic = req.args.get("topic", "")
+    if not raw_topic and req_payload:
+        try:
+            parsed = json.loads(req_payload)
+            raw_topic = parsed.get("topic", "")
+        except Exception:
+            pass
+
+    return {
+        "id": str(uuid.uuid4()),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "direction": "inbound",
+        "hook_name": hook_name,
+        "hook_type": hook_type,
+        "hook_event": hook_event,
+        "agent_id": headers.get("X-OpenClaw-Agent-Id", "unknown"),
+        "agent_session": headers.get("X-OpenClaw-Session-Id"),
+        "endpoint": req.path,
+        "method": req.method,
+        "request_headers": json.dumps(headers),
+        "request_payload": req_payload,
+        "request_raw_topic": raw_topic,
+        "status": "success" if resp.status_code < 400 else "error",
+        "status_code": resp.status_code,
+        "response_payload": resp_payload,
+        "latency_ms": int(latency_ms),
+        "confidence_level": None,
+        "knowledge_injected": 0,
+        "injection_snippet": None,
+        "related_topic": None,
+        "related_queue_item": None,
+        "ca_trace_id": None,
+        "error_message": None,
+    }
+
+
+@app.before_request
+def record_request_start():
+    """Record request start time for latency calculation."""
+    g.start_time = time.time()
+
+
+@app.after_request
+def audit_hook_requests(response):
+    """Audit Hook endpoint requests after they complete."""
+    if not _is_hook_endpoint(request.path):
+        return response
+    try:
+        start = getattr(g, 'start_time', time.time())
+        latency_ms = int((time.time() - start) * 1000)
+        record = _build_audit_record(request, response, latency_ms)
+        try:
+            _audit_queue.put_nowait(record)
+        except queue_mod.Full:
+            print("[audit] queue full, dropping record")
+    except Exception as e:
+        print(f"[audit] error: {e}")
+    return response
+
+
+# Start audit worker thread at module load
+_audit_thread = threading.Thread(target=_audit_worker, daemon=True, name="audit-worker")
+_audit_thread.start()
+
+
+# =============================================================================
+# Audit API Endpoints (v0.3.1)
+# =============================================================================
+
+def _get_audit_db():
+    """Get audit database connection with row factory."""
+    conn = sqlite3.connect(_audit_db_path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+@app.route("/api/audit/hooks")
+def api_audit_hooks():
+    """Query Hook call records (paginated, filtered)."""
+    try:
+        limit = int(request.args.get("limit", 50))
+        offset = int(request.args.get("offset", 0))
+        hook = request.args.get("hook")
+        agent = request.args.get("agent")
+        status = request.args.get("status")
+
+        query = "SELECT * FROM hook_calls WHERE 1=1"
+        params = []
+        if hook:
+            query += " AND hook_name = ?"
+            params.append(hook)
+        if agent:
+            query += " AND agent_id = ?"
+            params.append(agent)
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+        query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+        conn = _get_audit_db()
+        rows = conn.execute(query, params).fetchall()
+
+        count_query = query.replace("SELECT *", "SELECT COUNT(*)").replace(
+            " ORDER BY timestamp DESC LIMIT ? OFFSET ?", ""
+        )
+        total = conn.execute(count_query, params[:-2]).fetchone()[0]
+        conn.close()
+
+        return jsonify({
+            "total": total,
+            "records": [dict(r) for r in rows]
+        })
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/audit/hooks/<hook_id>")
+def api_audit_hook_detail(hook_id):
+    """Single Hook call detail."""
+    try:
+        conn = _get_audit_db()
+        row = conn.execute("SELECT * FROM hook_calls WHERE id = ?", (hook_id,)).fetchone()
+        conn.close()
+        if not row:
+            return jsonify({"error": "not found"}), 404
+        return jsonify(dict(row))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/audit/hooks/stats")
+def api_audit_hooks_stats():
+    """Hook call statistics."""
+    try:
+        conn = _get_audit_db()
+
+        by_hook = {}
+        rows = conn.execute("""
+            SELECT hook_name,
+                   COUNT(*) as total,
+                   SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) as success,
+                   SUM(CASE WHEN status='error' THEN 1 ELSE 0 END) as error,
+                   AVG(latency_ms) as avg_latency
+            FROM hook_calls GROUP BY hook_name
+        """).fetchall()
+        for r in rows:
+            by_hook[r["hook_name"]] = {
+                "total": r["total"], "success": r["success"],
+                "error": r["error"], "avg_latency_ms": int(r["avg_latency"] or 0)
+            }
+
+        by_agent = {}
+        rows = conn.execute("""
+            SELECT agent_id,
+                   COUNT(*) as total,
+                   SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) as success,
+                   SUM(CASE WHEN status='error' THEN 1 ELSE 0 END) as error
+            FROM hook_calls GROUP BY agent_id
+        """).fetchall()
+        for r in rows:
+            by_agent[r["agent_id"]] = {
+                "total": r["total"], "success": r["success"], "error": r["error"]
+            }
+
+        overall = conn.execute("""
+            SELECT COUNT(*) as total,
+                   SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) as success,
+                   SUM(CASE WHEN status='error' THEN 1 ELSE 0 END) as error,
+                   AVG(latency_ms) as avg_latency
+            FROM hook_calls
+        """).fetchone()
+
+        conn.close()
+        return jsonify({
+            "by_hook": by_hook,
+            "by_agent": by_agent,
+            "overall": {
+                "total": overall["total"],
+                "success_rate": overall["success"] / max(overall["total"], 1),
+                "avg_latency_ms": int(overall["avg_latency"] or 0)
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/audit/webhooks")
+def api_audit_webhooks():
+    """Webhook push records (v0.3.1 placeholder)."""
+    return jsonify({"webhooks": [], "note": "Reserved for future webhook support"})
+
+
+@app.route("/api/audit/agent/<agent_id>/activity")
+def api_audit_agent_activity(agent_id):
+    """Complete activity timeline for an Agent."""
+    try:
+        limit = int(request.args.get("limit", 50))
+        conn = _get_audit_db()
+        rows = conn.execute("""
+            SELECT id, timestamp, hook_name, endpoint, method, status,
+                   latency_ms, request_raw_topic, confidence_level
+            FROM hook_calls
+            WHERE agent_id = ?
+            ORDER BY timestamp DESC LIMIT ?
+        """, (agent_id, limit)).fetchall()
+        conn.close()
+
+        return jsonify({
+            "agent_id": agent_id,
+            "total_calls": len(rows),
+            "activities": [dict(r) for r in rows]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/audit/sessions/<session_id>")
+def api_audit_sessions(session_id):
+    """All Hook calls within a Session."""
+    try:
+        conn = _get_audit_db()
+        rows = conn.execute("""
+            SELECT * FROM hook_calls
+            WHERE agent_session = ?
+            ORDER BY timestamp ASC
+        """, (session_id,)).fetchall()
+        conn.close()
+
+        hook_calls = [dict(r) for r in rows]
+        knowledge_injected = [
+            {"hook": r["hook_name"], "topic": r["request_raw_topic"]}
+            for r in rows if r.get("knowledge_injected")
+        ]
+
+        return jsonify({
+            "session_id": session_id,
+            "hook_calls": hook_calls,
+            "knowledge_injected": knowledge_injected
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/")
@@ -459,8 +835,8 @@ def api_metacognitive_completed():
     })
 
 
-@app.route("/api/r1d3/confidence", methods=["GET"])
-def api_r1d3_confidence():
+@app.route("/api/knowledge/confidence", methods=["GET"])
+def api_knowledge_confidence():
     """R1D3 queries confidence level for a topic"""
     try:
         from core.api.r1d3_tools import R1D3ToolHandler
@@ -482,8 +858,8 @@ def api_r1d3_confidence():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
-@app.route("/api/r1d3/inject", methods=["POST"])
-def api_r1d3_inject():
+@app.route("/api/knowledge/explore", methods=["POST"])
+def api_knowledge_explore():
     """R1D3 triggers directed exploration"""
     try:
         from core.api.r1d3_tools import R1D3ToolHandler
@@ -514,8 +890,8 @@ def api_r1d3_inject():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
-@app.route("/api/r1d3/synthesize", methods=["POST"])
-def api_r1d3_synthesize():
+@app.route("/api/knowledge/synthesize", methods=["POST"])
+def api_knowledge_synthesize():
     """R1D3 triggers Layer 3 insight synthesis"""
     try:
         from core.insight_synthesizer import InsightSynthesizer
@@ -555,8 +931,8 @@ def api_r1d3_synthesize():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
-@app.route("/api/r1d3/discoveries/unshared", methods=["GET"])
-def api_r1d3_unshared_discoveries():
+@app.route("/api/discoveries/unshared", methods=["GET"])
+def api_discoveries_unshared():
     """Get unshared discoveries for R1D3 to consume"""
     try:
         from core.sync.r1d3_sync import R1D3Sync
@@ -575,8 +951,8 @@ def api_r1d3_unshared_discoveries():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
-@app.route("/api/r1d3/discoveries/mark_shared", methods=["POST"])
-def api_r1d3_mark_shared():
+@app.route("/api/discoveries/mark_shared", methods=["POST"])
+def api_discoveries_mark_shared():
     """Mark a discovery as shared"""
     try:
         from core.sync.r1d3_sync import R1D3Sync
@@ -656,6 +1032,14 @@ def main():
         webbrowser.open(url)
 
     threading.Thread(target=open_browser, daemon=True).start()
+
+    # v0.3.1: Initialize audit database and ensure directories exist
+    _ensure_audit_db()
+    os.makedirs(os.path.join(os.path.dirname(__file__), "logs"), exist_ok=True)
+
+    # v0.3.1: Initialize trace databases
+    from core.trace.explorer_trace import TraceWriter
+    TraceWriter()
 
     # Use make_server so we can control shutdown
     from werkzeug.serving import make_server
@@ -887,6 +1271,226 @@ def api_kg_calibration():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"status": "error", "error": str(e)}), 500
+
+
+# =============================================================================
+# KG Enhanced API (v0.3.1)
+# =============================================================================
+
+@app.route("/api/kg/nodes")
+def api_kg_nodes():
+    """List KG nodes with pagination, search, and filtering."""
+    try:
+        from core import knowledge_graph as kg
+        
+        page = int(request.args.get("page", 1))
+        limit = int(request.args.get("limit", 100))
+        search = request.args.get("search", "")
+        node_type = request.args.get("type", "")
+        
+        state = kg.get_state()
+        topics = state["knowledge"]["topics"]
+        pool = state.get("root_technology_pool", {}).get("candidates", [])
+        root_names = {r["name"] for r in pool}
+        
+        nodes = []
+        for name, node in topics.items():
+            if search and search.lower() not in name.lower():
+                continue
+            if node_type == "root" and name not in root_names:
+                continue
+            nodes.append({
+                "id": name,
+                "quality": node.get("quality", 0),
+                "root_score": next((r["root_score"] for r in pool if r["name"] == name), 0),
+                "is_root": name in root_names or node.get("is_root_candidate", False),
+                "status": node.get("status", "unexplored"),
+                "children_count": len(node.get("children", [])),
+                "parents_count": len(node.get("parents", [])),
+                "summary": node.get("summary", "")[:200],
+                "sources": node.get("sources", []),
+                "last_updated": node.get("last_updated", ""),
+            })
+        
+        total = len(nodes)
+        start = (page - 1) * limit
+        paginated = nodes[start:start + limit]
+        
+        return jsonify({"total": total, "page": page, "limit": limit, "nodes": paginated})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/kg/nodes/<path:node_id>")
+def api_kg_node_detail(node_id):
+    """Get single KG node full details."""
+    try:
+        from core import knowledge_graph as kg
+        
+        state = kg.get_state()
+        node = state["knowledge"]["topics"].get(node_id)
+        if not node:
+            return jsonify({"error": "not found"}), 404
+        
+        explore_count = kg.get_topic_explore_count(node_id)
+        
+        return jsonify({
+            "id": node_id,
+            "quality": node.get("quality", 0),
+            "status": node.get("status", "unexplored"),
+            "summary": node.get("summary", ""),
+            "sources": node.get("sources", []),
+            "parents": node.get("parents", []),
+            "children": node.get("children", []),
+            "cites": node.get("cites", []),
+            "cited_by": node.get("cited_by", []),
+            "explains": node.get("explains", []),
+            "exploration_count": explore_count,
+            "depth": node.get("depth", 0),
+            "is_root_candidate": node.get("is_root_candidate", False),
+            "created_at": node.get("created_at", ""),
+            "last_updated": node.get("last_updated", ""),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/kg/edges")
+def api_kg_edges():
+    """Get edges for a specific node or all edges."""
+    try:
+        from core import knowledge_graph as kg
+        
+        node_filter = request.args.get("node")
+        state = kg.get_state()
+        topics = state["knowledge"]["topics"]
+        edges = []
+        
+        for name, node in topics.items():
+            if node_filter and name != node_filter:
+                for child in node.get("children", []):
+                    if child == node_filter:
+                        edges.append({"from": name, "to": child, "type": "child_of"})
+                for cited in node.get("cites", []):
+                    if cited == node_filter:
+                        edges.append({"from": name, "to": cited, "type": "cites"})
+                continue
+            for child in node.get("children", []):
+                edges.append({"from": name, "to": child, "type": "child_of"})
+            for cited in node.get("cites", []):
+                edges.append({"from": name, "to": cited, "type": "cites"})
+        
+        return jsonify({"node": node_filter, "edges": edges})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/kg/subgraph")
+def api_kg_subgraph():
+    """Get subgraph from a root topic with specified depth."""
+    try:
+        from core import knowledge_graph as kg
+        
+        root = request.args.get("root", "")
+        depth = int(request.args.get("depth", 2))
+        if not root:
+            return jsonify({"error": "root parameter required"}), 400
+        
+        state = kg.get_state()
+        topics = state["knowledge"]["topics"]
+        visited = set()
+        nodes = []
+        edges = []
+        
+        def _walk(topic, current_depth):
+            if topic in visited or current_depth > depth:
+                return
+            visited.add(topic)
+            if topic in topics:
+                node = topics[topic]
+                nodes.append({
+                    "id": topic,
+                    "quality": node.get("quality", 0),
+                    "status": node.get("status", "unexplored"),
+                    "depth_level": current_depth,
+                })
+                for child in node.get("children", []):
+                    edges.append({"from": topic, "to": child, "type": "child_of"})
+                    _walk(child, current_depth + 1)
+        
+        _walk(root, 0)
+        return jsonify({"root": root, "depth": depth, "nodes": nodes, "edges": edges})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/kg/stats")
+def api_kg_stats():
+    """Get KG statistics summary."""
+    try:
+        from core import knowledge_graph as kg
+        
+        state = kg.get_state()
+        topics = state["knowledge"]["topics"]
+        pool = state.get("root_technology_pool", {}).get("candidates", [])
+        root_names = {r["name"] for r in pool}
+        
+        by_status = {}
+        by_quality = {"high": [], "medium": [], "low": [], "none": []}
+        total_edges = 0
+        
+        for name, node in topics.items():
+            s = node.get("status", "unexplored")
+            by_status[s] = by_status.get(s, 0) + 1
+            
+            q = node.get("quality", None)
+            if q is None or q == 0:
+                by_quality["none"].append(name)
+            elif q >= 7:
+                by_quality["high"].append(name)
+            elif q >= 5:
+                by_quality["medium"].append(name)
+            else:
+                by_quality["low"].append(name)
+            
+            total_edges += len(node.get("children", [])) + len(node.get("cites", []))
+        
+        return jsonify({
+            "total_nodes": len(topics),
+            "by_status": by_status,
+            "by_quality": {k: {"count": len(v), "topics": v[:10]} for k, v in by_quality.items()},
+            "total_edges": total_edges,
+            "root_candidates": len(root_names),
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/kg/quality-distribution")
+def api_kg_quality_distribution():
+    """Get KG quality distribution."""
+    try:
+        from core import knowledge_graph as kg
+        
+        state = kg.get_state()
+        topics = state["knowledge"]["topics"]
+        dist = {"high": [], "medium": [], "low": [], "none": []}
+        
+        for name, node in topics.items():
+            q = node.get("quality", None)
+            if q is None or q == 0:
+                dist["none"].append(name)
+            elif q >= 7:
+                dist["high"].append(name)
+            elif q >= 5:
+                dist["medium"].append(name)
+            else:
+                dist["low"].append(name)
+        
+        return jsonify({k: {"count": len(v), "topics": v} for k, v in dist.items()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # =============================================================================
@@ -1414,7 +2018,8 @@ def api_queue_done():
             
         queue = QueueStorage()
         queue.initialize()
-        success = queue.mark_done(item_id)
+        holder_id = data.get("holder_id", "api_caller")
+        success = queue.mark_done(item_id, holder_id)
         
         return jsonify({
             "status": "ok" if success else "failed",
@@ -1442,7 +2047,8 @@ def api_queue_failed():
             
         queue = QueueStorage()
         queue.initialize()
-        success = queue.mark_failed(item_id, reason=reason, requeue=requeue)
+        holder_id = data.get("holder_id", "api_caller")
+        success = queue.mark_failed(item_id, holder_id, reason=reason, requeue=requeue)
         
         return jsonify({
             "status": "ok" if success else "failed",
@@ -1452,6 +2058,40 @@ def api_queue_failed():
         import traceback
         traceback.print_exc()
         return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/queue/<int:item_id>")
+def api_queue_item(item_id):
+    """Get single queue item detail."""
+    try:
+        from core.tools.queue_tools import QueueStorage
+        
+        queue = QueueStorage()
+        queue.initialize()
+        item = queue.get_item(item_id)
+        
+        if not item:
+            return jsonify({"error": "not found"}), 404
+        return jsonify(item)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/queue/by-topic/<path:topic>")
+def api_queue_by_topic(topic):
+    """Get queue items by topic."""
+    try:
+        from core.tools.queue_tools import QueueStorage
+        
+        queue = QueueStorage()
+        queue.initialize()
+        items = queue.get_items_by_topic(topic)
+        
+        return jsonify({"topic": topic, "items": items})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 
 # Discoveries API endpoints
@@ -1572,6 +2212,490 @@ def api_auth_register():
         import traceback
         traceback.print_exc()
         return jsonify({"status": "error", "error": str(e)}), 500
+
+
+# =============================================================================
+# Static File Serving for WebUI (v0.3.1)
+# =============================================================================
+
+@app.route("/ui/<path:filename>")
+def serve_ui_file(filename):
+    """Serve static files from ui/ directory."""
+    return send_from_directory(UI_DIR, filename)
+
+
+# =============================================================================
+# Traces API (v0.3.1)
+# =============================================================================
+
+_TRACES_DB_PATH = os.path.join(os.path.dirname(__file__), "knowledge", "traces.db")
+
+
+def _get_traces_db():
+    conn = sqlite3.connect(_TRACES_DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+@app.route("/api/explorer/active")
+def api_explorer_active():
+    """Get active explorer traces."""
+    try:
+        conn = _get_traces_db()
+        rows = conn.execute(
+            "SELECT * FROM explorer_traces WHERE status = 'running' ORDER BY started_at DESC"
+        ).fetchall()
+        conn.close()
+        return jsonify({"active_traces": [dict(r) for r in rows]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/explorer/recent")
+def api_explorer_recent():
+    """Get recent explorer traces."""
+    try:
+        limit = int(request.args.get("limit", 20))
+        conn = _get_traces_db()
+        rows = conn.execute(
+            "SELECT * FROM explorer_traces WHERE status != 'running' ORDER BY started_at DESC LIMIT ?",
+            (limit,)
+        ).fetchall()
+        conn.close()
+        return jsonify({"traces": [dict(r) for r in rows]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/explorer/trace/<trace_id>")
+def api_explorer_trace(trace_id):
+    """Get single explorer trace with all steps."""
+    try:
+        conn = _get_traces_db()
+        trace = conn.execute(
+            "SELECT * FROM explorer_traces WHERE trace_id = ?", (trace_id,)
+        ).fetchone()
+        steps = conn.execute(
+            "SELECT * FROM trace_steps WHERE trace_id = ? ORDER BY step_num ASC", (trace_id,)
+        ).fetchall()
+        conn.close()
+        if not trace:
+            return jsonify({"error": "not found"}), 404
+        return jsonify({"trace": dict(trace), "steps": [dict(s) for s in steps]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dream/active")
+def api_dream_active():
+    """Get active dream trace."""
+    try:
+        conn = _get_traces_db()
+        rows = conn.execute(
+            "SELECT * FROM dream_traces WHERE status = 'running' ORDER BY started_at DESC LIMIT 1"
+        ).fetchall()
+        conn.close()
+        return jsonify({"active": len(rows) > 0, "trace": dict(rows[0]) if rows else None})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dream/traces")
+def api_dream_traces():
+    """Get recent dream traces."""
+    try:
+        limit = int(request.args.get("limit", 20))
+        conn = _get_traces_db()
+        rows = conn.execute(
+            "SELECT * FROM dream_traces ORDER BY started_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+        conn.close()
+        return jsonify({"traces": [dict(r) for r in rows]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dream/trace/<trace_id>")
+def api_dream_trace(trace_id):
+    """Get single dream trace."""
+    try:
+        conn = _get_traces_db()
+        trace = conn.execute(
+            "SELECT * FROM dream_traces WHERE trace_id = ?", (trace_id,)
+        ).fetchone()
+        conn.close()
+        if not trace:
+            return jsonify({"error": "not found"}), 404
+        return jsonify(dict(trace))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dream/stats")
+def api_dream_stats():
+    """Get dream statistics."""
+    try:
+        import glob
+        insights_dir = os.path.join(os.path.dirname(__file__), "knowledge", "dream_insights")
+        insight_files = glob.glob(os.path.join(insights_dir, "*.json"))
+        insight_types = {}
+        for f in insight_files:
+            with open(f, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+                t = data.get("insight_type", "unknown")
+                insight_types[t] = insight_types.get(t, 0) + 1
+
+        conn = _get_traces_db()
+        total = conn.execute("SELECT COUNT(*) FROM dream_traces").fetchone()[0]
+        avg_l1 = conn.execute("SELECT AVG(l1_count) FROM dream_traces").fetchone()[0] or 0
+        avg_l2 = conn.execute("SELECT AVG(l2_count) FROM dream_traces").fetchone()[0] or 0
+        avg_l3 = conn.execute("SELECT AVG(l3_count) FROM dream_traces").fetchone()[0] or 0
+        avg_l4 = conn.execute("SELECT AVG(l4_count) FROM dream_traces").fetchone()[0] or 0
+        conn.close()
+
+        return jsonify({
+            "total_dreams": total,
+            "total_insights": len(insight_files),
+            "avg_l1_candidates": int(avg_l1),
+            "avg_l2_scored": int(avg_l2),
+            "avg_l3_filtered": int(avg_l3),
+            "avg_l4_topics": int(avg_l4),
+            "insight_by_type": insight_types,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
+# Decomposition API (v0.3.1)
+# =============================================================================
+
+@app.route("/api/decomposition/tree/<path:root_topic>")
+def api_decomposition_tree(root_topic):
+    """Get decomposition tree from a root topic."""
+    try:
+        from core import knowledge_graph as kg
+        
+        state = kg.get_state()
+        topics = state["knowledge"]["topics"]
+
+        def _build_tree(topic, depth=0):
+            if depth > 4 or topic not in topics:
+                return None
+            node = topics[topic]
+            children = []
+            for child in node.get("children", []):
+                ct = _build_tree(child, depth + 1)
+                if ct:
+                    children.append(ct)
+            return {
+                "id": topic,
+                "status": node.get("status", "unexplored"),
+                "children": children,
+            }
+
+        tree = _build_tree(root_topic)
+        return jsonify({"root": root_topic, "tree": tree})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/decomposition/stats")
+def api_decomposition_stats():
+    """Get decomposition statistics."""
+    try:
+        from core import knowledge_graph as kg
+        
+        state = kg.get_state()
+        topics = state["knowledge"]["topics"]
+        total_decomposed = 0
+        by_depth = {}
+        total_children = 0
+
+        for name, node in topics.items():
+            children = node.get("children", [])
+            if children:
+                total_decomposed += 1
+                total_children += len(children)
+                by_depth[str(len(children))] = by_depth.get(str(len(children)), 0) + 1
+
+        return jsonify({
+            "total_decomposed": total_decomposed,
+            "by_depth": by_depth,
+            "avg_children_per_topic": round(total_children / max(total_decomposed, 1), 1)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
+# System Health API (v0.3.1)
+# =============================================================================
+
+@app.route("/api/system/health")
+def api_system_health():
+    """Get system health status."""
+    try:
+        def _get_system_info():
+            cpu_pct = 0.0
+            mem_pct = 0.0
+            mem_avail_mb = 0
+            try:
+                with open('/proc/stat') as f:
+                    parts = f.readline().split()
+                    idle = int(parts[4])
+                    total = sum(int(p) for p in parts[1:])
+                    cpu_pct = round((1 - idle / max(total, 1)) * 100, 1)
+            except Exception:
+                pass
+            try:
+                with open('/proc/meminfo') as f:
+                    lines = f.readlines()
+                    mem_total = int(lines[0].split()[1]) * 1024
+                    mem_avail = int(lines[2].split()[1]) * 1024
+                    mem_pct = round((1 - mem_avail / max(mem_total, 1)) * 100, 1)
+                    mem_avail_mb = mem_avail // (1024 * 1024)
+            except Exception:
+                pass
+            return {"cpu_percent": cpu_pct, "memory_percent": mem_pct, "memory_available_mb": mem_avail_mb}
+
+        api_pid = os.getpid()
+        uptime = 0
+        try:
+            uptime = int(time.time() - os.path.getmtime("/proc/%d/stat" % api_pid))
+        except Exception:
+            pass
+
+        from core.tools.queue_tools import QueueStorage
+        qs = QueueStorage()
+        qs.initialize()
+        queue_stats = qs.get_all_stats()
+
+        from core import knowledge_graph as kg
+        state = kg.get_state()
+        topics = state["knowledge"]["topics"]
+
+        recent_errors = []
+        if os.path.exists(_audit_log_path):
+            with open(_audit_log_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if "← 5" in line or "error" in line.lower():
+                        recent_errors.append(line.strip())
+                recent_errors = recent_errors[-10:]
+
+        sys_info = _get_system_info()
+        return jsonify({
+            "ca_api": {"status": "up", "uptime_seconds": uptime, "port": 4848},
+            "system": sys_info,
+            "queue": queue_stats,
+            "kg": {
+                "total_nodes": len(topics),
+                "storage": "json",
+            },
+            "recent_errors": recent_errors,
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
+# Provider Heatmap API (v0.3.1)
+# =============================================================================
+
+@app.route("/api/providers/heatmap")
+def api_providers_heatmap():
+    """Get provider heatmap."""
+    try:
+        heatmap_path = os.path.join(os.path.dirname(__file__), "knowledge", "provider_heatmap.json")
+        if os.path.exists(heatmap_path):
+            with open(heatmap_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        else:
+            data = {"heatmap": {}, "best_providers": {}, "updated_at": None}
+
+        try:
+            from core.search_quota import get_quota_manager
+            cfg = get_config()
+            quota = cfg.knowledge.get("search").daily_quota
+            qm = get_quota_manager()
+            serper = qm.get_status("serper", quota.serper, quota.enabled)
+            bocha = qm.get_status("bocha", quota.bocha, quota.enabled)
+            data["quota"] = {
+                "bocha": {"used": bocha.used, "limit": bocha.limit, "remaining": bocha.remaining},
+                "serper": {"used": serper.used, "limit": serper.limit, "remaining": serper.remaining},
+            }
+        except Exception:
+            pass
+
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/providers/record", methods=["POST"])
+def api_providers_record():
+    """Record provider verification result."""
+    try:
+        from core.provider_heatmap import get_heatmap
+        
+        data = request.get_json() or {}
+        language = data.get("language", "")
+        domain = data.get("domain", "")
+        provider_results = data.get("provider_results", {})
+
+        hm = get_heatmap()
+        hm.record_verification(language, domain, provider_results)
+
+        heatmap_path = os.path.join(os.path.dirname(__file__), "knowledge", "provider_heatmap.json")
+        os.makedirs(os.path.dirname(heatmap_path), exist_ok=True)
+        with open(heatmap_path, "w", encoding="utf-8") as f:
+            json.dump({"heatmap": dict(hm._heatmap), "updated_at": datetime.now(timezone.utc).isoformat()}, f)
+
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
+# Timeline API (v0.3.1)
+# =============================================================================
+
+@app.route("/api/timeline")
+def api_timeline():
+    """Get global event timeline."""
+    try:
+        import glob
+        limit = int(request.args.get("limit", 100))
+        events = []
+
+        try:
+            conn = _get_audit_db()
+            rows = conn.execute(
+                "SELECT timestamp, hook_name, endpoint, status, latency_ms FROM hook_calls ORDER BY timestamp DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+            for r in rows:
+                events.append({
+                    "timestamp": r["timestamp"],
+                    "type": "hook_call",
+                    "emoji": "🔗",
+                    "summary": f"{r['hook_name']} → {r['endpoint']} → {r['status']}",
+                    "detail_url": "/api/audit/hooks",
+                })
+            conn.close()
+        except Exception:
+            pass
+
+        try:
+            conn = _get_traces_db()
+            rows = conn.execute(
+                "SELECT started_at, topic, status, total_steps, quality_score FROM explorer_traces ORDER BY started_at DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+            for r in rows:
+                emoji = "✅" if r["status"] == "done" else ("❌" if r["status"] == "failed" else "🔄")
+                events.append({
+                    "timestamp": r["started_at"],
+                    "type": f"exploration_{r['status']}",
+                    "emoji": emoji,
+                    "summary": f"探索{'完成' if r['status'] == 'done' else '中'}: {r['topic']}, {r['total_steps']} steps",
+                    "detail_url": "/api/explorer/trace/",
+                })
+            conn.close()
+        except Exception:
+            pass
+
+        try:
+            insights_dir = os.path.join(os.path.dirname(__file__), "knowledge", "dream_insights")
+            for f in sorted(glob.glob(os.path.join(insights_dir, "*.json")), reverse=True)[:limit]:
+                with open(f, "r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+                    events.append({
+                        "timestamp": data.get("created_at", ""),
+                        "type": "insight",
+                        "emoji": "💡",
+                        "summary": f"洞察: {data.get('insight_type', '')} from {', '.join(data.get('source_topics', []))}",
+                        "detail_url": "",
+                    })
+        except Exception:
+            pass
+
+        events.sort(key=lambda x: x["timestamp"], reverse=True)
+        return jsonify({"events": events[:limit], "total": len(events)})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
+# External Agent API (v0.3.1)
+# =============================================================================
+
+_agent_registry = {
+    "r1d3": {
+        "agent_id": "r1d3",
+        "agent_name": "R1D3 Researcher",
+        "connected_at": "2026-04-15T22:00:00Z",
+        "hooks_used": ["knowledge-query", "knowledge-learn", "knowledge-bootstrap", "knowledge-gate", "knowledge-inject"],
+    }
+}
+
+
+@app.route("/api/agents")
+def api_agents():
+    """Get connected agents list."""
+    try:
+        conn = _get_audit_db()
+        agents = []
+        for agent_id, info in _agent_registry.items():
+            row = conn.execute("""
+                SELECT COUNT(*) as total,
+                       SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) as success,
+                       AVG(latency_ms) as avg_latency
+                FROM hook_calls WHERE agent_id = ?
+            """, (agent_id,)).fetchone()
+
+            last_seen = conn.execute(
+                "SELECT MAX(timestamp) FROM hook_calls WHERE agent_id = ?", (agent_id,)
+            ).fetchone()[0]
+
+            agents.append({
+                **info,
+                "last_seen_at": last_seen,
+                "total_calls": row["total"],
+                "success_rate": row["success"] / max(row["total"], 1),
+                "avg_latency_ms": int(row["avg_latency"] or 0),
+            })
+        conn.close()
+        return jsonify({"agents": agents})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/agents/<agent_id>")
+def api_agent_detail(agent_id):
+    """Get agent details with activity timeline."""
+    try:
+        info = _agent_registry.get(agent_id)
+        if not info:
+            return jsonify({"error": "not found"}), 404
+
+        conn = _get_audit_db()
+        rows = conn.execute("""
+            SELECT timestamp, hook_name, endpoint, method, status,
+                   latency_ms, request_raw_topic, status_code
+            FROM hook_calls WHERE agent_id = ?
+            ORDER BY timestamp DESC LIMIT 100
+        """, (agent_id,)).fetchall()
+        conn.close()
+
+        return jsonify({
+            **info,
+            "activity_timeline": [dict(r) for r in rows]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":

@@ -14,8 +14,17 @@ const handler = async (event: any) => {
     const timeout = setTimeout(() => controller.abort(), 1000);
     
     const response = await fetch(
-      `${CA_API}/api/r1d3/confidence?topic=${encodeURIComponent(topic)}`,
-      { signal: controller.signal }
+      `${CA_API}/api/knowledge/confidence?topic=${encodeURIComponent(topic)}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-OpenClaw-Agent-Id": "r1d3",
+          "X-OpenClaw-Hook-Name": "knowledge-query",
+          "X-OpenClaw-Hook-Event": "message:received",
+          "X-OpenClaw-Hook-Type": "internal"
+        },
+        signal: controller.signal
+      }
     );
     clearTimeout(timeout);
     

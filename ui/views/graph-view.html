@@ -1,0 +1,39 @@
+<div class="panel">
+  <div class="panel-header">
+    <div class="panel-title">🔮 知识图谱</div>
+    <span style="font-size:12px;color:var(--text-muted)">拖拽节点 · 滚轮缩放 · 点击查看详情</span>
+  </div>
+  <div class="panel-body" style="padding:8px;height:auto;max-height:none;overflow-y:visible;">
+    <svg id="graph-svg"></svg>
+
+    <div class="graph-controls" id="graph-controls" style="display:none">
+      <div class="ctrl-group">
+        <div class="ctrl-label">节点斥力 <span id="lbl-charge">-280</span></div>
+        <input type="range" id="ctrl-charge" min="-600" max="-50" value="-280" step="10">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">连线距离 <span id="lbl-distance">130</span></div>
+        <input type="range" id="ctrl-distance" min="50" max="300" value="130" step="10">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">连线强度 <span id="lbl-strength">0.35</span></div>
+        <input type="range" id="ctrl-strength" min="0" max="1" value="0.35" step="0.05">
+      </div>
+      <label class="ctrl-check"><input type="checkbox" id="ctrl-show-decomp" checked onchange="toggleLinkType()">分解关系</label>
+      <label class="ctrl-check"><input type="checkbox" id="ctrl-show-cites" checked onchange="toggleLinkType()">论文引用</label>
+      <label class="ctrl-check"><input type="checkbox" id="ctrl-show-semantic" checked onchange="toggleLinkType()">语义相似</label>
+      <label class="ctrl-check"><input type="checkbox" id="ctrl-show-labels" checked onchange="toggleLabels()">节点标签</label>
+      <button class="btn-reset" onclick="resetGraphLayout()">⟳ 重置布局</button>
+    </div>
+
+    <div class="graph-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>绿色 = 高质量 (Q≥7)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>黄色 = 中质量 (Q 5-7)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>红色 = 低质量 (Q<5)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#8b949e"></div>灰色 = 待探索（无质量）</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#58a6ff; width:14px; height:3px; border-radius:0;"></div>蓝实线 = 分解关系</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#e040fb; width:14px; height:3px; border-radius:0; border-top: 3px dashed #e040fb;"></div>紫点线 = 论文引用</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#8b949e; width:14px; height:2px; border-radius:0; border-top: 2px dashed #8b949e;"></div>灰虚线 = 语义相似</div>
+    </div>
+  </div>
+</div>

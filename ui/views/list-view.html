@@ -1,0 +1,124 @@
+<!-- List View - 好奇心队列、探索历史、知识图谱预览 -->
+<div class="main-grid">
+
+  <!-- Curiosity Queue -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">🔥 好奇心队列</div>
+      <span id="queue-count" style="font-size:12px;color:var(--text-muted)"></span>
+    </div>
+    <div class="panel-body" id="curiosity-list">
+      <div class="empty">加载中...</div>
+    </div>
+  </div>
+
+  <!-- Inject Form -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">➕ 注入好奇心</div>
+    </div>
+    <div class="panel-body">
+      <div class="inject-form">
+        <div class="inject-row">
+          <input type="text" id="inject-topic" placeholder="研究话题，如: reinforcement learning curiosity">
+        </div>
+        <div class="inject-row reason-input">
+          <input type="text" id="inject-reason" placeholder="为什么好奇？">
+        </div>
+        <div class="scores-row">
+          <div class="score-input">
+            <label>相关性</label>
+            <input type="number" id="inject-rel" value="7.0" min="0" max="10" step="0.5">
+          </div>
+          <div class="score-input">
+            <label>深度</label>
+            <input type="number" id="inject-depth" value="6.0" min="0" max="10" step="0.5">
+          </div>
+        </div>
+        <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:6px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <label style="font-size:12px;color:var(--text-muted);">探索倾向 (α)</label>
+            <span id="alpha-value" style="font-size:12px;font-weight:600;color:var(--accent);">0.5</span>
+          </div>
+          <input type="range" id="alpha-slider" min="0" max="1" step="0.1" value="0.5" style="width:100%;" oninput="updateAlphaDisplay(this.value)">
+          <div style="display:flex;justify-content:space-between;margin-top:6px;">
+            <button type="button" class="btn" style="font-size:11px;padding:4px 8px;" onclick="setAlpha(0.7)">人工 0.7</button>
+            <button type="button" class="btn" style="font-size:11px;padding:4px 8px;" onclick="setAlpha(0.5)">平衡 0.5</button>
+            <button type="button" class="btn" style="font-size:11px;padding:4px 8px;" onclick="setAlpha(0.3)">好奇 0.3</button>
+          </div>
+        </div>
+        <div class="inject-row" style="margin-top:10px;">
+          <button class="btn btn-primary" onclick="injectCuriosity()" style="width:100%">💉 注入</button>
+        </div>
+      </div>
+
+      <!-- Quick actions -->
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">💡 快捷探索</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          <button class="btn" onclick="quickExplore('metacognition AI agents')">元认知</button>
+          <button class="btn" onclick="quickExplore('curiosity-driven RL')">好奇心RL</button>
+          <button class="btn" onclick="quickExplore('agent planning replanning')">规划重规划</button>
+          <button class="btn" onclick="quickExplore('knowledge graph AI')">知识图谱</button>
+          <button class="btn" onclick="quickExplore('generative agents architecture')">生成Agent</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Exploration History -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">📋 探索历史</div>
+      <span id="history-count" style="font-size:12px;color:var(--text-muted)"></span>
+    </div>
+    <div class="panel-body" id="history-list">
+      <div class="empty">暂无探索记录</div>
+    </div>
+  </div>
+
+  <!-- Knowledge Graph Preview -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">📚 已知知识</div>
+      <span id="knowledge-count" style="font-size:12px;color:var(--text-muted)"></span>
+    </div>
+    <div class="panel-body" id="knowledge-list">
+      <div class="empty">加载中...</div>
+    </div>
+  </div>
+
+  <!-- Metacognitive Panel -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">🧠 元认知状态</div>
+      <span id="meta-status" style="font-size:12px;color:var(--text-muted)">加载中...</span>
+    </div>
+    <div class="panel-body" id="metacognitive-panel">
+      <div class="stats" style="margin-bottom:12px;grid-template-columns:repeat(3,1fr);">
+        <div class="stat-card" style="padding:12px;">
+          <div class="stat-label">已完成话题</div>
+          <div class="stat-value" id="meta-completed" style="font-size:20px;">0</div>
+        </div>
+        <div class="stat-card" style="padding:12px;">
+          <div class="stat-label">总探索次数</div>
+          <div class="stat-value" id="meta-total" style="font-size:20px;">0</div>
+        </div>
+        <div class="stat-card" style="padding:12px;">
+          <div class="stat-label">有历史话题</div>
+          <div class="stat-value" id="meta-topics" style="font-size:20px;">0</div>
+        </div>
+      </div>
+      <div id="completed-topics-list">
+        <div class="empty">暂无已完成话题</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Shared Console -->
+<div class="log-panel">
+  <div class="log-header">💬 控制台</div>
+  <div class="log-content" id="log-content"></div>
+</div>

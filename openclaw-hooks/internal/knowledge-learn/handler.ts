@@ -24,7 +24,13 @@ const handler = async (event: any) => {
     
     await fetch(`${CA_API}/api/knowledge/learn`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        "Content-Type": "application/json",
+        "X-OpenClaw-Agent-Id": "r1d3",
+        "X-OpenClaw-Hook-Name": "knowledge-learn",
+        "X-OpenClaw-Hook-Event": "message:sent",
+        "X-OpenClaw-Hook-Type": "internal"
+      },
       body: JSON.stringify({
         topic,
         context: replyContent.slice(0, 500),

@@ -10,7 +10,16 @@ const handler = async (event: any) => {
     
     const response = await fetch(
       `${CA_API}/api/kg/overview`,
-      { signal: controller.signal }
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-OpenClaw-Agent-Id": "r1d3",
+          "X-OpenClaw-Hook-Name": "knowledge-bootstrap",
+          "X-OpenClaw-Hook-Event": "agent:bootstrap",
+          "X-OpenClaw-Hook-Type": "internal"
+        },
+        signal: controller.signal
+      }
     );
     clearTimeout(timeout);
     

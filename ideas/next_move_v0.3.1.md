@@ -12,7 +12,7 @@
 
 | # | Hook 名称 | 类型 | 触发事件 | 调用 CA API | 方向 |
 |---|-----------|------|----------|-------------|------|
-| 1 | `knowledge-query` | Internal | `message:received` | `/api/r1d3/confidence` | R1D3 → CA(查询) |
+| 1 | `knowledge-query` | Internal | `message:received` | `/api/knowledge/confidence` | R1D3 → CA(查询) |
 | 2 | `knowledge-learn` | Internal | `message:sent` | `/api/knowledge/learn` | R1D3 → CA(写入) |
 | 3 | `knowledge-bootstrap` | Internal | `agent:bootstrap` | `/api/kg/overview` | R1D3 → CA(查询) |
 | 4 | `knowledge-gate` | Plugin SDK | `before_agent_reply` | `/api/knowledge/check` + `/api/kg/confidence` | R1D3 → CA(查询) |
@@ -64,7 +64,7 @@ class HookCallRecord:
     agent_session: str               # OpenClaw session id(从请求头获取)
 
     # 请求
-    endpoint: str                    # /api/r1d3/confidence
+    endpoint: str                    # /api/knowledge/confidence
     method: str                      # GET/POST
     request_headers: dict            # 脱敏后的请求头
     request_payload: Optional[str]   # 截断到 4KB
@@ -100,7 +100,7 @@ class HookCallRecord:
 
 ```
 [2026-04-16 11:30:02.123] knowledge-query   R1D3  session=abc123
-  → GET /api/r1d3/confidence?topic=Attention机制
+  → GET /api/knowledge/confidence?topic=Attention机制
   ← 200 120ms {"confidence": 0.92, "level": "expert"}
 
 [2026-04-16 11:30:15.456] knowledge-gate    R1D3  session=abc123
@@ -271,7 +271,7 @@ class WebhookRecord:
 
 | # | 端点 | 方法 | 调用方 Hook |
 |---|------|------|-------------|
-| 1 | `/api/r1d3/confidence` | GET | knowledge-query |
+| 1 | `/api/knowledge/confidence` | GET | knowledge-query |
 | 2 | `/api/knowledge/learn` | POST | knowledge-learn |
 | 3 | `/api/kg/overview` | GET | knowledge-bootstrap |
 | 4 | `/api/knowledge/check` | POST | knowledge-gate |
@@ -644,7 +644,7 @@ GET /api/agents/<agent_id>   → Agent 详情
 ```
 R1D3 Activity Timeline
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-11:15:02 📥 knowledge-query → /api/r1d3/confidence → expert ✅
+11:15:02 📥 knowledge-query → /api/knowledge/confidence → expert ✅
 11:15:02   请求: {"topic": "Attention机制"}
 11:15:02   响应: {"confidence": 0.92, "level": "expert"}
            注入: "Attention核心是QKV计算,FlashAttention优化..."
@@ -750,7 +750,7 @@ GET /api/audit/sessions/<session_id>
 **Hook 实际调用的端点**(`curious_api.py` 已实现,无需新增):
 | 端点 | 方法 | Hook |
 |------|------|------|
-| `/api/r1d3/confidence` | GET | knowledge-query |
+| `/api/knowledge/confidence` | GET | knowledge-query |
 | `/api/knowledge/learn` | POST | knowledge-learn |
 | `/api/kg/overview` | GET | knowledge-bootstrap |
 | `/api/knowledge/check` | POST | knowledge-gate |
@@ -805,7 +805,7 @@ Phase 0(1天): Hook 审计基础设施
   ├── hook_audit.py 数据模型
   ├── hook_audit_middleware.py 中间件
   │   └── 只拦截 6 个 Hook 端点(不通配整个路径前缀):
-  │       1. GET  /api/r1d3/confidence     ← knowledge-query
+  │       1. GET  /api/knowledge/confidence     ← knowledge-query
   │       2. POST /api/knowledge/learn     ← knowledge-learn
   │       3. GET  /api/kg/overview         ← knowledge-bootstrap
   │       4. POST /api/knowledge/check     ← knowledge-gate

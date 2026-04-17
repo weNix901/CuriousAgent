@@ -1,4 +1,5 @@
 """DreamAgent - Multi-cycle architecture for insight generation."""
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
@@ -77,10 +78,46 @@ class DreamAgent(CAAgent):
 
     def run(self, input_data: str = "") -> DreamResult:
         """Execute L1→L2→L3→L4 linear pipeline."""
+        from core.trace.dream_trace import DreamTraceWriter
+        
+        trace_writer = DreamTraceWriter()
+        trace_id = trace_writer.start_trace()
+        overall_start = time.time()
+        
+        l1_start = time.time()
         candidates = self._l1_light_sleep()
+        l1_duration = int((time.time() - l1_start) * 1000)
+        
+        l2_start = time.time()
         scored = self._l2_deep_sleep(candidates)
+        l2_duration = int((time.time() - l2_start) * 1000)
+        
+        l3_start = time.time()
         filtered = self._l3_filtering(scored)
+        l3_duration = int((time.time() - l3_start) * 1000)
+        
+        l4_start = time.time()
         topics = self._l4_rem_sleep(filtered)
+        l4_duration = int((time.time() - l4_start) * 1000)
+        
+        total_duration = int((time.time() - overall_start) * 1000)
+        
+        trace_writer.finish_trace(
+            trace_id=trace_id,
+            l1_candidates=candidates,
+            l1_count=len(candidates),
+            l1_duration_ms=l1_duration,
+            l2_scored=[{"topic": s.topic, "total_score": s.total_score, "scores": s.scores} for s in scored],
+            l2_count=len(scored),
+            l2_duration_ms=l2_duration,
+            l3_filtered=[f.topic for f in filtered],
+            l3_count=len(filtered),
+            l3_duration_ms=l3_duration,
+            l4_topics=topics,
+            l4_count=len(topics),
+            l4_duration_ms=l4_duration,
+            total_duration_ms=total_duration,
+        )
         
         return DreamResult(
             content=f"DreamAgent generated {len(topics)} topics",

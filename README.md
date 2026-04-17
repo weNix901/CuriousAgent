@@ -289,7 +289,7 @@ curl -X POST http://localhost:4848/api/curious/inject \
   -d '{"topic":"metacognition","score":8.5,"depth":8.0}'
 
 # Confidence check (R1D3 integration)
-curl "http://localhost:4848/api/r1d3/confidence?topic=agent+memory"
+curl "http://localhost:4848/api/knowledge/confidence?topic=agent+memory"
 
 # Root technology tracing
 curl "http://localhost:4848/api/kg/trace/metacognitive%20monitoring"

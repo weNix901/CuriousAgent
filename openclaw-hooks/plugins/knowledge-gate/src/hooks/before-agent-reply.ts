@@ -1,5 +1,13 @@
 const CA_API = process.env.CA_API_URL || 'http://localhost:4848';
 
+const COMMON_HEADERS = {
+  "Content-Type": "application/json",
+  "X-OpenClaw-Agent-Id": "r1d3",
+  "X-OpenClaw-Hook-Name": "knowledge-gate",
+  "X-OpenClaw-Hook-Event": "message",
+  "X-OpenClaw-Hook-Type": "plugin_sdk",
+};
+
 async function queryKG(topic: string): Promise<any> {
   try {
     const controller = new AbortController();
@@ -9,7 +17,7 @@ async function queryKG(topic: string): Promise<any> {
       `${CA_API}/api/knowledge/check`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: COMMON_HEADERS,
         body: JSON.stringify({ topic }),
         signal: controller.signal
       }
@@ -29,7 +37,7 @@ async function queryConfidence(topic: string): Promise<any> {
 
     const response = await fetch(
       `${CA_API}/api/kg/confidence/${encodeURIComponent(topic)}`,
-      { signal: controller.signal }
+      { headers: COMMON_HEADERS, signal: controller.signal }
     );
 
     clearTimeout(timeout);

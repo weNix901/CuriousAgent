@@ -57,7 +57,13 @@ export const afterToolCallHook = async ({ toolName, result, context }: any) => {
     
     await fetch(`${CA_API}/api/knowledge/record`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        "Content-Type": "application/json",
+        "X-OpenClaw-Agent-Id": "r1d3",
+        "X-OpenClaw-Hook-Name": "knowledge-inject",
+        "X-OpenClaw-Hook-Event": "after_tool_call",
+        "X-OpenClaw-Hook-Type": "plugin_sdk"
+      },
       body: JSON.stringify({ topic, content: summary, sources: urls }),
       signal: controller.signal
     });

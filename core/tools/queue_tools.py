@@ -206,6 +206,76 @@ class QueueStorage:
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
 
+    def claim_pending(self, holder_id: str, timeout_seconds: int = 300) -> dict | None:
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        now = time.time()
+        cursor.execute(
+            """
+            SELECT * FROM queue
+            WHERE status = 'pending'
+            ORDER BY priority DESC, created_at ASC
+            LIMIT 1
+            """
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        item_id = row["id"]
+        cursor.execute(
+            """
+            UPDATE queue
+            SET status = 'claimed',
+                holder_id = ?,
+                claimed_at = ?,
+                claim_timeout = ?
+            WHERE id = ? AND status = 'pending'
+            """,
+            (holder_id, now, now + timeout_seconds, item_id),
+        )
+        conn.commit()
+        if cursor.rowcount > 0:
+            return dict(row)
+        return None
+
+    def get_item(self, item_id: int) -> dict | None:
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM queue WHERE id = ?", (item_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def get_items_by_topic(self, topic: str) -> list[dict]:
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT * FROM queue WHERE topic = ? ORDER BY created_at DESC",
+            (topic,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_failed_items(self, limit: int | None = None) -> list[dict]:
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        query = "SELECT * FROM queue WHERE status = 'failed' ORDER BY completed_at DESC"
+        if limit:
+            query += f" LIMIT {limit}"
+        cursor.execute(query)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_all_stats(self) -> dict:
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT status, COUNT(*) as cnt FROM queue GROUP BY status"
+        )
+        stats = {"by_status": {}}
+        for row in cursor.fetchall():
+            stats["by_status"][row["status"]] = row["cnt"]
+            stats[row["status"]] = row["cnt"]
+        stats["total"] = sum(stats["by_status"].values())
+        return stats
+
     def close(self) -> None:
         if self._connection:
             self._connection.close()

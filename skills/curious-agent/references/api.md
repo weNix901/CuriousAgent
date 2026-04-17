@@ -6,20 +6,20 @@
 
 | # | 端点 | 方法 | 调用方 Hook |
 |---|------|------|-------------|
-| 1 | `/api/r1d3/confidence?topic=xxx` | GET | knowledge-query |
+| 1 | `/api/knowledge/confidence?topic=xxx` | GET | knowledge-query |
 | 2 | `/api/knowledge/learn` | POST | knowledge-learn |
 | 3 | `/api/kg/overview` | GET | knowledge-bootstrap |
 | 4 | `/api/knowledge/check` | POST | knowledge-gate |
 | 5 | `/api/kg/confidence/<topic>` | GET | knowledge-gate |
 | 6 | `/api/knowledge/record` | POST | knowledge-inject |
 
-### 1. GET /api/r1d3/confidence
+### 1. GET /api/knowledge/confidence
 
 置信度查询。Hook knowledge-query 调用。
 
 **请求**:
 ```
-GET /api/r1d3/confidence?topic=<url_encoded_topic>
+GET /api/knowledge/confidence?topic=<url_encoded_topic>
 ```
 
 **响应** (200):

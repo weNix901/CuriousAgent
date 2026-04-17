@@ -19,7 +19,7 @@ class TestR1D3APIEndpoints:
             }
             MockHandler.return_value = mock_handler
             
-            response = self.client.get('/api/r1d3/confidence?topic=test')
+            response = self.client.get('/api/knowledge/confidence?topic=test')
             
             assert response.status_code == 200
             data = json.loads(response.data)
@@ -27,7 +27,7 @@ class TestR1D3APIEndpoints:
             assert data["result"]["confidence"] == 0.8
 
     def test_api_r1d3_confidence_missing_topic(self):
-        response = self.client.get('/api/r1d3/confidence')
+        response = self.client.get('/api/knowledge/confidence')
         
         assert response.status_code == 400
         data = json.loads(response.data)
@@ -42,7 +42,7 @@ class TestR1D3APIEndpoints:
             }
             MockHandler.return_value = mock_handler
             
-            response = self.client.post('/api/r1d3/inject',
+            response = self.client.post('/api/knowledge/explore',
                 json={"topic": "test", "source": "r1d3"})
             
             assert response.status_code == 200
@@ -69,7 +69,7 @@ class TestR1D3APIEndpoints:
             mock_synth.synthesize.return_value = [mock_insight]
             MockSynth.return_value = mock_synth
             
-            response = self.client.post('/api/r1d3/synthesize',
+            response = self.client.post('/api/knowledge/synthesize',
                 json={"topic": "test", "sub_topic_results": {"t1": []}})
             
             assert response.status_code == 200
@@ -85,7 +85,7 @@ class TestR1D3APIEndpoints:
             ]
             MockSync.return_value = mock_sync
             
-            response = self.client.get('/api/r1d3/discoveries/unshared')
+            response = self.client.get('/api/discoveries/unshared')
             
             assert response.status_code == 200
             data = json.loads(response.data)

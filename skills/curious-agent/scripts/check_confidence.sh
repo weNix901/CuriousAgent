@@ -10,6 +10,6 @@ if [ -z "$TOPIC" ]; then
     exit 1
 fi
 
-RESPONSE=$(curl -s "${API_URL}/api/r1d3/confidence?topic=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$TOPIC'))")")
+RESPONSE=$(curl -s "${API_URL}/api/knowledge/confidence?topic=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$TOPIC'))")")
 
 echo "$RESPONSE" | python3 -m json.tool 2>/dev/null || echo "$RESPONSE"

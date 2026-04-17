@@ -4,238 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>👁️ Curious Agent — 好奇探索器</title>
+<link rel="stylesheet" href="css/base.css">
 <style>
-  :root {
-    --bg: #0d1117;
-    --surface: #161b22;
-    --border: #30363d;
-    --text: #e6edf3;
-    --text-muted: #8b949e;
-    --accent: #58a6ff;
-    --accent-glow: rgba(88,166,255,0.15);
-    --green: #3fb950;
-    --yellow: #d29922;
-    --red: #f85149;
-    --purple: #bc8cff;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
-
-  .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
-
-  /* Header */
-  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
-  .logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 700; }
-  .logo-icon { font-size: 28px; }
-  .header-actions { display: flex; gap: 10px; }
-
-  /* Buttons */
-  .btn { padding: 7px 16px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; font-size: 13px; transition: all 0.15s; }
-  .btn:hover { border-color: var(--accent); color: var(--accent); }
-  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .btn-primary:hover { background: #79b8ff; border-color: #79b8ff; }
-  .btn-danger { border-color: var(--red); color: var(--red); }
-  .btn-danger:hover { background: rgba(248,81,73,0.1); }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  /* Stats */
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
-  .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-  .stat-value { font-size: 26px; font-weight: 700; color: var(--accent); }
-  .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
-
-  /* Layout */
-  .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-  .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
-  .panel-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
-  .panel-body { padding: 12px 16px; max-height: 420px; overflow-y: auto; }
-  .panel-body::-webkit-scrollbar { width: 4px; }
-  .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-  /* List items */
-  .item { padding: 10px 0; border-bottom: 1px solid rgba(48,54,61,0.5); }
-  .item:last-child { border-bottom: none; }
-  .item-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
-  .item-title { font-weight: 600; font-size: 13px; flex: 1; }
-  .item-score { font-size: 12px; padding: 2px 8px; border-radius: 10px; font-weight: 600; flex-shrink: 0; }
-  .score-high { background: rgba(248,81,73,0.15); color: var(--red); }
-  .score-mid { background: rgba(210,153,34,0.15); color: var(--yellow); }
-  .score-low { background: rgba(63,185,80,0.15); color: var(--green); }
-  .item-reason { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
-  .item-meta { font-size: 11px; color: var(--text-muted); display: flex; gap: 12px; }
-  .item-actions { display: flex; gap: 6px; margin-top: 6px; }
-
-  /* History */
-  .history-item { padding: 10px 0; border-bottom: 1px solid rgba(48,54,61,0.5); }
-  .history-item:last-child { border-bottom: none; }
-  .history-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-  .history-title { font-weight: 600; font-size: 13px; flex: 1; }
-  .history-time { font-size: 11px; color: var(--text-muted); }
-  .history-findings { font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
-  .history-notified { font-size: 11px; color: var(--green); }
-
-  /* Inject form */
-  .inject-form { display: flex; flex-direction: column; gap: 10px; }
-  .inject-row { display: flex; gap: 8px; }
-  .inject-row input { flex: 1; padding: 8px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; }
-  .inject-row input:focus { outline: none; border-color: var(--accent); }
-  .scores-row {
-    display: flex;
-    gap: 12px;
-    align-items: stretch;
-    margin-top: 10px;
-  }
-  .score-input {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex: 1;
-  }
-  .score-input label { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
-  .score-input input {
-    flex: 1;
-    padding: 8px 10px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text);
-    font-size: 13px;
-    min-width: 0;
-  }
-  .score-input input:focus { outline: none; border-color: var(--accent); }
-  .reason-input { margin-top: 10px; }
-
-  /* Log / Console */
-  .log-panel { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; margin-top: 16px; }
-  .log-header { padding: 8px 16px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
-  .log-content { padding: 12px 16px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; max-height: 200px; overflow-y: auto; color: var(--text-muted); line-height: 1.8; }
-  .log-line { white-space: pre-wrap; }
-  .log-ts { color: var(--purple); margin-right: 8px; }
-  .log-ok { color: var(--green); }
-  .log-info { color: var(--accent); }
-  .log-error { color: var(--red); }
-
-  /* Loading */
-  .loading { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 6px; vertical-align: middle; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* Pulse */
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
-  .pulse { animation: pulse 2s infinite; }
-
-  /* Empty */
-  .empty { text-align: center; padding: 32px 16px; color: var(--text-muted); font-size: 13px; }
-
-  /* Full width */
-  .full-width { grid-column: 1 / -1; }
-
-  @media (max-width: 700px) {
-    .main-grid { grid-template-columns: 1fr; }
-    .container { padding: 16px; }
-  }
-
-  /* Modal */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.7);
-    z-index: 1000;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-  .modal-overlay.active { display: flex; }
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    width: 100%;
-    max-width: 680px;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 24px 48px rgba(0,0,0,0.4);
-  }
-  .modal-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .modal-title { font-size: 16px; font-weight: 700; line-height: 1.4; padding-right: 12px; }
-  .modal-close {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 22px;
-    cursor: pointer;
-    padding: 0 4px;
-    flex-shrink: 0;
-    line-height: 1;
-  }
-  .modal-close:hover { color: var(--text); }
-  .modal-body {
-    padding: 16px 20px;
-    overflow-y: auto;
-    flex: 1;
-  }
-  .modal-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 14px;
-  }
-  .modal-meta-item {
-    font-size: 12px;
-    padding: 3px 10px;
-    border-radius: 12px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-  }
-  .modal-section {
-    margin-bottom: 16px;
-  }
-  .modal-section-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 6px;
-  }
-  .modal-section-content {
-    font-size: 13px;
-    line-height: 1.7;
-    white-space: pre-wrap;
-    word-break: break-word;
-    color: var(--text);
-  }
-  .modal-sources { list-style: none; }
-  .modal-sources li { margin-bottom: 6px; }
-  .modal-sources a { color: var(--accent); font-size: 13px; word-break: break-all; }
-  .modal-sources a:hover { text-decoration: underline; }
-
-  /* Clickable items */
-  .item[data-topic] { cursor: pointer; transition: background 0.1s; }
-  .item[data-topic]:hover { background: rgba(88,166,255,0.05); border-radius: 6px; }
-  .history-item[data-topic] { cursor: pointer; transition: background 0.1s; }
-  .history-item[data-topic]:hover { background: rgba(88,166,255,0.05); border-radius: 6px; }
-  .click-hint { font-size: 11px; color: var(--accent); opacity: 0; transition: opacity 0.1s; margin-left: 6px; }
-  .item:hover .click-hint, .history-item:hover .click-hint { opacity: 1; }
-
-.view-tabs{display:flex;gap:4px;margin-bottom:16px}
-.view-tab{flex:1;padding:9px 0;text-align:center;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:13px;cursor:pointer;transition:all .15s;user-select:none}
-.view-tab:hover{border-color:var(--accent);color:var(--accent)}
-.view-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
-#graph-view{display:none;margin-top:16px}
-#graph-view.active{display:block}
-#list-view.hidden{display:none}
 #graph-svg{width:100%;height:960px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:grab;display:block}
 #graph-svg:active{cursor:grabbing}
 .graph-node circle{transition:r .15s}
@@ -245,36 +15,31 @@
 .graph-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
 .legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)}
 .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-
-/* Graph Controls */
-.graph-controls{
-  display:flex;flex-wrap:wrap;align-items:center;gap:16px;
-  padding:12px 16px;background:var(--bg);border:1px solid var(--border);
-  border-radius:8px;margin-bottom:10px;
-}
+.graph-controls{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:10px}
 .graph-controls .ctrl-group{display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px}
 .graph-controls .ctrl-label{font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between}
 .graph-controls .ctrl-label span{font-weight:600;color:var(--accent)}
 .graph-controls input[type=range]{width:100%;height:4px;accent-color:var(--accent);cursor:pointer}
 .graph-controls .ctrl-check{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;flex:1;min-width:90px}
 .graph-controls input[type=checkbox]{accent-color:var(--accent);cursor:pointer;width:14px;height:14px}
-.graph-controls .btn-reset{
-  padding:6px 14px;border-radius:6px;border:1px solid var(--border);
-  background:var(--surface);color:var(--text);cursor:pointer;font-size:12px;flex-shrink:0;
-}
-.graph-controls .btn-reset:hover{border-color:var(--accent);color:var(--accent)}
+.graph-controls .btn-reset{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-size:12px;flex-shrink:0}
+.graph-controls .btn-reset:hover{border-color:var(--accent);color:var(--accent}
+.scores-row{display:flex;gap:12px;align-items:stretch;margin-top:10px}
+.score-input{display:flex;align-items:center;gap:6px;flex:1}
+.score-input label{font-size:12px;color:var(--text-muted);flex-shrink:0}
+.score-input input{flex:1;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;min-width:0}
+.score-input input:focus{outline:none;border-color:var(--accent)}
 </style>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
 <div class="container">
 
-  <!-- Header -->
   <header>
     <div class="logo">
       <span class="logo-icon">👁️</span>
       <span>Curious Agent</span>
-      <span style="font-size:13px;color:var(--text-muted);font-weight:400;margin-left:4px;">好奇探索器</span>
+      <span class="logo-sub">好奇探索器</span>
     </div>
     <div class="header-actions">
       <button class="btn" onclick="refreshAll()">🔄 刷新</button>
@@ -283,11 +48,12 @@
   </header>
 
   <div class="view-tabs">
-    <button class="view-tab active" id="tab-list" onclick="switchView('list')">📋 列表视图</button>
-    <button class="view-tab" id="tab-graph" onclick="switchView('graph')">🔮 图谱视图</button>
+    <button class="view-tab active" data-view="list" onclick="switchView('list')">📋 列表视图</button>
+    <button class="view-tab" data-view="graph" onclick="switchView('graph')">🔮 图谱视图</button>
+    <button class="view-tab" data-view="internal" onclick="switchView('internal')">🧭 内部可视化</button>
+    <button class="view-tab" data-view="external" onclick="switchView('external')">🪝 外部交互</button>
   </div>
 
-  <!-- Stats -->
   <div class="stats" id="stats">
     <div class="stat-card">
       <div class="stat-label">知识节点</div>
@@ -311,729 +77,68 @@
     </div>
   </div>
 
-  <div id="list-view">
-  <!-- Main Grid -->
-  <div class="main-grid">
-
-    <!-- Curiosity Queue -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">🔥 好奇心队列</div>
-        <span id="queue-count" style="font-size:12px;color:var(--text-muted)"></span>
-      </div>
-      <div class="panel-body" id="curiosity-list">
-        <div class="empty">加载中...</div>
-      </div>
-    </div>
-
-    <!-- Inject Form -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">➕ 注入好奇心</div>
-      </div>
-      <div class="panel-body">
-        <div class="inject-form">
-          <div class="inject-row">
-            <input type="text" id="inject-topic" placeholder="研究话题，如: reinforcement learning curiosity">
-          </div>
-          <div class="inject-row reason-input">
-            <input type="text" id="inject-reason" placeholder="为什么好奇？">
-          </div>
-          <div class="scores-row">
-            <div class="score-input">
-              <label>相关性</label>
-              <input type="number" id="inject-rel" value="7.0" min="0" max="10" step="0.5">
-            </div>
-            <div class="score-input">
-              <label>深度</label>
-              <input type="number" id="inject-depth" value="6.0" min="0" max="10" step="0.5">
-            </div>
-          </div>
-          <div style="margin-top:10px;padding:10px;background:var(--bg);border-radius:6px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-              <label style="font-size:12px;color:var(--text-muted);">探索倾向 (α)</label>
-              <span id="alpha-value" style="font-size:12px;font-weight:600;color:var(--accent);">0.5</span>
-            </div>
-            <input type="range" id="alpha-slider" min="0" max="1" step="0.1" value="0.5" style="width:100%;" oninput="updateAlphaDisplay(this.value)">
-            <div style="display:flex;justify-content:space-between;margin-top:6px;">
-              <button type="button" class="btn" style="font-size:11px;padding:4px 8px;" onclick="setAlpha(0.7)">人工 0.7</button>
-              <button type="button" class="btn" style="font-size:11px;padding:4px 8px;" onclick="setAlpha(0.5)">平衡 0.5</button>
-              <button type="button" class="btn" style="font-size:11px;padding:4px 8px;" onclick="setAlpha(0.3)">好奇 0.3</button>
-            </div>
-          </div>
-          <div class="inject-row" style="margin-top:10px;">
-            <button class="btn btn-primary" onclick="injectCuriosity()" style="width:100%">💉 注入</button>
-          </div>
-        </div>
-
-        <!-- Quick actions -->
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">💡 快捷探索</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;">
-            <button class="btn" onclick="quickExplore('metacognition AI agents')">元认知</button>
-            <button class="btn" onclick="quickExplore('curiosity-driven RL')">好奇心RL</button>
-            <button class="btn" onclick="quickExplore('agent planning replanning')">规划重规划</button>
-            <button class="btn" onclick="quickExplore('knowledge graph AI')">知识图谱</button>
-            <button class="btn" onclick="quickExplore('generative agents architecture')">生成Agent</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Exploration History -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">📋 探索历史</div>
-        <span id="history-count" style="font-size:12px;color:var(--text-muted)"></span>
-      </div>
-      <div class="panel-body" id="history-list">
-        <div class="empty">暂无探索记录</div>
-      </div>
-    </div>
-
-    <!-- Knowledge Graph Preview -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">📚 已知知识</div>
-        <span id="knowledge-count" style="font-size:12px;color:var(--text-muted)"></span>
-      </div>
-      <div class="panel-body" id="knowledge-list">
-        <div class="empty">加载中...</div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">🧠 元认知状态</div>
-        <span id="meta-status" style="font-size:12px;color:var(--text-muted)">加载中...</span>
-      </div>
-      <div class="panel-body" id="metacognitive-panel">
-        <div class="stats" style="margin-bottom:12px;grid-template-columns:repeat(3,1fr);">
-          <div class="stat-card" style="padding:12px;">
-            <div class="stat-label">已完成话题</div>
-            <div class="stat-value" id="meta-completed" style="font-size:20px;">0</div>
-          </div>
-          <div class="stat-card" style="padding:12px;">
-            <div class="stat-label">总探索次数</div>
-            <div class="stat-value" id="meta-total" style="font-size:20px;">0</div>
-          </div>
-          <div class="stat-card" style="padding:12px;">
-            <div class="stat-label">有历史话题</div>
-            <div class="stat-value" id="meta-topics" style="font-size:20px;">0</div>
-          </div>
-        </div>
-        <div id="completed-topics-list">
-          <div class="empty">暂无已完成话题</div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-
-
-  <!-- Shared Console -->
-  <div class="log-panel">
-    <div class="log-header">💬 控制台</div>
-    <div class="log-content" id="log-content"></div>
-  </div>
-
-
-  </div><!-- end #list-view -->
-
-  <div id="graph-view">
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">🔮 知识图谱</div>
-        <span style="font-size:12px;color:var(--text-muted)">拖拽节点 · 滚轮缩放 · 点击查看详情</span>
-      </div>
-      <div class="panel-body" style="padding:8px;height:auto;max-height:none;overflow-y:visible;">
-        <svg id="graph-svg"></svg>
-
-        <!-- Graph Controls -->
-        <div class="graph-controls" id="graph-controls" style="display:none">
-          <div class="ctrl-group">
-            <div class="ctrl-label">节点斥力 <span id="lbl-charge">-280</span></div>
-            <input type="range" id="ctrl-charge" min="-600" max="-50" value="-280" step="10">
-          </div>
-          <div class="ctrl-group">
-            <div class="ctrl-label">连线距离 <span id="lbl-distance">130</span></div>
-            <input type="range" id="ctrl-distance" min="50" max="300" value="130" step="10">
-          </div>
-          <div class="ctrl-group">
-            <div class="ctrl-label">连线强度 <span id="lbl-strength">0.35</span></div>
-            <input type="range" id="ctrl-strength" min="0" max="1" value="0.35" step="0.05">
-          </div>
-          <label class="ctrl-check"><input type="checkbox" id="ctrl-show-decomp" checked onchange="toggleLinkType()">分解关系</label>
-          <label class="ctrl-check"><input type="checkbox" id="ctrl-show-cites" checked onchange="toggleLinkType()">论文引用</label>
-          <label class="ctrl-check"><input type="checkbox" id="ctrl-show-semantic" checked onchange="toggleLinkType()">语义相似</label>
-          <label class="ctrl-check"><input type="checkbox" id="ctrl-show-labels" checked onchange="toggleLabels()">节点标签</label>
-          <button class="btn-reset" onclick="resetGraphLayout()">⟳ 重置布局</button>
-        </div>
-<div class="graph-legend">
-<div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>绿色 = 高质量 (Q≥7)</div>
-<div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>黄色 = 中质量 (Q 5-7)</div>
-<div class="legend-item"><div class="legend-dot" style="background:#f85149"></div>红色 = 低质量 (Q<5)</div>
-<div class="legend-item"><div class="legend-dot" style="background:#8b949e"></div>灰色 = 待探索（无质量）</div>
-<div class="legend-item"><div class="legend-dot" style="background:#58a6ff; width:14px; height:3px; border-radius:0;"></div>蓝实线 = 分解关系</div>
-<div class="legend-item"><div class="legend-dot" style="background:#e040fb; width:14px; height:3px; border-radius:0; border-top: 3px dashed #e040fb;"></div>紫点线 = 论文引用</div>
-<div class="legend-item"><div class="legend-dot" style="background:#8b949e; width:14px; height:2px; border-radius:0; border-top: 2px dashed #8b949e;"></div>灰虚线 = 语义相似</div>
-</div>
-      </div>
-    </div>
-  </div><!-- end #graph-view -->
-
+  <div id="list-view" class="view-container active"></div>
+  <div id="graph-view" class="view-container"></div>
+  <div id="internal-view" class="view-container"></div>
+  <div id="external-view" class="view-container"></div>
 
 </div>
 
+<script src="js/base.js"></script>
+<script src="js/list-view.js"></script>
+<script src="js/graph-view.js"></script>
+<script src="js/internal-view.js"></script>
+<script src="js/external-view.js"></script>
 <script>
-// State
-let state = null;
-
-// Utils
-function log(msg, type='info') {
-  const el = document.getElementById('log-content');
-  const ts = new Date().toLocaleTimeString('zh-CN', {hour12:false});
-  const line = document.createElement('div');
-  line.className = 'log-line';
-  line.innerHTML = `<span class="log-ts">[${ts}]</span><span class="log-${type}">${msg}</span>`;
-  el.appendChild(line);
-  el.scrollTop = el.scrollHeight;
-  // Keep last 50 lines
-  while (el.children.length > 50) el.removeChild(el.firstChild);
+function loadViewContent(viewName) {
+  var container = document.getElementById(viewName + '-view');
+  fetch('views/' + viewName + '-view.html').then(function(r) { return r.text(); }).then(function(html) {
+    container.innerHTML = html;
+    if (viewName === 'list') loadListView();
+    if (viewName === 'graph') setTimeout(renderGraph, 100);
+    if (viewName === 'internal') loadInternalView();
+    if (viewName === 'external') loadExternalView();
+  }).catch(function(e) {
+    container.innerHTML = '<div class="empty">加载视图失败: ' + e.message + '</div>';
+  });
 }
 
-function scoreClass(score) {
-  if (score >= 8) return 'score-high';
-  if (score >= 6) return 'score-mid';
-  return 'score-low';
-}
-
-function timeAgo(isoStr) {
-  if (!isoStr) return '—';
-  const diff = (Date.now() - new Date(isoStr).getTime()) / 1000;
-  if (diff < 60) return Math.floor(diff) + '秒前';
-  if (diff < 3600) return Math.floor(diff/60) + '分钟前';
-  if (diff < 86400) return Math.floor(diff/3600) + '小时前';
-  return Math.floor(diff/86400) + '天前';
-}
-
-// API calls
-async function fetchState() {
-  try {
-    const r = await fetch('/api/curious/state');
-    if (!r.ok) throw new Error('API unavailable');
-    return await r.json();
-  } catch {
-    // Fallback: call the script directly via CGI
-    try {
-      const r = await fetch('/api/curious/state');
-      return await r.json();
-    } catch {
-      return null;
-    }
-  }
-}
-
-async function runExplore() {
-  const btn = document.querySelector('.btn-primary');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="loading"></span>探索中...';
-  log('🚀 触发一轮探索...', 'info');
-  try {
-    const r = await fetch('/api/curious/run', {method:'POST'});
-    const data = await r.json();
-    if (data.error) {
-      log('❌ 探索失败: ' + data.error, 'error');
-    } else {
-      log('✅ 探索完成: ' + data.topic, 'ok');
-      if (data.findings) {
-        log('📝 ' + data.findings.substring(0, 120) + '...', 'info');
-      }
-    }
-  } catch(e) {
-    log('❌ 请求失败: ' + e.message, 'error');
-  }
-  btn.disabled = false;
-  btn.innerHTML = '▶ 运行探索';
-  await loadAll();
-}
-
-function updateAlphaDisplay(value) {
-  document.getElementById('alpha-value').textContent = value;
-}
-
-function setAlpha(value) {
-  document.getElementById('alpha-slider').value = value;
-  updateAlphaDisplay(value);
-}
-
-async function injectCuriosity() {
-  const topic = document.getElementById('inject-topic').value.trim();
-  const rel = parseFloat(document.getElementById('inject-rel').value) || 7;
-  const depth = parseFloat(document.getElementById('inject-depth').value) || 6;
-  const reason = document.getElementById('inject-reason').value.trim() || '用户注入';
-  const alpha = parseFloat(document.getElementById('alpha-slider').value) || 0.5;
-  if (!topic) { alert('请输入话题'); return; }
-  log(`💉 注入好奇心: ${topic} (α=${alpha})`, 'info');
-  try {
-    const r = await fetch('/api/curious/inject', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({topic, relevance:rel, depth, reason, alpha})
-    });
-    const data = await r.json();
-    if (data.error) { log('❌ ' + data.error, 'error'); }
-    else { log('✅ 注入成功', 'ok'); }
-  } catch(e) { log('❌ ' + e.message, 'error'); }
-  document.getElementById('inject-topic').value = '';
-  await loadAll();
-}
-
-async function quickExplore(topic) {
-  document.getElementById('inject-topic').value = topic;
-  await injectCuriosity();
-  setTimeout(() => runExplore(), 500);
-}
-
-
-var currentView = 'list';
 function switchView(view) {
   currentView = view;
-  var tl=document.getElementById('tab-list'), tg=document.getElementById('tab-graph');
-  var lv=document.getElementById('list-view'), gv=document.getElementById('graph-view');
-  if(tl) tl.classList.toggle('active', view==='list');
-  if(tg) tg.classList.toggle('active', view==='graph');
-  if(lv) lv.classList.toggle('hidden', view!=='list');
-  if(gv) gv.classList.toggle('active', view==='graph');
-  if(view==='graph') setTimeout(renderGraph, 100);
-}
-function buildGraphData() {
-  if(!state) return {nodes:[],links:[]};
-  var topics=state.knowledge&&state.knowledge.topics||{};
-  var topicsEntries=Object.entries(topics);
-  var queue=state.curiosity_queue||[];
-  var qMap={};
-  queue.forEach(function(q){if(q.status!=='done')qMap[q.topic.toLowerCase()]=true;});
-  
-  var nodes=topicsEntries.map(function(item){
-    var name=item[0],v=item[1],inQ=!!qMap[name.toLowerCase()];
-    var score=0;
-    if(inQ)for(var i=0;i<queue.length;i++)if(queue[i].topic===name){score=queue[i].score||0;break;}
-    return{id:name,depth:v.depth||0,quality:v.quality,score:score,summary:v.summary||'',sources:v.sources||[],inQueue:inQ};
+  var tabs = document.querySelectorAll('.view-tab');
+  tabs.forEach(function(t) {
+    var v = t.getAttribute('data-view');
+    t.classList.toggle('active', v === view);
   });
-  
-  var links=[],seen={};
-  
-  // Add real parent-child decomposition links from children field
-  // Add decomposition edges
-  for(var parent in topics){
-    var children=(topics[parent]&&topics[parent].children)||[];
-    for(var i=0;i<children.length;i++){
-      var child=children[i];
-      if(topics[child]){
-        links.push({source:parent,target:child,type:'decomposition'});
-        seen[[parent,child].sort().join('|')]=true;
-      }
-    }
-  }
-
-  // Add citation edges (cites)
-  for(var citing in topics){
-    var cites=(topics[citing]&&topics[citing].cites)||[];
-    for(var i=0;i<cites.length;i++){
-      var cited=cites[i];
-      var key=[citing,cited].sort().join('|');
-      if(!seen[key] && topics[cited]){
-        links.push({source:citing,target:cited,type:'cites'});
-        seen[key]=true;
-      }
-    }
-  }
-  
-  // Add semantic similarity links (dashed, gray)
-  var STOP=['ai','agent','agents','in','for','the','and','of','to','learning','framework','self','a','based','systems'];
-  function tokens(s){return(s||'').toLowerCase().split(/[\s\-_:,]/).filter(function(t){return t.length>2&&STOP.indexOf(t)<0;});}
-  nodes.forEach(function(n){n._t={};tokens(n.id).forEach(function(t){n._t[t]=true;});});
-  
-  for(var i=0;i<nodes.length;i++){
-    for(var j=i+1;j<nodes.length;j++){
-      var a=nodes[i],b=nodes[j];
-      // Skip if either is pending (no semantic links for pending nodes)
-      if(qMap[a.id.toLowerCase()]||qMap[b.id.toLowerCase()])continue;
-      var sh=0;
-      for(var t in a._t)if(b._t[t])sh++;
-      if(sh>=1){
-        var k=[a.id,b.id].sort().join('|');
-        if(!seen[k]){
-          seen[k]=true;
-          links.push({source:a.id,target:b.id,type:'semantic',strength:sh});
-        }
-      }
-    }
-  }
-  
-  return{nodes:nodes,links:links};
-}
-function nodeColor(d){
-  var q = d.quality;
-  if (q === undefined || q === null) return '#8b949e';
-  if (q >= 7) return '#3fb950';
-  if (q >= 5) return '#d29922';
-  return '#f85149';
-}
-// Graph state (exposed for controls)
-var _g = { sim: null, link: null, nodeSel: null, data: null, W: 900, H: 960 };
-
-function renderGraph() {
-  if(typeof d3==='undefined'){console.log('D3 not loaded');return;}
-  var svg=d3.select('#graph-svg');
-  if(!svg.node())return;
-  svg.selectAll('*').remove();
-  var data=buildGraphData();
-  document.getElementById('graph-controls').style.display = data.nodes.length ? 'flex' : 'none';
-  if(!data.nodes.length){svg.append('text').attr('x','50%').attr('y','50%').attr('text-anchor','middle').attr('dominant-baseline','middle').attr('fill','#8b949e').attr('font-size','14px').text('暂无知识节点，请先运行探索');return;}
-  var W=(svg.node().parentElement&&svg.node().parentElement.clientWidth)||900;
-  var H=960;
-  _g.W=W; _g.H=H;
-  svg.attr('viewBox','0 0 '+W+' '+H);
-  var g=svg.append('g');
-  svg.call(d3.zoom().scaleExtent([0.2,4]).on('zoom',function(e){g.attr('transform',e.transform);}));
-  var link=g.append('g').selectAll('line').data(data.links).enter().append('line').attr('class','graph-link')
-    .attr('stroke', function(d) {
-      if (d.type === 'decomposition') return '#58a6ff';
-      if (d.type === 'cites') return '#e040fb';  // 紫色：引用关系
-      return '#8b949e';
-    })
-    .attr('stroke-width', function(d) {
-      if (d.type === 'decomposition') return 4;
-      if (d.type === 'cites') return 3;
-      return 2;
-    })
-    .attr('stroke-dasharray', function(d) {
-      if (d.type === 'cites') return '8,4';  // 紫色点划线：引用
-      if (d.type === 'semantic') return '5,5';
-      return '0';
-    })
-    .attr('stroke-opacity', 0.7);
-  var nodeSel=g.append('g').selectAll('.graph-node').data(data.nodes).enter().append('g').attr('class','graph-node')
-    .call(d3.drag().on('start',function(e,d){if(!e.active)_g.sim.alphaTarget(0.3).restart();d.fx=d.x;d.fy=d.y;})
-      .on('drag',function(e,d){d.fx=e.x;d.fy=e.y;}).on('end',function(e,d){if(!e.active)_g.sim.alphaTarget(0);d.fx=null;d.fy=null;}))
-    .on('click',function(e,d){e.stopPropagation();showDetail('knowledge',d.id);});
-  nodeSel.append('circle').attr('r',function(d){return d.inQueue?Math.max(18,d.depth*2.4):Math.max(12,d.depth*1.8);})
-    .attr('fill',nodeColor).attr('fill-opacity',function(d){return 1.0;})
-    .attr('stroke',function(d){return d.inQueue?'#fff':'none';}).attr('stroke-width',function(d){return d.inQueue?2:0;});
-  nodeSel.append('text').attr('class','node-label').attr('dx',function(d){return Math.max(20,d.depth*2)+4;}).attr('dy',4)
-    .text(function(d){return d.id.length>26?d.id.substring(0,23)+'...':d.id;});
-  nodeSel.append('title').text(function(d){return d.id+'\n质量:'+(d.quality||'待探索')+' | '+(d.inQueue?'待探索':'已探索');});
-
-  // Read current control values
-  var charge = parseInt(document.getElementById('ctrl-charge')?.value || '-280');
-  var dist   = parseInt(document.getElementById('ctrl-distance')?.value || '130');
-  var stren  = parseFloat(document.getElementById('ctrl-strength')?.value || '0.35');
-
-  var sim=d3.forceSimulation(data.nodes)
-    .force('link',d3.forceLink(data.links).id(function(d){return d.id;}).distance(dist).strength(stren))
-    .force('charge',d3.forceManyBody().strength(charge))
-    .force('center',d3.forceCenter(W/2,H/2))
-    .force('collision',d3.forceCollide().radius(function(d){return Math.max(25,d.depth*2.5)+30;}))
-    .on('tick',function(){
-      link.attr('x1',function(d){return d.source.x;}).attr('y1',function(d){return d.source.y;})
-          .attr('x2',function(d){return d.target.x;}).attr('y2',function(d){return d.target.y;});
-      nodeSel.attr('transform',function(d){return'translate('+d.x+','+d.y+')';});
-    });
-
-  // Store refs for controls
-  _g.sim=sim; _g.link=link; _g.nodeSel=nodeSel; _g.data=data;
-
-  // Apply current link visibility state
-  toggleLinkType();
-  toggleLabels();
+  var containers = document.querySelectorAll('.view-container');
+  containers.forEach(function(c) {
+    var v = c.id.replace('-view', '');
+    c.classList.toggle('active', v === view);
+    c.style.display = v === view ? 'block' : 'none';
+  });
+  loadViewContent(view);
 }
 
-// ── Graph Control Handlers ────────────────────────────────────
-
-function applyGraphParams() {
-  if(!_g.sim) return;
-  var charge = parseInt(document.getElementById('ctrl-charge').value);
-  var dist   = parseInt(document.getElementById('ctrl-distance').value);
-  var stren  = parseFloat(document.getElementById('ctrl-strength').value);
-  document.getElementById('lbl-charge').textContent = charge;
-  document.getElementById('lbl-distance').textContent = dist;
-  document.getElementById('lbl-strength').textContent = stren.toFixed(2);
-  _g.sim.force('charge', d3.forceManyBody().strength(charge));
-  _g.sim.force('link').distance(dist).strength(stren);
-  _g.sim.alpha(0.5).restart();
-}
-
-function resetGraphLayout() {
-  if(!_g.sim) return;
-  // Re-initialise positions to centre
-  _g.data.nodes.forEach(function(n){ n.x=_g.W/2; n.y=_g.H/2; n.vx=0; n.vy=0; });
-  _g.sim.alpha(1.0).restart();
-  log('🔄 图谱布局已重置', 'info');
-}
-
-function toggleLinkType() {
-  if(!_g.link) return;
-  var showDecomp = document.getElementById('ctrl-show-decomp').checked;
-  var showCites = document.getElementById('ctrl-show-cites').checked;
-  var showSem = document.getElementById('ctrl-show-semantic').checked;
-  _g.link.attr('display', function(d) {
-    if(d.type==='decomposition' && !showDecomp) return 'none';
-    if(d.type==='cites' && !showCites) return 'none';
-    if(d.type==='semantic' && !showSem) return 'none';
-    return null;
+function loadAll() {
+  loadState().then(function() {
+    loadListView();
+    log('📊 状态已刷新', 'ok');
+  }).catch(function(e) {
+    log('⚠️ 无法加载状态: ' + e.message, 'error');
   });
 }
 
-function toggleLabels() {
-  if(!_g.nodeSel) return;
-  var show = document.getElementById('ctrl-show-labels').checked;
-  _g.nodeSel.selectAll('text.node-label').attr('display', show ? null : 'none');
-}
-
-// Hook up range sliders
 document.addEventListener('DOMContentLoaded', function() {
-  var chargeCtrl = document.getElementById('ctrl-charge');
-  var distCtrl   = document.getElementById('ctrl-distance');
-  var strenCtrl  = document.getElementById('ctrl-strength');
-  if(chargeCtrl) chargeCtrl.addEventListener('input', applyGraphParams);
-  if(distCtrl)   distCtrl.addEventListener('input', applyGraphParams);
-  if(strenCtrl)  strenCtrl.addEventListener('input', applyGraphParams);
+  loadViewContent('list');
+  loadAll();
+  document.getElementById('ctrl-charge') && document.getElementById('ctrl-charge').addEventListener('input', applyGraphParams);
+  document.getElementById('ctrl-distance') && document.getElementById('ctrl-distance').addEventListener('input', applyGraphParams);
+  document.getElementById('ctrl-strength') && document.getElementById('ctrl-strength').addEventListener('input', applyGraphParams);
 });
 
-async function loadAll() {
-  const data = await fetchState();
-  if (!data) { log('⚠️ 无法加载状态，请确保 API 服务已启动', 'error'); return; }
-  state = data;
-  renderStats(data);
-  renderCuriosity(data.curiosity_queue || []);
-  renderHistory(data.exploration_log || []);
-  renderKnowledge(data.knowledge?.topics || {});
-  await loadMetaState();
-  log('📊 状态已刷新', 'ok');
-}
-
-async function loadMetaState() {
-  try {
-    const r = await fetch('/api/metacognitive/state');
-    if (!r.ok) return;
-    const data = await r.json();
-    if (data.status === 'ok') {
-      const summary = data.summary;
-      document.getElementById('meta-completed').textContent = summary.completed_topics;
-      document.getElementById('meta-total').textContent = summary.total_explorations;
-      document.getElementById('meta-topics').textContent = summary.topics_with_history;
-      document.getElementById('meta-status').textContent = '已更新';
-      await loadCompletedTopics();
-    }
-  } catch (e) {
-    console.error('Error loading meta state:', e);
-  }
-}
-
-async function loadCompletedTopics() {
-  try {
-    const r = await fetch('/api/metacognitive/topics/completed');
-    if (!r.ok) return;
-    const data = await r.json();
-    const container = document.getElementById('completed-topics-list');
-    if (data.completed_topics.length === 0) {
-      container.innerHTML = '<div class="empty">暂无已完成话题</div>';
-    } else {
-      container.innerHTML = data.completed_topics.map(t => `
-        <div class="item">
-          <div class="item-header">
-            <div class="item-title">${t.topic}</div>
-          </div>
-          <div class="item-reason">${t.reason}</div>
-        </div>
-      `).join('');
-    }
-  } catch (e) {
-    console.error('Error loading completed topics:', e);
-  }
-}
-
-function renderStats(data) {
-  const topics = data.knowledge?.topics || {};
-  const knownCount = Object.values(topics).filter(v => v.known).length;
-  const pending = (data.curiosity_queue || []).filter(i => i.status === 'pending').length;
-  const notified = (data.exploration_log || []).filter(l => l.notified_user).length;
-
-  document.getElementById('stat-nodes').textContent = Object.keys(topics).length;
-  document.getElementById('stat-known').textContent = knownCount + ' 已知';
-  document.getElementById('stat-pending').textContent = pending;
-  document.getElementById('stat-history').textContent = (data.exploration_log || []).length;
-  document.getElementById('stat-notified').textContent = notified + ' 已通知';
-  document.getElementById('stat-last').textContent = data.last_update ? timeAgo(data.last_update) : '—';
-}
-
-function renderCuriosity(queue) {
-  const container = document.getElementById('curiosity-list');
-  const pending = queue.filter(i => i.status === 'pending').sort((a,b) => b.score - a.score);
-  document.getElementById('queue-count').textContent = pending.length + ' 项';
-
-  if (!pending.length) {
-    container.innerHTML = '<div class="empty">好奇心队列为空，自动生成中...</div>';
-    return;
-  }
-
-  container.innerHTML = pending.map(item => `
-    <div class="item">
-      <div class="item-header">
-        <div class="item-title">${item.topic}</div>
-        <span class="item-score ${scoreClass(item.score)}">${item.score.toFixed(1)}</span>
-      </div>
-      <div class="item-reason">→ ${item.reason}</div>
-      <div class="item-meta">
-        <span>⏳ ${item.status}</span>
-        <span>📅 ${timeAgo(item.created_at)}</span>
-      </div>
-    </div>
-  `).join('');
-}
-
-function renderHistory(logs) {
-  const container = document.getElementById('history-list');
-  const recent = [...logs].reverse().slice(0, 15);
-  document.getElementById('history-count').textContent = recent.length + ' 条';
-
-  if (!recent.length) {
-    container.innerHTML = '<div class="empty">暂无探索记录</div>';
-    return;
-  }
-
-  container.innerHTML = recent.map((item) => `
-    <div class="history-item" data-topic-key="${escapeHtml(item.topic)}" onclick="showDetail('history',this.dataset.topicKey)">
-      <div class="history-top">
-        <span class="history-title">${escapeHtml(item.topic)}</span>
-        <span class="history-time">${timeAgo(item.timestamp)}</span>
-      </div>
-      <div class="history-findings">${escapeHtml(item.findings?.substring(0, 150))}...</div>
-      <div style="margin-top:4px;display:flex;align-items:center;">
-        <span style="font-size:11px;padding:2px 6px;background:var(--surface);border:1px solid var(--border);border-radius:4px;margin-right:6px">${item.action}</span>
-        ${item.notified_user ? '<span class="history-notified">📬 已通知</span>' : ''}
-        <span class="click-hint">👆 点击查看详情</span>
-      </div>
-    </div>
-  `).join('');
-}
-
-function renderKnowledge(topics) {
-  const container = document.getElementById('knowledge-list');
-  document.getElementById('knowledge-count').textContent = Object.keys(topics).length + ' 个';
-
-  if (!Object.keys(topics).length) {
-    container.innerHTML = '<div class="empty">暂无知识节点</div>';
-    return;
-  }
-
-  const sorted = Object.entries(topics).sort((a,b) => b[1].depth - a[1].depth);
-  container.innerHTML = sorted.map(([topic, v]) => `
-    <div class="item" data-topic-key="${escapeHtml(topic)}" onclick="showDetail('knowledge',this.dataset.topicKey)">
-      <div class="item-header">
-        <div class="item-title">${escapeHtml(topic)}</div>
-        <span class="item-score ${scoreClass(v.depth * 2)}">深度 ${v.depth}</span>
-      </div>
-      <div class="item-reason">${escapeHtml(v.summary?.substring(0, 100) || '—')}</div>
-      <div class="item-meta">
-        <span>🕐 ${timeAgo(v.last_updated)}</span>
-        ${v.sources?.length ? `<span>📚 ${v.sources.length} 来源</span>` : ''}
-        <span class="click-hint">👆 详情</span>
-      </div>
-    </div>
-  `).join('');
-}
-
-// Init
-refreshAll = loadAll;
-setInterval(loadAll, 30000); // Auto-refresh every 30s
-loadAll();
-log('👁️ Curious Agent 控制台已就绪', 'ok');
-
-// ── Detail Modal ────────────────────────────────────────────────
-
-function showDetail(type, key) {
-  const overlay = document.getElementById('detail-modal');
-  const title = document.getElementById('modal-title');
-  const meta = document.getElementById('modal-meta');
-  const body = document.getElementById('modal-body');
-
-  if (type === 'history') {
-    const d = (state?.exploration_log || []).find(l => l.topic === key);
-    if (!d) { body.innerHTML = '<div class="empty">未找到记录</div>'; overlay.classList.add('active'); return; }
-    title.textContent = d.topic || key;
-    meta.innerHTML = `
-      <span class="modal-meta-item">📅 ${d.timestamp ? new Date(d.timestamp).toLocaleString('zh-CN') : '—'}</span>
-      <span class="modal-meta-item">🔍 ${d.action || '—'}</span>
-      <span class="modal-meta-item">${d.notified_user ? '📬 已通知' : '📭 未通知'}</span>
-    `;
-    body.innerHTML = `
-      <div class="modal-section">
-        <div class="modal-section-title">🔬 探索发现</div>
-        <div class="modal-section-content">${escapeHtml(d.findings || '—')}</div>
-      </div>
-      <div class="modal-section">
-        <div class="modal-section-title">🔗 关联知识</div>
-        <div class="modal-section-content">${getRelatedKnowledge(d.topic)}</div>
-      </div>
-    `;
-  } else if (type === 'knowledge') {
-    const d = state?.knowledge?.topics?.[key];
-    if (!d) { body.innerHTML = '<div class="empty">未找到记录</div>'; overlay.classList.add('active'); return; }
-    title.textContent = key;
-    meta.innerHTML = `
-      <span class="modal-meta-item">🧠 理解深度: ${d.depth}/10</span>
-      <span class="modal-meta-item">🕐 ${d.last_updated ? timeAgo(d.last_updated) : '—'}</span>
-      <span class="modal-meta-item">${d.known ? '✅ 已知' : '❓ 未知'}</span>
-    `;
-    let html = '';
-    if (d.summary) {
-      html += `<div class="modal-section"><div class="modal-section-title">📝 总结摘要</div><div class="modal-section-content">${escapeHtml(d.summary)}</div></div>`;
-    }
-    if (d.sources && d.sources.length) {
-      html += `<div class="modal-section"><div class="modal-section-title">📚 来源链接</div><ul class="modal-sources">${d.sources.map(s => `<li><a href="${escapeHtml(s)}" target="_blank">${escapeHtml(s)}</a></li>`).join('')}</ul></div>`;
-    }
-    if (!html) html = '<div class="empty">暂无详情</div>';
-    body.innerHTML = html;
-  }
-
-  overlay.classList.add('active');
-}
-
-function getRelatedKnowledge(topic) {
-  if (!state || !topic) return '—';
-  const related = [];
-  for (const [t, v] of Object.entries(state.knowledge?.topics || {})) {
-    if (t !== topic && (t.toLowerCase().includes(topic.toLowerCase().split(' ')[0]) || topic.toLowerCase().includes(t.toLowerCase().split(' ')[0]))) {
-      related.push(`<strong>${escapeHtml(t)}</strong>: ${escapeHtml(v.summary?.substring(0, 80) || '—')}...`);
-    }
-  }
-  return related.length ? related.slice(0, 3).join('<br>') : '无相关知识';
-}
-
-function escapeHtml(str) {
-  if (!str) return '';
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-}
-
-function closeModal() {
-  document.getElementById('detail-modal').classList.remove('active');
-}
-
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-// ── Init ──────────────────────────────────────────────────────
-
-refreshAll = loadAll;
-setInterval(loadAll, 30000); // Auto-refresh every 30s
-loadAll();
-log('👁️ Curious Agent 控制台已就绪', 'ok');
+setInterval(loadAll, 30000);
 </script>
 
-<!-- Detail Modal -->
 <div class="modal-overlay" id="detail-modal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-header">
