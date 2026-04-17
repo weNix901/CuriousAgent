@@ -6,7 +6,7 @@ import logging
 import os
 import subprocess
 from typing import List, Optional, Dict, Any
-from . import knowledge_graph as kg
+from . import knowledge_graph_compat as kg
 from .arxiv_analyzer import ArxivAnalyzer
 from .llm_client import LLMClient
 from .insight_synthesizer import InsightSynthesizer

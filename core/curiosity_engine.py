@@ -6,7 +6,7 @@ import re
 from datetime import datetime, timezone
 from typing import Optional
 
-from . import knowledge_graph as kg
+from . import knowledge_graph_compat as kg
 from .intrinsic_scorer import IntrinsicScorer
 
 

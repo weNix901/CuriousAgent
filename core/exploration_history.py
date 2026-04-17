@@ -2,7 +2,7 @@
 import threading
 from datetime import datetime, timezone, timedelta
 from typing import Optional
-import core.knowledge_graph as kg
+import core.knowledge_graph_compat as kg
 
 
 class ExplorationHistory:

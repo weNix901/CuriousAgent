@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from core import knowledge_graph as kg
+from core import knowledge_graph_compat as kg
 from core.exploration_history import ExplorationHistory
 from core.node_lock_registry import NodeLockRegistry
 

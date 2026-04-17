@@ -8,7 +8,7 @@ from typing import List, Dict
 from core.agents.ca_agent import CAAgent, CAAgentConfig, AgentResult
 from core.tools.registry import ToolRegistry
 from core.tools.queue_tools import QueueStorage
-from core import knowledge_graph
+from core import knowledge_graph_compat
 from core.embedding_service import EmbeddingService
 from collections import defaultdict
 import numpy as np

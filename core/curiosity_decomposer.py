@@ -385,7 +385,7 @@ class CuriosityDecomposer:
         MAX_CHILDREN_PER_TOPIC = 5
         subtopics = subtopics[:MAX_CHILDREN_PER_TOPIC]
 
-        from core import knowledge_graph as kg
+        from core import knowledge_graph_compat as kg
         kg.update_curiosity_status(topic, "exploring")
 
         for sibling in subtopics:

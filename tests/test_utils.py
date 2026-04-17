@@ -55,7 +55,7 @@ def isolated_knowledge_graph() -> Generator[str, None, None]:
         临时的知识图谱模块
     """
     import sys
-    from core import knowledge_graph as kg_module
+    from core import knowledge_graph_compat as kg_module
     
     # 保存原始配置
     original_state_file = kg_module.STATE_FILE
@@ -136,7 +136,7 @@ def cleanup_test_data_from_production():
     从生产环境中清理测试数据
     在生产环境维护时使用，不应在测试代码中调用
     """
-    from core import knowledge_graph as kg
+    from core import knowledge_graph_compat as kg
     
     state = kg._load_state()
     original_counts = {

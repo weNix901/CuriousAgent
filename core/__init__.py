@@ -7,7 +7,7 @@ Exports key components for V1 architecture.
 __version__ = "0.3.1"
 __version_name__ = "Observability Layer"
 
-from core.knowledge_graph import (
+from core.knowledge_graph_compat import (
     get_state,
     add_knowledge,
     add_curiosity,

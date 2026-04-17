@@ -63,7 +63,7 @@ def test_quality_gate_integration():
 
 def test_knowledge_graph_parent_child():
     """Test KG parent-child functionality"""
-    from core import knowledge_graph as kg
+    from core import knowledge_graph_compat as kg
     
     kg.add_child("agent", "agent_memory")
     kg.add_child("agent", "agent_planning")

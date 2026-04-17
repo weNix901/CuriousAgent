@@ -1,5 +1,5 @@
 import pytest
-from core import knowledge_graph as kg
+from core import knowledge_graph_compat as kg
 
 
 def test_add_child_and_get_children():

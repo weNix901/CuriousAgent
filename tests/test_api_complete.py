@@ -38,7 +38,7 @@ def client():
         temp_state = f.name
     
     # Patch state file location
-    from core import knowledge_graph as kg
+    from core import knowledge_graph_compat as kg
     original_state_file = kg.STATE_FILE
     kg.STATE_FILE = temp_state
     
@@ -113,7 +113,7 @@ class TestAPIState:
     def test_state_returns_complete_log_items(self, client):
         """Test state returns complete log item structure"""
         # Add a log entry directly
-        from core import knowledge_graph as kg
+        from core import knowledge_graph_compat as kg
         kg.log_exploration("test", "action", "findings", notified=True)
         
         response = client.get('/api/curious/state')
@@ -287,7 +287,7 @@ class TestAPIQueueDelete:
         client.post('/api/curious/inject',
                    json={"topic": "force-delete", "reason": "test"})
         
-        from core import knowledge_graph as kg
+        from core import knowledge_graph_compat as kg
         kg.update_curiosity_status("force-delete", "done")
         
         # Try delete without force (should fail)
@@ -336,7 +336,7 @@ class TestAPIQueuePending:
                    json={"topic": "pending-vs-done", "reason": "test"})
         
         # Mark as done
-        from core import knowledge_graph as kg
+        from core import knowledge_graph_compat as kg
         kg.update_curiosity_status("pending-vs-done", "done")
         
         response = client.get('/api/curious/queue/pending')

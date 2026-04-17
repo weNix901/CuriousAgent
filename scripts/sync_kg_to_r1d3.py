@@ -14,7 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.knowledge_graph import get_spreading_activation_trace, get_root_technologies, get_kg_overview, get_state
+from core.knowledge_graph_compat import get_spreading_activation_trace, get_root_technologies, get_kg_overview, get_state
 
 R1D3_KG_DIR = "/root/.openclaw/workspace-researcher/memory/curious/kg"
 TRACE_DIR = os.path.join(R1D3_KG_DIR, "trace")

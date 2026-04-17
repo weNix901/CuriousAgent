@@ -109,7 +109,7 @@ class ExploreDaemon(threading.Thread):
                     self.queue_storage.mark_done(item_id, self.explore_agent.holder_id)
                     # Write findings to KG
                     try:
-                        import core.knowledge_graph as kg
+                        import core.knowledge_graph_compat as kg
                         kg.add_knowledge(
                             topic=topic,
                             depth=5,

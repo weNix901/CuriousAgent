@@ -10,7 +10,7 @@ from typing import Optional
 
 from core.embedding_service import EmbeddingService
 from core.assertion_index import AssertionIndex
-from core import knowledge_graph as kg_module
+from core import knowledge_graph_compat as kg_module
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ def _get_instances(depth: float = 6.0):
 def _explore_in_thread(topic: str, score: float, depth: float):
     """在线程中执行探索，完成后更新状态"""
     # === Phase 3: async 路径也要正确更新队列 status ===
-    from core.knowledge_graph import update_curiosity_status
+    from core.knowledge_graph_compat import update_curiosity_status
     try:
         update_curiosity_status(topic, "exploring")
     except Exception as e:
@@ -65,8 +65,8 @@ def _explore_in_thread(topic: str, score: float, depth: float):
         }
         result = explorer.explore(curiosity_item)
 
-        from core.knowledge_graph import add_exploration_result, update_curiosity_status
-        from core import knowledge_graph as kg_module
+        from core.knowledge_graph_compat import add_exploration_result, update_curiosity_status
+        from core import knowledge_graph_compat as kg_module
         # Explorer.explore() returns findings as a string (summary text)
         # QualityV2 expects a dict, wrap appropriately
         findings_str = result.get("findings", "") or ""
@@ -82,7 +82,7 @@ def _explore_in_thread(topic: str, score: float, depth: float):
             from core.curiosity_decomposer import CuriosityDecomposer
             from core.llm_manager import LLMManager
             from core.provider_registry import init_default_providers
-            from core import knowledge_graph as kg_module
+            from core import knowledge_graph_compat as kg_module
             from core.config import get_config
 
             config = get_config()
@@ -147,7 +147,7 @@ def _explore_in_thread(topic: str, score: float, depth: float):
         logger.error(f"[T-10] Async exploration failed for {topic}: {e}")
         logger.error(f"[T-10] Traceback: {traceback.format_exc()}")
         try:
-            from core.knowledge_graph import update_curiosity_status
+            from core.knowledge_graph_compat import update_curiosity_status
             update_curiosity_status(topic, "paused")
         except Exception as e:
             logger.warning(f"Failed to set paused status for '{topic}': {e}", exc_info=True)

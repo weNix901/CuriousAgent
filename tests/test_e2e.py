@@ -134,14 +134,14 @@ class TestE2EFullWorkflow:
 
     def test_full_workflow_deep_exploration(self, mock_external_apis, mock_state_file):
         """Test complete workflow from trigger to result with deep exploration"""
-        import core.knowledge_graph as kg_module
+        import core.knowledge_graph_compat as kg_module
         
         # Temporarily use mock state file
         original_state_file = kg_module.STATE_FILE
         kg_module.STATE_FILE = mock_state_file
         
         try:
-            from core.knowledge_graph import add_curiosity, get_state
+            from core.knowledge_graph_compat import add_curiosity, get_state
             
             # Setup: Add a curiosity to explore
             add_curiosity(
@@ -177,11 +177,11 @@ class TestE2EFullWorkflow:
 
     def test_shallow_exploration_only_layer1(self, mock_external_apis, mock_state_file):
         """Test that shallow exploration only calls Layer 1"""
-        import core.knowledge_graph as kg_module
+        import core.knowledge_graph_compat as kg_module
         kg_module.STATE_FILE = mock_state_file
         
         try:
-            from core.knowledge_graph import add_curiosity
+            from core.knowledge_graph_compat import add_curiosity
             from core.explorer import Explorer
             
             add_curiosity(topic=create_test_topic("shallow"), reason="test", relevance=7.0, depth=5.0)
@@ -212,11 +212,11 @@ class TestE2EFullWorkflow:
 
     def test_medium_exploration_layer1_and_layer2(self, mock_external_apis, mock_state_file):
         """Test that medium exploration calls Layer 1 and Layer 2"""
-        import core.knowledge_graph as kg_module
+        import core.knowledge_graph_compat as kg_module
         kg_module.STATE_FILE = mock_state_file
         
         try:
-            from core.knowledge_graph import add_curiosity
+            from core.knowledge_graph_compat import add_curiosity
             from curious_agent import run_one_cycle
             
             add_curiosity(topic=create_test_topic("medium"), reason="test", relevance=7.0, depth=5.0)
@@ -239,11 +239,11 @@ class TestE2EAutoQueue:
 
     def test_auto_queue_adds_new_topics(self, mock_external_apis, mock_state_file):
         """Test that auto-queue adds new topics from findings"""
-        import core.knowledge_graph as kg_module
+        import core.knowledge_graph_compat as kg_module
         kg_module.STATE_FILE = mock_state_file
         
         try:
-            from core.knowledge_graph import add_curiosity, get_state
+            from core.knowledge_graph_compat import add_curiosity, get_state
             from curious_agent import run_one_cycle
             
             # Add initial curiosity
@@ -265,12 +265,12 @@ class TestE2EAutoQueue:
 
     def test_auto_queue_deduplicates(self, mock_state_file):
         """Test that auto-queue doesn't add duplicate topics"""
-        import core.knowledge_graph as kg_module
+        import core.knowledge_graph_compat as kg_module
         kg_module.STATE_FILE = mock_state_file
         
         try:
             from core.curiosity_engine import CuriosityEngine
-            from core.knowledge_graph import add_curiosity, get_state
+            from core.knowledge_graph_compat import add_curiosity, get_state
             
             # Add existing curiosity
             add_curiosity(topic=create_test_topic("existing topic"), reason="test", relevance=7.0, depth=5.0)
@@ -298,11 +298,11 @@ class TestE2EStateUpdates:
 
     def test_exploration_updates_knowledge_graph(self, mock_external_apis, mock_state_file):
         """Test that exploration updates the knowledge graph"""
-        import core.knowledge_graph as kg_module
+        import core.knowledge_graph_compat as kg_module
         kg_module.STATE_FILE = mock_state_file
         
         try:
-            from core.knowledge_graph import add_curiosity, get_state
+            from core.knowledge_graph_compat import add_curiosity, get_state
             from core.explorer import Explorer
             
             topic = create_test_topic("knowledge update")
@@ -342,11 +342,11 @@ class TestE2EStateUpdates:
 
     def test_exploration_log_contains_required_fields(self, mock_external_apis, mock_state_file):
         """Test that exploration log contains all required fields"""
-        import core.knowledge_graph as kg_module
+        import core.knowledge_graph_compat as kg_module
         kg_module.STATE_FILE = mock_state_file
         
         try:
-            from core.knowledge_graph import add_curiosity, get_state
+            from core.knowledge_graph_compat import add_curiosity, get_state
             from curious_agent import run_one_cycle
             
             add_curiosity(topic=create_test_topic("log fields"), reason="test", relevance=7.0, depth=5.0)
@@ -459,7 +459,7 @@ class TestE2EErrorHandling:
 
     def test_handles_empty_search_results(self, mock_state_file):
         """Test handling of empty search results"""
-        import core.knowledge_graph as kg_module
+        import core.knowledge_graph_compat as kg_module
         kg_module.STATE_FILE = mock_state_file
         
         try:
@@ -480,7 +480,7 @@ class TestE2EErrorHandling:
 
     def test_handles_missing_api_key(self, mock_state_file):
         """Test handling of missing API keys"""
-        import core.knowledge_graph as kg_module
+        import core.knowledge_graph_compat as kg_module
         kg_module.STATE_FILE = mock_state_file
         
         try:

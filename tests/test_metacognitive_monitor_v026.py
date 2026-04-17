@@ -9,7 +9,7 @@ class TestConfidenceInterval:
     
     def test_get_confidence_interval_returns_defaults(self, tmp_path, monkeypatch):
         """Should return default confidence interval for new topic."""
-        import core.knowledge_graph as kg
+        import core.knowledge_graph_compat as kg
         original_file = kg.STATE_FILE
         temp_file = tmp_path / "state.json"
         monkeypatch.setattr(kg, 'STATE_FILE', str(temp_file))
@@ -24,7 +24,7 @@ class TestConfidenceInterval:
     
     def test_update_node_confidence_increases_low(self, tmp_path, monkeypatch):
         """Should increase confidence_low with evidence."""
-        import core.knowledge_graph as kg
+        import core.knowledge_graph_compat as kg
         original_file = kg.STATE_FILE
         temp_file = tmp_path / "state.json"
         monkeypatch.setattr(kg, 'STATE_FILE', str(temp_file))
@@ -40,7 +40,7 @@ class TestConfidenceInterval:
     
     def test_update_node_confidence_decreases_high(self, tmp_path, monkeypatch):
         """Should decrease confidence_high with contradictions."""
-        import core.knowledge_graph as kg
+        import core.knowledge_graph_compat as kg
         original_file = kg.STATE_FILE
         temp_file = tmp_path / "state.json"
         monkeypatch.setattr(kg, 'STATE_FILE', str(temp_file))
@@ -60,7 +60,7 @@ class TestFrontierDetection:
     
     def test_detect_frontier_finds_leaf_nodes(self, tmp_path, monkeypatch):
         """Should find known nodes with no children."""
-        import core.knowledge_graph as kg
+        import core.knowledge_graph_compat as kg
         original_file = kg.STATE_FILE
         temp_file = tmp_path / "state.json"
         monkeypatch.setattr(kg, 'STATE_FILE', str(temp_file))
@@ -82,7 +82,7 @@ class TestFrontierDetection:
     
     def test_recommend_exploration_from_frontier(self, tmp_path, monkeypatch):
         """Should recommend frontier topics."""
-        import core.knowledge_graph as kg
+        import core.knowledge_graph_compat as kg
         original_file = kg.STATE_FILE
         temp_file = tmp_path / "state.json"
         monkeypatch.setattr(kg, 'STATE_FILE', str(temp_file))
@@ -101,7 +101,7 @@ class TestCalibration:
     
     def test_get_calibration_error_no_predictions(self, tmp_path, monkeypatch):
         """Should return 0.0 when no predictions exist."""
-        import core.knowledge_graph as kg
+        import core.knowledge_graph_compat as kg
         original_file = kg.STATE_FILE
         temp_file = tmp_path / "state.json"
         monkeypatch.setattr(kg, 'STATE_FILE', str(temp_file))
@@ -115,7 +115,7 @@ class TestCalibration:
     
     def test_get_topic_calibration_no_prediction(self, tmp_path, monkeypatch):
         """Should return no_prediction_recorded verdict."""
-        import core.knowledge_graph as kg
+        import core.knowledge_graph_compat as kg
         original_file = kg.STATE_FILE
         temp_file = tmp_path / "state.json"
         monkeypatch.setattr(kg, 'STATE_FILE', str(temp_file))

@@ -4,7 +4,7 @@ Responsible for evaluating exploration quality, computing marginal returns, reco
 """
 import logging
 import re
-from core import knowledge_graph as kg
+from core import knowledge_graph_compat as kg
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 import pytest
 from core.competence_tracker import CompetenceTracker
-from core import knowledge_graph as kg
+from core import knowledge_graph_compat as kg
 
 
 @pytest.fixture(autouse=True)

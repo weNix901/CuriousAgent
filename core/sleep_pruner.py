@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from core.base_agent import BaseAgent
-from core import knowledge_graph as kg
+from core import knowledge_graph_compat as kg
 from core.node_lock_registry import NodeLockRegistry
 
 

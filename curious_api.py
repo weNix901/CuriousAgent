@@ -459,7 +459,7 @@ def api_quota_reset():
 
 @app.route("/api/curious/state")
 def api_state():
-    from core import knowledge_graph as kg
+    from core import knowledge_graph_compat as kg
     state = kg.get_state()
     summary = kg.get_knowledge_summary()
     topics = state.get("knowledge", {}).get("topics", {})
@@ -486,7 +486,7 @@ def api_run():
     try:
         from core.curiosity_engine import CuriosityEngine
         from core.explorer import Explorer
-        from core.knowledge_graph import add_curiosity, get_top_curiosities
+        from core.knowledge_graph_compat import add_curiosity, get_top_curiosities
 
         data = request.get_json() if request.is_json else {}
         topic = data.get("topic", "").strip()
@@ -525,7 +525,7 @@ def api_run():
 
         result = explorer.explore(next_item)
 
-        from core.knowledge_graph import mark_topic_done
+        from core.knowledge_graph_compat import mark_topic_done
         mark_topic_done(result["topic"], "API exploration completed")
 
         from core.agent_behavior_writer import AgentBehaviorWriter
@@ -546,7 +546,7 @@ def api_run():
 
         # G3-Fix: Remove decomposition from API, move to Daemon SpiderAgent
         # Add topic to DreamInbox for Daemon to process decomposition
-        from core import knowledge_graph as kg
+        from core import knowledge_graph_compat as kg
         kg.add_to_dream_inbox(result["topic"], source_insight="API exploration completed - needs decomposition")
         print(f"[API] Topic '{result['topic']}' queued for decomposition in Daemon")
 
@@ -577,7 +577,7 @@ def api_inject():
         mode = data.get("mode", "fusion")
 
         from core.curiosity_engine import CuriosityEngine
-        from core.knowledge_graph import add_curiosity
+        from core.knowledge_graph_compat import add_curiosity
 
         engine = CuriosityEngine()
 
@@ -596,7 +596,7 @@ def api_inject():
             depth = float(depth)
 
         # === Phase 2: parent link 在入口处立即写入 KG ===
-        from core import knowledge_graph as kg_module
+        from core import knowledge_graph_compat as kg_module
         parent = data.get("parent")
         if parent:
             # Step 1: 建占位 KG 节点（即使还没探索，KG 里也要有记录）
@@ -620,7 +620,7 @@ def api_inject():
         # ===== T-9 集成点 开始 =====
         # 【集成点 6】inject_priority: source=r1d3 时优先处理
         config = get_config()
-        from core.knowledge_graph import update_curiosity_score
+        from core.knowledge_graph_compat import update_curiosity_score
         source = data.get("source", "default")
         priority_cfg = get_config().behavior.get("injection")
 
@@ -678,7 +678,7 @@ def api_trigger():
             try:
                 from core.curiosity_engine import CuriosityEngine
                 from core.explorer import Explorer
-                from core.knowledge_graph import add_curiosity, mark_topic_done
+                from core.knowledge_graph_compat import add_curiosity, mark_topic_done
                 import time as time_module
 
                 add_curiosity(
@@ -749,7 +749,7 @@ def api_delete_queue_item():
         if not topic:
             return jsonify({"error": "topic is required"}), 400
 
-        from core.knowledge_graph import remove_curiosity
+        from core.knowledge_graph_compat import remove_curiosity
         success = remove_curiosity(topic, force=force)
 
         if success:
@@ -765,7 +765,7 @@ def api_delete_queue_item():
 @app.route("/api/curious/queue/pending", methods=["GET"])
 def api_list_pending():
     try:
-        from core.knowledge_graph import list_pending
+        from core.knowledge_graph_compat import list_pending
         pending = list_pending()
         return jsonify({"status": "success", "count": len(pending), "items": pending})
     except Exception as e:
@@ -776,7 +776,7 @@ def api_list_pending():
 
 @app.route("/api/metacognitive/state")
 def api_metacognitive_state():
-    from core import knowledge_graph as kg
+    from core import knowledge_graph_compat as kg
     state = kg.get_state()
     mc = kg.get_meta_cognitive_state()
     return jsonify({
@@ -792,7 +792,7 @@ def api_metacognitive_state():
 
 @app.route("/api/metacognitive/check")
 def api_metacognitive_check():
-    from core import knowledge_graph as kg
+    from core import knowledge_graph_compat as kg
     from core.meta_cognitive_monitor import MetaCognitiveMonitor
     from core.meta_cognitive_controller import MetaCognitiveController
     topic = normalize_topic(request.values.get("topic", ""))
@@ -810,7 +810,7 @@ def api_metacognitive_check():
 
 @app.route("/api/metacognitive/history/<topic>")
 def api_metacognitive_history(topic):
-    from core import knowledge_graph as kg
+    from core import knowledge_graph_compat as kg
     topic = normalize_topic(topic)
     state = kg.get_state()
     mc = state.get("meta_cognitive", {})
@@ -826,7 +826,7 @@ def api_metacognitive_history(topic):
 
 @app.route("/api/metacognitive/topics/completed")
 def api_metacognitive_completed():
-    from core import knowledge_graph as kg
+    from core import knowledge_graph_compat as kg
     mc = kg.get_meta_cognitive_state()
     completed = mc.get("completed_topics", {})
     return jsonify({
@@ -1076,7 +1076,7 @@ def main():
 def api_kg_trace(topic: str):
     """使用扩散激活算法向上追溯 topic 的因果链到根技术"""
     import traceback
-    from core.knowledge_graph import get_spreading_activation_trace, get_root_technologies
+    from core.knowledge_graph_compat import get_spreading_activation_trace, get_root_technologies
 
     try:
         topic = topic.strip()
@@ -1102,7 +1102,7 @@ def api_kg_trace(topic: str):
 def api_kg_roots():
     """返回所有根技术，按 root_score 降序"""
     import traceback
-    from core.knowledge_graph import get_root_technologies
+    from core.knowledge_graph_compat import get_root_technologies
 
     try:
         roots = get_root_technologies()
@@ -1155,14 +1155,6 @@ def api_kg_node_detail(node_id):
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-            "exploration_count": explore_count,
-            "depth": node.get("depth", 0),
-            "is_root_candidate": node.get("is_root_candidate", False),
-            "created_at": node.get("created_at", ""),
-            "last_updated": node.get("last_updated", ""),
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/kg/edges")
@@ -1195,7 +1187,7 @@ def api_kg_edges():
 def api_kg_subgraph():
     """Get subgraph from a root topic with specified depth."""
     try:
-        from core import knowledge_graph as kg
+        from core import knowledge_graph_compat as kg
         
         root = request.args.get("root", "")
         depth = int(request.args.get("depth", 2))
@@ -1248,7 +1240,7 @@ def api_kg_stats():
 def api_kg_quality_distribution():
     """Get KG quality distribution."""
     try:
-        from core import knowledge_graph as kg
+        from core import knowledge_graph_compat as kg
         
         state = kg.get_state()
         topics = state["knowledge"]["topics"]
@@ -2169,7 +2161,7 @@ def api_dream_stats():
 def api_decomposition_tree(root_topic):
     """Get decomposition tree from a root topic."""
     try:
-        from core import knowledge_graph as kg
+        from core import knowledge_graph_compat as kg
         
         state = kg.get_state()
         topics = state["knowledge"]["topics"]
@@ -2199,7 +2191,7 @@ def api_decomposition_tree(root_topic):
 def api_decomposition_stats():
     """Get decomposition statistics."""
     try:
-        from core import knowledge_graph as kg
+        from core import knowledge_graph_compat as kg
         
         state = kg.get_state()
         topics = state["knowledge"]["topics"]
@@ -2266,7 +2258,7 @@ def api_system_health():
         qs.initialize()
         queue_stats = qs.get_all_stats()
 
-        from core import knowledge_graph as kg
+        from core import knowledge_graph_compat as kg
         state = kg.get_state()
         topics = state["knowledge"]["topics"]
 

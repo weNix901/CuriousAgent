@@ -195,7 +195,7 @@ class TestIsResearchRelated:
 class TestAutoQueueTopics:
     """Test suite for auto_queue_topics with filtering"""
     
-    @patch('core.knowledge_graph.add_curiosity')
+    @patch('core.knowledge_graph_compat.add_curiosity')
     def test_auto_queue_adds_relevant_topics(self, mock_add):
         """Test adds topics that pass research filter"""
         engine = CuriosityEngine()
@@ -207,7 +207,7 @@ class TestAutoQueueTopics:
         assert count > 0
         mock_add.assert_called()
     
-    @patch('core.knowledge_graph.add_curiosity')
+    @patch('core.knowledge_graph_compat.add_curiosity')
     def test_auto_queue_skips_unrelated_topics(self, mock_add):
         """Test skips topics that fail research filter"""
         engine = CuriosityEngine()
@@ -218,7 +218,7 @@ class TestAutoQueueTopics:
         assert count == 0
         mock_add.assert_not_called()
     
-    @patch('core.knowledge_graph.add_curiosity')
+    @patch('core.knowledge_graph_compat.add_curiosity')
     def test_auto_queue_skips_low_score_topics(self, mock_add):
         """Test skips topics with score < 5.0"""
         engine = CuriosityEngine()
@@ -229,10 +229,10 @@ class TestAutoQueueTopics:
         
         assert count == 0
     
-    @patch('core.knowledge_graph.add_curiosity')
+    @patch('core.knowledge_graph_compat.add_curiosity')
     def test_auto_queue_skips_existing_pending(self, mock_add):
         """Test skips topics already in pending queue"""
-        from core import knowledge_graph as kg
+        from core import knowledge_graph_compat as kg
         
         engine = CuriosityEngine()
         engine.score_topic = Mock(return_value={'final_score': 8.0})
@@ -246,7 +246,7 @@ class TestAutoQueueTopics:
         # Should skip existing
         assert count == 0
     
-    @patch('core.knowledge_graph.add_curiosity')
+    @patch('core.knowledge_graph_compat.add_curiosity')
     def test_auto_queue_filters_empty_strings(self, mock_add):
         """Test filters empty strings"""
         engine = CuriosityEngine()
@@ -263,7 +263,7 @@ class TestRescoreAll:
     
     def test_rescore_all_updates_scores(self):
         """Test rescore_all updates all pending item scores"""
-        from core import knowledge_graph as kg
+        from core import knowledge_graph_compat as kg
 
         engine = CuriosityEngine()
 
@@ -416,7 +416,7 @@ class TestComputeCuriosityScore:
     
     def test_score_calculates_recency(self):
         """Test score includes recency calculation"""
-        from core import knowledge_graph as kg
+        from core import knowledge_graph_compat as kg
         from datetime import datetime, timezone, timedelta
         
         engine = CuriosityEngine()
@@ -443,7 +443,7 @@ class TestComputeCuriosityScore:
 class TestAddContextualCuriosity:
     """Test suite for add_contextual_curiosity"""
     
-    @patch('core.knowledge_graph.add_curiosity')
+    @patch('core.knowledge_graph_compat.add_curiosity')
     def test_extracts_keywords_from_context(self, mock_add):
         """Test extracts keywords from conversation context"""
         engine = CuriosityEngine()
@@ -456,7 +456,7 @@ class TestAddContextualCuriosity:
         call_topics = [call[1]["topic"] for call in mock_add.call_args_list]
         assert any("Transformer" in t or "Reflection" in t for t in call_topics)
     
-    @patch('core.knowledge_graph.add_curiosity')
+    @patch('core.knowledge_graph_compat.add_curiosity')
     def test_filters_short_phrases(self, mock_add):
         """Test filters phrases shorter than 7 characters"""
         engine = CuriosityEngine()
@@ -469,7 +469,7 @@ class TestAddContextualCuriosity:
         assert "AI" not in call_topics
         assert "LLM" not in call_topics
     
-    @patch('core.knowledge_graph.add_curiosity')
+    @patch('core.knowledge_graph_compat.add_curiosity')
     def test_limits_to_5_phrases(self, mock_add):
         """Test limits to max 5 phrases"""
         engine = CuriosityEngine()
@@ -513,8 +513,8 @@ class TestRescoreAllFixed:
     """Fixed test suite for rescore_all"""
 
     @patch('core.curiosity_engine.CuriosityEngine.compute_curiosity_score')
-    @patch('core.knowledge_graph.get_state')
-    @patch('core.knowledge_graph._save_state')
+    @patch('core.knowledge_graph_compat.get_state')
+    @patch('core.knowledge_graph_compat._save_state')
     def test_rescore_all_updates_pending_items(self, mock_save, mock_get_state, mock_score):
         """Test rescore_all updates scores for all pending items"""
         mock_get_state.return_value = {

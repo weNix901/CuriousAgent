@@ -6,7 +6,7 @@
 import sys
 sys.path.insert(0, '/root/dev/curious-agent')
 
-from core import knowledge_graph as kg
+from core import knowledge_graph_compat as kg
 
 def main():
     state = kg.get_state()

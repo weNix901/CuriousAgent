@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.knowledge_graph import get_state
+from core.knowledge_graph_compat import get_state
 from core.assertion_generator import AssertionGenerator
 from core.assertion_index import AssertionIndex
 from core.embedding_service import EmbeddingService

@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import asyncio
 
-from core import knowledge_graph as kg
+from core import knowledge_graph_compat as kg
 from core.curiosity_engine import CuriosityEngine
 from core.explorer import Explorer
 from core.reasoning_compressor import ReasoningCompressor, CompressionLevel
@@ -394,7 +394,7 @@ def daemon_mode(interval_minutes: int = 30):
     def _graceful_shutdown(signum, frame):
         print(f"\n[daemon] Received signal {signum}, saving state before exit...")
         try:
-            from core import knowledge_graph as kg_safe
+            from core import knowledge_graph_compat as kg_safe
             kg_safe._save_state(kg_safe._load_state())
             print("[daemon] State saved.")
         except Exception as e:
@@ -609,7 +609,7 @@ def daemon_mode(interval_minutes: int = 30):
         # Revive stuck items periodically
         if cycle_count % 60 == 0:
             try:
-                from core import knowledge_graph as kg_main
+                from core import knowledge_graph_compat as kg_main
                 revived = kg_main.revive_stuck_items(timeout_seconds=300)
                 if revived > 0:
                     print(f"[v0.2.9] Revived {revived} stuck items")

@@ -36,7 +36,7 @@ def temp_knowledge_dir():
 @pytest.fixture
 def mock_state_file(temp_knowledge_dir):
     """Mock STATE_FILE to use temp directory."""
-    with patch("core.knowledge_graph.STATE_FILE", 
+    with patch("core.knowledge_graph_compat.STATE_FILE", 
                os.path.join(temp_knowledge_dir, "state.json")):
         yield temp_knowledge_dir
 
@@ -46,7 +46,7 @@ class TestAddDreamInsight:
     
     def test_add_dream_insight_creates_file(self, mock_state_file):
         """Test that add_dream_insight creates a JSON file."""
-        from core.knowledge_graph import add_dream_insight
+        from core.knowledge_graph_compat import add_dream_insight
         
         node_id = add_dream_insight(
             content="Test insight content",
@@ -83,7 +83,7 @@ class TestAddDreamInsight:
     
     def test_add_dream_insight_without_trigger_topic(self, mock_state_file):
         """Test add_dream_insight with None trigger_topic."""
-        from core.knowledge_graph import add_dream_insight
+        from core.knowledge_graph_compat import add_dream_insight
         
         node_id = add_dream_insight(
             content="Insight without trigger",
@@ -108,7 +108,7 @@ class TestGetDreamInsights:
     
     def test_get_dream_insights_returns_list(self, mock_state_file):
         """Test that get_dream_insights returns a list of insights."""
-        from core.knowledge_graph import add_dream_insight, get_dream_insights
+        from core.knowledge_graph_compat import add_dream_insight, get_dream_insights
         
         # Add some insights
         add_dream_insight(
@@ -135,7 +135,7 @@ class TestGetDreamInsights:
     
     def test_get_dream_insights_filters_by_topic(self, mock_state_file):
         """Test that get_dream_insights filters by topic."""
-        from core.knowledge_graph import add_dream_insight, get_dream_insights
+        from core.knowledge_graph_compat import add_dream_insight, get_dream_insights
         
         # Add insights with different source topics
         add_dream_insight(
@@ -172,7 +172,7 @@ class TestGetDreamInsights:
     
     def test_get_dream_insights_empty_when_no_match(self, mock_state_file):
         """Test get_dream_insights returns empty list when no matches."""
-        from core.knowledge_graph import add_dream_insight, get_dream_insights
+        from core.knowledge_graph_compat import add_dream_insight, get_dream_insights
         
         add_dream_insight(
             content="Some insight",
@@ -193,7 +193,7 @@ class TestGetAllDreamInsights:
     
     def test_get_all_dream_insights_returns_all(self, mock_state_file):
         """Test that get_all_dream_insights returns all insights."""
-        from core.knowledge_graph import add_dream_insight, get_all_dream_insights
+        from core.knowledge_graph_compat import add_dream_insight, get_all_dream_insights
         
         add_dream_insight(
             content="Insight 1",
@@ -222,7 +222,7 @@ class TestRemoveDreamInsight:
     
     def test_remove_dream_insight_deletes_file(self, mock_state_file):
         """Test that remove_dream_insight deletes the insight file."""
-        from core.knowledge_graph import add_dream_insight, remove_dream_insight, get_dream_insights
+        from core.knowledge_graph_compat import add_dream_insight, remove_dream_insight, get_dream_insights
         
         node_id = add_dream_insight(
             content="To be removed",
@@ -246,7 +246,7 @@ class TestRemoveDreamInsight:
     
     def test_remove_dream_insight_nonexistent(self, mock_state_file):
         """Test remove_dream_insight handles nonexistent node_id gracefully."""
-        from core.knowledge_graph import remove_dream_insight
+        from core.knowledge_graph_compat import remove_dream_insight
         
         # Should not raise an error
         remove_dream_insight("insight_nonexistent_12345")
@@ -257,7 +257,7 @@ class TestIsInsightStale:
     
     def test_is_insight_stale_older_than_7_days(self, mock_state_file):
         """Test that insights older than 7 days and unverified are stale."""
-        from core.knowledge_graph import add_dream_insight, is_insight_stale
+        from core.knowledge_graph_compat import add_dream_insight, is_insight_stale
         
         node_id = add_dream_insight(
             content="Old insight",
@@ -287,7 +287,7 @@ class TestIsInsightStale:
     
     def test_is_insight_stale_recent_insight(self, mock_state_file):
         """Test that recent insights are not stale."""
-        from core.knowledge_graph import add_dream_insight, is_insight_stale
+        from core.knowledge_graph_compat import add_dream_insight, is_insight_stale
         
         node_id = add_dream_insight(
             content="Recent insight",
@@ -303,7 +303,7 @@ class TestIsInsightStale:
     
     def test_is_insight_stale_verified_insight(self, mock_state_file):
         """Test that verified insights are not stale even if old."""
-        from core.knowledge_graph import add_dream_insight, is_insight_stale
+        from core.knowledge_graph_compat import add_dream_insight, is_insight_stale
         
         node_id = add_dream_insight(
             content="Old but verified",
@@ -333,7 +333,7 @@ class TestIsInsightStale:
     
     def test_is_insight_stale_nonexistent(self, mock_state_file):
         """Test is_insight_stale returns False for nonexistent insight."""
-        from core.knowledge_graph import is_insight_stale
+        from core.knowledge_graph_compat import is_insight_stale
         
         assert is_insight_stale("insight_nonexistent") is False
 
@@ -343,7 +343,7 @@ class TestUpdateInsightWeight:
     
     def test_update_insight_weight(self, mock_state_file):
         """Test that update_insight_weight modifies weight by delta."""
-        from core.knowledge_graph import add_dream_insight, update_insight_weight, get_dream_insights
+        from core.knowledge_graph_compat import add_dream_insight, update_insight_weight, get_dream_insights
         
         node_id = add_dream_insight(
             content="Weight test",
@@ -369,7 +369,7 @@ class TestUpdateInsightWeight:
     
     def test_update_insight_weight_nonexistent(self, mock_state_file):
         """Test update_insight_weight handles nonexistent node gracefully."""
-        from core.knowledge_graph import update_insight_weight
+        from core.knowledge_graph_compat import update_insight_weight
         
         # Should not raise an error
         update_insight_weight("insight_nonexistent", 0.1)
@@ -380,7 +380,7 @@ class TestUpdateInsightQuality:
     
     def test_update_insight_quality(self, mock_state_file):
         """Test that update_insight_quality modifies quality by delta."""
-        from core.knowledge_graph import add_dream_insight, update_insight_quality, get_dream_insights
+        from core.knowledge_graph_compat import add_dream_insight, update_insight_quality, get_dream_insights
         
         node_id = add_dream_insight(
             content="Quality test",
@@ -406,7 +406,7 @@ class TestUpdateInsightQuality:
     
     def test_update_insight_quality_nonexistent(self, mock_state_file):
         """Test update_insight_quality handles nonexistent node gracefully."""
-        from core.knowledge_graph import update_insight_quality
+        from core.knowledge_graph_compat import update_insight_quality
         
         # Should not raise an error
         update_insight_quality("insight_nonexistent", 0.5)
@@ -417,7 +417,7 @@ class TestThreadSafety:
     
     def test_all_functions_use_global_write_lock(self, mock_state_file):
         """Verify that all dream insight functions use NodeLockRegistry.global_write_lock."""
-        from core.knowledge_graph import (
+        from core.knowledge_graph_compat import (
             add_dream_insight,
             get_dream_insights,
             remove_dream_insight,
@@ -455,7 +455,7 @@ class TestNodeLifecycleFunctions:
     
     def test_mark_dormant_changes_status(self, mock_state_file):
         """Test that mark_dormant sets status to 'dormant'."""
-        from core.knowledge_graph import add_knowledge, mark_dormant, get_state
+        from core.knowledge_graph_compat import add_knowledge, mark_dormant, get_state
         
         # Add a topic first
         add_knowledge("test_topic_dormant", depth=5, summary="Test summary")
@@ -469,7 +469,7 @@ class TestNodeLifecycleFunctions:
     
     def test_reactivate_changes_status(self, mock_state_file):
         """Test that reactivate sets status to 'complete'."""
-        from core.knowledge_graph import add_knowledge, mark_dormant, reactivate, get_state
+        from core.knowledge_graph_compat import add_knowledge, mark_dormant, reactivate, get_state
         
         # Add a topic and mark as dormant
         add_knowledge("test_topic_reactivate", depth=5, summary="Test summary")
@@ -484,7 +484,7 @@ class TestNodeLifecycleFunctions:
     
     def test_mark_dreamed_sets_timestamp(self, mock_state_file):
         """Test that mark_dreamed sets dreamed_at timestamp."""
-        from core.knowledge_graph import add_knowledge, mark_dreamed, get_state
+        from core.knowledge_graph_compat import add_knowledge, mark_dreamed, get_state
         from datetime import datetime, timezone
         
         # Add a topic
@@ -503,7 +503,7 @@ class TestNodeLifecycleFunctions:
     
     def test_set_consolidated_sets_timestamp(self, mock_state_file):
         """Test that set_consolidated sets last_consolidated timestamp."""
-        from core.knowledge_graph import add_knowledge, set_consolidated, get_state
+        from core.knowledge_graph_compat import add_knowledge, set_consolidated, get_state
         from datetime import datetime, timezone
         
         # Add a topic
@@ -522,7 +522,7 @@ class TestNodeLifecycleFunctions:
     
     def test_get_dormant_nodes(self, mock_state_file):
         """Test that get_dormant_nodes returns only dormant topics."""
-        from core.knowledge_graph import add_knowledge, mark_dormant, get_dormant_nodes
+        from core.knowledge_graph_compat import add_knowledge, mark_dormant, get_dormant_nodes
         
         # Add multiple topics
         add_knowledge("active_topic", depth=5, summary="Active")
@@ -542,7 +542,7 @@ class TestNodeLifecycleFunctions:
     
     def test_has_recent_dreams(self, mock_state_file):
         """Test that has_recent_dreams correctly checks dream recency."""
-        from core.knowledge_graph import add_knowledge, mark_dreamed, has_recent_dreams
+        from core.knowledge_graph_compat import add_knowledge, mark_dreamed, has_recent_dreams
         from datetime import datetime, timezone, timedelta
         import json
         
@@ -573,7 +573,7 @@ class TestNodeLifecycleFunctions:
     
     def test_get_recently_dreamed(self, mock_state_file):
         """Test that get_recently_dreamed returns topics dreamed within window."""
-        from core.knowledge_graph import add_knowledge, mark_dreamed, get_recently_dreamed
+        from core.knowledge_graph_compat import add_knowledge, mark_dreamed, get_recently_dreamed
         from datetime import datetime, timezone, timedelta
         import json
         
@@ -612,7 +612,7 @@ class TestConnectionFunctions:
 
     def test_strengthen_connection_increases_weight(self, mock_state_file):
         """Test that strengthen_connection increases connection weight."""
-        from core.knowledge_graph import add_knowledge, strengthen_connection, get_state
+        from core.knowledge_graph_compat import add_knowledge, strengthen_connection, get_state
         
         # Add two topics
         add_knowledge("topic_a", depth=5, summary="Topic A")
@@ -634,7 +634,7 @@ class TestConnectionFunctions:
     
     def test_strengthen_connection_creates_nodes_if_missing(self, mock_state_file):
         """Test that strengthen_connection creates nodes if they don't exist."""
-        from core.knowledge_graph import strengthen_connection, get_state
+        from core.knowledge_graph_compat import strengthen_connection, get_state
         
         # Strengthen connection between non-existent topics
         strengthen_connection("new_topic_x", "new_topic_y", delta=0.15)
@@ -649,7 +649,7 @@ class TestConnectionFunctions:
     
     def test_strengthen_connection_caps_at_1_0(self, mock_state_file):
         """Test that connection weight is capped at 1.0."""
-        from core.knowledge_graph import add_knowledge, strengthen_connection, get_state
+        from core.knowledge_graph_compat import add_knowledge, strengthen_connection, get_state
         
         add_knowledge("topic_cap_a", depth=5, summary="A")
         add_knowledge("topic_cap_b", depth=5, summary="B")
@@ -666,7 +666,7 @@ class TestConnectionFunctions:
     
     def test_get_directly_connected_returns_parents_and_children(self, mock_state_file):
         """Test that get_directly_connected returns both parents and children."""
-        from core.knowledge_graph import add_child, get_directly_connected
+        from core.knowledge_graph_compat import add_child, get_directly_connected
         
         # Create parent-child relationships
         add_child("parent_topic", "child_1")
@@ -683,7 +683,7 @@ class TestConnectionFunctions:
     
     def test_get_shortest_path_length_direct_connection(self, mock_state_file):
         """Test get_shortest_path_length for directly connected nodes."""
-        from core.knowledge_graph import add_child, get_shortest_path_length
+        from core.knowledge_graph_compat import add_child, get_shortest_path_length
         
         add_child("path_a", "path_b")
         
@@ -697,7 +697,7 @@ class TestConnectionFunctions:
     
     def test_get_shortest_path_length_multi_hop(self, mock_state_file):
         """Test get_shortest_path_length for multi-hop paths."""
-        from core.knowledge_graph import add_child, get_shortest_path_length
+        from core.knowledge_graph_compat import add_child, get_shortest_path_length
         
         # Create a chain: a -> b -> c -> d
         add_child("chain_a", "chain_b")
@@ -710,7 +710,7 @@ class TestConnectionFunctions:
     
     def test_get_shortest_path_length_no_path_returns_inf(self, mock_state_file):
         """Test get_shortest_path_length returns inf when no path exists."""
-        from core.knowledge_graph import add_knowledge, get_shortest_path_length
+        from core.knowledge_graph_compat import add_knowledge, get_shortest_path_length
         import math
         
         # Add two disconnected topics
@@ -723,7 +723,7 @@ class TestConnectionFunctions:
     
     def test_get_all_nodes_includes_all_topics(self, mock_state_file):
         """Test that get_all_nodes returns all topics."""
-        from core.knowledge_graph import add_knowledge, get_all_nodes
+        from core.knowledge_graph_compat import add_knowledge, get_all_nodes
         
         add_knowledge("node_1", depth=5, summary="Node 1")
         add_knowledge("node_2", depth=5, summary="Node 2")
@@ -739,7 +739,7 @@ class TestConnectionFunctions:
     
     def test_get_all_nodes_active_only_excludes_dormant(self, mock_state_file):
         """Test that get_all_nodes with active_only excludes dormant nodes."""
-        from core.knowledge_graph import add_knowledge, mark_dormant, get_all_nodes
+        from core.knowledge_graph_compat import add_knowledge, mark_dormant, get_all_nodes
         
         add_knowledge("active_node", depth=5, summary="Active")
         add_knowledge("dormant_node", depth=5, summary="Dormant")
@@ -759,7 +759,7 @@ class TestConnectionFunctions:
     
     def test_get_root_pool_names(self, mock_state_file):
         """Test that get_root_pool_names returns names from root technology pool."""
-        from core.knowledge_graph import init_root_pool, get_root_pool_names
+        from core.knowledge_graph_compat import init_root_pool, get_root_pool_names
         
         # Initialize root pool with seeds
         init_root_pool(["transformer attention", "gradient descent", "backpropagation"])
@@ -777,7 +777,7 @@ class TestSharedInboxFunctions:
 
     def test_add_to_dream_inbox_creates_file(self, mock_state_file):
         """Test that add_to_dream_inbox creates dream_topic_inbox.json."""
-        from core.knowledge_graph import add_to_dream_inbox
+        from core.knowledge_graph_compat import add_to_dream_inbox
         import os
         
         # Add an item to the inbox
@@ -802,7 +802,7 @@ class TestSharedInboxFunctions:
 
     def test_add_to_dream_inbox_appends_to_existing(self, mock_state_file):
         """Test that add_to_dream_inbox appends to existing inbox."""
-        from core.knowledge_graph import add_to_dream_inbox
+        from core.knowledge_graph_compat import add_to_dream_inbox
         import os
         
         # Add first item
@@ -829,7 +829,7 @@ class TestSharedInboxFunctions:
 
     def test_fetch_and_clear_dream_inbox_returns_items(self, mock_state_file):
         """Test that fetch_and_clear_dream_inbox returns inbox items."""
-        from core.knowledge_graph import add_to_dream_inbox, fetch_and_clear_dream_inbox
+        from core.knowledge_graph_compat import add_to_dream_inbox, fetch_and_clear_dream_inbox
         
         # Add items to inbox
         add_to_dream_inbox(topic="fetch_topic_1", source_insight="Insight 1")
@@ -846,7 +846,7 @@ class TestSharedInboxFunctions:
 
     def test_fetch_and_clear_dream_inbox_clears_file(self, mock_state_file):
         """Test that fetch_and_clear_dream_inbox clears the inbox file."""
-        from core.knowledge_graph import add_to_dream_inbox, fetch_and_clear_dream_inbox
+        from core.knowledge_graph_compat import add_to_dream_inbox, fetch_and_clear_dream_inbox
         import os
         
         # Add items to inbox
@@ -869,7 +869,7 @@ class TestSharedInboxFunctions:
 
     def test_fetch_and_clear_dream_inbox_empty_inbox(self, mock_state_file):
         """Test fetch_and_clear_dream_inbox returns empty list when no inbox exists."""
-        from core.knowledge_graph import fetch_and_clear_dream_inbox
+        from core.knowledge_graph_compat import fetch_and_clear_dream_inbox
         
         # Fetch from non-existent inbox
         items = fetch_and_clear_dream_inbox()
@@ -878,7 +878,7 @@ class TestSharedInboxFunctions:
 
     def test_shared_inbox_thread_safety(self, mock_state_file):
         """Test that SharedInbox functions use NodeLockRegistry.global_write_lock."""
-        from core.knowledge_graph import add_to_dream_inbox, fetch_and_clear_dream_inbox
+        from core.knowledge_graph_compat import add_to_dream_inbox, fetch_and_clear_dream_inbox
         
         # These operations should work without deadlock
         add_to_dream_inbox(topic="thread_test_1", source_insight="Thread 1")
@@ -893,7 +893,7 @@ class TestUtilityFunctions:
 
     def test_mark_insight_triggered_sets_flag(self, mock_state_file):
         """Test that mark_insight_triggered sets triggered=True for an insight."""
-        from core.knowledge_graph import (
+        from core.knowledge_graph_compat import (
             add_dream_insight,
             mark_insight_triggered,
             get_state
@@ -924,14 +924,14 @@ class TestUtilityFunctions:
 
     def test_mark_insight_triggered_nonexistent_insight(self, mock_state_file):
         """Test mark_insight_triggered handles nonexistent insight gracefully."""
-        from core.knowledge_graph import mark_insight_triggered
+        from core.knowledge_graph_compat import mark_insight_triggered
         
         # Should not raise an error for nonexistent insight
         mark_insight_triggered("insight_nonexistent_12345")
 
     def test_get_recent_explorations_returns_within_window(self, mock_state_file):
         """Test that get_recent_explorations returns explorations within time window."""
-        from core.knowledge_graph import log_exploration, get_recent_explorations
+        from core.knowledge_graph_compat import log_exploration, get_recent_explorations
         
         # Log some explorations
         log_exploration("topic1", "explore", "Found something interesting")
@@ -949,7 +949,7 @@ class TestUtilityFunctions:
 
     def test_get_recent_explorations_excludes_old(self, mock_state_file):
         """Test that get_recent_explorations excludes explorations outside window."""
-        from core.knowledge_graph import log_exploration, get_recent_explorations, _load_state, _save_state
+        from core.knowledge_graph_compat import log_exploration, get_recent_explorations, _load_state, _save_state
         from datetime import datetime, timezone, timedelta
         import json
         
@@ -983,7 +983,7 @@ class TestUtilityFunctions:
 
     def test_get_recent_explorations_empty_log(self, mock_state_file):
         """Test get_recent_explorations returns empty list when no explorations."""
-        from core.knowledge_graph import get_recent_explorations
+        from core.knowledge_graph_compat import get_recent_explorations
         
         # No explorations logged
         recent = get_recent_explorations(within_hours=24)
@@ -992,7 +992,7 @@ class TestUtilityFunctions:
 
     def test_utility_functions_thread_safety(self, mock_state_file):
         """Test that utility functions use NodeLockRegistry.global_write_lock."""
-        from core.knowledge_graph import (
+        from core.knowledge_graph_compat import (
             add_dream_insight,
             mark_insight_triggered,
             log_exploration,
