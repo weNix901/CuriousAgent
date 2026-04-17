@@ -753,16 +753,15 @@ def api_metacognitive_completed():
 
 @app.route("/api/knowledge/confidence", methods=["GET"])
 def api_knowledge_confidence():
-    """R1D3 queries confidence level for a topic"""
     try:
-        from core.api.r1d3_tools import R1D3ToolHandler
+        from core.api.host_agent_integration import KnowledgeConfidenceHandler
         
         topic = request.args.get("topic", "").strip()
         if not topic:
             return jsonify({"error": "topic parameter is required"}), 400
         
-        handler = R1D3ToolHandler()
-        result = handler.curious_check_confidence(topic)
+        handler = KnowledgeConfidenceHandler()
+        result = handler.check_confidence(topic)
         
         return jsonify({
             "status": "ok",
@@ -776,9 +775,8 @@ def api_knowledge_confidence():
 
 @app.route("/api/knowledge/explore", methods=["POST"])
 def api_knowledge_explore():
-    """R1D3 triggers directed exploration"""
     try:
-        from core.api.r1d3_tools import R1D3ToolHandler
+        from core.api.host_agent_integration import KnowledgeConfidenceHandler
         
         data = request.get_json() or {}
         topic = data.get("topic", "").strip()
@@ -788,13 +786,13 @@ def api_knowledge_explore():
         
         context = data.get("context", "")
         depth = data.get("depth", "medium")
-        source = data.get("source", "r1d3")
+        source = data.get("source", "host_agent")
         
         if depth not in ["shallow", "medium", "deep"]:
             return jsonify({"error": f"invalid depth: {depth}"}), 400
         
-        handler = R1D3ToolHandler()
-        result = handler.curious_agent_inject(topic, context, depth, source)
+        handler = KnowledgeConfidenceHandler()
+        result = handler.inject_topic(topic, context, depth, source)
         
         return jsonify({
             "status": "ok",
@@ -1362,13 +1360,12 @@ def assess_quality_assertion():
     from core.assertion_index import AssertionIndex
     from core.quality_v2 import QualityV2Assessor
     from core.llm_client import LLMClient
-    from core.kg_graph import KGGraph
+    from core import knowledge_graph_compat as kg
     
     config = get_config()
     llm = LLMClient()
     embedding_service = EmbeddingService(config.knowledge.get("embedding"))
     assertion_index = AssertionIndex()
-    kg = KGGraph()
     
     assessor = QualityV2Assessor(
         llm,
