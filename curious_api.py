@@ -1137,14 +1137,13 @@ def api_kg_overview():
 def api_kg_node_detail(node_id):
     """Get single KG node full details."""
     try:
-        from core import knowledge_graph as kg
+        from core.kg.repository_factory import get_kg_factory
         
-        state = kg.get_state()
-        node = state["knowledge"]["topics"].get(node_id)
+        kg_factory = get_kg_factory()
+        node = kg_factory.get_node_sync(node_id)
+        
         if not node:
             return jsonify({"error": "not found"}), 404
-        
-        explore_count = kg.get_topic_explore_count(node_id)
         
         return jsonify({
             "id": node_id,
@@ -1152,11 +1151,10 @@ def api_kg_node_detail(node_id):
             "status": node.get("status", "unexplored"),
             "summary": node.get("summary", ""),
             "sources": node.get("sources", []),
-            "parents": node.get("parents", []),
-            "children": node.get("children", []),
-            "cites": node.get("cites", []),
-            "cited_by": node.get("cited_by", []),
-            "explains": node.get("explains", []),
+            "explore_count": node.get("explore_count", 0)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
             "exploration_count": explore_count,
             "depth": node.get("depth", 0),
             "is_root_candidate": node.get("is_root_candidate", False),
@@ -1169,28 +1167,24 @@ def api_kg_node_detail(node_id):
 
 @app.route("/api/kg/edges")
 def api_kg_edges():
-    """Get edges for a specific node or all edges."""
+    """Get edges for KG."""
     try:
-        from core import knowledge_graph as kg
+        from core.kg.repository_factory import get_kg_factory
         
-        node_filter = request.args.get("node")
-        state = kg.get_state()
-        topics = state["knowledge"]["topics"]
+        kg_factory = get_kg_factory()
+        relations = kg_factory.get_all_relations_sync()
+        
         edges = []
+        for rel in relations:
+            edges.append({
+                "from": rel["source"],
+                "to": rel["target"],
+                "type": rel["relation_type"]
+            })
         
-        for name, node in topics.items():
-            if node_filter and name != node_filter:
-                for child in node.get("children", []):
-                    if child == node_filter:
-                        edges.append({"from": name, "to": child, "type": "child_of"})
-                for cited in node.get("cites", []):
-                    if cited == node_filter:
-                        edges.append({"from": name, "to": cited, "type": "cites"})
-                continue
-            for child in node.get("children", []):
-                edges.append({"from": name, "to": child, "type": "child_of"})
-            for cited in node.get("cites", []):
-                edges.append({"from": name, "to": cited, "type": "cites"})
+        return jsonify({"edges": edges})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
         
         return jsonify({"node": node_filter, "edges": edges})
     except Exception as e:
