@@ -60,6 +60,8 @@ DEFAULT_TOOLS = [
     "llm_summarize",
     "fetch_page",
     "process_paper",
+    "extract_paper_citations",
+    "extract_web_citations",
     "update_kg_status",
     "update_kg_metadata",
     "get_node_relations",
