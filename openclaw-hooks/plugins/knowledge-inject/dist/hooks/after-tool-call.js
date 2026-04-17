@@ -39,7 +39,7 @@ const afterToolCallHook = async ({ toolName, result, context }) => {
     // 只处理 researcher agent
     if (context?.agentId !== 'researcher')
         return;
-    if (toolName !== 'web_search')
+    if (!/search$/i.test(toolName))
         return;
     if (!result || !result.output)
         return;

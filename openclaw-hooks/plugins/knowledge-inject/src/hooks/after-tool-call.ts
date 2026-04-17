@@ -36,7 +36,7 @@ function extractTopic(context: any): string {
 export const afterToolCallHook = async ({ toolName, result, context }: any) => {
   // 只处理 researcher agent
   if (context?.agentId !== 'researcher') return;
-  if (toolName !== 'web_search') return;
+  if (!/search$/i.test(toolName)) return;
   
   if (!result || !result.output) return;
   

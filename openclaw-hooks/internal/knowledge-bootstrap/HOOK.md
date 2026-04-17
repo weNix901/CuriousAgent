@@ -20,8 +20,9 @@ Session 启动时注入 CA 最近探索的高价值知识摘要。
 
 When a new session starts:
 1. Queries CA KG overview
-2. Injects recent high-value knowledge summary
-3. Agent starts with context of previous explorations
+2. Injects recent high-value knowledge summary (if available)
+3. **Always** injects 置信度感知回答行为规范（confidence-aware answering rules）
+4. Agent starts with context of previous explorations + correct answering posture
 
 ## Requirements
 
