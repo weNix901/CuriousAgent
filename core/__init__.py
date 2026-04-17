@@ -1,35 +1,31 @@
 """
-Curious Agent v0.2.7 - Foundation Refactor
+Curious Agent Core Package
 
-Complete implementation of the v0.2.7 architecture.
+Exports key components for V1 architecture.
 """
 
-__version__ = "0.2.7"
-__version_name__ = "Foundation Refactor"
+__version__ = "0.3.1"
+__version_name__ = "Observability Layer"
 
-# Export key components
-from core.persistence import FileLockManager
-from core.repositories import (
-    StateRepository, QueueRepository,
-    StateInfo, QueueItem, LineageInfo,
-    State, Actor, BackupManager
+from core.knowledge_graph import (
+    get_state,
+    add_knowledge,
+    add_curiosity,
+    claim_pending_item,
+    mark_topic_done,
 )
-from core.state_machine import ExplorationStateMachine
-from core.queue_service import QueueService
-from core.timeout_monitor import TimeoutMonitor
-from core.consistency_monitor import ConsistencyMonitor
-from core.feature_toggle import FeatureToggle, get_feature_toggle
-from core.compat import CompatibilityLayer, init_compat_layer
+
+from core.curiosity_engine import CuriosityEngine
+from core.explorer import Explorer
+from core.quality_v2 import QualityV2Assessor
 
 __all__ = [
-    'FileLockManager',
-    'StateRepository', 'QueueRepository',
-    'StateInfo', 'QueueItem', 'LineageInfo',
-    'State', 'Actor', 'BackupManager',
-    'ExplorationStateMachine',
-    'QueueService',
-    'TimeoutMonitor',
-    'ConsistencyMonitor',
-    'FeatureToggle', 'get_feature_toggle',
-    'CompatibilityLayer', 'init_compat_layer',
+    'get_state',
+    'add_knowledge',
+    'add_curiosity',
+    'claim_pending_item',
+    'mark_topic_done',
+    'CuriosityEngine',
+    'Explorer',
+    'QualityV2Assessor',
 ]

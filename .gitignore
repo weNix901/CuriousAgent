@@ -59,3 +59,4 @@ venv/
 workspace/
 workspace-researcher/
 GIT_WORKFLOW.md
+.internal-git/

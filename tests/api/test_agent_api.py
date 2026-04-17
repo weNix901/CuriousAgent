@@ -71,11 +71,11 @@ class TestAgentsDaemonExploreEndpoint:
         assert 'status' in data
 
     def test_daemon_explore_endpoint_includes_poll_interval(self, client):
-        """Test that daemon explore endpoint includes poll_interval."""
+        """Test that daemon explore endpoint includes poll_interval_seconds."""
         response = client.post('/api/agents/daemon/explore', json={})
         data = response.get_json()
         if response.status_code == 200:
-            assert 'poll_interval' in data
+            assert 'poll_interval_seconds' in data
 
 
 class TestAgentsDaemonDreamEndpoint:
@@ -89,11 +89,10 @@ class TestAgentsDaemonDreamEndpoint:
         assert 'status' in data
 
     def test_daemon_dream_endpoint_accepts_interval(self, client):
-        """Test that daemon dream endpoint accepts custom interval."""
         response = client.post('/api/agents/daemon/dream', json={'interval_s': 3600})
         data = response.get_json()
         if response.status_code == 200:
-            assert 'interval_s' in data
+            assert 'interval_seconds' in data
 
 
 class TestAgentsStatusEndpoint:
