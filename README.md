@@ -1,6 +1,6 @@
 # 👁️ Curious Agent
 
-[![Status](https://img.shields.io/badge/status-v0.3.0-blue)](#)
+[![Status](https://img.shields.io/badge/status-v0.3.1-blue)](#)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](#)
 [![OpenClaw](https://img.shields.io/badge/openclaw-2026.3+-green)](#)
 [![Tests](https://img.shields.io/badge/tests-97%20modules-brightgreen)](#)
@@ -484,7 +484,8 @@ All agent and daemon parameters are controlled via `config.json`. No hard-coded 
 
 | Version | Theme | Date |
 |---------|-------|------|
-| **v0.3.0** | Cognitive Framework — Know what it knows, know what it doesn't know. 4-level confidence, auto-inject unknowns, `/api/knowledge/*` endpoints, legacy Spider cleanup | 2026-04-15 |
+| **v0.3.1** | Observability Layer — Hook audit, trace visualization, WebUI multi-file, external agent tracking | 2026-04-17 |
+| **v0.3.0** | Cognitive Framework — Know what it knows, know what it doesn't know. 4-level confidence, auto-inject unknowns, `/api/knowledge/*` endpoints | 2026-04-15 |
 | **v0.2.9** | Agent architecture refactor — CAAgent unified class, ReAct loop, 21 Tools, Neo4j storage, Hermes error handling | 2026-04-13 |
 | **v0.2.8** | Deadlock fixes — SpiderAgent queue stuck, KG quality issues | 2026-04-xx |
 | **v0.2.7** | Queue atomicity + QualityV2 fix + Parent link | 2026-03-31 |
@@ -512,6 +513,9 @@ All agent and daemon parameters are controlled via `config.json`. No hard-coded 
 | ✅ | **CognitiveHook — 4-level confidence framework** |
 | ✅ | **/api/knowledge/* endpoints for R1D3 integration** |
 | ✅ | **Auto-inject unknown topics to CA queue** |
+| ✅ | **Hook audit middleware + trace writers (v0.3.1)** |
+| ✅ | **WebUI 4-tab dashboard (v0.3.1)** |
+| ✅ | **External agent tracking + timeline (v0.3.1)** |
 | ⚪ | OpenClaw external hook integration (before_turn/after_turn) |
 | ⚪ | Neo4j as primary store (JSON fallback retirement) |
 | ⚪ | Self-Evolution engine (Bayesian weight updates) |
@@ -538,6 +542,16 @@ Yes. It's designed as an OpenClaw plugin. The `shared_knowledge/` directory prov
 
 **How does it know what to explore next?**
 Four signals: (1) curiosity queue (manually injected or dream-generated), (2) competence gaps (topics you've never explored), (3) metacognitive quality scoring (diminishing returns detection), (4) root technology tracing (surface-to-fundamental connections).
+**What changed in v0.3.1?**
+
+Observability Layer — Full visibility into CA's internal work and external interactions:
+- Hook audit middleware: All OpenClaw hook calls logged to SQLite
+- Trace writers: Explorer/Dream Agent execution steps captured
+- External Agent tracking: Agent registry, activity timeline, global event stream
+- WebUI 4-tab dashboard: List view, Graph view, Internal view, External view
+- 30+ new API endpoints: `/api/audit/*`, `/api/explorer/*`, `/api/dream/*`, `/api/timeline`, `/api/agents`
+- Bug fixes: Endpoint mismatch (`/api/knowledge/confidence`), Flask `g.start_time`, `holder_id` parameters
+
 **What changed in v0.3.0?**
 
 Cognitive Framework — R1D3 can now "know what it knows and know what it doesn't know":
