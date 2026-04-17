@@ -97,3 +97,41 @@ class TestKGRepositoryFactoryEnsureConnected:
         assert repo is not None
         assert factory._client is not None
         assert factory._repo is not None
+
+
+class TestKGRepositoryFactoryAPIMethods:
+    """测试为 API 端点新增的同步方法"""
+
+    @pytest.mark.skip(reason="Requires actual Neo4j connection")
+    def test_get_all_nodes_sync_returns_list(self):
+        """get_all_nodes_sync 应返回节点列表"""
+        from core.kg.repository_factory import get_kg_factory
+        factory = get_kg_factory()
+        nodes = factory.get_all_nodes_sync(limit=10)
+        assert isinstance(nodes, list)
+
+    @pytest.mark.skip(reason="Requires actual Neo4j connection")
+    def test_get_all_relations_sync_returns_list(self):
+        """get_all_relations_sync 应返回关系列表"""
+        from core.kg.repository_factory import get_kg_factory
+        factory = get_kg_factory()
+        relations = factory.get_all_relations_sync()
+        assert isinstance(relations, list)
+
+    @pytest.mark.skip(reason="Requires actual Neo4j connection")
+    def test_get_stats_sync_returns_dict(self):
+        """get_stats_sync 应返回统计字典"""
+        from core.kg.repository_factory import get_kg_factory
+        factory = get_kg_factory()
+        stats = factory.get_stats_sync()
+        assert "total_nodes" in stats
+        assert "by_status" in stats
+
+    @pytest.mark.skip(reason="Requires actual Neo4j connection")
+    def test_get_graph_overview_sync_returns_dict(self):
+        """get_graph_overview_sync 应返回图结构字典"""
+        from core.kg.repository_factory import get_kg_factory
+        factory = get_kg_factory()
+        overview = factory.get_graph_overview_sync()
+        assert "nodes" in overview
+        assert "edges" in overview

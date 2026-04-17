@@ -70,6 +70,68 @@ class KGRepositoryFactory:
             return await repo.query_knowledge(topic, limit)
         return asyncio.run(_query())
 
+    def get_all_nodes_sync(self, limit: int = 100, offset: int = 0) -> list:
+        """获取所有知识节点（分页）"""
+        async def _get():
+            await self._ensure_connected()
+            query = """
+            MATCH (k:Knowledge)
+            RETURN k.topic as topic, k.summary as summary, k.status as status,
+                   k.quality as quality, k.depth as depth
+            ORDER BY k.created_at DESC
+            SKIP $offset LIMIT $limit
+            """
+            results = await self._client.execute_query(query, offset=offset, limit=limit)
+            return [dict(r) for r in results]
+        return asyncio.run(_get())
+
+    def get_all_relations_sync(self) -> list:
+        """获取所有关系"""
+        async def _get():
+            await self._ensure_connected()
+            query = """
+            MATCH (a:Knowledge)-[r]->(b:Knowledge)
+            RETURN a.topic as source, b.topic as target, type(r) as relation_type
+            """
+            results = await self._client.execute_query(query)
+            return [dict(r) for r in results]
+        return asyncio.run(_get())
+
+    def get_stats_sync(self) -> dict:
+        """获取 KG 统计"""
+        async def _get():
+            await self._ensure_connected()
+            query = """
+            MATCH (k:Knowledge)
+            RETURN count(k) as total_nodes,
+                   sum(CASE WHEN k.status = 'done' THEN 1 ELSE 0 END) as done_count,
+                   sum(CASE WHEN k.status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+                   sum(CASE WHEN k.status = 'exploring' THEN 1 ELSE 0 END) as exploring_count
+            """
+            result = await self._client.execute_query(query)
+            stats = result[0] if result else {}
+
+            rel_query = "MATCH ()-[r]->() RETURN count(r) as total_relations"
+            rel_result = await self._client.execute_query(rel_query)
+            stats["total_relations"] = rel_result[0]["total_relations"] if rel_result else 0
+
+            return {
+                "total_nodes": stats.get("total_nodes", 0),
+                "by_status": {
+                    "done": stats.get("done_count", 0),
+                    "pending": stats.get("pending_count", 0),
+                    "exploring": stats.get("exploring_count", 0)
+                },
+                "total_relations": stats.get("total_relations", 0)
+            }
+        return asyncio.run(_get())
+
+    def get_graph_overview_sync(self) -> dict:
+        """获取完整图结构（前端显示用）"""
+        nodes = self.get_all_nodes_sync(limit=500)
+        edges = self.get_all_relations_sync()
+        return {"nodes": nodes, "edges": edges}
+
 
 def get_kg_factory() -> KGRepositoryFactory:
     """Get KG repository factory singleton."""
