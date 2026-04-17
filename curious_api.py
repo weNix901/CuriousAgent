@@ -1091,10 +1091,6 @@ def api_kg_edges():
         return jsonify({"edges": edges})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-        
-        return jsonify({"node": node_filter, "edges": edges})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/kg/subgraph")

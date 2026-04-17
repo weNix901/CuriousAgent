@@ -248,7 +248,9 @@ def update_curiosity_score(topic: str, score: float) -> None:
     storage = _get_queue_storage()
     items = storage.get_items_by_topic(topic)
     priority = max(1, min(10, int(score)))
-    pass
+    
+    for item in items:
+        storage.update_priority(item["id"], priority)
 
 
 def mark_topic_done(topic: str, reason: str) -> None:
