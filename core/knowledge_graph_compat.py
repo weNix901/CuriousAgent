@@ -8,6 +8,8 @@ This module exposes the same function signatures as knowledge_graph.py.
 """
 import asyncio
 import json
+import logging
+import math
 import os
 import time
 from datetime import datetime, timezone
@@ -16,6 +18,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from core.kg.repository_factory import KGRepositoryFactory
 from core.tools.queue_tools import QueueStorage
+
+logger = logging.getLogger(__name__)
 
 ROOT_SCORE_WEIGHT_DOMAIN = 0.4
 ROOT_SCORE_WEIGHT_EXPLAINS = 0.6
@@ -28,13 +32,32 @@ DREAM_INBOX_PATH = os.path.join(os.path.dirname(STATE_FILE), "dream_topic_inbox.
 
 _kg_factory: Optional[KGRepositoryFactory] = None
 _queue_storage: Optional[QueueStorage] = None
+_neo4j_available: bool = True
+
+
+def _safe_neo4j_call(func, fallback=None, *args, **kwargs):
+    """Wrap Neo4j calls with error handling, returning fallback on failure."""
+    global _neo4j_available
+    if not _neo4j_available:
+        return fallback
+    try:
+        return func(*args, **kwargs)
+    except Exception as e:
+        logger.warning(f"Neo4j call failed: {e}")
+        _neo4j_available = False
+        return fallback
 
 
 def _get_kg_factory() -> KGRepositoryFactory:
     """Get or create KGRepositoryFactory singleton."""
-    global _kg_factory
+    global _kg_factory, _neo4j_available
     if _kg_factory is None:
-        _kg_factory = KGRepositoryFactory.get_instance()
+        try:
+            _kg_factory = KGRepositoryFactory.get_instance()
+            _neo4j_available = True
+        except Exception as e:
+            logger.warning(f"KGRepositoryFactory init failed: {e}")
+            _neo4j_available = False
     return _kg_factory
 
 
@@ -292,16 +315,25 @@ def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: Option
 
 
 def get_state() -> dict:
-    kg_factory = _get_kg_factory()
+    kg_stats = _safe_neo4j_call(
+        lambda: _get_kg_factory().get_stats_sync(),
+        fallback={"total_nodes": 0, "by_status": {}}
+    )
     storage = _get_queue_storage()
     
-    kg_stats = kg_factory.get_stats_sync()
-    queue_stats = storage.get_all_stats()
+    try:
+        queue_stats = storage.get_all_stats()
+    except Exception as e:
+        logger.warning(f"QueueStorage get_all_stats failed: {e}")
+        queue_stats = {"by_status": {}}
+    
     state = _load_state()
     
     return {
         "version": "1.0",
         "last_update": datetime.now(timezone.utc).isoformat(),
+        "knowledge": {"topics": {}},
+        "curiosity_queue": [],
         "kg_stats": kg_stats,
         "queue_stats": queue_stats,
         "root_pool": state.get(ROOT_POOL_KEY, {"candidates": []}),
@@ -312,11 +344,17 @@ def get_state() -> dict:
 
 
 def get_knowledge_summary() -> dict:
-    kg_factory = _get_kg_factory()
+    kg_stats = _safe_neo4j_call(
+        lambda: _get_kg_factory().get_stats_sync(),
+        fallback={"total_nodes": 0, "by_status": {}}
+    )
     storage = _get_queue_storage()
     
-    kg_stats = kg_factory.get_stats_sync()
-    queue_stats = storage.get_all_stats()
+    try:
+        queue_stats = storage.get_all_stats()
+    except Exception as e:
+        logger.warning(f"QueueStorage get_all_stats failed: {e}")
+        queue_stats = {"by_status": {}}
     
     return {
         "total_topics": kg_stats.get("total_nodes", 0),
@@ -327,13 +365,17 @@ def get_knowledge_summary() -> dict:
 
 
 def get_kg_overview() -> dict:
-    kg_factory = _get_kg_factory()
-    return kg_factory.get_graph_overview_sync()
+    return _safe_neo4j_call(
+        lambda: _get_kg_factory().get_graph_overview_sync(),
+        fallback={"nodes": [], "edges": [], "stats": {}}
+    )
 
 
 def get_all_nodes(active_only: bool = False) -> list:
-    kg_factory = _get_kg_factory()
-    nodes = kg_factory.get_all_nodes_sync(limit=5000)
+    nodes = _safe_neo4j_call(
+        lambda: _get_kg_factory().get_all_nodes_sync(limit=5000),
+        fallback=[]
+    )
     
     result = []
     for node in nodes:
