@@ -395,7 +395,7 @@ def daemon_mode(interval_minutes: int = 30):
     class KGRepository:
         """Async wrapper for sync knowledge_graph functions."""
         async def add_to_knowledge_graph(self, topic, content="", source_urls=None, metadata=None, relations=None):
-            kg.add_knowledge(topic=topic, depth=metadata.get("depth", 5) if metadata else 5,
+            await kg.add_knowledge_async(topic=topic, depth=metadata.get("depth", 5) if metadata else 5,
                            summary=content, sources=source_urls if source_urls else metadata.get("sources", []) if metadata else None,
                            quality=metadata.get("quality") if metadata else None)
             return topic
