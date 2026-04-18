@@ -93,7 +93,10 @@ class KGRepositoryFactory:
             await self._ensure_connected()
             query = """
             MATCH (k:Knowledge)
-            RETURN k.topic as topic, k.summary as summary, k.status as status,
+            RETURN k.topic as topic, 
+                   coalesce(k.content, k.summary) as summary, 
+                   coalesce(k.source_urls, []) as sources,
+                   k.status as status,
                    k.quality as quality, k.depth as depth
             ORDER BY k.created_at DESC
             SKIP $offset LIMIT $limit
