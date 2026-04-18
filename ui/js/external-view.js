@@ -17,10 +17,30 @@ async function loadHookBoard() {
       el.innerHTML = '<div class="empty">暂无 Hook 调用记录</div>';
       return;
     }
+    
+    var hookNameMap = {
+      '/api/knowledge/confidence': 'knowledge-query',
+      '/api/knowledge/learn': 'knowledge-learn',
+      '/api/kg/overview': 'knowledge-bootstrap',
+      '/api/knowledge/check': 'knowledge-gate',
+      '/api/kg/confidence': 'knowledge-gate',
+      '/api/knowledge/record': 'knowledge-inject',
+    };
+    
     var html = data.records.map(function(r) {
       var emoji = r.status === 'success' ? '✅' : '❌';
+      var hookName = r.hook_name;
+      if (hookName === 'unknown' || !hookName) {
+        for (var prefix in hookNameMap) {
+          if (r.endpoint.startsWith(prefix)) {
+            hookName = hookNameMap[prefix];
+            break;
+          }
+        }
+        if (!hookName) hookName = r.endpoint.split('/').pop();
+      }
       return '<div class="history-item" data-hook-id="' + escapeHtml(r.id) + '" onclick="showHookDetail(this.dataset.hookId)">'
-        + '<div class="history-top"><span>' + emoji + ' ' + escapeHtml(r.hook_name) + '</span>'
+        + '<div class="history-top"><span>' + emoji + ' ' + escapeHtml(hookName) + '</span>'
         + '<span class="history-time">' + r.latency_ms + 'ms</span></div>'
         + '<div class="history-findings">' + escapeHtml(r.endpoint) + ' → ' + r.status_code + '</div>'
         + '<span class="click-hint">👆 详情</span></div>';
