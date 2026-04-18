@@ -1,28 +1,9 @@
 async function loadExternalView() {
-  await loadHookFilter();
   await Promise.all([
     loadHookBoard(),
     loadAgentActivity(),
     loadTimeline(),
   ]);
-}
-
-async function loadHookFilter() {
-  var select = document.getElementById('hook-filter');
-  if (!select) return;
-  try {
-    var stats = await fetchJSON('/api/audit/hooks/stats');
-    var hooks = Object.keys(stats.by_hook || {});
-    hooks.sort();
-    var html = '<option value="">全部 Hook</option>';
-    hooks.forEach(function(h) {
-      var info = stats.by_hook[h];
-      html += '<option value="' + escapeHtml(h) + '">' + escapeHtml(h) + ' (' + info.total + '次)</option>';
-    });
-    select.innerHTML = html;
-  } catch (e) {
-    select.innerHTML = '<option value="">全部 Hook</option>';
-  }
 }
 
 async function loadHookBoard() {
@@ -38,9 +19,8 @@ async function loadHookBoard() {
     }
     var html = data.records.map(function(r) {
       var emoji = r.status === 'success' ? '✅' : '❌';
-      var hookDisplay = r.hook_name !== 'unknown' ? r.hook_name : r.endpoint;
       return '<div class="history-item" data-hook-id="' + escapeHtml(r.id) + '" onclick="showHookDetail(this.dataset.hookId)">'
-        + '<div class="history-top"><span>' + emoji + ' ' + escapeHtml(hookDisplay) + '</span>'
+        + '<div class="history-top"><span>' + emoji + ' ' + escapeHtml(r.hook_name) + '</span>'
         + '<span class="history-time">' + r.latency_ms + 'ms</span></div>'
         + '<div class="history-findings">' + escapeHtml(r.endpoint) + ' → ' + r.status_code + '</div>'
         + '<span class="click-hint">👆 详情</span></div>';

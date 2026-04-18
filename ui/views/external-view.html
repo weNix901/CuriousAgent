@@ -6,6 +6,11 @@
       <div style="display:flex;gap:6px;align-items:center;">
         <select id="hook-filter" onchange="refreshHookBoard()" style="padding:4px 8px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:12px;">
           <option value="">全部 Hook</option>
+          <option value="knowledge-query">knowledge-query (查询KG置信度)</option>
+          <option value="knowledge-learn">knowledge-learn (低置信度注入队列)</option>
+          <option value="knowledge-bootstrap">knowledge-bootstrap (Session启动注入)</option>
+          <option value="knowledge-gate">knowledge-gate (回复前双查KG)</option>
+          <option value="knowledge-inject">knowledge-inject (搜索结果记录KG)</option>
         </select>
         <button class="btn" onclick="refreshHookBoard()">刷新</button>
       </div>

@@ -135,17 +135,12 @@ def _build_audit_record(req, resp, latency_ms):
     path = req.path
     
     hook_name_map = {
-        "/api/kg/confidence": "kg_confidence",
-        "/api/kg/overview": "kg_overview",
-        "/api/kg/nodes": "kg_node_detail",
-        "/api/curious/inject": "curiosity_inject",
-        "/api/curious/run": "curiosity_run",
-        "/api/curious/state": "curious_state",
-        "/api/curious/queue": "curiosity_queue",
-        "/api/audit/hooks": "audit_hooks",
-        "/api/timeline": "timeline",
-        "/api/agents": "agent_activity",
-        "/api/metacognitive": "metacognitive",
+        "/api/knowledge/confidence": "knowledge-query",
+        "/api/knowledge/learn": "knowledge-learn",
+        "/api/kg/overview": "knowledge-bootstrap",
+        "/api/knowledge/check": "knowledge-gate",
+        "/api/kg/confidence": "knowledge-gate",
+        "/api/knowledge/record": "knowledge-inject",
     }
     
     inferred_hook_name = "unknown"
