@@ -234,7 +234,12 @@ class ExploreAgent(CAAgent):
 
             thought = parsed.get("thought", "")
             action = parsed.get("action", "")
-            action_input = parsed.get("action_input", {})
+            action_input = parsed.get("action_input", {}) or {}
+            
+            if action and "(" in action and not action_input:
+                inline_args = self._extract_inline_args(action)
+                if inline_args:
+                    action_input = inline_args
 
             if thought:
                 content_parts.append(f"Thought: {thought}")
@@ -394,6 +399,27 @@ class ExploreAgent(CAAgent):
                     result["action_input"] = {}
 
         return result
+
+    def _extract_inline_args(self, action_str: str) -> dict[str, Any]:
+        """Extract inline arguments from action string like 'fetch_page(url="...")'."""
+        import re
+        args_match = re.search(r'\(.*\)$', action_str.strip())
+        if not args_match:
+            return {}
+        
+        args_str = args_match.group(0)[1:-1]
+        kv_pairs = re.findall(r'(\w+)=(\"[^\"]*\"|\x27[^\x27]*\x27|[\w\-./:]+)', args_str)
+        if not kv_pairs:
+            return {}
+        
+        parsed = {}
+        for k, v in kv_pairs:
+            if v.startswith('"') and v.endswith('"'):
+                v = v[1:-1]
+            elif v.startswith("'") and v.endswith("'"):
+                v = v[1:-1]
+            parsed[k] = v
+        return parsed
 
     async def _execute_action(self, action: str, action_input: dict[str, Any]) -> str:
         """Execute a tool action and return observation."""
