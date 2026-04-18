@@ -328,8 +328,10 @@ class ExploreAgent(CAAgent):
             
             if action == "fetch_page" and isinstance(action_input, dict):
                 url = action_input.get("url")
-                if url and "ERROR" not in observation and "failed" not in observation.lower():
+                if url and "ERROR" not in observation and "failed" not in observation.lower() and "Warning" not in observation:
                     collected_sources.append(url)
+                    if len(observation) > 100:
+                        useful_content_parts.append(observation[:500])
             
             if action == "llm_analyze" and observation:
                 if "useful" in observation.lower() or "relevant" in observation.lower() or "yes" in observation.lower():
