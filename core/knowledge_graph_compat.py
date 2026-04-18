@@ -346,10 +346,32 @@ def get_state() -> dict:
     
     state = _load_state()
     
+    nodes = _safe_neo4j_call(
+        lambda: _get_kg_factory().get_all_nodes_sync(limit=5000),
+        fallback=[]
+    )
+    
+    topics = {}
+    for node in nodes:
+        topic_name = node.get("topic", "")
+        if topic_name:
+            metadata = node.get("metadata", {}) or {}
+            topics[topic_name] = {
+                "status": node.get("status", "pending"),
+                "quality": node.get("quality", 0) or metadata.get("quality", 0),
+                "depth": metadata.get("depth", 5),
+                "summary": node.get("content", "")[:200] if node.get("content") else "",
+                "sources": node.get("source_urls", []) or node.get("sources", []),
+                "known": node.get("status") == "done",
+                "last_updated": node.get("created_at", ""),
+                "children": [],
+                "cites": []
+            }
+    
     return {
         "version": "1.0",
         "last_update": datetime.now(timezone.utc).isoformat(),
-        "knowledge": {"topics": {}},
+        "knowledge": {"topics": topics},
         "curiosity_queue": [],
         "kg_stats": kg_stats,
         "queue_stats": queue_stats,

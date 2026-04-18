@@ -139,7 +139,8 @@ class KGRepositoryFactory:
                     "pending": stats.get("pending_count", 0),
                     "exploring": stats.get("exploring_count", 0)
                 },
-                "total_relations": stats.get("total_relations", 0)
+                "total_relations": stats.get("total_relations", 0),
+                "total_edges": stats.get("total_relations", 0)
             }
         return asyncio.run(_get())
 
