@@ -199,32 +199,47 @@ function closeModal() {
 }
 
 function showDetail(type, id) {
-  var modal = document.getElementById('detail-modal');
-  var title = document.getElementById('modal-title');
-  var meta = document.getElementById('modal-meta');
-  var body = document.getElementById('modal-body');
-  
-  title.textContent = id;
-  meta.innerHTML = '';
-  body.innerHTML = '<div class="empty">加载中...</div>';
-  modal.classList.add('active');
-  
   if (type === 'knowledge') {
-    fetchJSON('/api/kg/nodes/' + encodeURIComponent(id))
-      .then(function(node) {
-        meta.innerHTML = '<span class="modal-meta-item">质量: ' + (node.quality || '-') + '</span>'
-          + '<span class="modal-meta-item">状态: ' + (node.status || '未探索') + '</span>'
-          + '<span class="modal-meta-item">探索次数: ' + (node.exploration_count || 0) + '</span>';
-        body.innerHTML = '<div class="modal-section"><div class="modal-section-title">摘要</div>'
-          + '<div class="modal-section-content">' + escapeHtml(node.summary || '暂无摘要') + '</div></div>'
-          + '<div class="modal-section"><div class="modal-section-title">来源</div>'
-          + '<ul class="modal-sources">' + (node.sources || []).map(function(s) {
-            return '<li><a href="' + escapeHtml(s) + '" target="_blank">' + escapeHtml(s) + '</a></li>';
-          }).join('') + '</ul></div>';
-      }).catch(function(e) {
-        body.innerHTML = '<div class="empty">加载失败: ' + escapeHtml(e.message) + '</div>';
-      });
+    fetchJSON('/api/kg/nodes/' + encodeURIComponent(id)).then(function(node) {
+      var modal = document.getElementById('detail-modal');
+      var title = document.getElementById('modal-title');
+      var meta = document.getElementById('modal-meta');
+      var body = document.getElementById('modal-body');
+      
+      title.textContent = '📚 ' + id;
+      meta.innerHTML = '<span class="modal-meta-item">质量: ' + (node.quality || '-') + '</span>'
+        + '<span class="modal-meta-item">状态: ' + (node.status || '未探索') + '</span>'
+        + '<span class="modal-meta-item">探索次数: ' + (node.explore_count || 0) + '</span>';
+      
+      var summaryText = node.summary || '暂无摘要';
+      var summaryObj = null;
+      try {
+        summaryObj = JSON.parse(summaryText);
+      } catch (e) {}
+      
+      var summaryHtml = '';
+      if (summaryObj && summaryObj.summary) {
+        summaryHtml = escapeHtml(summaryObj.summary);
+        if (summaryObj.key_points && summaryObj.key_points.length > 0) {
+          summaryHtml += '<br><br><strong>关键要点:</strong><ul style="margin:4px 0;padding-left:16px;">'
+            + summaryObj.key_points.map(function(kp) { return '<li>' + escapeHtml(kp) + '</li>'; }).join('')
+            + '</ul>';
+        }
+      } else {
+        summaryHtml = escapeHtml(summaryText);
+      }
+      
+      body.innerHTML = '<div class="modal-section"><div class="modal-section-title">摘要</div>'
+        + '<div class="modal-section-content">' + summaryHtml + '</div></div>'
+        + '<div class="modal-section"><div class="modal-section-title">来源</div>'
+        + '<ul class="modal-sources">' + (node.sources || []).map(function(s) {
+          return '<li><a href="' + escapeHtml(s) + '" target="_blank">' + escapeHtml(s) + '</a></li>';
+        }).join('') + '</ul></div>';
+      
+      modal.classList.add('active');
+    });
   }
+}
 }
 
 setInterval(refreshAll, 30000);
