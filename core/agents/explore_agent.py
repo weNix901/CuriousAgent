@@ -236,7 +236,22 @@ class ExploreAgent(CAAgent):
             action = parsed.get("action", "")
             action_input = parsed.get("action_input", {}) or {}
             
-            if action and "(" in action and not action_input:
+            if isinstance(action_input, str):
+                param_mapping = {
+                    "search_web": "query",
+                    "fetch_page": "url",
+                    "llm_analyze": "content",
+                    "llm_summarize": "content",
+                    "query_kg": "topic",
+                    "add_to_kg": "topic",
+                    "mark_done": "topic",
+                    "claim_queue": "topic",
+                }
+                tool_name = action.split("(")[0] if "(" in action else action
+                param_name = param_mapping.get(tool_name, "query")
+                action_input = {param_name: action_input}
+            
+            if action and "(" in action and isinstance(action_input, dict) and not action_input:
                 inline_args = self._extract_inline_args(action)
                 if inline_args:
                     action_input = inline_args
