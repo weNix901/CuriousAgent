@@ -240,7 +240,6 @@ function showDetail(type, id) {
     });
   }
 }
-}
 
 setInterval(refreshAll, 30000);
 document.addEventListener('DOMContentLoaded', function() {
