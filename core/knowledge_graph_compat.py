@@ -946,8 +946,7 @@ def get_topic_explore_count(topic: str) -> int:
     """Get exploration count for topic."""
     import sqlite3
     
-    # Try SQLite traces.db first
-    traces_db = os.path.join(os.path.dirname(__file__), "knowledge", "traces.db")
+    traces_db = os.path.join(os.path.dirname(__file__), "..", "knowledge", "traces.db")
     if os.path.exists(traces_db):
         try:
             conn = sqlite3.connect(traces_db)
@@ -962,7 +961,6 @@ def get_topic_explore_count(topic: str) -> int:
         except Exception:
             pass
     
-    # Fallback to state.json
     state = _load_state()
     state = _ensure_meta_cognitive(state)
     mc = state.get("meta_cognitive", {})
@@ -1093,8 +1091,7 @@ def get_recent_explorations(within_hours: int) -> list:
     from datetime import timedelta
     import sqlite3
     
-    # Try SQLite traces.db first
-    traces_db = os.path.join(os.path.dirname(__file__), "knowledge", "traces.db")
+    traces_db = os.path.join(os.path.dirname(__file__), "..", "knowledge", "traces.db")
     if os.path.exists(traces_db):
         cutoff = datetime.now(timezone.utc) - timedelta(hours=within_hours)
         cutoff_str = cutoff.isoformat()
@@ -1116,7 +1113,6 @@ def get_recent_explorations(within_hours: int) -> list:
         except Exception:
             pass
     
-    # Fallback to state.json
     state = _load_state()
     exploration_log = state.get("exploration_log", [])
     
