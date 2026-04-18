@@ -39,9 +39,10 @@ async function loadHookBoard() {
         }
         if (!hookName) hookName = r.endpoint.split('/').pop();
       }
+      var time = r.timestamp ? timeAgo(r.timestamp) : '';
       return '<div class="history-item" data-hook-id="' + escapeHtml(r.id) + '" onclick="showHookDetail(this.dataset.hookId)">'
         + '<div class="history-top"><span>' + emoji + ' ' + escapeHtml(hookName) + '</span>'
-        + '<span class="history-time">' + r.latency_ms + 'ms</span></div>'
+        + '<span class="history-time">' + time + ' | ' + r.latency_ms + 'ms</span></div>'
         + '<div class="history-findings">' + escapeHtml(r.endpoint) + ' → ' + r.status_code + '</div>'
         + '<span class="click-hint">👆 详情</span></div>';
     }).join('');

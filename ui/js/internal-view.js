@@ -20,9 +20,10 @@ async function loadExplorerPanel() {
     var html = data.traces.map(function(t) {
       var emoji = t.status === 'done' ? '✅' : (t.status === 'failed' ? '❌' : '🔄');
       var label = t.status === 'done' ? '完成' : (t.status === 'failed' ? '失败' : '进行中');
+      var time = t.started_at ? timeAgo(t.started_at) : '';
       return '<div class="history-item" onclick="showExplorerTrace(\'' + t.trace_id + '\')">'
         + '<div class="history-top"><span>' + emoji + ' [' + label + '] ' + escapeHtml(t.topic) + '</span>'
-        + '<span class="history-time">' + t.total_steps + ' steps | ' + (t.duration_ms || 0) + 'ms</span></div>'
+        + '<span class="history-time">' + time + ' | ' + t.total_steps + ' steps</span></div>'
         + '<span class="click-hint">👆 详情</span></div>';
     }).join('');
     el.innerHTML = html;
@@ -44,10 +45,10 @@ async function loadDreamPanel() {
       var emoji = t.status === 'done' ? '✅' : (t.status === 'failed' ? '❌' : '🔄');
       var label = t.status === 'done' ? '完成' : (t.status === 'failed' ? '失败' : '进行中');
       var insightsCount = t.l4_count || 0;
-      var started = t.started_at ? timeAgo(t.started_at) : '';
+      var time = t.started_at ? timeAgo(t.started_at) : '';
       return '<div class="history-item" onclick="showDreamTrace(\'' + t.trace_id + '\')">'
         + '<div class="history-top"><span>' + emoji + ' [' + label + '] Dream #' + t.trace_id.slice(0, 8) + '</span>'
-        + '<span class="history-time">' + insightsCount + ' insights | ' + (t.total_duration_ms || 0) + 'ms</span></div>'
+        + '<span class="history-time">' + time + ' | ' + insightsCount + ' insights</span></div>'
         + '<div class="history-findings">L1: ' + (t.l1_count || 0) + ' → L2: ' + (t.l2_count || 0) + ' → L3: ' + (t.l3_count || 0) + ' → L4: ' + insightsCount + '</div>'
         + '<span class="click-hint">👆 详情</span></div>';
     }).join('');
