@@ -943,28 +943,16 @@ def get_meta_cognitive_state() -> dict:
 
 
 def get_topic_explore_count(topic: str) -> int:
-    """Get exploration count for topic."""
+    """Get exploration count for topic from traces.db."""
     import sqlite3
     
     traces_db = os.path.join(os.path.dirname(__file__), "..", "knowledge", "traces.db")
-    if os.path.exists(traces_db):
-        try:
-            conn = sqlite3.connect(traces_db)
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT COUNT(*) FROM explorer_traces WHERE topic = ?",
-                (topic,)
-            )
-            count = cursor.fetchone()[0]
-            conn.close()
-            return count
-        except Exception:
-            pass
-    
-    state = _load_state()
-    state = _ensure_meta_cognitive(state)
-    mc = state.get("meta_cognitive", {})
-    return mc.get("explore_counts", {}).get(topic, 0)
+    conn = sqlite3.connect(traces_db)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM explorer_traces WHERE topic = ?", (topic,))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
 
 
 def get_topic_marginal_returns(topic: str) -> list:
@@ -1092,36 +1080,21 @@ def get_recent_explorations(within_hours: int) -> list:
     import sqlite3
     
     traces_db = os.path.join(os.path.dirname(__file__), "..", "knowledge", "traces.db")
-    if os.path.exists(traces_db):
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=within_hours)
-        cutoff_str = cutoff.isoformat()
-        
-        try:
-            conn = sqlite3.connect(traces_db)
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT topic, status, started_at, total_steps FROM explorer_traces WHERE started_at > ? ORDER BY started_at DESC LIMIT 100",
-                (cutoff_str,)
-            )
-            rows = cursor.fetchall()
-            conn.close()
-            
-            return [
-                {"topic": row[0], "status": row[1], "timestamp": row[2], "steps": row[3]}
-                for row in rows
-            ]
-        except Exception:
-            pass
-    
-    state = _load_state()
-    exploration_log = state.get("exploration_log", [])
-    
     cutoff = datetime.now(timezone.utc) - timedelta(hours=within_hours)
     cutoff_str = cutoff.isoformat()
     
+    conn = sqlite3.connect(traces_db)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT topic, status, started_at, total_steps FROM explorer_traces WHERE started_at > ? ORDER BY started_at DESC LIMIT 100",
+        (cutoff_str,)
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    
     return [
-        entry for entry in exploration_log
-        if entry.get("timestamp", "") > cutoff_str
+        {"topic": row[0], "status": row[1], "timestamp": row[2], "steps": row[3]}
+        for row in rows
     ]
 
 
