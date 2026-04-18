@@ -37,7 +37,7 @@
   },
   "daemon": {
     "explore": {
-      "poll_interval_seconds": 300,
+      "poll_interval_seconds": 30,
       "max_retries": 3,
       "retry_delay_seconds": 15
     },
