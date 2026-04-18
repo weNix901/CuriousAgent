@@ -60,8 +60,8 @@ class DreamAgentConfig(CAAgentConfig):
         "surprise": 0.15,
         "cross_domain": 0.10
     })
-    min_score_threshold: float = 0.8
-    min_recall_count: int = 3
+    min_score_threshold: float = 0.5
+    min_recall_count: int = 1
     tools: List[str] = field(default_factory=lambda: DREAM_AGENT_TOOLS.copy())
     max_iterations: int = 1
 

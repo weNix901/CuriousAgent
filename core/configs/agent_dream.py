@@ -58,5 +58,5 @@ class DreamAgentConfig:
     max_iterations: int = 4
     model: str = "doubao-pro"
     scoring_weights: Dict[str, float] = field(default_factory=lambda: DEFAULT_SCORING_WEIGHTS)
-    min_score_threshold: float = 0.8
-    min_recall_count: int = 3
+    min_score_threshold: float = 0.5
+    min_recall_count: int = 1
