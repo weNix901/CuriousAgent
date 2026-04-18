@@ -385,7 +385,20 @@ class ExploreAgent(CAAgent):
         import re
         result = {"thought": "", "action": "", "action_input": {}}
 
-        # First check for XML-style tags: <tool_name param="value">
+        # First check for special function call format: <|FunctionCallBegin|>[{...}]<|FunctionCallEnd|>
+        func_match = re.search(r'<\|FunctionCallBegin\|>\s*\[(.*?)\]\s*<\|FunctionCallEnd\|>', response, re.DOTALL)
+        if func_match:
+            try:
+                func_json = json.loads(func_match.group(1))
+                if isinstance(func_json, list) and len(func_json) > 0:
+                    func_json = func_json[0]
+                result["action"] = func_json.get("name", "")
+                result["action_input"] = func_json.get("parameters", {})
+                return result
+            except json.JSONDecodeError:
+                pass
+
+        # Check for XML-style tags: <tool_name param="value">
         xml_match = re.search(r'<(\w+)\s+([^>]+)>', response)
         if xml_match:
             tool_name = xml_match.group(1)
