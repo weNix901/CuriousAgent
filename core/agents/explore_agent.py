@@ -15,38 +15,28 @@ logger = logging.getLogger(__name__)
 DEFAULT_SYSTEM_PROMPT = """You are an ExploreAgent that autonomously explores knowledge topics.
 
 Your workflow for each topic:
-1. Search the web for the topic
-2. For each promising URL, fetch_page to get full content
-3. Use llm_analyze to judge if the fetched content is useful for this topic
-4. If content is useful, synthesize findings into knowledge
-5. Write to KG and mark the topic as done
-
-Use ReAct loop: Thought -> Action -> Observation (max 10 iterations)
+1. Search the web for the topic using search_web
+2. For each promising URL, use fetch_page to get full content
+3. Use llm_analyze to judge if content is useful for this topic
+4. Collect useful source URLs for attribution
+5. At the end, use llm_summarize to generate a knowledge summary
+6. The system will automatically write to KG with your collected sources
 
 Available tools:
 - search_web: Search the web (returns title, snippet, URL)
-- fetch_page: Fetch full content from a URL
-- query_kg: Query existing knowledge in the KG
-- add_to_kg: Add new knowledge nodes
-- claim_queue: Claim a topic from the queue
-- mark_done: Mark a topic as complete
-- get_queue: View pending topics
-- llm_analyze: Analyze content with LLM (use this to judge if content is relevant!)
-- llm_summarize: Summarize content
+- fetch_page: Fetch full content from a URL (track this URL as a source!)
+- llm_analyze: Analyze content quality and relevance
+- llm_summarize: Summarize collected content into knowledge
+- query_kg: Query existing knowledge
 
-Content quality judgment rules:
-- A URL's full content is useful if it provides substantive information about the topic
-- Use llm_analyze to judge: "Does this content help explain or explore [topic]?"
-- Even short content can be useful if it's substantive (not just navigation/ads)
-- Snippets alone are NOT enough - always try to fetch_page for full content
+Important rules:
+- ALWAYS fetch_page for URLs that look relevant before judging
+- Track URLs from successful fetch_page calls (these become sources)
+- Use llm_analyze to judge content usefulness
+- If no useful content found, report what you tried
+- DO NOT hallucinate knowledge without sources
 
-When search APIs are exhausted (no results or all fail):
-- Mark the topic with "no_content" status
-- Do NOT generate fake/hallucinated knowledge
-- Report what you tried and why it failed
-
-Always think before acting. After each action, observe the result and decide next steps.
-When you have enough verified information, write to KG and mark the topic done.
+The system will write your summary to KG with collected sources when done.
 """
 
 DEFAULT_TOOLS = [
@@ -203,6 +193,10 @@ class ExploreAgent(CAAgent):
         loop_start = time.time()
         tools_used_set = set()
         
+        # Track collected sources and useful content for proper KG write
+        collected_sources: list[str] = []
+        useful_content_parts: list[str] = []
+        
         client = LLMClient(provider_name=self.config.model)
         system_prompt = self._build_system_prompt()
 
@@ -254,22 +248,35 @@ class ExploreAgent(CAAgent):
                     tools_used=list(tools_used_set),
                     duration_ms=total_duration,
                 )
-                if not content_parts:
-                    content_parts.append(f"Exploration of '{topic}' complete")
                 
-                # Save to KG before returning
-                if content_parts:
-                    summary_text = "\n".join(content_parts)
-                    add_tool = self.tool_registry.get("add_to_kg")
-                    if add_tool:
-                        await add_tool.execute(
-                            topic=topic,
-                            content=summary_text[:2000],
-                            metadata={"depth": 5, "quality": 5.0}
+                final_summary = ""
+                if useful_content_parts:
+                    summarize_tool = self.tool_registry.get("llm_summarize")
+                    if summarize_tool:
+                        content_to_summarize = "\n".join(useful_content_parts[-5:])
+                        summary_result = await summarize_tool.execute(
+                            content=content_to_summarize,
+                            topic=topic
                         )
+                        final_summary = summary_result if isinstance(summary_result, str) else str(summary_result)
+                    else:
+                        final_summary = f"Explored {topic} with {len(collected_sources)} sources"
+                elif content_parts:
+                    final_summary = "\n".join(content_parts[-3:])
+                else:
+                    final_summary = f"Exploration of '{topic}' complete with {len(collected_sources)} sources"
+                
+                add_tool = self.tool_registry.get("add_to_kg")
+                if add_tool and final_summary:
+                    await add_tool.execute(
+                        topic=topic,
+                        content=final_summary[:2000],
+                        source_urls=collected_sources,
+                        metadata={"depth": 5, "quality": 5.0 + len(collected_sources)}
+                    )
                 return {
                     "success": True,
-                    "content": "\n".join(content_parts),
+                    "content": final_summary,
                     "iterations": iterations,
                 }
 
@@ -284,6 +291,15 @@ class ExploreAgent(CAAgent):
 
             observation = await self._execute_action(action, action_input)
             tools_used_set.add(action)
+            
+            if action == "fetch_page" and isinstance(action_input, dict):
+                url = action_input.get("url")
+                if url and "ERROR" not in observation and "failed" not in observation.lower():
+                    collected_sources.append(url)
+            
+            if action == "llm_analyze" and observation:
+                if "useful" in observation.lower() or "relevant" in observation.lower() or "yes" in observation.lower():
+                    useful_content_parts.append(observation)
             
             step_duration = int((time.time() - step_start) * 1000)
             trace_writer.update_step(
@@ -313,18 +329,34 @@ class ExploreAgent(CAAgent):
             duration_ms=total_duration,
         )
 
-        if content_parts:
-            summary_text = "\n".join(content_parts)
-            add_tool = self.tool_registry.get("add_to_kg")
-            if add_tool:
-                await add_tool.execute(
-                    topic=topic,
-                    content=summary_text[:2000],
-                    metadata={"depth": 5, "quality": 5.0}
+        final_summary = ""
+        if useful_content_parts:
+            summarize_tool = self.tool_registry.get("llm_summarize")
+            if summarize_tool:
+                content_to_summarize = "\n".join(useful_content_parts[-5:])
+                summary_result = await summarize_tool.execute(
+                    content=content_to_summarize,
+                    topic=topic
                 )
+                final_summary = summary_result if isinstance(summary_result, str) else str(summary_result)
+            else:
+                final_summary = f"Explored {topic} with {len(collected_sources)} sources"
+        elif content_parts:
+            final_summary = "\n".join(content_parts[-3:])
+        else:
+            final_summary = f"Exploration of '{topic}' reached max iterations with {len(collected_sources)} sources"
+        
+        add_tool = self.tool_registry.get("add_to_kg")
+        if add_tool and final_summary:
+            await add_tool.execute(
+                topic=topic,
+                content=final_summary[:2000],
+                source_urls=collected_sources,
+                metadata={"depth": 5, "quality": 5.0 + len(collected_sources)}
+            )
         return {
             "success": True,
-            "content": "\n".join(content_parts) + f"\n\nReached max iterations ({self.config.max_iterations}) - written to KG",
+            "content": final_summary + f"\n\nReached max iterations ({self.config.max_iterations})",
             "iterations": iterations,
         }
 

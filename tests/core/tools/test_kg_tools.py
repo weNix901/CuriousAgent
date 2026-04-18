@@ -43,11 +43,12 @@ class MockKGRepository:
         """Get relations for a topic."""
         return [r for r in self._relations if r.get("topic") == topic]
     
-    async def add_to_knowledge_graph(self, topic, content="", metadata=None, relations=None):
+    async def add_to_knowledge_graph(self, topic, content="", source_urls=None, metadata=None, relations=None):
         """Add new knowledge node."""
         node = {
             "topic": topic,
             "content": content,
+            "source_urls": source_urls or [],
             "metadata": metadata or {},
             "relations": relations or []
         }

@@ -394,9 +394,9 @@ def daemon_mode(interval_minutes: int = 30):
     
     class KGRepository:
         """Async wrapper for sync knowledge_graph functions."""
-        async def add_to_knowledge_graph(self, topic, content="", metadata=None, relations=None):
+        async def add_to_knowledge_graph(self, topic, content="", source_urls=None, metadata=None, relations=None):
             kg.add_knowledge(topic=topic, depth=metadata.get("depth", 5) if metadata else 5,
-                           summary=content, sources=metadata.get("sources", []) if metadata else None,
+                           summary=content, sources=source_urls if source_urls else metadata.get("sources", []) if metadata else None,
                            quality=metadata.get("quality") if metadata else None)
             return topic
         
@@ -744,12 +744,12 @@ def _register_explore_agent_tools(tool_registry, queue_storage):
                 self._repo = AsyncKGRepository(client)
             return self._repo
         
-        async def add_to_knowledge_graph(self, topic, content="", metadata=None, relations=None):
+        async def add_to_knowledge_graph(self, topic, content="", source_urls=None, metadata=None, relations=None):
             repo = await self._ensure_repo()
             await repo.create_knowledge_node(
                 topic=topic,
                 content=content,
-                source_urls=metadata.get("sources", []) if metadata else [],
+                source_urls=source_urls if source_urls else metadata.get("sources", []) if metadata else [],
                 relations=relations or [],
                 metadata={
                     "depth": metadata.get("depth", 5) if metadata else 5,

@@ -107,19 +107,7 @@ class ExploreDaemon(threading.Thread):
                 
                 if result.success:
                     self.queue_storage.mark_done(item_id, self.explore_agent.holder_id)
-                    try:
-                        import core.knowledge_graph_compat as kg
-                        await kg.add_knowledge_async(
-                            topic=topic,
-                            depth=5,
-                            summary=result.content[:2000] if result.content else f"Explored: {topic}",
-                            sources=[],
-                            quality=5.0
-                        )
-                        logger.info(f"ExploreDaemon: completed item {item_id} and wrote to KG")
-                    except Exception as kg_err:
-                        logger.error(f"ExploreDaemon: KG write error - {kg_err}")
-                        logger.info(f"ExploreDaemon: completed item {item_id}")
+                    logger.info(f"ExploreDaemon: completed item {item_id} - {topic}")
                     return
                 else:
                     retries += 1

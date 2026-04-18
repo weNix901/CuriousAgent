@@ -179,8 +179,9 @@ class AddToKGTool(Tool):
             "type": "object",
             "properties": {
                 "topic": {"type": "string", "description": "Topic name for the new node"},
-                "content": {"type": "string", "description": "Content of the knowledge node", "default": ""},
-                "metadata": {"type": "object", "description": "Metadata (heat, quality, confidence)", "default": {}},
+                "content": {"type": "string", "description": "Knowledge summary content", "default": ""},
+                "source_urls": {"type": "array", "description": "List of source URLs for attribution", "default": []},
+                "metadata": {"type": "object", "description": "Metadata (depth, quality, confidence)", "default": {}},
                 "relations": {"type": "array", "description": "Relations to other nodes", "default": []}
             },
             "required": ["topic"]
@@ -189,6 +190,7 @@ class AddToKGTool(Tool):
     async def execute(self, **kwargs: Any) -> str:
         topic = kwargs.get("topic", "")
         content = kwargs.get("content", "")
+        source_urls = kwargs.get("source_urls", [])
         metadata = kwargs.get("metadata", {})
         relations = kwargs.get("relations", [])
         
@@ -196,10 +198,11 @@ class AddToKGTool(Tool):
             result = await self._repository.add_to_knowledge_graph(
                 topic=topic,
                 content=content,
+                source_urls=source_urls,
                 metadata=metadata,
                 relations=relations
             )
-            return f"Added node: {result}"
+            return f"Added node with {len(source_urls)} sources: {result}"
         return f"Node added: {topic}"
     
     def to_schema(self) -> dict[str, Any]:
