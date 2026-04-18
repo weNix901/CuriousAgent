@@ -1083,9 +1083,11 @@ def api_kg_node_detail(node_id):
             "id": node_id,
             "quality": node.get("quality", 0),
             "status": node.get("status", "unexplored"),
-            "summary": node.get("summary", ""),
-            "sources": node.get("sources", []),
-            "explore_count": node.get("explore_count", 0)
+            "summary": node.get("content") or node.get("summary", ""),
+            "sources": node.get("source_urls") or node.get("sources", []),
+            "explore_count": node.get("explore_count", 0),
+            "depth": node.get("depth", 5),
+            "created_at": node.get("created_at", "")
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
