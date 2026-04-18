@@ -131,9 +131,32 @@ def _build_audit_record(req, resp, latency_ms):
                          "x-openclaw-hook-event", "x-openclaw-hook-type",
                          "x-openclaw-session-id")
     }
-    hook_name = headers.get("X-OpenClaw-Hook-Name", "unknown")
-    hook_type = headers.get("X-OpenClaw-Hook-Type", "unknown")
-    hook_event = headers.get("X-OpenClaw-Hook-Event", "unknown")
+    
+    path = req.path
+    
+    hook_name_map = {
+        "/api/kg/confidence": "kg_confidence",
+        "/api/kg/overview": "kg_overview",
+        "/api/kg/nodes": "kg_node_detail",
+        "/api/curious/inject": "curiosity_inject",
+        "/api/curious/run": "curiosity_run",
+        "/api/curious/state": "curious_state",
+        "/api/curious/queue": "curiosity_queue",
+        "/api/audit/hooks": "audit_hooks",
+        "/api/timeline": "timeline",
+        "/api/agents": "agent_activity",
+        "/api/metacognitive": "metacognitive",
+    }
+    
+    inferred_hook_name = "unknown"
+    for prefix, name in hook_name_map.items():
+        if path.startswith(prefix):
+            inferred_hook_name = name
+            break
+    
+    hook_name = headers.get("X-OpenClaw-Hook-Name") or inferred_hook_name
+    hook_type = headers.get("X-OpenClaw-Hook-Type", "api_call")
+    hook_event = headers.get("X-OpenClaw-Hook-Event", path)
 
     req_payload = None
     try:
