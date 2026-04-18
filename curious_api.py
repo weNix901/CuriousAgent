@@ -474,11 +474,29 @@ def api_state():
     
     queue_items = kg.list_pending()
     
+    exploration_log = []
+    try:
+        conn = _get_traces_db()
+        rows = conn.execute(
+            "SELECT topic, status, started_at as timestamp, total_steps, quality_score FROM explorer_traces WHERE status = 'done' ORDER BY started_at DESC LIMIT 50"
+        ).fetchall()
+        for r in rows:
+            exploration_log.append({
+                "topic": r["topic"],
+                "timestamp": r["timestamp"],
+                "action": "explore",
+                "findings": f"Completed in {r['total_steps']} steps, quality={r['quality_score']}",
+                "notified_user": False
+            })
+        conn.close()
+    except Exception as e:
+        pass
+    
     return jsonify({
         "status": "ok",
         "knowledge": {**summary, "topics": topics_with_quality},
         "curiosity_queue": queue_items,
-        "exploration_log": state.get("exploration_log", []),
+        "exploration_log": exploration_log,
         "last_update": state.get("last_update")
     })
 
