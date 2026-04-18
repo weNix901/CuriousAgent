@@ -1,6 +1,17 @@
 <!-- List View - 好奇心队列、探索历史、知识图谱预览 -->
 <div class="main-grid">
 
+  <!-- Knowledge Graph Preview -->
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">📚 已知知识</div>
+      <span id="knowledge-count" style="font-size:12px;color:var(--text-muted)"></span>
+    </div>
+    <div class="panel-body" id="knowledge-list">
+      <div class="empty">加载中...</div>
+    </div>
+  </div>
+
   <!-- Curiosity Queue -->
   <div class="panel">
     <div class="panel-header">
@@ -74,17 +85,6 @@
     </div>
     <div class="panel-body" id="history-list">
       <div class="empty">暂无探索记录</div>
-    </div>
-  </div>
-
-  <!-- Knowledge Graph Preview -->
-  <div class="panel">
-    <div class="panel-header">
-      <div class="panel-title">📚 已知知识</div>
-      <span id="knowledge-count" style="font-size:12px;color:var(--text-muted)"></span>
-    </div>
-    <div class="panel-body" id="knowledge-list">
-      <div class="empty">加载中...</div>
     </div>
   </div>
 
