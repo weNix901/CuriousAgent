@@ -382,7 +382,24 @@ class ExploreAgent(CAAgent):
 
     def _parse_react_response(self, response: str) -> dict[str, Any]:
         """Parse ReAct response from non-JSON format."""
+        import re
         result = {"thought": "", "action": "", "action_input": {}}
+
+        # First check for XML-style tags: <tool_name param="value">
+        xml_match = re.search(r'<(\w+)\s+([^>]+)>', response)
+        if xml_match:
+            tool_name = xml_match.group(1)
+            args_str = xml_match.group(2)
+            result["action"] = tool_name
+            kv_pairs = re.findall(r'(\w+)="([^"]*)"|(\w+)=([\w\-./:]+)', args_str)
+            parsed = {}
+            for match in kv_pairs:
+                if match[0]:  # key="value" format
+                    parsed[match[0]] = match[1]
+                elif match[2]:  # key=value format
+                    parsed[match[2]] = match[3]
+            result["action_input"] = parsed
+            return result
 
         lines = response.split("\n")
         for line in lines:
@@ -394,12 +411,11 @@ class ExploreAgent(CAAgent):
                 result["action"] = action_str
                 # Extract args from inline format like "search_web(query=\"...\")"
                 if not result["action_input"]:
-                    import re
                     args_match = re.search(r'\(.*\)$', action_str)
                     if args_match:
                         args_str = args_match.group(0)[1:-1]  # remove parentheses
                         # Try to parse as key=value pairs
-                        kv_pairs = re.findall(r'(\w+)=("[^"]*"|[\w-]+)', args_str)
+                        kv_pairs = re.findall(r'(\w+)=(\"[^\"]*\"|[\w\-./:]+)', args_str)
                         if kv_pairs:
                             parsed = {}
                             for k, v in kv_pairs:
