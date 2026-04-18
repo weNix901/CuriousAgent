@@ -209,7 +209,7 @@ function showDetail(type, id) {
       title.textContent = '📚 ' + id;
       meta.innerHTML = '<span class="modal-meta-item">质量: ' + (node.quality || '-') + '</span>'
         + '<span class="modal-meta-item">状态: ' + (node.status || '未探索') + '</span>'
-        + '<span class="modal-meta-item">探索次数: ' + (node.explore_count || 0) + '</span>';
+        + '<span class="modal-meta-item">深度: ' + (node.depth || 5) + '</span>';
       
       var summaryText = node.summary || '暂无摘要';
       var summaryObj = null;
@@ -217,25 +217,79 @@ function showDetail(type, id) {
         summaryObj = JSON.parse(summaryText);
       } catch (e) {}
       
-      var summaryHtml = '';
-      if (summaryObj && summaryObj.summary) {
-        summaryHtml = escapeHtml(summaryObj.summary);
+      var bodyHtml = '';
+      
+      if (summaryObj) {
+        // 概述
+        if (summaryObj.summary) {
+          bodyHtml += '<div class="modal-section"><div class="modal-section-title">📖 概述</div>'
+            + '<div class="modal-section-content">' + escapeHtml(summaryObj.summary) + '</div></div>';
+        }
+        
+        // 关键要点
         if (summaryObj.key_points && summaryObj.key_points.length > 0) {
-          summaryHtml += '<br><br><strong>关键要点:</strong><ul style="margin:4px 0;padding-left:16px;">'
-            + summaryObj.key_points.map(function(kp) { return '<li>' + escapeHtml(kp) + '</li>'; }).join('')
-            + '</ul>';
+          bodyHtml += '<div class="modal-section"><div class="modal-section-title">💡 关键要点</div>'
+            + '<ul class="modal-sources">' + summaryObj.key_points.map(function(kp) {
+              return '<li>' + escapeHtml(kp) + '</li>';
+            }).join('') + '</ul></div>';
+        }
+        
+        // 技术栈/标签
+        if (summaryObj.tech_stack && summaryObj.tech_stack.length > 0) {
+          bodyHtml += '<div class="modal-section"><div class="modal-section-title">🔧 技术栈</div>'
+            + '<div class="modal-section-content">'
+            + summaryObj.tech_stack.map(function(ts) { return '<span style="display:inline-block;padding:2px 8px;margin:2px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:12px;">' + escapeHtml(ts) + '</span>'; }).join(' ')
+            + '</div></div>';
+        }
+        
+        // 应用场景
+        if (summaryObj.use_cases && summaryObj.use_cases.length > 0) {
+          bodyHtml += '<div class="modal-section"><div class="modal-section-title">🎯 应用场景</div>'
+            + '<ul class="modal-sources">' + summaryObj.use_cases.map(function(uc) {
+              return '<li>' + escapeHtml(uc) + '</li>';
+            }).join('') + '</ul></div>';
+        }
+        
+        // 参考资料
+        if (summaryObj.references && summaryObj.references.length > 0) {
+          bodyHtml += '<div class="modal-section"><div class="modal-section-title">📚 参考资料</div>'
+            + '<ul class="modal-sources">' + summaryObj.references.map(function(ref) {
+              if (typeof ref === 'string') {
+                return '<li>' + escapeHtml(ref) + '</li>';
+              } else if (ref.url) {
+                return '<li><a href="' + escapeHtml(ref.url) + '" target="_blank">' + escapeHtml(ref.title || ref.url) + '</a></li>';
+              }
+              return '';
+            }).join('') + '</ul></div>';
+        }
+        
+        // 其他字段
+        var extraFields = ['length', 'source', 'author', 'date', 'version', 'status', 'type', 'category'];
+        var extraHtml = '';
+        extraFields.forEach(function(field) {
+          if (summaryObj[field] !== undefined && summaryObj[field] !== null) {
+            extraHtml += '<span class="modal-meta-item">' + field + ': ' + escapeHtml(String(summaryObj[field])) + '</span>';
+          }
+        });
+        if (extraHtml) {
+          bodyHtml += '<div class="modal-section"><div class="modal-section-title">📋 其他信息</div>'
+            + '<div class="modal-section-content">' + extraHtml + '</div></div>';
         }
       } else {
-        summaryHtml = escapeHtml(summaryText);
+        // 普通文本summary
+        bodyHtml = '<div class="modal-section"><div class="modal-section-title">📖 概述</div>'
+          + '<div class="modal-section-content">' + escapeHtml(summaryText) + '</div></div>';
       }
       
-      body.innerHTML = '<div class="modal-section"><div class="modal-section-title">摘要</div>'
-        + '<div class="modal-section-content">' + summaryHtml + '</div></div>'
-        + '<div class="modal-section"><div class="modal-section-title">来源</div>'
-        + '<ul class="modal-sources">' + (node.sources || []).map(function(s) {
-          return '<li><a href="' + escapeHtml(s) + '" target="_blank">' + escapeHtml(s) + '</a></li>';
-        }).join('') + '</ul></div>';
+      // 来源链接
+      if (node.sources && node.sources.length > 0) {
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title">🔗 来源链接</div>'
+          + '<ul class="modal-sources">' + node.sources.map(function(s) {
+            return '<li><a href="' + escapeHtml(s) + '" target="_blank">' + escapeHtml(s) + '</a></li>';
+          }).join('') + '</ul></div>';
+      }
       
+      body.innerHTML = bodyHtml || '<div class="empty">暂无内容</div>';
       modal.classList.add('active');
     });
   }
