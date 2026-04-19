@@ -49,12 +49,12 @@ function renderKnowledge(topics) {
     return;
   }
 
-  var sorted = Object.entries(topics).sort(function(a,b) { return b[1].depth - a[1].depth; });
+  var sorted = Object.entries(topics).sort(function(a,b) { return (b[1].depth || 5) - (a[1].depth || 5); });
   container.innerHTML = sorted.map(function(entry) {
     var topic = entry[0], v = entry[1];
     return '<div class="item" data-topic-key="' + escapeHtml(topic) + '" onclick="showDetail(\'knowledge\',this.dataset.topicKey)">'
       + '<div class="item-header"><div class="item-title">' + escapeHtml(topic) + '</div>'
-      + '<span class="item-score ' + scoreClass(v.depth * 2) + '">深度 ' + v.depth + '</span></div>'
+      + '<span class="item-score ' + scoreClass((v.depth || 5) * 2) + '">' + depthLabel(v.depth || 5) + '</span></div>'
       + '<div class="item-reason">' + escapeHtml(v.summary && v.summary.substring(0, 100) || '—') + '</div>'
       + '<div class="item-meta"><span>🕐 ' + timeAgo(v.last_updated) + '</span>'
       + (v.sources && v.sources.length ? '<span>📚 ' + v.sources.length + ' 来源</span>' : '')

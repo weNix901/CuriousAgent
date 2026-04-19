@@ -1,5 +1,5 @@
 var API_BASE = '';
-var state = null;
+var state = null; 
 
 function timeAgo(ts) {
   if (!ts) return '';
@@ -17,6 +17,12 @@ function scoreClass(score) {
   if (score >= 8) return 'score-high';
   if (score >= 5) return 'score-mid';
   return 'score-low';
+}
+
+function depthLabel(depth) {
+  if (!depth || depth < 4) return '初步了解（深度：' + (depth || 1) + '）';
+  if (depth < 7) return '常规探索（深度：' + depth + '）';
+  return '深度研究（深度：' + depth + '）';
 }
 
 function log(msg, type) {
@@ -85,7 +91,7 @@ function loadQueue() {
       + '<div class="item-header"><span class="item-title">' + escapeHtml(q.topic) + '</span>'
       + '<span class="item-score ' + scoreClass(q.score) + '">' + (q.score || '-').toFixed(1) + '</span></div>'
       + '<div class="item-reason">' + escapeHtml(q.reason || '') + '</div>'
-      + '<div class="item-meta"><span>深度: ' + (q.depth || '-').toFixed(1) + '</span><span class="click-hint">点击查看</span></div>'
+      + '<div class="item-meta"><span>' + depthLabel(q.depth || 5) + '</span><span class="click-hint">点击查看</span></div>'
       + '<div class="item-actions"><button class="btn btn-danger btn-sm" onclick="deleteQueue(\'' + escapeJs(q.topic) + '\')">删除</button></div>'
       + '</div>';
   }).join('');
@@ -209,7 +215,7 @@ function showDetail(type, id) {
       title.textContent = '📚 ' + id;
       meta.innerHTML = '<span class="modal-meta-item">质量: ' + (node.quality || '-') + '</span>'
         + '<span class="modal-meta-item">状态: ' + (node.status || '未探索') + '</span>'
-        + '<span class="modal-meta-item">深度: ' + (node.depth || 5) + '</span>';
+        + '<span class="modal-meta-item">' + depthLabel(node.depth || 5) + '</span>';
       
       var summaryText = node.summary || '暂无摘要';
       var summaryObj = null;
