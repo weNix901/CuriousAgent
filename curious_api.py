@@ -135,12 +135,12 @@ def _build_audit_record(req, resp, latency_ms):
     path = req.path
     
     hook_name_map = {
-        "/api/knowledge/confidence": "knowledge-query",
-        "/api/knowledge/learn": "knowledge-learn",
-        "/api/kg/overview": "knowledge-bootstrap",
-        "/api/knowledge/check": "knowledge-gate",
-        "/api/kg/confidence": "knowledge-gate",
-        "/api/knowledge/record": "knowledge-inject",
+        "/api/knowledge/confidence": "knowledge-query-skill",
+        "/api/knowledge/learn": "knowledge-learn-hook",
+        "/api/kg/overview": "knowledge-bootstrap-hook",
+        "/api/knowledge/check": "knowledge-gate-hook",
+        "/api/kg/confidence": "knowledge-gate-hook",
+        "/api/knowledge/record": "knowledge-inject-hook",
     }
     
     inferred_hook_name = "unknown"
@@ -2604,7 +2604,7 @@ _agent_registry = {
         "agent_id": "r1d3",
         "agent_name": "R1D3 Researcher",
         "connected_at": "2026-04-15T22:00:00Z",
-        "hooks_used": ["knowledge-query", "knowledge-learn", "knowledge-bootstrap", "knowledge-gate", "knowledge-inject"],
+        "hooks_used": ["knowledge-query-skill", "knowledge-learn-hook", "knowledge-bootstrap-hook", "knowledge-gate-hook", "knowledge-inject-hook"],
     }
 }
 
