@@ -150,38 +150,82 @@ async function showDreamTrace(traceId) {
     meta.innerHTML = '<span class="modal-meta-item">状态: ' + status + '</span>'
       + '<span class="modal-meta-item">' + duration + 'ms</span>';
     
-    var html = '<div class="modal-section"><div class="modal-section-title">L1 候选召回</div>'
-      + '<div class="modal-section-content">数量: ' + (data.l1_count || 0) + ' | 耗时: ' + (data.l1_duration_ms || 0) + 'ms</div></div>'
-      + '<div class="modal-section"><div class="modal-section-title">L2 评分排序</div>'
-      + '<div class="modal-section-content">数量: ' + (data.l2_count || 0) + ' | 耗时: ' + (data.l2_duration_ms || 0) + 'ms</div></div>'
-      + '<div class="modal-section"><div class="modal-section-title">L3 过滤筛选</div>'
-      + '<div class="modal-section-content">数量: ' + (data.l3_count || 0) + ' | 耗时: ' + (data.l3_duration_ms || 0) + 'ms</div></div>'
-      + '<div class="modal-section"><div class="modal-section-title">L4 生成话题</div>'
-      + '<div class="modal-section-content">数量: ' + (data.l4_count || 0) + ' | 耗时: ' + (data.l4_duration_ms || 0) + 'ms</div></div>';
+    var html = '';
     
-    if (data.l4_topics) {
+    html += '<div class="modal-section"><div class="modal-section-title">L1 候选召回 (' + (data.l1_count || 0) + ')</div>'
+      + '<div class="modal-section-content">耗时: ' + (data.l1_duration_ms || 0) + 'ms</div>';
+    if (data.l1_candidates) {
       try {
-        var topics = JSON.parse(data.l4_topics);
-        if (topics && topics.length > 0) {
-          html += '<div class="modal-section"><div class="modal-section-title">生成的话题</div>'
-            + '<div class="modal-section-content"><ul style="margin:0;padding-left:16px;">'
-            + topics.map(function(t) {
-              return '<li>' + escapeHtml(t.topic || t) + '</li>';
-            }).join('')
-            + '</ul></div></div>';
+        var l1 = typeof data.l1_candidates === 'string' ? JSON.parse(data.l1_candidates) : data.l1_candidates;
+        if (l1 && l1.length > 0) {
+          html += '<div class="modal-section-content" style="max-height:120px;overflow-y:auto;margin-top:4px;"><ul style="margin:0;padding-left:16px;">'
+            + l1.map(function(t) { return '<li>' + escapeHtml(t) + '</li>'; }).join('')
+            + '</ul></div>';
         }
       } catch (e) {}
     }
+    html += '</div>';
+    
+    html += '<div class="modal-section"><div class="modal-section-title">L2 评分排序 (' + (data.l2_count || 0) + ')</div>'
+      + '<div class="modal-section-content">耗时: ' + (data.l2_duration_ms || 0) + 'ms</div>';
+    if (data.l2_scored) {
+      try {
+        var l2 = typeof data.l2_scored === 'string' ? JSON.parse(data.l2_scored) : data.l2_scored;
+        if (l2 && l2.length > 0) {
+          html += '<div class="modal-section-content" style="max-height:150px;overflow-y:auto;margin-top:4px;font-size:12px;">';
+          l2.forEach(function(s) {
+            var score = (s.total_score || 0).toFixed(2);
+            var topic = s.topic || s;
+            html += '<div style="margin-bottom:4px;"><strong>' + escapeHtml(topic) + '</strong> - Score: ' + score;
+            if (s.scores) {
+              var dims = Object.keys(s.scores).map(function(k) { return k + ':' + (s.scores[k] || 0).toFixed(1); }).join(', ');
+              html += '<br><span style="color:#8b949e;">' + dims + '</span>';
+            }
+            html += '</div>';
+          });
+          html += '</div>';
+        }
+      } catch (e) {}
+    }
+    html += '</div>';
+    
+    html += '<div class="modal-section"><div class="modal-section-title">L3 过滤筛选 (' + (data.l3_count || 0) + ')</div>'
+      + '<div class="modal-section-content">耗时: ' + (data.l3_duration_ms || 0) + 'ms</div>';
+    if (data.l3_filtered) {
+      try {
+        var l3 = typeof data.l3_filtered === 'string' ? JSON.parse(data.l3_filtered) : data.l3_filtered;
+        if (l3 && l3.length > 0) {
+          html += '<div class="modal-section-content" style="max-height:120px;overflow-y:auto;margin-top:4px;"><ul style="margin:0;padding-left:16px;">'
+            + l3.map(function(t) { return '<li>' + escapeHtml(t) + '</li>'; }).join('')
+            + '</ul></div>';
+        }
+      } catch (e) {}
+    }
+    html += '</div>';
+    
+    html += '<div class="modal-section"><div class="modal-section-title">L4 生成话题 (' + (data.l4_count || 0) + ')</div>'
+      + '<div class="modal-section-content">耗时: ' + (data.l4_duration_ms || 0) + 'ms</div>';
+    if (data.l4_topics) {
+      try {
+        var l4 = typeof data.l4_topics === 'string' ? JSON.parse(data.l4_topics) : data.l4_topics;
+        if (l4 && l4.length > 0) {
+          html += '<div class="modal-section-content" style="max-height:120px;overflow-y:auto;margin-top:4px;"><ul style="margin:0;padding-left:16px;">'
+            + l4.map(function(t) { return '<li>' + escapeHtml(t.topic || t) + '</li>'; }).join('')
+            + '</ul></div>';
+        }
+      } catch (e) {}
+    }
+    html += '</div>';
     
     if (data.insights_generated) {
       try {
-        var insights = JSON.parse(data.insights_generated);
+        var insights = typeof data.insights_generated === 'string' ? JSON.parse(data.insights_generated) : data.insights_generated;
         if (insights && insights.length > 0) {
           html += '<div class="modal-section"><div class="modal-section-title">洞察内容</div>'
             + '<div class="modal-section-content" style="max-height:150px;overflow-y:auto;">'
             + insights.map(function(i) {
-              return escapeHtml(i).slice(0, 100);
-            }).join('<br><br>')
+              return '<div style="margin-bottom:8px;">' + escapeHtml(typeof i === 'string' ? i : JSON.stringify(i)).slice(0, 200) + '</div>';
+            }).join('')
             + '</div></div>';
         }
       } catch (e) {}
