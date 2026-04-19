@@ -2366,13 +2366,13 @@ def api_timeline():
         try:
             conn = _get_traces_db()
             rows = conn.execute(
-                "SELECT id, started_at, topic, status, total_steps, quality_score FROM explorer_traces ORDER BY started_at DESC LIMIT ?",
+                "SELECT trace_id, started_at, topic, status, total_steps, quality_score FROM explorer_traces ORDER BY started_at DESC LIMIT ?",
                 (limit,)
             ).fetchall()
             for r in rows:
                 emoji = "✅" if r["status"] == "done" else ("❌" if r["status"] == "failed" else "🔄")
                 events.append({
-                    "event_id": f"explorer_{r['id']}",
+                    "event_id": f"explorer_{r['trace_id']}",
                     "timestamp": r["started_at"],
                     "type": f"exploration_{r['status']}",
                     "emoji": emoji,
