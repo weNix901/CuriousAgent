@@ -103,12 +103,11 @@ class SearchDailyQuotaConfig:
 @dataclass
 class KnowledgeSearchConfig:
     """Search provider configuration."""
-    primary: str = "bocha"
-    fallback: str = "serper"
-    bocha_fallback_mode: str = "serper_empty"
-    bocha_fallback: str = "serper_empty"  # When to use Bocha fallback (v0.2.8 legacy: always, never, serper_empty)
-    query_variants: int = 1  # Number of query variants to generate (v0.2.8 legacy)
-    early_stop_results: int = 5  # Early stop when this many results found (v0.2.8 legacy)
+    primary: str = "serper"
+    fallback: str = "bocha"
+    fallback_on_empty: bool = True
+    query_variants: int = 1
+    early_stop_results: int = 5
     daily_quota: SearchDailyQuotaConfig = field(default_factory=SearchDailyQuotaConfig)
 
 
@@ -285,10 +284,9 @@ def load_config() -> Config:
         reset_hour=quota_raw.get("reset_hour", 0)
     )
     search_cfg = KnowledgeSearchConfig(
-        primary=search_raw.get("primary", "bocha"),
-        fallback=search_raw.get("fallback", "serper"),
-        bocha_fallback_mode=search_raw.get("bocha_fallback_mode", "serper_empty"),
-        bocha_fallback=search_raw.get("bocha_fallback", "serper_empty"),
+        primary=search_raw.get("primary", "serper"),
+        fallback=search_raw.get("fallback", "bocha"),
+        fallback_on_empty=search_raw.get("fallback_on_empty", True),
         query_variants=search_raw.get("query_variants", 1),
         early_stop_results=search_raw.get("early_stop_results", 5),
         daily_quota=quota_cfg

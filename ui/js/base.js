@@ -76,7 +76,7 @@ function loadStats() {
   document.getElementById('stat-nodes').textContent = Object.keys(topics).length;
   document.getElementById('stat-known').textContent = known.length + ' 已知';
   document.getElementById('stat-pending').textContent = pending.length;
-  document.getElementById('stat-log').textContent = (state.exploration_log || []).length;
+  document.getElementById('stat-history').textContent = (state.exploration_log || []).length;
 }
 
 function loadQueue() {

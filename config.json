@@ -55,9 +55,9 @@
       "uncertainty quantification"
     ],
     "search": {
-      "primary": "bocha",
-      "fallback": "serper",
-      "bocha_fallback_mode": "serper_empty",
+      "primary": "serper",
+      "fallback": "bocha",
+      "fallback_on_empty": true,
       "daily_quota": {
         "enabled": true,
         "serper": 100,

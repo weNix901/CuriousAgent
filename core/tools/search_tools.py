@@ -40,15 +40,13 @@ class SearchProviderRegistry:
     def get_primary_provider(self):
         """Get primary provider from config."""
         search_config = self._config.get("search", {})
-        primary = search_config.get("primary", "bocha")
+        primary = search_config.get("primary", "serper")
         return self.get_provider(primary)
     
     def get_fallback_provider(self):
         """Get fallback provider from config."""
         search_config = self._config.get("search", {})
-        fallback = search_config.get("bocha_fallback", "serper_empty")
-        if fallback == "serper_empty":
-            return self.get_provider("serper")
+        fallback = search_config.get("fallback", "bocha")
         return self.get_provider(fallback)
 
 
