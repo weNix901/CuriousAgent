@@ -2054,6 +2054,62 @@ def api_explorer_trace(trace_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/explorer/run", methods=["POST"])
+def api_explorer_run():
+    """Manually trigger Explorer Agent to run a single exploration."""
+    try:
+        import threading
+        from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig
+        from core.config import get_config
+        from core.tools.queue_tools import QueueStorage
+        
+        cfg = get_config()
+        explore_cfg = cfg.agents.get('explore')
+        
+        queue = QueueStorage()
+        queue.initialize()
+        pending = queue.get_pending_items(limit=1)
+        
+        if not pending:
+            return jsonify({"status": "error", "error": "No pending topics in queue"}), 400
+        
+        item = pending[0]
+        topic = item["topic"]
+        item_id = item["id"]
+        
+        def run_exploration():
+            try:
+                from core.tools.registry import ToolRegistry
+                tool_registry = ToolRegistry()
+                
+                agent_cfg = ExploreAgentConfig(
+                    name="explorer_agent",
+                    model=explore_cfg.model,
+                    tools=explore_cfg.tools,
+                    max_iterations=explore_cfg.max_iterations,
+                )
+                agent = ExploreAgent(config=agent_cfg, tool_registry=tool_registry)
+                
+                import asyncio
+                result = asyncio.run(agent.run(topic, pre_claimed_item_id=item_id))
+                
+                queue.mark_done(item_id, holder_id="manual_trigger")
+            except Exception as e:
+                queue.mark_failed(item_id, holder_id="manual_trigger", reason=str(e))
+        
+        thread = threading.Thread(target=run_exploration, name="ManualExplorer", daemon=True)
+        thread.start()
+        
+        return jsonify({
+            "status": "ok",
+            "topic": topic,
+            "message": f"Started exploration of '{topic}'"
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
 @app.route("/api/dream/active")
 def api_dream_active():
     """Get active dream trace."""
