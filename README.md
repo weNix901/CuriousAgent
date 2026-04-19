@@ -447,9 +447,10 @@ All agent and daemon parameters are controlled via `config.json`. No hard-coded 
       "uncertainty quantification"
     ],
     "search": {
-      "primary": "bocha",
-      "fallback": "serper",
-      "daily_quota": { "enabled": true, "serper": 100, "bocha": 50 }
+      "primary": "serper",
+      "fallback": "bocha",
+      "fallback_on_empty": true,
+      "daily_quota": { "enabled": true, "serper": 100, "bocha": 50, "reset_hour": 0 }
     },
     "kg": {
       "enabled": true,
@@ -484,6 +485,7 @@ All agent and daemon parameters are controlled via `config.json`. No hard-coded 
 
 | Version | Theme | Date |
 |---------|-------|------|
+| **v0.3.1-patch** | Bug fixes + Repo cleanup + KG design fix | 2026-04-19 |
 | **v0.3.1** | Observability Layer — Hook audit, trace visualization, WebUI multi-file, external agent tracking | 2026-04-17 |
 | **v0.3.0** | Cognitive Framework — Know what it knows, know what it doesn't know. 4-level confidence, auto-inject unknowns, `/api/knowledge/*` endpoints | 2026-04-15 |
 | **v0.2.9** | Agent architecture refactor — CAAgent unified class, ReAct loop, 21 Tools, Neo4j storage, Hermes error handling | 2026-04-13 |
@@ -542,6 +544,16 @@ Yes. It's designed as an OpenClaw plugin. The `shared_knowledge/` directory prov
 
 **How does it know what to explore next?**
 Four signals: (1) curiosity queue (manually injected or dream-generated), (2) competence gaps (topics you've never explored), (3) metacognitive quality scoring (diminishing returns detection), (4) root technology tracing (surface-to-fundamental connections).
+**What changed in v0.3.1-patch?**
+
+Bug fixes + Repo cleanup + KG design clarification:
+- 搜索顺序: Serper (primary) → Bocha (fallback)
+- KG 只存 `status=done` 的知识，Queue 存待探索 topics
+- `add_child()` / `add_citation()` 不再创建 KG 占位节点
+- Repo 清理: 移除 3400+ 运行时/敏感文件
+- UI fixes: stat-log typo, 图谱控件事件绑定, 节点斥力范围 -600~+100
+- 安全审计: 无 API key 泄露，配置文件已移除
+
 **What changed in v0.3.1?**
 
 Observability Layer — Full visibility into CA's internal work and external interactions:

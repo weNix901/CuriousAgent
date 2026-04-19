@@ -1,8 +1,37 @@
-# Curious Agent Architecture (v0.3.1)
+# Curious Agent Architecture (v0.3.1-patch)
 
 ## 目标
 
 一个具有"好奇心"的自主知识探索 Agent：主动追踪知识缺口，持续自主探索，并将发现内化为行为规则。
+
+---
+
+## 核心设计原则
+
+### KG vs Queue 数据分离 (v0.3.1-patch)
+
+| 存储位置 | 状态 | 条件 |
+|---------|------|------|
+| **KG (Neo4j)** | `status=done` | ExploreAgent 完成探索，有 summary + sources + quality |
+| **Queue (SQLite)** | `status=pending` | 待探索的 topics (来自注入、Dream 生成、引用) |
+
+**关键规则:**
+- KG 节点 **只在 ExploreAgent 完成探索后** 创建
+- `add_child()` / `add_citation()` **不再创建 KG 占位节点**
+- 未存在的子节点/引用 → **加入 Queue** 待 ExploreAgent 探索
+- Dream Agent 的 `source_url` topics → Queue (不创建 KG 节点)
+
+### 搜索 API 策略 (v0.3.1-patch)
+
+```
+Primary: Serper (quota: 100/天)
+    ↓ 失败/空结果
+Fallback: Bocha (quota: 50/天)
+    ↓ 两者都失败
+返回错误
+```
+
+**Quota 重置:** 每日 UTC 0:00 (北京时间 8:00)
 
 ---
 
@@ -424,6 +453,7 @@ curious-agent/
 
 | Version | Theme |
 |---------|-------|
+| v0.3.1-patch | Bug fixes + KG design fix + Repo cleanup |
 | v0.3.1 | Observability Layer |
 | v0.3.0 | Cognitive Framework |
 | v0.2.9 | Agent Refactor (CAAgent) |
