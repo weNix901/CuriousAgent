@@ -1,11 +1,15 @@
 """Factory for creating KG Repository instances with async support."""
 
 import asyncio
+import logging
 import os
 from typing import Any, Dict, Optional
 
 from .neo4j_client import Neo4jClient
 from .kg_repository import KGRepository
+from core.config import load_config
+
+logger = logging.getLogger(__name__)
 
 
 class KGRepositoryFactory:
@@ -16,6 +20,7 @@ class KGRepositoryFactory:
     def __init__(self):
         self._client: Optional[Neo4jClient] = None
         self._repo: Optional[KGRepository] = None
+        self._embedding_service: Optional[Any] = None
     
     @classmethod
     def get_instance(cls) -> 'KGRepositoryFactory':
@@ -27,13 +32,28 @@ class KGRepositoryFactory:
     async def _ensure_connected(self) -> KGRepository:
         """Ensure client is connected and return repository."""
         if self._repo is None:
+            # Load config to trigger .env loading
+            config = load_config()
+            
             uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
             username = os.environ.get("NEO4J_USERNAME", "neo4j")
             password = os.environ.get("NEO4J_PASSWORD", "")
             
             self._client = Neo4jClient(uri, username, password)
             await self._client.connect()
-            self._repo = KGRepository(self._client)
+            
+            # Initialize embedding service from config
+            try:
+                from core.embedding_service import EmbeddingService
+                embedding_config = config.knowledge.get("embedding")
+                if embedding_config:
+                    self._embedding_service = EmbeddingService(embedding_config)
+                    logger.info(f"Embedding service initialized: {type(self._embedding_service).__name__}")
+            except Exception as e:
+                logger.warning(f"Failed to initialize embedding service: {e}")
+                self._embedding_service = None
+            
+            self._repo = KGRepository(self._client, self._embedding_service)
         
         return self._repo
     
