@@ -204,6 +204,7 @@ def list_pending() -> list:
                 pass
         
         result.append({
+            "id": item.get("id"),
             "topic": item["topic"],
             "reason": metadata.get("reason", ""),
             "score": metadata.get("score", 5.0),
