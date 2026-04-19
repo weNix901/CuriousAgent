@@ -14,7 +14,7 @@ function renderCuriosity(queue) {
       + '<span class="item-score ' + scoreClass(item.score) + '">' + item.score.toFixed(1) + '</span></div>'
       + '<div class="item-reason">→ ' + escapeHtml(item.reason) + '</div>'
       + '<div class="item-meta"><span>⏳ ' + item.status + '</span><span>📅 ' + timeAgo(item.created_at) + '</span></div>'
-      + '<div class="item-actions" style="position:absolute;bottom:8px;right:8px;"><button class="btn btn-danger btn-sm" onclick="deleteQueueItem(' + item.id + ', \'' + escapeJs(item.topic) + '\')">删除</button></div>'
+      + '<div class="item-actions" style="position:absolute;bottom:8px;right:8px;"><button class="delete-link" onclick="event.stopPropagation();deleteQueueItem(' + item.id + ', \'' + escapeJs(item.topic) + '\')">删除</button></div>'
       + '</div>';
   }).join('');
 }
@@ -88,7 +88,7 @@ function renderKnowledge(topics) {
       + '<div class="item-meta"><span>🕐 ' + timeAgo(v.last_updated) + '</span>'
       + (v.sources && v.sources.length ? '<span>📚 ' + v.sources.length + ' 来源</span>' : '')
       + '<span class="click-hint">👆 详情</span></div>'
-      + '<div class="item-actions" style="position:absolute;bottom:8px;right:8px;"><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteKnowledgeNode(\'' + escapeJs(topic) + '\')">删除</button></div>'
+      + '<div class="item-actions" style="position:absolute;bottom:8px;right:8px;"><button class="delete-link" onclick="event.stopPropagation();deleteKnowledgeNode(\'' + escapeJs(topic) + '\')">删除</button></div>'
       + '</div>';
   }).join('');
 }
