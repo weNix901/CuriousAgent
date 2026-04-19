@@ -130,17 +130,17 @@ function renderGraph() {
 
   var link = g.append('g').selectAll('line').data(data.links).enter().append('line').attr('class', 'graph-link')
     .attr('stroke', function(d) {
+      if (d.type === 'cites') return '#3fb950';
       if (d.type === 'decomposition') return '#58a6ff';
-      if (d.type === 'cites') return '#e040fb';
       return '#8b949e';
     })
     .attr('stroke-width', function(d) {
-      if (d.type === 'decomposition') return 4;
-      if (d.type === 'cites') return 3;
+      if (d.type === 'cites') return 4;
+      if (d.type === 'decomposition') return 3;
       return 2;
     })
     .attr('stroke-dasharray', function(d) {
-      if (d.type === 'cites') return '8,4';
+      if (d.type === 'decomposition') return '8,4';
       if (d.type === 'semantic') return '5,5';
       return '0';
     })

@@ -1,15 +1,18 @@
 """DreamAgent - Multi-cycle architecture for insight generation."""
+import re
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from typing import List, Dict
+from urllib.parse import urlparse
 
 from core.agents.ca_agent import CAAgent, CAAgentConfig, AgentResult
 from core.tools.registry import ToolRegistry
 from core.tools.queue_tools import QueueStorage
 from core import knowledge_graph_compat as knowledge_graph
 from core.embedding_service import EmbeddingService
+from core.kg.repository_factory import get_kg_factory
 from collections import defaultdict
 import numpy as np
 
@@ -47,6 +50,7 @@ class DreamResult(AgentResult):
     """Result from DreamAgent execution."""
     candidates_selected: List[str] = field(default_factory=list)
     topics_generated: List[str] = field(default_factory=list)
+    source_url_topics: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -236,19 +240,95 @@ class DreamAgent(CAAgent):
             and c.recall_count >= self._min_recall_count
         ]
 
+    def _extract_topics_from_source_urls(self, min_quality: float = 7.0) -> List[tuple]:
+        kg_factory = get_kg_factory()
+        nodes = kg_factory.get_all_nodes_sync(limit=50)
+        
+        url_topics = []
+        seen_urls = set()
+        
+        for node in nodes:
+            quality = node.get("quality", 0) or 0
+            if quality < min_quality:
+                continue
+            
+            node_topic = node.get("topic", "")
+            sources = node.get("sources", []) or []
+            
+            for url in sources:
+                if url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                
+                topic = self._fetch_and_extract_topic(url)
+                if topic and len(topic) > 5:
+                    url_topics.append((topic, node_topic, url))
+        
+        return url_topics[:15]
+
+    def _fetch_and_extract_topic(self, url: str) -> str:
+        try:
+            from core.tools.web_tools import fetch_page
+            
+            result = fetch_page(url)
+            if not result or result.startswith("ERROR"):
+                return self._parse_url_domain(url)
+            
+            title = self._extract_title_from_html(result)
+            if title and len(title) > 5:
+                return title[:80]
+            
+            return self._parse_url_domain(url)
+        except Exception:
+            return self._parse_url_domain(url)
+
+    def _extract_title_from_html(self, html: str) -> str:
+        import re
+        
+        title_match = re.search(r'<title[^>]*>([^<]+)</title>', html, re.IGNORECASE)
+        if title_match:
+            title = title_match.group(1).strip()
+            title = re.sub(r'\s*[-_|]\s*(arxiv|csdn|blog|segmentfault|知乎|博客).*$', '', title, flags=re.IGNORECASE)
+            return title.strip()
+        
+        h1_match = re.search(r'<h1[^>]*>([^<]+)</h1>', html, re.IGNORECASE)
+        if h1_match:
+            return h1_match.group(1).strip()
+        
+        meta_match = re.search(r'<meta[^>]*name=["\']title["\'][^>]*content=["\']([^"\']+)["\']', html, re.IGNORECASE)
+        if meta_match:
+            return meta_match.group(1).strip()
+        
+        return ""
+
+    def _parse_url_domain(self, url: str) -> str:
+        try:
+            parsed = urlparse(url)
+            domain = parsed.netloc.lower()
+            
+            domain_parts = domain.split('.')
+            main_domain = domain_parts[0] if len(domain_parts) > 1 else domain
+            
+            if main_domain in ['www', 'm', 'blog', 'devpress']:
+                main_domain = domain_parts[1] if len(domain_parts) > 1 else ""
+            
+            if main_domain and main_domain not in ['arxiv', 'github', 'csdn', 'qq', 'com', 'cn', 'org', 'net']:
+                return f"{main_domain} related research"
+            
+            return ""
+        except Exception:
+            return ""
+
     def _l4_rem_sleep(self, filtered_candidates: List[ScoredCandidate]) -> List[str]:
-        """L4: Queue topic generation (NO KG write)."""
         queue = QueueStorage()
         queue.initialize()
         
         topics_added: List[str] = []
         for candidate in filtered_candidates:
-            # Check if already in queue
             pending = queue.get_pending_items()
             if any(item["topic"] == candidate.topic for item in pending):
                 continue
                 
-            # Add to queue with priority based on score
             priority = int(candidate.total_score * 10)
             queue.add_item(
                 topic=candidate.topic,
@@ -260,8 +340,45 @@ class DreamAgent(CAAgent):
                 }
             )
             topics_added.append(candidate.topic)
+        
+        source_url_topics = self._extract_topics_from_source_urls(min_quality=7.0)
+        for topic_tuple in source_url_topics:
+            topic, source_node, url = topic_tuple
             
-            # Mark as dreamed in KG
-            knowledge_graph._save_state(knowledge_graph.get_state())
+            pending = queue.get_pending_items()
+            if any(item["topic"] == topic for item in pending):
+                continue
+            
+            queue.add_item(
+                topic=topic,
+                priority=6,
+                metadata={
+                    "source": "dream_agent_source_url",
+                    "source_kg_node": source_node,
+                    "source_url": url
+                }
+            )
+            topics_added.append(topic)
+            
+            self._create_cites_edge(source_node, topic)
         
         return topics_added
+
+    def _create_cites_edge(self, source_topic: str, target_topic: str) -> bool:
+        try:
+            kg_factory = get_kg_factory()
+            
+            target_node = kg_factory.get_node_sync(target_topic)
+            if not target_node:
+                from core.knowledge_graph_compat import add_curiosity
+                add_curiosity(target_topic, reason=f"Cited from {source_topic}", relevance=6.0)
+            
+            kg_factory = get_kg_factory()
+            kg_repo = kg_factory._repo
+            if kg_repo:
+                import asyncio
+                asyncio.run(kg_repo.add_relation(source_topic, target_topic, "CITES"))
+                return True
+        except Exception:
+            pass
+        return False
