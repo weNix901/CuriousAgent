@@ -153,6 +153,24 @@ class KGRepositoryFactory:
         edges = self.get_all_relations_sync()
         return {"nodes": nodes, "edges": edges}
 
+    def query_knowledge_semantic_sync(
+        self,
+        query_text: str,
+        top_k: int = 5,
+        threshold: float = 0.75,
+        status_filter: str = "done"
+    ) -> list:
+        """Sync wrapper for query_knowledge_semantic."""
+        async def _query():
+            repo = await self._ensure_connected()
+            return await repo.query_knowledge_semantic(
+                query_text=query_text,
+                top_k=top_k,
+                threshold=threshold,
+                status_filter=status_filter
+            )
+        return asyncio.run(_query())
+
 
 def get_kg_factory() -> KGRepositoryFactory:
     """Get KG repository factory singleton."""

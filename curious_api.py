@@ -1440,6 +1440,49 @@ def api_knowledge_record():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/knowledge/semantic", methods=["GET"])
+def api_knowledge_semantic():
+    """Semantic search for knowledge using vector similarity.
+    
+    Args:
+        query: User query text (natural language)
+        top_k: Number of results to return (default: 5)
+        threshold: Minimum similarity threshold (0-1, default: 0.75)
+        status: Filter by node status (default: "done")
+        
+    Returns:
+        JSON with query, results (list of matching nodes with scores), count
+    """
+    try:
+        from core.kg.repository_factory import get_kg_factory
+        
+        query_text = request.args.get("query", "").strip()
+        if not query_text:
+            return jsonify({"error": "query parameter is required"}), 400
+        
+        top_k = int(request.args.get("top_k", 5))
+        threshold = float(request.args.get("threshold", 0.75))
+        status = request.args.get("status", "done")
+        
+        kg_factory = get_kg_factory()
+        results = kg_factory.query_knowledge_semantic_sync(
+            query_text=query_text,
+            top_k=top_k,
+            threshold=threshold,
+            status_filter=status
+        )
+        
+        return jsonify({
+            "query": query_text,
+            "results": results,
+            "count": len(results)
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/curious/quality/assertion", methods=["POST"])
 def assess_quality_assertion():
     """Test assertion-based quality assessment"""
