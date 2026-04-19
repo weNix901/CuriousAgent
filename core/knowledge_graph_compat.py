@@ -119,6 +119,35 @@ def _save_state(state: dict) -> None:
 
 def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float = 5.0, **extra) -> None:
     storage = _get_queue_storage()
+    
+    from core.concept_normalizer import get_default_normalizer
+    normalizer = get_default_normalizer()
+    
+    pending_items = storage.get_pending_items()
+    done_items = storage.get_completed_items(limit=50)
+    
+    for item in pending_items + done_items:
+        existing_topic = item.get("topic", "")
+        if not existing_topic:
+            continue
+        similarity, match_type = normalizer.compute_concept_similarity(topic, existing_topic)
+        if match_type in ("naming_variant", "translated_concept"):
+            logger.info(f"Skip duplicate curiosity: '{topic}' ≈ '{existing_topic}' ({match_type})")
+            return
+    
+    kg_factory = _get_kg_factory()
+    all_nodes = kg_factory.get_all_nodes_sync(limit=100)
+    
+    for node in all_nodes:
+        existing_topic = node.get("topic", "")
+        if not existing_topic:
+            continue
+        similarity, match_type = normalizer.compute_concept_similarity(topic, existing_topic)
+        if match_type in ("naming_variant", "translated_concept"):
+            if node.get("status") in ("done", "complete"):
+                logger.info(f"Skip duplicate curiosity (KG done): '{topic}' ≈ '{existing_topic}'")
+                return
+    
     score = min(10.0, relevance * 0.35 + depth * 0.25 + 5.0 * 0.4)
     
     if "Web citation" in reason:
@@ -140,16 +169,7 @@ def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float 
         **extra
     }
     
-    existing = storage.get_items_by_topic(topic)
-    if existing:
-        return
-    
-    kg_factory = _get_kg_factory()
-    kg_node = kg_factory.get_node_sync(topic)
-    if kg_node and kg_node.get("status") in ("done", "complete"):
-        return
-    
-    storage.add_item(topic, priority=priority, metadata=metadata)
+    storage.add_item(topic, priority=priority, metadata=metadata, skip_dedup=True)
 
 
 def claim_pending_item() -> Optional[dict]:
@@ -300,6 +320,29 @@ def mark_topic_done(topic: str, reason: str) -> None:
 async def add_knowledge_async(topic: str, depth: int = 5, summary: str = "", sources: Optional[list] = None, quality: Optional[float] = None) -> None:
     kg_factory = _get_kg_factory()
     
+    from core.concept_normalizer import get_default_normalizer
+    normalizer = get_default_normalizer()
+    
+    all_nodes = kg_factory.get_all_nodes_sync(limit=100)
+    
+    best_match = None
+    best_similarity = 0.0
+    best_type = "different_concept"
+    
+    for node in all_nodes:
+        existing_topic = node.get("topic", "")
+        if not existing_topic:
+            continue
+        similarity, match_type = normalizer.compute_concept_similarity(topic, existing_topic)
+        if similarity > best_similarity:
+            best_match = existing_topic
+            best_similarity = similarity
+            best_type = match_type
+    
+    if best_match and best_type in ("naming_variant", "translated_concept"):
+        logger.info(f"Merge knowledge into existing node: '{topic}' → '{best_match}' ({best_type}, sim={best_similarity:.2f})")
+        topic = best_match
+    
     metadata = {
         "depth": depth,
         "quality": quality if quality is not None else 0,
@@ -316,6 +359,29 @@ async def add_knowledge_async(topic: str, depth: int = 5, summary: str = "", sou
 
 def add_knowledge(topic: str, depth: int = 5, summary: str = "", sources: Optional[list] = None, quality: Optional[float] = None) -> None:
     kg_factory = _get_kg_factory()
+    
+    from core.concept_normalizer import get_default_normalizer
+    normalizer = get_default_normalizer()
+    
+    all_nodes = kg_factory.get_all_nodes_sync(limit=100)
+    
+    best_match = None
+    best_similarity = 0.0
+    best_type = "different_concept"
+    
+    for node in all_nodes:
+        existing_topic = node.get("topic", "")
+        if not existing_topic:
+            continue
+        similarity, match_type = normalizer.compute_concept_similarity(topic, existing_topic)
+        if similarity > best_similarity:
+            best_match = existing_topic
+            best_similarity = similarity
+            best_type = match_type
+    
+    if best_match and best_type in ("naming_variant", "translated_concept"):
+        logger.info(f"Merge knowledge into existing node: '{topic}' → '{best_match}' ({best_type}, sim={best_similarity:.2f})")
+        topic = best_match
     
     metadata = {
         "depth": depth,

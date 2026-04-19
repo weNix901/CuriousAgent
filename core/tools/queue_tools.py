@@ -1,11 +1,14 @@
 """Queue tools for curiosity management with SQLite storage."""
 import json
+import logging
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional, Tuple
 
 from core.tools.base import Tool
+
+logger = logging.getLogger(__name__)
 
 
 class QueueStorage:
@@ -16,6 +19,7 @@ class QueueStorage:
             db_path = str(Path(__file__).parent.parent.parent / "knowledge" / "queue.db")
         self._db_path = db_path
         self._connection: sqlite3.Connection | None = None
+        self._dedup_enabled: bool = True
 
     def _get_connection(self) -> sqlite3.Connection:
         if self._connection is None:
@@ -53,7 +57,52 @@ class QueueStorage:
         """)
         conn.commit()
 
-    def add_item(self, topic: str, priority: int = 5, metadata: dict | None = None) -> int:
+    def set_dedup_enabled(self, enabled: bool) -> None:
+        self._dedup_enabled = enabled
+
+    def check_duplicate_topic(self, topic: str) -> Optional[Tuple[str, float, str]]:
+        """Check if topic duplicates existing queue items using concept dedup."""
+        if not self._dedup_enabled:
+            return None
+        
+        from core.concept_normalizer import get_default_normalizer
+        
+        normalizer = get_default_normalizer()
+        pending_items = self.get_pending_items()
+        done_items = self.get_completed_items(limit=50)
+        all_items = pending_items + done_items
+        
+        best_match = None
+        best_similarity = 0.0
+        best_type = "different_concept"
+        
+        for item in all_items:
+            existing_topic = item.get("topic", "")
+            if not existing_topic:
+                continue
+            
+            similarity, match_type = normalizer.compute_concept_similarity(
+                topic, existing_topic
+            )
+            
+            if similarity > best_similarity:
+                best_match = existing_topic
+                best_similarity = similarity
+                best_type = match_type
+        
+        if best_type in ("naming_variant", "translated_concept"):
+            return (best_match, best_similarity, best_type)
+        
+        return None
+
+    def add_item(self, topic: str, priority: int = 5, metadata: dict | None = None, skip_dedup: bool = False) -> int:
+        if not skip_dedup:
+            duplicate = self.check_duplicate_topic(topic)
+            if duplicate:
+                matched_topic, similarity, dup_type = duplicate
+                logger.info(f"Skip duplicate queue item: '{topic}' ≈ '{matched_topic}' ({dup_type}, sim={similarity:.2f})")
+                return -1
+        
         conn = self._get_connection()
         cursor = conn.cursor()
         metadata_json = json.dumps(metadata) if metadata else None
