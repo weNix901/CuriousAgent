@@ -2340,16 +2340,24 @@ def api_timeline():
         try:
             conn = _get_audit_db()
             rows = conn.execute(
-                "SELECT timestamp, hook_name, endpoint, status, latency_ms FROM hook_calls ORDER BY timestamp DESC LIMIT ?",
+                "SELECT id, timestamp, hook_name, endpoint, status, latency_ms, agent_id, request_raw_topic FROM hook_calls ORDER BY timestamp DESC LIMIT ?",
                 (limit,)
             ).fetchall()
             for r in rows:
                 events.append({
+                    "event_id": f"hook_{r['id']}",
                     "timestamp": r["timestamp"],
                     "type": "hook_call",
                     "emoji": "🔗",
-                    "summary": f"{r['hook_name']} → {r['endpoint']} → {r['status']}",
-                    "detail_url": "/api/audit/hooks",
+                    "summary": f"{r['hook_name']} → {r['status']}",
+                    "detail": {
+                        "hook_name": r["hook_name"],
+                        "endpoint": r["endpoint"],
+                        "status": r["status"],
+                        "latency_ms": r["latency_ms"],
+                        "agent_id": r["agent_id"],
+                        "topic": r["request_raw_topic"] or "无",
+                    },
                 })
             conn.close()
         except Exception:
@@ -2358,17 +2366,23 @@ def api_timeline():
         try:
             conn = _get_traces_db()
             rows = conn.execute(
-                "SELECT started_at, topic, status, total_steps, quality_score FROM explorer_traces ORDER BY started_at DESC LIMIT ?",
+                "SELECT id, started_at, topic, status, total_steps, quality_score FROM explorer_traces ORDER BY started_at DESC LIMIT ?",
                 (limit,)
             ).fetchall()
             for r in rows:
                 emoji = "✅" if r["status"] == "done" else ("❌" if r["status"] == "failed" else "🔄")
                 events.append({
+                    "event_id": f"explorer_{r['id']}",
                     "timestamp": r["started_at"],
                     "type": f"exploration_{r['status']}",
                     "emoji": emoji,
-                    "summary": f"探索{'完成' if r['status'] == 'done' else '中'}: {r['topic']}, {r['total_steps']} steps",
-                    "detail_url": "/api/explorer/trace/",
+                    "summary": f"探索: {r['topic']}, {r['total_steps']} steps",
+                    "detail": {
+                        "topic": r["topic"],
+                        "status": r["status"],
+                        "total_steps": r["total_steps"],
+                        "quality_score": r["quality_score"],
+                    },
                 })
             conn.close()
         except Exception:
@@ -2379,12 +2393,20 @@ def api_timeline():
             for f in sorted(glob.glob(os.path.join(insights_dir, "*.json")), reverse=True)[:limit]:
                 with open(f, "r", encoding="utf-8") as fh:
                     data = json.load(fh)
+                    node_id = data.get("node_id", os.path.basename(f).replace(".json", ""))
                     events.append({
+                        "event_id": f"insight_{node_id}",
                         "timestamp": data.get("created_at", ""),
                         "type": "insight",
                         "emoji": "💡",
-                        "summary": f"洞察: {data.get('insight_type', '')} from {', '.join(data.get('source_topics', []))}",
-                        "detail_url": "",
+                        "summary": f"洞察: {data.get('insight_type', '')}",
+                        "detail": {
+                            "insight_type": data.get("insight_type", ""),
+                            "source_topics": data.get("source_topics", []),
+                            "surprise": data.get("surprise", 0),
+                            "novelty": data.get("novelty", 0),
+                            "content": data.get("content", "")[:200],
+                        },
                     })
         except Exception:
             pass

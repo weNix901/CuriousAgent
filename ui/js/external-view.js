@@ -121,14 +121,62 @@ async function loadTimeline() {
       return;
     }
     var html = data.events.map(function(e) {
-      return '<div class="history-item">'
+      var detailJson = JSON.stringify(e.detail || {}).replace(/"/g, '&quot;');
+      return '<div class="history-item" data-event-id="' + escapeHtml(e.event_id) + '" data-event-type="' + escapeHtml(e.type) + '" data-detail="' + detailJson + '" onclick="showTimelineDetail(this.dataset.eventType, JSON.parse(this.dataset.detail))">'
         + '<div class="history-top"><span>' + e.emoji + ' ' + escapeHtml(e.summary) + '</span>'
-        + '<span class="history-time">' + timeAgo(e.timestamp) + '</span></div></div>';
+        + '<span class="history-time">' + timeAgo(e.timestamp) + '</span></div>'
+        + '<span class="click-hint">👆 详情</span></div>';
     }).join('');
     el.innerHTML = html;
   } catch (e) {
     el.innerHTML = '<div class="empty">加载失败</div>';
   }
+}
+
+function showTimelineDetail(eventType, detail) {
+  var modal = document.getElementById('detail-modal');
+  var title = document.getElementById('modal-title');
+  var meta = document.getElementById('modal-meta');
+  var body = document.getElementById('modal-body');
+  
+  if (eventType === 'hook_call') {
+    title.textContent = '🔗 Hook 调用详情';
+    meta.innerHTML = '';
+    body.innerHTML = '<div class="modal-section"><div class="modal-section-title">基本信息</div>'
+      + '<div class="modal-section-content">'
+      + 'Hook: ' + escapeHtml(detail.hook_name) + '<br>'
+      + 'Endpoint: ' + escapeHtml(detail.endpoint) + '<br>'
+      + 'Agent: ' + escapeHtml(detail.agent_id || '未知') + '<br>'
+      + 'Status: ' + escapeHtml(detail.status) + '<br>'
+      + 'Latency: ' + detail.latency_ms + 'ms</div></div>'
+      + '<div class="modal-section"><div class="modal-section-title">Topic</div>'
+      + '<div class="modal-section-content">' + escapeHtml(detail.topic) + '</div></div>';
+  } else if (eventType.startsWith('exploration_')) {
+    title.textContent = detail.emoji || '🔍 探索详情';
+    meta.innerHTML = '<span class="modal-meta-item">Quality: ' + (detail.quality_score || 'N/A') + '</span>';
+    body.innerHTML = '<div class="modal-section"><div class="modal-section-title">探索信息</div>'
+      + '<div class="modal-section-content">'
+      + 'Topic: ' + escapeHtml(detail.topic) + '<br>'
+      + 'Status: ' + escapeHtml(detail.status) + '<br>'
+      + 'Steps: ' + detail.total_steps + '<br>'
+      + 'Quality Score: ' + (detail.quality_score || 'N/A') + '</div></div>';
+  } else if (eventType === 'insight') {
+    title.textContent = '💡 Dream 洞察详情';
+    meta.innerHTML = '<span class="modal-meta-item">Surprise: ' + (detail.surprise || 0) + '</span>'
+      + '<span class="modal-meta-item">Novelty: ' + (detail.novelty || 0) + '</span>';
+    body.innerHTML = '<div class="modal-section"><div class="modal-section-title">洞察信息</div>'
+      + '<div class="modal-section-content">'
+      + 'Type: ' + escapeHtml(detail.insight_type) + '<br>'
+      + 'Source Topics: ' + escapeHtml((detail.source_topics || []).join(', ')) + '</div></div>'
+      + '<div class="modal-section"><div class="modal-section-title">内容</div>'
+      + '<div class="modal-section-content">' + escapeHtml(detail.content || '无内容') + '</div></div>';
+  } else {
+    title.textContent = '📋 事件详情';
+    meta.innerHTML = '';
+    body.innerHTML = '<div class="modal-section-content">' + escapeHtml(JSON.stringify(detail, null, 2)) + '</div>';
+  }
+  
+  modal.classList.add('active');
 }
 
 function refreshHookBoard() { loadHookBoard(); }
