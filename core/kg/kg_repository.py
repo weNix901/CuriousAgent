@@ -1,12 +1,16 @@
 """KG Repository for knowledge graph operations."""
+import logging
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class KGRepository:
     """Repository for Knowledge Graph node and relation operations."""
 
-    def __init__(self, neo4j_client: Any):
+    def __init__(self, neo4j_client: Any, embedding_service: Optional[Any] = None):
         self._client = neo4j_client
+        self._embedding_service = embedding_service
 
     async def create_knowledge_node(
         self,
@@ -89,6 +93,63 @@ class KGRepository:
             limit=limit
         )
         return result
+
+    async def query_knowledge_semantic(
+        self,
+        query_text: str,
+        top_k: int = 5,
+        threshold: float = 0.75,
+        status_filter: str = "done"
+    ) -> List[Dict[str, Any]]:
+        """Query knowledge nodes using vector similarity search.
+        
+        Uses the vector index to find semantically similar nodes.
+        Falls back to text search if embedding_service is not available.
+        
+        Args:
+            query_text: The search query text
+            top_k: Number of results to return (default: 5)
+            threshold: Minimum similarity score threshold (default: 0.75)
+            status_filter: Filter by node status (default: "done")
+            
+        Returns:
+            List of matching nodes with topic, content, and score
+        """
+        # Fallback to text search if no embedding service
+        if self._embedding_service is None:
+            logger.warning("No embedding service available, falling back to text search")
+            return await self.query_knowledge(query_text, limit=top_k)
+        
+        try:
+            # Generate query embedding
+            query_embedding = self._embedding_service.embed([query_text])[0]
+            
+            # Query vector index using db.index.vector.queryNodes
+            query = """
+            CALL db.index.vector.queryNodes('knowledge_embeddings', $top_k, $embedding)
+            YIELD node, score
+            WHERE node.status = $status AND score >= $threshold
+            RETURN node.topic as topic, node.content as content, 
+                   node.heat as heat, node.quality as quality, 
+                   node.confidence as confidence, score
+            ORDER BY score DESC
+            """
+            
+            result = await self._client.execute_query(
+                query,
+                top_k=top_k,
+                embedding=query_embedding,
+                threshold=threshold,
+                status=status_filter
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Semantic query failed: {e}")
+            # Fallback to text search on error
+            logger.warning("Falling back to text search due to error")
+            return await self.query_knowledge(query_text, limit=top_k)
 
     async def get_node(self, topic: str) -> Optional[Dict[str, Any]]:
         """Get a single node by exact topic match."""
