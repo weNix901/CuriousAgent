@@ -25,9 +25,28 @@ class Neo4jClient:
                 auth=(self.username, self.password),
                 max_connection_lifetime=self.max_connection_lifetime
             )
+            await self._init_vector_index()
             return True
         except Exception as e:
             raise Exception(f"Failed to connect to Neo4j: {e}")
+
+    async def _init_vector_index(self) -> bool:
+        """Initialize vector index for Knowledge embeddings."""
+        query = """
+        CREATE VECTOR INDEX knowledge_embeddings IF NOT EXISTS
+        FOR (n:Knowledge) ON n.embedding
+        OPTIONS { indexConfig: {
+          `vector.dimensions`: 1024,
+          `vector.similarity_function`: 'cosine'
+        }}
+        """
+        try:
+            await self.execute_write(query)
+            logger.info("Vector index 'knowledge_embeddings' created/verified")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to create vector index: {e}")
+            return False
 
     async def disconnect(self) -> None:
         """Close connection to Neo4j database."""
