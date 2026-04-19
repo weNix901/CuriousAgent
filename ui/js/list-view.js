@@ -14,7 +14,7 @@ function renderCuriosity(queue) {
       + '<span class="item-score ' + scoreClass(item.score) + '">' + item.score.toFixed(1) + '</span></div>'
       + '<div class="item-reason">→ ' + escapeHtml(item.reason) + '</div>'
       + '<div class="item-meta"><span>⏳ ' + item.status + '</span><span>📅 ' + timeAgo(item.created_at) + '</span></div>'
-      + '<div class="item-actions"><button class="btn btn-danger btn-sm" onclick="deleteQueueItem(' + item.id + ', \'' + escapeJs(item.topic) + '\')">删除</button></div>'
+      + '<div class="item-actions" style="position:absolute;bottom:8px;right:8px;"><button class="btn btn-danger btn-sm" onclick="deleteQueueItem(' + item.id + ', \'' + escapeJs(item.topic) + '\')">删除</button></div>'
       + '</div>';
   }).join('');
 }

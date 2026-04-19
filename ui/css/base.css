@@ -44,7 +44,7 @@ header { display: flex; align-items: center; justify-content: space-between; mar
 .panel-body::-webkit-scrollbar { width: 4px; }
 .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-.item { padding: 10px 0; border-bottom: 1px solid rgba(48,54,61,0.5); }
+.item { padding: 10px 0; border-bottom: 1px solid rgba(48,54,61,0.5); position: relative; }
 .item:last-child { border-bottom: none; }
 .item-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
 .item-title { font-weight: 600; font-size: 13px; flex: 1; }
