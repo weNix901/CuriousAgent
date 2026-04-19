@@ -25,7 +25,8 @@ class KGRepository:
             "heat": 0,
             "quality": 0.0,
             "confidence": 0.0,
-            "status": "pending"
+            "status": "pending",
+            "depth": 5
         }
         for key, value in default_metadata.items():
             if key not in metadata:
@@ -39,6 +40,7 @@ class KGRepository:
             n.quality = $quality,
             n.confidence = $confidence,
             n.status = $status,
+            n.depth = $depth,
             n.created_at = timestamp()
         RETURN n.topic as id, n.status as status
         """
@@ -51,7 +53,8 @@ class KGRepository:
             heat=metadata.get("heat", 0),
             quality=metadata.get("quality", 0.0),
             confidence=metadata.get("confidence", 0.0),
-            status=metadata.get("status", "pending")
+            status=metadata.get("status", "pending"),
+            depth=metadata.get("depth", 5)
         )
 
         for rel in relations:
@@ -93,7 +96,7 @@ class KGRepository:
         MATCH (n:Knowledge {topic: $topic})
         RETURN n.topic as topic, n.content as content, n.status as status,
                n.heat as heat, n.quality as quality, n.confidence as confidence,
-               n.source_urls as source_urls
+               n.depth as depth, n.source_urls as source_urls
         """
 
         result = await self._client.execute_query(query, topic=topic)
@@ -117,7 +120,8 @@ class KGRepository:
         topic: str,
         heat: Optional[int] = None,
         quality: Optional[float] = None,
-        confidence: Optional[float] = None
+        confidence: Optional[float] = None,
+        depth: Optional[float] = None
     ) -> bool:
         """Update node metadata fields."""
         updates = []
@@ -132,6 +136,9 @@ class KGRepository:
         if confidence is not None:
             updates.append("n.confidence = $confidence")
             params["confidence"] = confidence
+        if depth is not None:
+            updates.append("n.depth = $depth")
+            params["depth"] = depth
 
         if not updates:
             return False
@@ -140,7 +147,7 @@ class KGRepository:
         query = f"""
         MATCH (n:Knowledge {{topic: $topic}})
         SET {', '.join(updates)}
-        RETURN n.heat as heat, n.quality as quality, n.confidence as confidence
+        RETURN n.heat as heat, n.quality as quality, n.confidence as confidence, n.depth as depth
         """
 
         result = await self._client.execute_write(**params, query=query)
