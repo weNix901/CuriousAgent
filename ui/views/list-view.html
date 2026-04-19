@@ -5,7 +5,14 @@
   <div class="panel">
     <div class="panel-header">
       <div class="panel-title">📚 已知知识</div>
-      <span id="knowledge-count" style="font-size:12px;color:var(--text-muted)"></span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select id="knowledge-filter" onchange="filterKnowledge()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:4px 8px;font-size:12px;">
+          <option value="done">已完成 (done)</option>
+          <option value="pending">待探索 (pending)</option>
+          <option value="all">全部</option>
+        </select>
+        <span id="knowledge-count" style="font-size:12px;color:var(--text-muted)"></span>
+      </div>
     </div>
     <div class="panel-body" id="knowledge-list">
       <div class="empty">加载中...</div>

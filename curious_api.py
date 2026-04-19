@@ -1133,6 +1133,40 @@ def api_kg_node_detail(node_id):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/kg/delete", methods=["POST"])
+def api_kg_delete_node():
+    try:
+        from neo4j import GraphDatabase
+        import os
+        
+        data = request.get_json() or {}
+        topic = data.get("topic", "")
+        
+        if not topic:
+            return jsonify({"status": "error", "error": "topic is required"}), 400
+        
+        uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+        username = os.environ.get("NEO4J_USERNAME", "neo4j")
+        password = os.environ.get("NEO4J_PASSWORD", "")
+        
+        driver = GraphDatabase.driver(uri, auth=(username, password))
+        with driver.session() as session:
+            result = session.run(
+                "MATCH (n:Knowledge {topic: $topic}) DETACH DELETE n RETURN count(n) as deleted",
+                topic=topic
+            )
+            deleted = result.single()["deleted"]
+        driver.close()
+        
+        if deleted > 0:
+            return jsonify({"status": "ok", "message": f"Deleted '{topic}'"})
+        else:
+            return jsonify({"status": "error", "error": "Node not found"}), 404
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
 @app.route("/api/kg/edges")
 def api_kg_edges():
     """Get edges for KG."""

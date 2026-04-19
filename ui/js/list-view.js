@@ -59,15 +59,26 @@ function renderHistory(logs) {
 }
 
 function renderKnowledge(topics) {
+  var filter = document.getElementById('knowledge-filter');
+  var statusFilter = filter ? filter.value : 'done';
+  
+  var filtered = Object.entries(topics).filter(function(entry) {
+    var v = entry[1];
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'done') return v.known || v.status === 'done';
+    if (statusFilter === 'pending') return !v.known || v.status === 'pending';
+    return true;
+  });
+  
   var container = document.getElementById('knowledge-list');
-  document.getElementById('knowledge-count').textContent = Object.keys(topics).length + ' 个';
+  document.getElementById('knowledge-count').textContent = filtered.length + ' 个';
 
-  if (!Object.keys(topics).length) {
-    container.innerHTML = '<div class="empty">暂无知识节点</div>';
+  if (!filtered.length) {
+    container.innerHTML = '<div class="empty">暂无' + (statusFilter === 'done' ? '已完成' : statusFilter === 'pending' ? '待探索' : '') + '知识节点</div>';
     return;
   }
 
-  var sorted = Object.entries(topics).sort(function(a,b) { return (b[1].depth || 5) - (a[1].depth || 5); });
+  var sorted = filtered.sort(function(a,b) { return (b[1].depth || 5) - (a[1].depth || 5); });
   container.innerHTML = sorted.map(function(entry) {
     var topic = entry[0], v = entry[1];
     return '<div class="item" data-topic-key="' + escapeHtml(topic) + '" onclick="showDetail(\'knowledge\',this.dataset.topicKey)">'
@@ -76,8 +87,36 @@ function renderKnowledge(topics) {
       + '<div class="item-reason">' + escapeHtml(v.summary && v.summary.substring(0, 100) || '—') + '</div>'
       + '<div class="item-meta"><span>🕐 ' + timeAgo(v.last_updated) + '</span>'
       + (v.sources && v.sources.length ? '<span>📚 ' + v.sources.length + ' 来源</span>' : '')
-      + '<span class="click-hint">👆 详情</span></div></div>';
+      + '<span class="click-hint">👆 详情</span></div>'
+      + '<div class="item-actions" style="position:absolute;bottom:8px;right:8px;"><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteKnowledgeNode(\'' + escapeJs(topic) + '\')">删除</button></div>'
+      + '</div>';
   }).join('');
+}
+
+function filterKnowledge() {
+  if (!state) return;
+  renderKnowledge(state.knowledge && state.knowledge.topics || {});
+}
+
+function deleteKnowledgeNode(topic) {
+  if (!confirm('确定删除知识点 "' + topic + '" 吗？\n此操作将同时删除关联的Neo4j节点。')) return;
+  
+  fetch('/api/kg/delete', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({topic: topic})
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'ok') {
+        loadState().then(function() { loadListView(); });
+      } else {
+        alert('删除失败: ' + (data.error || '未知错误'));
+      }
+    })
+    .catch(function(e) {
+      alert('请求失败: ' + e);
+    });
 }
 
 function renderStats(data) {
