@@ -33,6 +33,65 @@ Fallback: Bocha (quota: 50/天)
 
 **Quota 重置:** 每日 UTC 0:00 (北京时间 8:00)
 
+### 向量索引架构 (v0.3.2)
+
+CA使用Neo4j 5.x原生向量索引实现KG语义检索：
+
+| 配置 | 详情 |
+|------|------|
+| **Index Name** | `knowledge_embeddings` |
+| **Algorithm** | HNSW (Hierarchical Navigable Small World) |
+| **Similarity** | Cosine |
+| **Dimensions** | 1024 (BAAI/bge-large-zh-v1.5) |
+
+**组合Embedding设计:**
+
+KG节点存储组合embedding，融合多维度语义信息：
+
+| 组成部分 | 权重 | 用途 |
+|----------|------|------|
+| `topic` | 40% | 节点标题（核心匹配维度） |
+| `key_points` | 30% | LLM提取的关键要点 |
+| `content` | 20% | 知识摘要（截断至500字符） |
+| `keywords` | 10% | 概念关键词 |
+
+**语义查询流程:**
+
+```
+用户Query: "agent上下文管理系统是干嘛的？"
+    │
+    ▼
+EmbeddingService.embed(query) → 1024维向量
+    │
+    ▼
+Neo4j向量索引查询:
+CALL db.index.vector.queryNodes('knowledge_embeddings', 5, $embedding)
+YIELD node, score
+WHERE score >= 0.75 AND node.status = 'done'
+    │
+    ▼
+返回: [{"topic": "agent上下文管理系统", "score": 0.888, ...}]
+    │
+    ▼
+Confidence计算: score * quality/10 = 0.888 * 8.0 / 10 = 0.71
+```
+
+**关键组件:**
+
+| 文件 | 功能 |
+|------|------|
+| `core/kg/neo4j_client.py` | `_init_vector_index()` 创建向量索引 |
+| `core/kg/kg_repository.py` | `query_knowledge_semantic()` 语义查询方法 |
+| `core/api/host_agent_integration.py` | `check_confidence()` 使用语义匹配 |
+| `scripts/backfill_kg_embeddings.py` | 批量生成现有KG节点embedding |
+
+**Query处理策略:**
+
+使用**整句向量化**作为主要策略（研究证据支持）：
+- BGE-M3模型自然处理中文自然语言query
+- 组合embedding包含多维度信息，整句query能自然匹配
+- 避免分词带来的错误传播问题
+
 ---
 
 ## 核心架构
