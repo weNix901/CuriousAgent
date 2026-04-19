@@ -375,14 +375,16 @@ class DreamAgent(CAAgent):
             
             driver = GraphDatabase.driver(uri, auth=(username, password))
             with driver.session() as session:
-                session.run("""
+                result = session.run("""
                     MATCH (a:Knowledge {topic: $source})
-                    MERGE (b:Knowledge {topic: $target})
-                    SET b.status = 'pending', b.created_at = timestamp()
+                    MATCH (b:Knowledge {topic: $target})
                     MERGE (a)-[r:CITES]->(b)
                     RETURN type(r) as rel_type
                 """, source=source_topic, target=target_topic)
+                
+                if result.single():
+                    return True
             driver.close()
-            return True
-        except Exception as e:
+            return False
+        except Exception:
             return False
