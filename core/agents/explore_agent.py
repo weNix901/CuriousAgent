@@ -306,7 +306,7 @@ class ExploreAgent(CAAgent):
                         topic=topic,
                         content=final_summary[:2000],
                         source_urls=collected_sources,
-                        metadata={"depth": 5, "quality": 5.0 + len(collected_sources)}
+                        metadata={"depth": iterations, "quality": 5.0 + len(collected_sources)}
                     )
                 return {
                     "success": True,
@@ -388,7 +388,7 @@ class ExploreAgent(CAAgent):
                 topic=topic,
                 content=final_summary[:2000],
                 source_urls=collected_sources,
-                metadata={"depth": 5, "quality": 5.0 + len(collected_sources)}
+                metadata={"depth": iterations, "quality": 5.0 + len(collected_sources)}
             )
         return {
             "success": True,
