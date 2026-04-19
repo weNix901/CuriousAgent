@@ -14,26 +14,31 @@ async function loadHookBoard() {
     var url = '/api/audit/hooks?limit=20' + (filter ? '&hook=' + encodeURIComponent(filter) : '');
     var data = await fetchJSON(url);
     if (!data.records || !data.records.length) {
-      el.innerHTML = '<div class="empty">暂无 Hook 调用记录</div>';
+      el.innerHTML = '<div class="empty">暂无外部Agent调用记录</div>';
       return;
     }
     
     var hookNameMap = {
-      '/api/knowledge/confidence': 'knowledge-query',
-      '/api/knowledge/learn': 'knowledge-learn',
-      '/api/kg/overview': 'knowledge-bootstrap',
-      '/api/knowledge/check': 'knowledge-gate',
-      '/api/kg/confidence': 'knowledge-gate',
-      '/api/knowledge/record': 'knowledge-inject',
+      '/api/knowledge/confidence': 'knowledge-query-skill',
+      '/api/knowledge/learn': 'knowledge-learn-hook',
+      '/api/kg/overview': 'knowledge-bootstrap-hook',
+      '/api/knowledge/check': 'knowledge-gate-hook',
+      '/api/kg/confidence': 'knowledge-gate-hook',
+      '/api/knowledge/record': 'knowledge-inject-hook',
     };
     
     var html = data.records.map(function(r) {
       var emoji = r.status === 'success' ? '✅' : '❌';
       var hookName = r.hook_name;
+      // Check if skill or hook based on naming
+      var isSkill = hookName && hookName.endsWith('-skill');
+      var typeEmoji = isSkill ? '🔹' : '🪝';
       if (hookName === 'unknown' || !hookName) {
         for (var prefix in hookNameMap) {
           if (r.endpoint.startsWith(prefix)) {
             hookName = hookNameMap[prefix];
+            isSkill = hookName && hookName.endsWith('-skill');
+            typeEmoji = isSkill ? '🔹' : '🪝';
             break;
           }
         }
@@ -41,7 +46,7 @@ async function loadHookBoard() {
       }
       var time = r.timestamp ? timeAgo(r.timestamp) : '';
       return '<div class="history-item" data-hook-id="' + escapeHtml(r.id) + '" onclick="showHookDetail(this.dataset.hookId)">'
-        + '<div class="history-top"><span>' + emoji + ' ' + escapeHtml(hookName) + '</span>'
+        + '<div class="history-top"><span>' + emoji + ' ' + typeEmoji + ' ' + escapeHtml(hookName) + '</span>'
         + '<span class="history-time">' + time + ' | ' + r.latency_ms + 'ms</span></div>'
         + '<div class="history-findings">' + escapeHtml(r.endpoint) + ' → ' + r.status_code + '</div>'
         + '<span class="click-hint">👆 详情</span></div>';
@@ -63,7 +68,7 @@ async function showHookDetail(hookId) {
     var hookDisplay = data.hook_name !== 'unknown' ? data.hook_name : data.endpoint;
     var summary = data.request_raw_topic || '无topic';
     
-    title.textContent = '🪝 ' + hookDisplay;
+    title.textContent = '🤖 ' + hookDisplay;
     meta.innerHTML = '<span class="modal-meta-item">时间: ' + timeAgo(data.timestamp) + '</span>'
       + '<span class="modal-meta-item">耗时: ' + data.latency_ms + 'ms</span>'
       + '<span class="modal-meta-item">状态: ' + data.status + '</span>';
@@ -140,11 +145,11 @@ function showTimelineDetail(eventType, detail) {
   var body = document.getElementById('modal-body');
   
   if (eventType === 'hook_call') {
-    title.textContent = '🔗 Hook 调用详情';
+    title.textContent = '🔗 调用详情';
     meta.innerHTML = '';
     body.innerHTML = '<div class="modal-section"><div class="modal-section-title">基本信息</div>'
       + '<div class="modal-section-content">'
-      + 'Hook: ' + escapeHtml(detail.hook_name) + '<br>'
+      + '调用: ' + escapeHtml(detail.hook_name) + '<br>'
       + 'Endpoint: ' + escapeHtml(detail.endpoint) + '<br>'
       + 'Agent: ' + escapeHtml(detail.agent_id || '未知') + '<br>'
       + 'Status: ' + escapeHtml(detail.status) + '<br>'
