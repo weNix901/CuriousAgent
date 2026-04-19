@@ -40,8 +40,28 @@ function buildGraphData() {
     }
   }
 
-  var STOP = ['ai', 'agent', 'agents', 'in', 'for', 'the', 'and', 'of', 'to', 'learning', 'framework', 'self', 'a', 'based', 'systems'];
-  function tokens(s) { return (s || '').toLowerCase().split(/[\s\-_:,]/).filter(function(t) { return t.length > 2 && STOP.indexOf(t) < 0; }); }
+  var STOP = ['in', 'for', 'the', 'and', 'of', 'to', 'a', 'based'];
+  function tokens(s) { 
+    var result = [];
+    var parts = (s || '').toLowerCase().split(/[\s\-_:,]+/);
+    parts.forEach(function(p) {
+      if (p.length <= 2) return;
+      if (STOP.indexOf(p) >= 0) return;
+      result.push(p);
+      for (var i = 0; i < p.length - 1; i++) {
+        var c = p.charAt(i);
+        if (c >= '\u4e00' && c <= '\u9fff') {
+          for (var j = i + 1; j <= p.length && j <= i + 6; j++) {
+            var sub = p.substring(i, j);
+            if (sub.length >= 2 && STOP.indexOf(sub) < 0) {
+              result.push(sub);
+            }
+          }
+        }
+      }
+    });
+    return result.filter(function(t, idx, arr) { return arr.indexOf(t) === idx; });
+  }
   nodes.forEach(function(n) { n._t = {}; tokens(n.id).forEach(function(t) { n._t[t] = true; }); });
 
   for (var i = 0; i < nodes.length; i++) {
