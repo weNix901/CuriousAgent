@@ -503,24 +503,20 @@ def get_all_nodes(active_only: bool = False) -> list:
 
 
 def add_child(parent: str, child: str) -> None:
+    """Add child relationship. Only creates relation if both nodes exist in KG.
+    If child doesn't exist, adds it to queue for exploration instead."""
     kg_factory = _get_kg_factory()
     
-    kg_factory.create_knowledge_node_sync(
-        topic=parent,
-        content="",
-        metadata={"status": "partial"}
-    )
-    kg_factory.create_knowledge_node_sync(
-        topic=child,
-        content="",
-        metadata={"status": "partial"}
-    )
+    parent_exists = kg_factory.get_node_sync(parent) is not None
+    child_exists = kg_factory.get_node_sync(child) is not None
     
-    async def _add_relation():
-        repo = await kg_factory._ensure_connected()
-        await repo.add_relation(parent, child, "IS_CHILD_OF")
-    
-    asyncio.run(_add_relation())
+    if parent_exists and child_exists:
+        async def _add_relation():
+            repo = await kg_factory._ensure_connected()
+            await repo.add_relation(parent, child, "IS_CHILD_OF")
+        asyncio.run(_add_relation())
+    elif not child_exists:
+        add_curiosity(topic=child, reason=f"Child topic of: {parent}", relevance=6.0, depth=5.0)
 
 
 def get_children(topic: str) -> list:
@@ -560,24 +556,23 @@ def reactivate(topic: str) -> None:
 
 
 def add_citation(citing_topic: str, cited_topic: str) -> None:
+    """Add citation relationship. Only creates relation if both nodes exist in KG.
+    If cited_topic doesn't exist, adds it to queue for exploration instead."""
     kg_factory = _get_kg_factory()
     
-    kg_factory.create_knowledge_node_sync(
-        topic=citing_topic,
-        content="",
-        metadata={"status": "partial"}
-    )
-    kg_factory.create_knowledge_node_sync(
-        topic=cited_topic,
-        content="",
-        metadata={"status": "partial"}
-    )
+    # Check if both nodes exist in KG
+    citing_exists = kg_factory.get_node_sync(citing_topic) is not None
+    cited_exists = kg_factory.get_node_sync(cited_topic) is not None
     
-    async def _add_citation():
-        repo = await kg_factory._ensure_connected()
-        await repo.add_relation(citing_topic, cited_topic, "CITES")
-    
-    asyncio.run(_add_citation())
+    # Only add relation if both exist in KG (status=done)
+    if citing_exists and cited_exists:
+        async def _add_citation():
+            repo = await kg_factory._ensure_connected()
+            await repo.add_relation(citing_topic, cited_topic, "CITES")
+        asyncio.run(_add_citation())
+    elif not cited_exists:
+        # Cited topic not in KG - add to queue for exploration
+        add_curiosity(topic=cited_topic, reason=f"Cited by: {citing_topic}", relevance=7.0, depth=5.0)
 
 
 def update_topic_quality(topic: str, quality: float) -> None:

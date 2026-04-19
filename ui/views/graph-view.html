@@ -9,15 +9,15 @@
     <div class="graph-controls" id="graph-controls" style="display:none">
       <div class="ctrl-group">
         <div class="ctrl-label">节点斥力 <span id="lbl-charge">-280</span></div>
-        <input type="range" id="ctrl-charge" min="-600" max="-50" value="-280" step="10">
+        <input type="range" id="ctrl-charge" min="-600" max="-50" value="-280" step="10" onchange="applyGraphParams()">
       </div>
       <div class="ctrl-group">
         <div class="ctrl-label">连线距离 <span id="lbl-distance">130</span></div>
-        <input type="range" id="ctrl-distance" min="50" max="300" value="130" step="10">
+        <input type="range" id="ctrl-distance" min="50" max="300" value="130" step="10" onchange="applyGraphParams()">
       </div>
       <div class="ctrl-group">
         <div class="ctrl-label">连线强度 <span id="lbl-strength">0.35</span></div>
-        <input type="range" id="ctrl-strength" min="0" max="1" value="0.35" step="0.05">
+        <input type="range" id="ctrl-strength" min="0" max="1" value="0.35" step="0.05" onchange="applyGraphParams()">
       </div>
       <label class="ctrl-check"><input type="checkbox" id="ctrl-show-decomp" checked onchange="toggleLinkType()">分解关系</label>
       <label class="ctrl-check"><input type="checkbox" id="ctrl-show-cites" checked onchange="toggleLinkType()">论文引用</label>
