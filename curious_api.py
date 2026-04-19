@@ -2131,6 +2131,28 @@ def api_dream_stats():
             "insight_by_type": insight_types,
         })
     except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dream/run", methods=["POST"])
+def api_dream_run():
+    """Manually trigger Dream Agent to generate insight topics."""
+    try:
+        from curious_agent import run_dream_agent
+        
+        result = run_dream_agent()
+        
+        return jsonify({
+            "status": "ok",
+            "topics_generated": result.get("topics_generated", []),
+            "candidates_selected": result.get("candidates_selected", 0),
+            "message": f"Generated {len(result.get('topics_generated', []))} topics"
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 

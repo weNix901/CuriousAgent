@@ -102,6 +102,28 @@ async function loadSystemHealth() {
 function refreshExplorer() { loadExplorerPanel(); }
 function refreshDream() { loadDreamPanel(); }
 
+async function runDreamAgent() {
+  var btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '⏳ 运行中...';
+  
+  try {
+    var data = await fetchJSON('/api/dream/run', {method: 'POST'});
+    if (data.status === 'ok') {
+      var topics = data.topics_generated || [];
+      alert('✅ Dream Agent 完成！生成 ' + topics.length + ' 个话题:\n' + topics.slice(0, 5).join('\n'));
+      loadDreamPanel();
+    } else {
+      alert('❌ 运行失败: ' + (data.error || '未知错误'));
+    }
+  } catch (e) {
+    alert('❌ 请求失败: ' + e);
+  }
+  
+  btn.disabled = false;
+  btn.textContent = '🚀 运行';
+}
+
 async function showExplorerTrace(traceId) {
   var modal = document.getElementById('detail-modal');
   var title = document.getElementById('modal-title');
