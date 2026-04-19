@@ -68,3 +68,5 @@ openclaw-hooks/internal/
 ui/js/internal-view.js
 ui/views/internal-view.html
 RELEASE_NOTE_v0.3.*
+HEARTBEAT.md
+knowledge/audit.db
