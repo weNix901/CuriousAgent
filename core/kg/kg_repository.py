@@ -12,18 +12,38 @@ class KGRepository:
         self._client = neo4j_client
         self._embedding_service = embedding_service
 
+    def _build_combined_text(
+        self,
+        topic: str,
+        content: str,
+        key_points: List[str],
+        keywords: List[str]
+    ) -> str:
+        """Build combined text for embedding generation.
+        
+        Format: 【主题】topic 【关键要点】... 【简介】content 【关键词】...
+        """
+        key_points_str = ", ".join(key_points) if key_points else ""
+        keywords_str = ", ".join(keywords) if keywords else ""
+        
+        return f"【主题】{topic} 【关键要点】{key_points_str} 【简介】{content} 【关键词】{keywords_str}"
+
     async def create_knowledge_node(
         self,
         topic: str,
         content: str = "",
         source_urls: List[str] = None,
         relations: List[Dict[str, str]] = None,
-        metadata: Dict[str, Any] = None
+        metadata: Dict[str, Any] = None,
+        key_points: List[str] = None,
+        keywords: List[str] = None
     ) -> str:
-        """Create a knowledge node with optional relations."""
+        """Create a knowledge node with optional relations and embedding."""
         source_urls = source_urls or []
         relations = relations or []
         metadata = metadata or {}
+        key_points = key_points or []
+        keywords = keywords or []
 
         default_metadata = {
             "heat": 0,
@@ -36,30 +56,50 @@ class KGRepository:
             if key not in metadata:
                 metadata[key] = value
 
+        embedding = None
+        if self._embedding_service is not None:
+            try:
+                combined_text = self._build_combined_text(topic, content, key_points, keywords)
+                embedding = self._embedding_service.embed([combined_text])[0]
+            except Exception as e:
+                logger.warning(f"Failed to generate embedding for {topic}: {e}")
+
         query = """
         MERGE (n:Knowledge {topic: $topic})
         SET n.content = $content,
             n.source_urls = $source_urls,
+            n.key_points = $key_points,
+            n.keywords = $keywords,
             n.heat = $heat,
             n.quality = $quality,
             n.confidence = $confidence,
             n.status = $status,
             n.depth = $depth,
             n.created_at = timestamp()
-        RETURN n.topic as id, n.status as status
         """
+        
+        if embedding is not None:
+            query += "SET n.embedding = $embedding\n"
 
-        result = await self._client.execute_write(
-            query,
-            topic=topic,
-            content=content,
-            source_urls=source_urls,
-            heat=metadata.get("heat", 0),
-            quality=metadata.get("quality", 0.0),
-            confidence=metadata.get("confidence", 0.0),
-            status=metadata.get("status", "pending"),
-            depth=metadata.get("depth", 5)
-        )
+        query += "RETURN n.topic as id, n.status as status"
+
+        params = {
+            "topic": topic,
+            "content": content,
+            "source_urls": source_urls,
+            "key_points": key_points,
+            "keywords": keywords,
+            "heat": metadata.get("heat", 0),
+            "quality": metadata.get("quality", 0.0),
+            "confidence": metadata.get("confidence", 0.0),
+            "status": metadata.get("status", "pending"),
+            "depth": metadata.get("depth", 5)
+        }
+        
+        if embedding is not None:
+            params["embedding"] = embedding
+
+        result = await self._client.execute_write(query, **params)
 
         for rel in relations:
             await self.add_relation(
