@@ -689,6 +689,28 @@ def normalize_topic(topic: str) -> str:
     return topic.strip()
 
 
+@app.route("/api/queue/delete/<int:item_id>", methods=["POST"])
+def api_delete_queue_item_by_id(item_id):
+    try:
+        from core.tools.queue_tools import QueueStorage
+        queue = QueueStorage()
+        queue.initialize()
+        
+        item = queue.get_item(item_id)
+        if not item:
+            return jsonify({"status": "error", "error": "Item not found"}), 404
+        
+        conn = queue._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM queue WHERE id = ?", (item_id,))
+        conn.commit()
+        
+        return jsonify({"status": "ok", "message": f"Deleted '{item['topic']}'"})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
 @app.route("/api/curious/queue", methods=["DELETE"])
 def api_delete_queue_item():
     try:

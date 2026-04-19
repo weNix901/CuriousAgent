@@ -14,8 +14,26 @@ function renderCuriosity(queue) {
       + '<span class="item-score ' + scoreClass(item.score) + '">' + item.score.toFixed(1) + '</span></div>'
       + '<div class="item-reason">→ ' + escapeHtml(item.reason) + '</div>'
       + '<div class="item-meta"><span>⏳ ' + item.status + '</span><span>📅 ' + timeAgo(item.created_at) + '</span></div>'
+      + '<div class="item-actions"><button class="btn btn-danger btn-sm" onclick="deleteQueueItem(' + item.id + ', \'' + escapeJs(item.topic) + '\')">删除</button></div>'
       + '</div>';
   }).join('');
+}
+
+function deleteQueueItem(itemId, topic) {
+  if (!confirm('确定删除队列项 "' + topic + '" 吗？')) return;
+  
+  fetch('/api/queue/delete/' + itemId, {method: 'POST'})
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'ok') {
+        loadState().then(function() { loadListView(); });
+      } else {
+        alert('删除失败: ' + (data.error || '未知错误'));
+      }
+    })
+    .catch(function(e) {
+      alert('请求失败: ' + e);
+    });
 }
 
 function renderHistory(logs) {
