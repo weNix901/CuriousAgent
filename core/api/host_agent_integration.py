@@ -7,41 +7,61 @@ logger = logging.getLogger(__name__)
 
 class KnowledgeConfidenceHandler:
     
-    def __init__(self):
-        from core.kg.repository_factory import get_kg_factory
-        self._kg_factory = get_kg_factory()
+    def __init__(self, kg_repository=None):
+        if kg_repository is not None:
+            self._kg_repository = kg_repository
+        else:
+            from core.kg.repository_factory import get_kg_factory
+            self._kg_factory = get_kg_factory()
+            self._kg_repository = None
     
     def check_confidence(self, topic: str) -> dict:
-        from core.knowledge_graph_compat import get_topic_explore_count, get_state
+        if self._kg_repository is not None:
+            semantic_results = self._kg_repository.query_knowledge_semantic_sync(
+                query_text=topic,
+                top_k=3,
+                threshold=0.75,
+                status_filter="done"
+            )
+        else:
+            semantic_results = self._kg_factory.query_knowledge_semantic_sync(
+                query_text=topic,
+                top_k=3,
+                threshold=0.75,
+                status_filter="done"
+            )
         
-        state = get_state()
-        topics = state.get("knowledge", {}).get("topics", {})
-        topic_data = topics.get(topic, {})
-        
-        if not topic_data or not topic_data.get("known"):
+        if not semantic_results:
             return {
-                "topic": topic,
                 "confidence": 0.0,
-                "level": "novice",
                 "explore_count": 0,
-                "gaps": ["No exploration data available"]
+                "gaps": ["No matching knowledge found"],
+                "level": "novice",
+                "topic": topic
             }
         
-        explore_count = get_topic_explore_count(topic)
-        quality = topic_data.get("quality", 0)
+        best_match = semantic_results[0]
+        matched_topic = best_match["topic"]
+        similarity_score = best_match["score"]
+        quality = best_match.get("quality", 0.0) or 0.0
         
-        base_confidence = min(explore_count / 5, 1.0) * 0.6
-        quality_boost = quality / 10 * 0.4
-        confidence = min(base_confidence + quality_boost, 1.0)
+        confidence = similarity_score * (quality / 10.0)
         
-        level = self._confidence_to_level(confidence)
+        if confidence >= 0.8:
+            level = "expert"
+        elif confidence >= 0.5:
+            level = "intermediate"
+        else:
+            level = "beginner"
         
         return {
-            "topic": topic,
             "confidence": confidence,
+            "matched_topic": matched_topic,
+            "similarity": similarity_score,
+            "quality": quality,
             "level": level,
-            "explore_count": explore_count,
-            "gaps": self._identify_gaps(explore_count, topic_data)
+            "gaps": [],
+            "topic": topic
         }
     
     def _confidence_to_level(self, confidence: float) -> str:
