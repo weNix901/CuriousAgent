@@ -268,13 +268,13 @@ class DreamAgent(CAAgent):
 
     def _fetch_and_extract_topic(self, url: str) -> str:
         try:
-            from core.tools.web_tools import fetch_page
-            
-            result = fetch_page(url)
-            if not result or result.startswith("ERROR"):
+            import requests
+            response = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
+            if response.status_code != 200:
                 return self._parse_url_domain(url)
             
-            title = self._extract_title_from_html(result)
+            html = response.text
+            title = self._extract_title_from_html(html)
             if title and len(title) > 5:
                 return title[:80]
             
@@ -366,19 +366,23 @@ class DreamAgent(CAAgent):
 
     def _create_cites_edge(self, source_topic: str, target_topic: str) -> bool:
         try:
-            kg_factory = get_kg_factory()
+            from neo4j import GraphDatabase
+            import os
             
-            target_node = kg_factory.get_node_sync(target_topic)
-            if not target_node:
-                from core.knowledge_graph_compat import add_curiosity
-                add_curiosity(target_topic, reason=f"Cited from {source_topic}", relevance=6.0)
+            uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+            username = os.environ.get("NEO4J_USERNAME", "neo4j")
+            password = os.environ.get("NEO4J_PASSWORD", "")
             
-            kg_factory = get_kg_factory()
-            kg_repo = kg_factory._repo
-            if kg_repo:
-                import asyncio
-                asyncio.run(kg_repo.add_relation(source_topic, target_topic, "CITES"))
-                return True
-        except Exception:
-            pass
-        return False
+            driver = GraphDatabase.driver(uri, auth=(username, password))
+            with driver.session() as session:
+                session.run("""
+                    MATCH (a:Knowledge {topic: $source})
+                    MERGE (b:Knowledge {topic: $target})
+                    SET b.status = 'pending', b.created_at = timestamp()
+                    MERGE (a)-[r:CITES]->(b)
+                    RETURN type(r) as rel_type
+                """, source=source_topic, target=target_topic)
+            driver.close()
+            return True
+        except Exception as e:
+            return False
