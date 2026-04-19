@@ -421,13 +421,12 @@ def get_state() -> dict:
     for node in nodes:
         topic_name = node.get("topic", "")
         if topic_name:
-            metadata = node.get("metadata", {}) or {}
             topics[topic_name] = {
                 "status": node.get("status", "pending"),
-                "quality": node.get("quality", 0) or metadata.get("quality", 0),
-                "depth": metadata.get("depth", 5),
-                "summary": node.get("content", "")[:200] if node.get("content") else "",
-                "sources": node.get("source_urls", []) or node.get("sources", []),
+                "quality": node.get("quality", 0) or 0,
+                "depth": node.get("depth", 5),
+                "summary": node.get("summary", "")[:200] if node.get("summary") else "",
+                "sources": node.get("sources", []) or [],
                 "known": node.get("status") == "done",
                 "last_updated": node.get("created_at", ""),
                 "children": [],

@@ -94,8 +94,8 @@ class KGRepositoryFactory:
             query = """
             MATCH (k:Knowledge)
             RETURN k.topic as topic, 
-                   coalesce(k.content, k.summary) as summary, 
-                   coalesce(k.source_urls, []) as sources,
+                   k.content as summary, 
+                   k.source_urls as sources,
                    k.status as status,
                    k.quality as quality, k.depth as depth
             ORDER BY k.created_at DESC
