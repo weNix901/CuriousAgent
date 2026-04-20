@@ -160,6 +160,23 @@ All agents, daemons, models, intervals, thresholds, tool lists, and scoring weig
 
 ### 🔗 OpenClaw Integration
 
+CA 通过 **1 个 Skill + 4 个 Hooks** 与外部 Agent（如 R1D3）集成：
+
+**提供的 Skill（Agent 主动调用）：**
+
+| Skill | 目录 | 触发时机 | 功能 |
+|-------|------|---------|------|
+| **knowledge-query** | `openclaw-skills/knowledge-query/` | Agent 判断需要知识查询时 | 查询 KG 置信度，返回回答策略 |
+
+**提供的 Hooks（事件自动拦截）：**
+
+| Hook | 类型 | 目录 | 事件 | 功能 |
+|------|------|------|------|------|
+| **knowledge-bootstrap** | Internal | `openclaw-hooks/internal/knowledge-bootstrap/` | `agent:bootstrap` | Session 启动注入知识摘要 + 行为规范 |
+| **knowledge-learn** | Internal | `openclaw-hooks/internal/knowledge-learn/` | `message:sent` | 检测低置信度回答，注入 CA 探索队列 |
+| **knowledge-gate** | Plugin | `openclaw-hooks/plugins/knowledge-gate/` | `before_agent_reply` | 回复前二次 KG 检查，注入上下文 |
+| **knowledge-inject** | Plugin | `openclaw-hooks/plugins/knowledge-inject/` | `after_tool_call` | web_search 后自动记录到 KG |
+
 Bidirectional sync via `shared_knowledge/`. R1D3 (host Agent) queries confidence, injects topics, reads discoveries. Curious Agent writes findings back. The two Agents evolve together.
 
 ### 🧠 Cognitive Framework (v0.3.0 NEW)
@@ -518,7 +535,7 @@ All agent and daemon parameters are controlled via `config.json`. No hard-coded 
 | ✅ | **Hook audit middleware + trace writers (v0.3.1)** |
 | ✅ | **WebUI 4-tab dashboard (v0.3.1)** |
 | ✅ | **External agent tracking + timeline (v0.3.1)** |
-| ⚪ | OpenClaw external hook integration (before_turn/after_turn) |
+| ✅ | OpenClaw Skill + Hooks integration (knowledge-query + 4 hooks) |
 | ⚪ | Neo4j as primary store (JSON fallback retirement) |
 | ⚪ | Self-Evolution engine (Bayesian weight updates) |
 | ⚪ | Adaptive interval scheduling (based on queue depth) |

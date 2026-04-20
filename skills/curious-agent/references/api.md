@@ -8,7 +8,7 @@
 |---|------|------|-------------|
 | 1 | `/api/knowledge/confidence?topic=xxx` | GET | knowledge-query |
 | 2 | `/api/knowledge/learn` | POST | knowledge-learn |
-| 3 | `/api/kg/overview` | GET | knowledge-bootstrap |
+| 3 | `/api/knowledge/session/startup` | GET | knowledge-bootstrap |
 | 4 | `/api/knowledge/check` | POST | knowledge-gate |
 | 5 | `/api/kg/confidence/<topic>` | GET | knowledge-gate |
 | 6 | `/api/knowledge/record` | POST | knowledge-inject |

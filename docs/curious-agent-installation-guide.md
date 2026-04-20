@@ -15,7 +15,7 @@
 │   ┌──────────────────────────────────────────────────────────────────┐  │
 │   │  knowledge-query   → GET /api/knowledge/confidence               │  │
 │   │  knowledge-learn   → POST /api/knowledge/learn                    │  │
-│   │  knowledge-bootstrap → GET /api/kg/overview                       │  │
+│   │  knowledge-bootstrap → GET /api/knowledge/session/startup           │  │
 │   │  knowledge-gate    → POST /api/knowledge/check                    │  │
 │   │  knowledge-inject  → POST /api/knowledge/record                   │  │
 │   └──────────────────────────────────────────────────────────────────┘  │
@@ -236,7 +236,7 @@ python3 curious_agent.py --daemon
 |------|------|------|
 | `/api/knowledge/confidence` | GET | knowledge-query |
 | `/api/knowledge/learn` | POST | knowledge-learn |
-| `/api/kg/overview` | GET | knowledge-bootstrap |
+| `/api/knowledge/session/startup` | GET | knowledge-bootstrap |
 | `/api/knowledge/check` | POST | knowledge-gate |
 | `/api/knowledge/record` | POST | knowledge-inject |
 

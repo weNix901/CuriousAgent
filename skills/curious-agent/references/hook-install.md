@@ -6,7 +6,7 @@
 
 ```bash
 # 1. CA 服务正在运行
-curl -s http://localhost:4848/api/kg/overview | head -1
+curl -s http://localhost:4848/api/knowledge/session/startup | head -1
 # 应返回 JSON
 
 # 2. Node.js 可用（Hook 需要）

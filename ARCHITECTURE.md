@@ -144,7 +144,7 @@ Confidence计算: score * quality/10 = 0.888 * 8.0 / 10 = 0.71
 │  │  Internal Hooks (知识注入到 R1D3)                                   │  │
 │  │  knowledge-query   → GET /api/knowledge/confidence                │  │
 │  │  knowledge-learn   → POST /api/knowledge/learn                    │  │
-│  │  knowledge-bootstrap → GET /api/kg/overview                       │  │
+│  │  knowledge-bootstrap → GET /api/knowledge/session/startup           │  │
 │  │  knowledge-gate    → POST /api/knowledge/check                    │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                                                                          │
