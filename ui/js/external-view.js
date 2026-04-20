@@ -1,10 +1,10 @@
-var bootstrapConfig = {
-  enabled: true,
-  target_agent: 'researcher',
-  timeout_ms: 1500,
-  max_nodes: 5,
-  min_quality: 0,
-  sort_by: 'created_at'
+var bootstrapConfig = null;
+
+var DEFAULT_TEMPLATES = {
+  'kg-summary': '[CA Knowledge Summary]\n你最近探索的话题：\n{nodes_list}',
+  'cognitive-framework': '[CA Cognitive Framework]\n回答知识问题时，先判断 KG 置信度：\n- 🟢 Expert (≥85%): 直接从 KG 知识回答，引用来源\n- 🟡 Intermediate (60-85%): KG 知识 + 搜索补充\n- 🟠 Beginner (30-60%): 先搜索，再回答，注入 CA 探索\n- 🔴 Novice (<30%): LLM 回答 + 必须注入 CA 探索',
+  'skill-rules': '[CA Skill Rules]\n调用 knowledge-query Skill ONLY when:\n- ✅ 概念解释类："什么是 X"、"解释 Y"、"X 的原理"\n- ✅ 技术对比类："X 和 Y 的区别"\n- ❌ 命令执行类：直接执行，不查询 KG\n- ❌ 代码编写类：直接生成代码',
+  'topic-extraction': '[Topic Extraction Rules]\n提取核心话题时：\n- 长度：2-10 字（名词短语）\n- 剔除："什么是"、"解释"、"怎么"、"帮我"'
 };
 
 async function loadExternalView() {
@@ -12,49 +12,99 @@ async function loadExternalView() {
     loadBootstrapConfig(),
     loadHookBoard(),
     loadAgentActivity(),
-    loadTimeline(),
+    loadTimeline()
   ]);
 }
 
 async function loadBootstrapConfig() {
   try {
     var data = await fetchJSON('/api/hooks/bootstrap/config');
-    if (data.config) {
-      bootstrapConfig = data.config;
-      applyBootstrapConfigToUI();
-    }
+    bootstrapConfig = data.config || getDefaultConfig();
+    applyBootstrapConfig();
   } catch (e) {
-    applyBootstrapConfigToUI();
+    bootstrapConfig = getDefaultConfig();
+    applyBootstrapConfig();
   }
 }
 
-function applyBootstrapConfigToUI() {
+function getDefaultConfig() {
+  return {
+    enabled: true,
+    timeout_ms: 1500,
+    max_nodes: 5,
+    min_quality: 0,
+    sort_by: 'created_at',
+    injection_sections: {
+      'kg-summary': { enabled: true, template: DEFAULT_TEMPLATES['kg-summary'] },
+      'cognitive-framework': { enabled: true, template: DEFAULT_TEMPLATES['cognitive-framework'] },
+      'skill-rules': { enabled: true, template: DEFAULT_TEMPLATES['skill-rules'] },
+      'topic-extraction': { enabled: true, template: DEFAULT_TEMPLATES['topic-extraction'] }
+    }
+  };
+}
+
+function applyBootstrapConfig() {
   document.getElementById('bootstrap-enabled').checked = bootstrapConfig.enabled;
   document.getElementById('bootstrap-timeout').value = bootstrapConfig.timeout_ms;
-  document.getElementById('bootstrap-timeout-value').textContent = bootstrapConfig.timeout_ms;
+  document.getElementById('bootstrap-timeout-val').textContent = bootstrapConfig.timeout_ms;
   document.getElementById('bootstrap-max-nodes').value = bootstrapConfig.max_nodes;
-  document.getElementById('bootstrap-max-nodes-value').textContent = bootstrapConfig.max_nodes;
+  document.getElementById('bootstrap-max-nodes-val').textContent = bootstrapConfig.max_nodes;
   document.getElementById('bootstrap-min-quality').value = bootstrapConfig.min_quality;
-  document.getElementById('bootstrap-min-quality-value').textContent = bootstrapConfig.min_quality;
+  document.getElementById('bootstrap-min-quality-val').textContent = bootstrapConfig.min_quality;
   document.getElementById('bootstrap-sort-by').value = bootstrapConfig.sort_by;
-  document.getElementById('bootstrap-target-agent').value = bootstrapConfig.target_agent;
+  
+  var sections = bootstrapConfig.injection_sections || {};
+  ['kg-summary', 'cognitive-framework', 'skill-rules', 'topic-extraction'].forEach(function(name) {
+    var sec = sections[name] || { enabled: true, template: DEFAULT_TEMPLATES[name] };
+    document.getElementById('section-' + name).checked = sec.enabled;
+    document.getElementById('template-' + name + '-text').value = sec.template || DEFAULT_TEMPLATES[name];
+  });
 }
 
-function updateSliderValue(input) {
-  var valueEl = document.getElementById(input.id + '-value');
-  if (valueEl) {
-    valueEl.textContent = input.value;
+function updateSlider(id) {
+  var input = document.getElementById(id);
+  var val = document.getElementById(id + '-val');
+  if (val) val.textContent = input.value;
+}
+
+function toggleSectionEdit(name) {
+  var editDiv = document.getElementById('template-' + name);
+  var checkbox = document.getElementById('section-' + name);
+  if (editDiv) {
+    editDiv.style.display = checkbox.checked ? 'none' : 'none';
   }
+}
+
+function editSectionTemplate(name) {
+  var editDiv = document.getElementById('template-' + name);
+  if (editDiv) {
+    editDiv.style.display = editDiv.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+function saveSectionTemplate(name) {
+  var textarea = document.getElementById('template-' + name + '-text');
+  var template = textarea.value;
+  bootstrapConfig.injection_sections[name].template = template;
+  showToast('模板已更新: ' + name, 'success');
 }
 
 async function saveBootstrapConfig() {
+  var sections = {};
+  ['kg-summary', 'cognitive-framework', 'skill-rules', 'topic-extraction'].forEach(function(name) {
+    sections[name] = {
+      enabled: document.getElementById('section-' + name).checked,
+      template: document.getElementById('template-' + name + '-text').value
+    };
+  });
+  
   var newConfig = {
     enabled: document.getElementById('bootstrap-enabled').checked,
     timeout_ms: parseInt(document.getElementById('bootstrap-timeout').value),
     max_nodes: parseInt(document.getElementById('bootstrap-max-nodes').value),
     min_quality: parseFloat(document.getElementById('bootstrap-min-quality').value),
     sort_by: document.getElementById('bootstrap-sort-by').value,
-    target_agent: document.getElementById('bootstrap-target-agent').value
+    injection_sections: sections
   };
   
   try {
@@ -68,7 +118,7 @@ async function saveBootstrapConfig() {
       bootstrapConfig = newConfig;
       showToast('✅ 配置已保存（实时生效 + 已持久化）', 'success');
     } else {
-      showToast('⚠️ 保存失败: ' + data.error, 'error');
+      showToast('⚠️ 保存失败: ' + (data.error || '未知错误'), 'error');
     }
   } catch (e) {
     showToast('⚠️ 保存失败: ' + e.message, 'error');
@@ -76,15 +126,8 @@ async function saveBootstrapConfig() {
 }
 
 function resetBootstrapConfig() {
-  bootstrapConfig = {
-    enabled: true,
-    target_agent: 'researcher',
-    timeout_ms: 1500,
-    max_nodes: 5,
-    min_quality: 0,
-    sort_by: 'created_at'
-  };
-  applyBootstrapConfigToUI();
+  bootstrapConfig = getDefaultConfig();
+  applyBootstrapConfig();
   showToast('🔄 已重置为默认值（未保存）', 'info');
 }
 
@@ -99,21 +142,15 @@ async function loadHookBoard() {
       el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div>暂无外部Agent调用记录</div>';
       return;
     }
-    
     var html = data.records.map(function(r) {
       var emoji = r.status === 'success' ? '✅' : '❌';
-      var hookName = r.hook_name;
-      var isSkill = hookName && hookName.endsWith('-skill');
-      var typeEmoji = isSkill ? '🔹' : '🪝';
-      if (hookName === 'unknown' || !hookName) {
-        hookName = r.endpoint.split('/').pop();
-      }
+      var hookName = r.hook_name || r.endpoint.split('/').pop();
       var time = r.timestamp ? timeAgo(r.timestamp) : '';
-      var injectedBadge = r.knowledge_injected > 0 ? '<span class="badge badge-success">注入' + r.knowledge_injected + '节点</span>' : '';
-      return '<div class="history-item" data-hook-id="' + escapeHtml(r.id) + '" onclick="showHookDetail(this.dataset.hookId)">'
-        + '<div class="history-top"><span>' + emoji + ' ' + typeEmoji + ' ' + escapeHtml(hookName) + '</span>'
+      var notifiedBadge = r.knowledge_injected > 0 ? '<span class="badge badge-success">注入' + r.knowledge_injected + '</span>' : '';
+      return '<div class="history-item" onclick="showHookDetail(\'' + r.id + '\')">'
+        + '<div class="history-top"><span>' + emoji + ' ' + escapeHtml(hookName) + '</span>'
         + '<span class="history-time">' + time + ' | ' + r.latency_ms + 'ms</span></div>'
-        + '<div class="history-findings">' + escapeHtml(r.endpoint) + ' → ' + r.status_code + ' ' + injectedBadge + '</div>'
+        + '<div class="history-findings">' + escapeHtml(r.endpoint) + ' → ' + r.status_code + ' ' + notifiedBadge + '</div>'
         + '<span class="click-hint">👆 详情</span></div>';
     }).join('');
     el.innerHTML = html;
@@ -123,70 +160,46 @@ async function loadHookBoard() {
 }
 
 async function showHookDetail(hookId) {
+  var modal = document.getElementById('detail-modal');
+  var title = document.getElementById('modal-title');
+  var meta = document.getElementById('modal-meta');
+  var body = document.getElementById('modal-body');
+  
   try {
     var data = await fetchJSON('/api/audit/hooks/' + hookId);
-    var modal = document.getElementById('detail-modal');
-    var title = document.getElementById('modal-title');
-    var meta = document.getElementById('modal-meta');
-    var body = document.getElementById('modal-body');
-    
     var hookDisplay = data.hook_name !== 'unknown' ? data.hook_name : data.endpoint;
-    var summary = data.request_raw_topic || '无topic';
     
     title.textContent = '🤖 ' + hookDisplay;
-    
-    var metaHtml = '<span class="modal-meta-item">时间: ' + timeAgo(data.timestamp) + '</span>'
+    meta.innerHTML = '<span class="modal-meta-item">时间: ' + timeAgo(data.timestamp) + '</span>'
       + '<span class="modal-meta-item">耗时: ' + data.latency_ms + 'ms</span>'
       + '<span class="modal-meta-item">状态: ' + data.status + '</span>';
     if (data.knowledge_injected > 0) {
-      metaHtml += '<span class="modal-meta-item badge badge-success">注入 ' + data.knowledge_injected + ' 节点</span>';
+      meta.innerHTML += '<span class="modal-meta-item badge badge-success">注入 ' + data.knowledge_injected + ' 节点</span>';
     }
-    meta.innerHTML = metaHtml;
     
     var bodyHtml = '<div class="modal-section"><div class="modal-section-title">基本信息</div>'
-      + '<div class="modal-section-content">'
-      + 'Endpoint: ' + escapeHtml(data.endpoint) + '<br>'
-      + 'Method: ' + data.method + '<br>'
-      + 'Agent: ' + data.agent_id + '<br>'
-      + 'Status Code: ' + data.status_code + '</div></div>';
+      + '<div class="modal-section-content">Endpoint: ' + escapeHtml(data.endpoint) + '<br>Method: ' + data.method + '<br>Agent: ' + data.agent_id + '<br>Status Code: ' + data.status_code + '</div></div>';
     
     if (data.hook_name === 'knowledge-bootstrap-hook' && data.response_payload) {
       try {
         var resp = JSON.parse(data.response_payload);
         var nodes = resp.nodes || [];
         var edges = resp.edges || [];
-        bodyHtml += '<div class="modal-section"><div class="modal-section-title">注入内容概览</div>'
-          + '<div class="modal-section-content">'
-          + '<strong>知识节点:</strong> ' + nodes.length + ' 个<br>'
-          + '<strong>知识关系:</strong> ' + edges.length + ' 条<br>'
-          + '</div></div>';
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title">注入内容</div>'
+          + '<div class="modal-section-content">节点: ' + nodes.length + ' | 关系: ' + edges.length + '</div></div>';
         if (nodes.length > 0) {
           var topNodes = nodes.slice(0, 5).map(function(n, i) {
-            var qualityBadge = n.quality ? '<span class="badge">' + n.quality.toFixed(1) + '</span>' : '';
-            var statusBadge = n.status ? '<span class="badge badge-' + (n.status === 'done' ? 'success' : 'warning') + '">' + n.status + '</span>' : '';
-            return '<div class="injected-node">'
-              + '<span class="node-index">' + (i + 1) + '</span>'
-              + '<span class="node-topic">' + escapeHtml(n.topic || n.id || '未知') + '</span>'
-              + qualityBadge + statusBadge
-              + '</div>';
+            return '<div>' + (i+1) + '. ' + escapeHtml(n.id || n.topic) + ' (quality: ' + (n.quality || 'N/A') + ')</div>';
           }).join('');
-          bodyHtml += '<div class="modal-section"><div class="modal-section-title">Top 5 注入节点</div>'
-            + '<div class="modal-section-content injected-nodes-list">' + topNodes + '</div></div>';
+          bodyHtml += '<div class="modal-section"><div class="modal-section-title">Top 5 节点</div><div class="modal-section-content">' + topNodes + '</div></div>';
         }
       } catch (parseErr) {
         bodyHtml += '<div class="modal-section"><div class="modal-section-title">响应</div>'
-          + '<div class="modal-section-content" style="max-height:200px;overflow-y:auto;font-family:var(--font-data);font-size:12px;">'
-          + escapeHtml(data.response_payload || '无响应') + '</div></div>';
+          + '<div class="modal-section-content" style="max-height:200px;overflow-y:auto;font-family:var(--font-data);font-size:12px;">' + escapeHtml(data.response_payload) + '</div></div>';
       }
     } else {
       bodyHtml += '<div class="modal-section"><div class="modal-section-title">响应</div>'
-        + '<div class="modal-section-content" style="max-height:200px;overflow-y:auto;font-family:var(--font-data);font-size:12px;">'
-        + escapeHtml(data.response_payload || '无响应') + '</div></div>';
-    }
-    
-    if (data.injection_snippet) {
-      bodyHtml += '<div class="modal-section"><div class="modal-section-title">注入摘要</div>'
-        + '<div class="modal-section-content">' + escapeHtml(data.injection_snippet) + '</div></div>';
+        + '<div class="modal-section-content" style="max-height:200px;overflow-y:auto;font-family:var(--font-data);font-size:12px;">' + escapeHtml(data.response_payload || '无响应') + '</div></div>';
     }
     
     body.innerHTML = bodyHtml;
@@ -212,10 +225,7 @@ async function loadAgentActivity() {
     var html = data.agents.map(function(a) {
       return '<div class="activity-agent">'
         + '<div class="activity-agent-name">' + escapeHtml(a.agent_name) + '</div>'
-        + '<div class="activity-agent-stats">'
-        + '<span>调用: <strong>' + a.total_calls + '</strong></span>'
-        + '<span>成功率: <strong>' + (a.success_rate * 100).toFixed(0) + '%</strong></span>'
-        + '</div></div>';
+        + '<div class="activity-agent-stats">调用: <strong>' + a.total_calls + '</strong> 成功率: <strong>' + (a.success_rate * 100).toFixed(0) + '%</strong></div></div>';
     }).join('');
     el.innerHTML = html;
   } catch (e) {
@@ -233,9 +243,8 @@ async function loadTimeline() {
       return;
     }
     var html = data.events.map(function(e) {
-      var detailJson = JSON.stringify(e.detail || {}).replace(/"/g, '&quot;');
-      return '<div class="history-item" data-event-id="' + escapeHtml(e.event_id) + '" data-event-type="' + escapeHtml(e.type) + '" data-detail="' + detailJson + '" onclick="showTimelineDetail(this.dataset.eventType, JSON.parse(this.dataset.detail))">'
-        + '<div class="history-top"><span>' + e.emoji + ' ' + escapeHtml(e.summary) + '</span>'
+      return '<div class="history-item" onclick="showTimelineDetail(\'' + e.type + '\',\'' + JSON.stringify(e.detail || {}).replace(/'/g, "\\'") + '\')">'
+        + '<div class="history-top"><span>' + (e.emoji || '📋') + ' ' + escapeHtml(e.summary) + '</span>'
         + '<span class="history-time">' + timeAgo(e.timestamp) + '</span></div>'
         + '<span class="click-hint">👆 详情</span></div>';
     }).join('');
@@ -245,50 +254,21 @@ async function loadTimeline() {
   }
 }
 
-function showTimelineDetail(eventType, detail) {
+function showTimelineDetail(type, detailStr) {
   var modal = document.getElementById('detail-modal');
   var title = document.getElementById('modal-title');
   var meta = document.getElementById('modal-meta');
   var body = document.getElementById('modal-body');
   
-  if (eventType === 'hook_call') {
-    title.textContent = '🔗 调用详情';
-    meta.innerHTML = '';
-    body.innerHTML = '<div class="modal-section"><div class="modal-section-title">基本信息</div>'
-      + '<div class="modal-section-content">'
-      + '调用: ' + escapeHtml(detail.hook_name) + '<br>'
-      + 'Endpoint: ' + escapeHtml(detail.endpoint) + '<br>'
-      + 'Agent: ' + escapeHtml(detail.agent_id || '未知') + '<br>'
-      + 'Status: ' + escapeHtml(detail.status) + '<br>'
-      + 'Latency: ' + detail.latency_ms + 'ms</div></div>'
-      + '<div class="modal-section"><div class="modal-section-title">Topic</div>'
-      + '<div class="modal-section-content">' + escapeHtml(detail.topic) + '</div></div>';
-  } else if (eventType.startsWith('exploration_')) {
-    title.textContent = detail.emoji || '🔍 探索详情';
-    meta.innerHTML = '<span class="modal-meta-item">Quality: ' + (detail.quality_score || 'N/A') + '</span>';
-    body.innerHTML = '<div class="modal-section"><div class="modal-section-title">探索信息</div>'
-      + '<div class="modal-section-content">'
-      + 'Topic: ' + escapeHtml(detail.topic) + '<br>'
-      + 'Status: ' + escapeHtml(detail.status) + '<br>'
-      + 'Steps: ' + detail.total_steps + '<br>'
-      + 'Quality Score: ' + (detail.quality_score || 'N/A') + '</div></div>';
-  } else if (eventType === 'insight') {
-    title.textContent = '💡 Dream 洞察详情';
-    meta.innerHTML = '<span class="modal-meta-item">Surprise: ' + (detail.surprise || 0) + '</span>'
-      + '<span class="modal-meta-item">Novelty: ' + (detail.novelty || 0) + '</span>';
-    body.innerHTML = '<div class="modal-section"><div class="modal-section-title">洞察信息</div>'
-      + '<div class="modal-section-content">'
-      + 'Type: ' + escapeHtml(detail.insight_type) + '<br>'
-      + 'Source Topics: ' + escapeHtml((detail.source_topics || []).join(', ')) + '</div></div>'
-      + '<div class="modal-section"><div class="modal-section-title">内容</div>'
-      + '<div class="modal-section-content">' + escapeHtml(detail.content || '无内容') + '</div></div>';
-  } else {
-    title.textContent = '📋 事件详情';
+  try {
+    var detail = JSON.parse(detailStr);
+    title.textContent = type + ' 详情';
     meta.innerHTML = '';
     body.innerHTML = '<div class="modal-section-content" style="font-family:var(--font-data);font-size:12px;">' + escapeHtml(JSON.stringify(detail, null, 2)) + '</div>';
+    modal.classList.add('active');
+  } catch (e) {
+    showToast('解析失败', 'error');
   }
-  
-  modal.classList.add('active');
 }
 
 function refreshHookBoard() { loadHookBoard(); }

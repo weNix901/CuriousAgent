@@ -493,6 +493,11 @@ def api_state():
     queue_items = kg.list_pending()
     
     exploration_log = []
+    mc_exp_log = mc.get("exploration_log", [])
+    notified_map = {}
+    for entry in mc_exp_log:
+        if entry.get("topic") and entry.get("notified"):
+            notified_map[entry["topic"]] = True
     try:
         conn = _get_traces_db()
         rows = conn.execute(
@@ -504,7 +509,7 @@ def api_state():
                 "timestamp": r["timestamp"],
                 "action": "explore",
                 "findings": f"Completed in {r['total_steps']} steps, quality={r['quality_score']}",
-                "notified_user": False
+                "notified_user": notified_map.get(r["topic"], False)
             })
         conn.close()
     except Exception as e:
@@ -2663,6 +2668,51 @@ def api_agent_detail(agent_id):
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/hooks/bootstrap/config", methods=["GET"])
+def api_get_bootstrap_config():
+    """Get current bootstrap hook configuration."""
+    from core.config import get_bootstrap_config
+    return jsonify({
+        "status": "ok",
+        "config": get_bootstrap_config()
+    })
+
+
+@app.route("/api/hooks/bootstrap/config", methods=["PUT"])
+def api_update_bootstrap_config():
+    """Update bootstrap hook configuration (real-time + persisted)."""
+    from core.config import update_bootstrap_config
+    
+    data = request.get_json() or {}
+    
+    valid_fields = [
+        "enabled", "target_agent", "timeout_ms", "max_nodes",
+        "min_quality", "sort_by", "injection_sections"
+    ]
+    new_config = {k: v for k, v in data.items() if k in valid_fields}
+    
+    if "injection_sections" in new_config:
+        sections = new_config["injection_sections"]
+        valid_sections = ["kg_summary", "cognitive_framework", "skill_rules", "topic_extraction"]
+        filtered_sections = {}
+        for sec_name in valid_sections:
+            if sec_name in sections:
+                sec = sections[sec_name]
+                filtered_sections[sec_name] = {
+                    "enabled": sec.get("enabled", True),
+                    "template": sec.get("template", "")
+                }
+        new_config["injection_sections"] = filtered_sections
+    
+    updated = update_bootstrap_config(new_config, persist=True)
+    
+    return jsonify({
+        "status": "ok",
+        "message": "配置已更新（实时生效 + 已持久化）",
+        "config": updated
+    })
 
 
 if __name__ == "__main__":

@@ -184,6 +184,68 @@ class CognitiveHookConfig:
     guidance_templates: dict = field(default_factory=dict)
 
 
+@dataclass
+class InjectionSectionConfig:
+    """Single injection section configuration."""
+    enabled: bool = True
+    template: str = ""
+
+
+@dataclass
+class BootstrapHookConfig:
+    """Bootstrap Hook configuration for agent session startup."""
+    enabled: bool = True
+    target_agent: str = "researcher"
+    timeout_ms: int = 1500
+    max_nodes: int = 5
+    min_quality: float = 0.0
+    sort_by: str = "created_at"
+    injection_sections: dict = field(default_factory=dict)
+
+
+_bootstrap_config: dict = {}
+
+
+def get_bootstrap_config() -> dict:
+    """Get bootstrap hook configuration (memory first, config.json fallback)."""
+    global _bootstrap_config, _config
+    if _bootstrap_config:
+        return _bootstrap_config
+    config_path = Path(__file__).parent.parent / "config.json"
+    if config_path.exists():
+        try:
+            with open(config_path, encoding="utf-8") as f:
+                raw = json.load(f)
+            return raw.get("hooks", {}).get("bootstrap", {})
+        except:
+            pass
+    return {}
+
+
+def update_bootstrap_config(new_config: dict, persist: bool = True) -> dict:
+    """Update bootstrap hook configuration (memory + optional persist)."""
+    global _bootstrap_config
+    _bootstrap_config = new_config
+    if persist:
+        _persist_bootstrap_config(new_config)
+    return _bootstrap_config
+
+
+def _persist_bootstrap_config(config: dict) -> None:
+    """Persist bootstrap config to config.json."""
+    config_path = Path(__file__).parent.parent / "config.json"
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            raw = json.load(f)
+        if "hooks" not in raw:
+            raw["hooks"] = {}
+        raw["hooks"]["bootstrap"] = config
+        with open(config_path, "w", encoding="utf-8") as f:
+            json.dump(raw, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"[Config] Error persisting bootstrap config: {e}")
+
+
 # ============================================================
 # Root Config
 # ============================================================
