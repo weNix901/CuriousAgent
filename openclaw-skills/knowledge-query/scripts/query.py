@@ -25,10 +25,10 @@ def classify(confidence: float) -> str:
 
 def guidance(level: str) -> str:
     return {
-        "expert": "KG 有完整知识，可直接回答。",
-        "intermediate": "KG 有部分知识，建议搜索补充。",
-        "beginner": "KG 知识有限，建议搜索后再回答。",
-        "novice": "KG 无此话题知识，需要搜索或探索。",
+        "expert": "【建议】KG 已掌握此话题，可直接引用 KG 知识回答，注明来源。",
+        "intermediate": "【建议】KG 有相关知识但不够完整，建议补充搜索后再回答。",
+        "beginner": "【建议】KG 知识有限，请先搜索获取信息，再结合 KG 知识回答。",
+        "novice": "【建议】KG 无此话题记录，请使用 LLM 知识回答。可考虑注入 CA 探索。",
     }[level]
 
 

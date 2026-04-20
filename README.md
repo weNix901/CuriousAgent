@@ -257,8 +257,8 @@ bash start.sh
 | curious_agent | — | Two-agent daemon (ExploreAgent + DreamAgent) + SleepPruner |
 
 **Access:**
-- 🌐 Web UI: http://10.1.0.13:4849/
-- 📡 API: http://localhost:4848/
+- 🌐 Web UI: http://10.1.0.13:4848/
+- 📡 API: http://10.1.0.13:4848/api/curious/state
 
 ### Inject a Topic
 

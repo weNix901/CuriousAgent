@@ -1,22 +1,90 @@
 <div class="main-grid">
 
+  <div class="panel full-width">
+    <div class="panel-header">
+      <div class="panel-title">🪝 Bootstrap Hook 配置</div>
+      <div class="panel-controls">
+        <button class="btn btn-success btn-sm" id="save-bootstrap-config" onclick="saveBootstrapConfig()">💾 保存</button>
+        <button class="btn btn-sm" onclick="resetBootstrapConfig()">🔄 重置默认</button>
+      </div>
+    </div>
+    <div class="panel-body" id="bootstrap-config-panel">
+      <div class="config-grid">
+        <div class="config-item">
+          <label class="config-label">
+            <input type="checkbox" id="bootstrap-enabled" checked>
+            <span>启用 Session 启动注入</span>
+          </label>
+          <div class="config-hint">Agent 启动时自动注入 CA 知识图谱摘要</div>
+        </div>
+        
+        <div class="config-item">
+          <label class="config-label">超时时间 (ms)</label>
+          <div class="config-slider-row">
+            <input type="range" id="bootstrap-timeout" min="500" max="5000" value="1500" oninput="updateSliderValue(this)">
+            <span class="slider-value" id="bootstrap-timeout-value">1500</span>
+          </div>
+          <div class="config-hint">API 调用超时时间，网络较差时可适当增加</div>
+        </div>
+        
+        <div class="config-item">
+          <label class="config-label">注入节点数</label>
+          <div class="config-slider-row">
+            <input type="range" id="bootstrap-max-nodes" min="1" max="20" value="5" oninput="updateSliderValue(this)">
+            <span class="slider-value" id="bootstrap-max-nodes-value">5</span>
+          </div>
+          <div class="config-hint">注入到 Agent 的知识节点数量上限</div>
+        </div>
+        
+        <div class="config-item">
+          <label class="config-label">最小质量阈值</label>
+          <div class="config-slider-row">
+            <input type="range" id="bootstrap-min-quality" min="0" max="10" value="0" step="0.5" oninput="updateSliderValue(this)">
+            <span class="slider-value" id="bootstrap-min-quality-value">0</span>
+          </div>
+          <div class="config-hint">只注入质量评分 ≥ 此值的节点（0 表示不过滤）</div>
+        </div>
+        
+        <div class="config-item">
+          <label class="config-label">排序方式</label>
+          <select id="bootstrap-sort-by">
+            <option value="created_at">最近创建</option>
+            <option value="quality">质量最高</option>
+            <option value="depth">深度最高</option>
+          </select>
+          <div class="config-hint">知识节点的排序策略</div>
+        </div>
+        
+        <div class="config-item">
+          <label class="config-label">目标 Agent</label>
+          <select id="bootstrap-target-agent">
+            <option value="researcher">researcher (R1D3)</option>
+            <option value="coder">coder</option>
+            <option value="all">全部 Agent</option>
+          </select>
+          <div class="config-hint">接收知识注入的 Agent 类型</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="panel">
     <div class="panel-header">
       <div class="panel-title">📋 调用明细</div>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <select id="hook-filter" onchange="refreshHookBoard()" style="padding:4px 8px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:4px;font-size:12px;">
+      <div class="panel-controls">
+        <select id="hook-filter" onchange="refreshHookBoard()">
           <option value="">全部调用</option>
-          <option value="knowledge-query-skill">knowledge-query-skill (查询KG置信度) 🔹</option>
-          <option value="knowledge-learn-hook">knowledge-learn-hook (低置信度注入队列) 🪝</option>
-          <option value="knowledge-bootstrap-hook">knowledge-bootstrap-hook (Session启动注入) 🪝</option>
-          <option value="knowledge-gate-hook">knowledge-gate-hook (回复前双查KG) 🪝</option>
-          <option value="knowledge-inject-hook">knowledge-inject-hook (搜索结果记录KG) 🪝</option>
+          <option value="knowledge-query-skill">knowledge-query-skill 🔹</option>
+          <option value="knowledge-learn-hook">knowledge-learn-hook 🪝</option>
+          <option value="knowledge-bootstrap-hook">knowledge-bootstrap-hook 🪝</option>
+          <option value="knowledge-gate-hook">knowledge-gate-hook 🪝</option>
+          <option value="knowledge-inject-hook">knowledge-inject-hook 🪝</option>
         </select>
-        <button class="btn" onclick="refreshHookBoard()">刷新</button>
+        <button class="btn btn-sm" onclick="refreshHookBoard()">🔄</button>
       </div>
     </div>
     <div class="panel-body" id="hook-board">
-      <div class="empty">加载中...</div>
+      <div class="empty"><div class="empty-icon">⏳</div>加载中...</div>
     </div>
   </div>
 
@@ -25,18 +93,87 @@
       <div class="panel-title">🤖 Agent 活动</div>
     </div>
     <div class="panel-body" id="agent-activity">
-      <div class="empty">加载中...</div>
+      <div class="empty"><div class="empty-icon">⏳</div>加载中...</div>
     </div>
   </div>
 
   <div class="panel full-width">
     <div class="panel-header">
       <div class="panel-title">📅 时间线</div>
-      <button class="btn" onclick="refreshTimeline()">刷新</button>
+      <button class="btn btn-sm" onclick="refreshTimeline()">🔄</button>
     </div>
     <div class="panel-body" id="timeline-panel">
-      <div class="empty">加载中...</div>
+      <div class="empty"><div class="empty-icon">⏳</div>加载中...</div>
     </div>
   </div>
 
 </div>
+
+<style>
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 1023px) {
+  .config-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .config-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.config-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.config-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.config-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.config-slider-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.config-slider-row input[type="range"] {
+  flex: 1;
+}
+
+.slider-value {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: var(--accent-primary);
+  min-width: 50px;
+  text-align: right;
+}
+
+.config-hint {
+  font-size: 11px;
+  color: var(--ink-muted);
+  line-height: 1.5;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+</style>

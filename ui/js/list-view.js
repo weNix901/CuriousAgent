@@ -52,7 +52,7 @@ function renderHistory(logs) {
       + '<span class="history-time">' + timeAgo(item.timestamp) + '</span></div>'
       + '<div class="history-findings">' + escapeHtml(item.findings && item.findings.substring(0, 150)) + '...</div>'
       + '<div style="margin-top:4px;display:flex;align-items:center;">'
-      + '<span style="font-size:11px;padding:2px 6px;background:var(--surface);border:1px solid var(--border);border-radius:4px;margin-right:6px">' + item.action + '</span>'
+      + '<span style="font-size:11px;padding:2px 6px;background:var(--paper);border:var(--border-medium);margin-right:6px">' + item.action + '</span>'
       + (item.notified_user ? '<span class="history-notified">📬 已通知</span>' : '')
       + '<span class="click-hint">👆 点击查看详情</span></div></div>';
   }).join('');
@@ -156,10 +156,12 @@ function injectCuriosity() {
     body: JSON.stringify({ topic: topic, relevance: rel, depth: depth, reason: reason, alpha: alpha })
   }).then(function(r) {
     if (r.error) { log('❌ ' + r.error, 'error'); }
-    else { log('✅ 注入成功', 'ok'); }
+    else {
+      log('✅ 注入成功 (score=' + (r.score || 0).toFixed(1) + ')', 'ok');
+      document.getElementById('inject-topic').value = '';
+      refreshAll();
+    }
   }).catch(function(e) { log('❌ ' + e.message, 'error'); });
-  document.getElementById('inject-topic').value = '';
-  refreshAll();
 }
 
 function quickExplore(topic) {
