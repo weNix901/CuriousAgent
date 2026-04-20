@@ -121,7 +121,7 @@ function escapeHtml(s) {
 }
 function escapeJs(s) {
   if (!s) return '';
-  return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n').replace(/\r/g,'\\r');
 }
 
 var currentView = 'list';
