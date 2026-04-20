@@ -1,9 +1,91 @@
+var bootstrapConfig = {
+  enabled: true,
+  target_agent: 'researcher',
+  timeout_ms: 1500,
+  max_nodes: 5,
+  min_quality: 0,
+  sort_by: 'created_at'
+};
+
 async function loadExternalView() {
   await Promise.all([
+    loadBootstrapConfig(),
     loadHookBoard(),
     loadAgentActivity(),
     loadTimeline(),
   ]);
+}
+
+async function loadBootstrapConfig() {
+  try {
+    var data = await fetchJSON('/api/hooks/bootstrap/config');
+    if (data.config) {
+      bootstrapConfig = data.config;
+      applyBootstrapConfigToUI();
+    }
+  } catch (e) {
+    applyBootstrapConfigToUI();
+  }
+}
+
+function applyBootstrapConfigToUI() {
+  document.getElementById('bootstrap-enabled').checked = bootstrapConfig.enabled;
+  document.getElementById('bootstrap-timeout').value = bootstrapConfig.timeout_ms;
+  document.getElementById('bootstrap-timeout-value').textContent = bootstrapConfig.timeout_ms;
+  document.getElementById('bootstrap-max-nodes').value = bootstrapConfig.max_nodes;
+  document.getElementById('bootstrap-max-nodes-value').textContent = bootstrapConfig.max_nodes;
+  document.getElementById('bootstrap-min-quality').value = bootstrapConfig.min_quality;
+  document.getElementById('bootstrap-min-quality-value').textContent = bootstrapConfig.min_quality;
+  document.getElementById('bootstrap-sort-by').value = bootstrapConfig.sort_by;
+  document.getElementById('bootstrap-target-agent').value = bootstrapConfig.target_agent;
+}
+
+function updateSliderValue(input) {
+  var valueEl = document.getElementById(input.id + '-value');
+  if (valueEl) {
+    valueEl.textContent = input.value;
+  }
+}
+
+async function saveBootstrapConfig() {
+  var newConfig = {
+    enabled: document.getElementById('bootstrap-enabled').checked,
+    timeout_ms: parseInt(document.getElementById('bootstrap-timeout').value),
+    max_nodes: parseInt(document.getElementById('bootstrap-max-nodes').value),
+    min_quality: parseFloat(document.getElementById('bootstrap-min-quality').value),
+    sort_by: document.getElementById('bootstrap-sort-by').value,
+    target_agent: document.getElementById('bootstrap-target-agent').value
+  };
+  
+  try {
+    var response = await fetch('/api/hooks/bootstrap/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newConfig)
+    });
+    var data = await response.json();
+    if (data.status === 'ok') {
+      bootstrapConfig = newConfig;
+      showToast('✅ 配置已保存（实时生效 + 已持久化）', 'success');
+    } else {
+      showToast('⚠️ 保存失败: ' + data.error, 'error');
+    }
+  } catch (e) {
+    showToast('⚠️ 保存失败: ' + e.message, 'error');
+  }
+}
+
+function resetBootstrapConfig() {
+  bootstrapConfig = {
+    enabled: true,
+    target_agent: 'researcher',
+    timeout_ms: 1500,
+    max_nodes: 5,
+    min_quality: 0,
+    sort_by: 'created_at'
+  };
+  applyBootstrapConfigToUI();
+  showToast('🔄 已重置为默认值（未保存）', 'info');
 }
 
 async function loadHookBoard() {
@@ -14,46 +96,29 @@ async function loadHookBoard() {
     var url = '/api/audit/hooks?limit=20' + (filter ? '&hook=' + encodeURIComponent(filter) : '');
     var data = await fetchJSON(url);
     if (!data.records || !data.records.length) {
-      el.innerHTML = '<div class="empty">暂无外部Agent调用记录</div>';
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div>暂无外部Agent调用记录</div>';
       return;
     }
-    
-    var hookNameMap = {
-      '/api/knowledge/confidence': 'knowledge-query-skill',
-      '/api/knowledge/learn': 'knowledge-learn-hook',
-      '/api/kg/overview': 'knowledge-bootstrap-hook',
-      '/api/knowledge/check': 'knowledge-gate-hook',
-      '/api/kg/confidence': 'knowledge-gate-hook',
-      '/api/knowledge/record': 'knowledge-inject-hook',
-    };
     
     var html = data.records.map(function(r) {
       var emoji = r.status === 'success' ? '✅' : '❌';
       var hookName = r.hook_name;
-      // Check if skill or hook based on naming
       var isSkill = hookName && hookName.endsWith('-skill');
       var typeEmoji = isSkill ? '🔹' : '🪝';
       if (hookName === 'unknown' || !hookName) {
-        for (var prefix in hookNameMap) {
-          if (r.endpoint.startsWith(prefix)) {
-            hookName = hookNameMap[prefix];
-            isSkill = hookName && hookName.endsWith('-skill');
-            typeEmoji = isSkill ? '🔹' : '🪝';
-            break;
-          }
-        }
-        if (!hookName) hookName = r.endpoint.split('/').pop();
+        hookName = r.endpoint.split('/').pop();
       }
       var time = r.timestamp ? timeAgo(r.timestamp) : '';
+      var injectedBadge = r.knowledge_injected > 0 ? '<span class="badge badge-success">注入' + r.knowledge_injected + '节点</span>' : '';
       return '<div class="history-item" data-hook-id="' + escapeHtml(r.id) + '" onclick="showHookDetail(this.dataset.hookId)">'
         + '<div class="history-top"><span>' + emoji + ' ' + typeEmoji + ' ' + escapeHtml(hookName) + '</span>'
         + '<span class="history-time">' + time + ' | ' + r.latency_ms + 'ms</span></div>'
-        + '<div class="history-findings">' + escapeHtml(r.endpoint) + ' → ' + r.status_code + '</div>'
+        + '<div class="history-findings">' + escapeHtml(r.endpoint) + ' → ' + r.status_code + ' ' + injectedBadge + '</div>'
         + '<span class="click-hint">👆 详情</span></div>';
     }).join('');
     el.innerHTML = html;
   } catch (e) {
-    el.innerHTML = '<div class="empty">加载失败</div>';
+    el.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>加载失败</div>';
   }
 }
 
@@ -69,24 +134,65 @@ async function showHookDetail(hookId) {
     var summary = data.request_raw_topic || '无topic';
     
     title.textContent = '🤖 ' + hookDisplay;
-    meta.innerHTML = '<span class="modal-meta-item">时间: ' + timeAgo(data.timestamp) + '</span>'
+    
+    var metaHtml = '<span class="modal-meta-item">时间: ' + timeAgo(data.timestamp) + '</span>'
       + '<span class="modal-meta-item">耗时: ' + data.latency_ms + 'ms</span>'
       + '<span class="modal-meta-item">状态: ' + data.status + '</span>';
-    body.innerHTML = '<div class="modal-section"><div class="modal-section-title">基本信息</div>'
+    if (data.knowledge_injected > 0) {
+      metaHtml += '<span class="modal-meta-item badge badge-success">注入 ' + data.knowledge_injected + ' 节点</span>';
+    }
+    meta.innerHTML = metaHtml;
+    
+    var bodyHtml = '<div class="modal-section"><div class="modal-section-title">基本信息</div>'
       + '<div class="modal-section-content">'
       + 'Endpoint: ' + escapeHtml(data.endpoint) + '<br>'
       + 'Method: ' + data.method + '<br>'
       + 'Agent: ' + data.agent_id + '<br>'
-      + 'Status Code: ' + data.status_code + '</div></div>'
-      + '<div class="modal-section"><div class="modal-section-title">Topic</div>'
-      + '<div class="modal-section-content">' + escapeHtml(summary) + '</div></div>'
-      + '<div class="modal-section"><div class="modal-section-title">响应</div>'
-      + '<div class="modal-section-content" style="max-height:200px;overflow-y:auto;font-size:12px;white-space:pre-wrap;">'
-      + escapeHtml(data.response_payload || '无响应') + '</div></div>';
+      + 'Status Code: ' + data.status_code + '</div></div>';
     
+    if (data.hook_name === 'knowledge-bootstrap-hook' && data.response_payload) {
+      try {
+        var resp = JSON.parse(data.response_payload);
+        var nodes = resp.nodes || [];
+        var edges = resp.edges || [];
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title">注入内容概览</div>'
+          + '<div class="modal-section-content">'
+          + '<strong>知识节点:</strong> ' + nodes.length + ' 个<br>'
+          + '<strong>知识关系:</strong> ' + edges.length + ' 条<br>'
+          + '</div></div>';
+        if (nodes.length > 0) {
+          var topNodes = nodes.slice(0, 5).map(function(n, i) {
+            var qualityBadge = n.quality ? '<span class="badge">' + n.quality.toFixed(1) + '</span>' : '';
+            var statusBadge = n.status ? '<span class="badge badge-' + (n.status === 'done' ? 'success' : 'warning') + '">' + n.status + '</span>' : '';
+            return '<div class="injected-node">'
+              + '<span class="node-index">' + (i + 1) + '</span>'
+              + '<span class="node-topic">' + escapeHtml(n.topic || n.id || '未知') + '</span>'
+              + qualityBadge + statusBadge
+              + '</div>';
+          }).join('');
+          bodyHtml += '<div class="modal-section"><div class="modal-section-title">Top 5 注入节点</div>'
+            + '<div class="modal-section-content injected-nodes-list">' + topNodes + '</div></div>';
+        }
+      } catch (parseErr) {
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title">响应</div>'
+          + '<div class="modal-section-content" style="max-height:200px;overflow-y:auto;font-family:var(--font-data);font-size:12px;">'
+          + escapeHtml(data.response_payload || '无响应') + '</div></div>';
+      }
+    } else {
+      bodyHtml += '<div class="modal-section"><div class="modal-section-title">响应</div>'
+        + '<div class="modal-section-content" style="max-height:200px;overflow-y:auto;font-family:var(--font-data);font-size:12px;">'
+        + escapeHtml(data.response_payload || '无响应') + '</div></div>';
+    }
+    
+    if (data.injection_snippet) {
+      bodyHtml += '<div class="modal-section"><div class="modal-section-title">注入摘要</div>'
+        + '<div class="modal-section-content">' + escapeHtml(data.injection_snippet) + '</div></div>';
+    }
+    
+    body.innerHTML = bodyHtml;
     modal.classList.add('active');
   } catch (e) {
-    alert('加载详情失败: ' + e);
+    showToast('加载详情失败: ' + e, 'error');
   }
 }
 
@@ -100,19 +206,20 @@ async function loadAgentActivity() {
   try {
     var data = await fetchJSON('/api/agents');
     if (!data.agents || !data.agents.length) {
-      el.innerHTML = '<div class="empty">暂无已接入 Agent</div>';
+      el.innerHTML = '<div class="empty"><div class="empty-icon">🤖</div>暂无已接入 Agent</div>';
       return;
     }
     var html = data.agents.map(function(a) {
-      return '<div class="panel"><div class="panel-header"><span class="panel-title">' + escapeHtml(a.agent_name) + '</span></div>'
-        + '<div class="panel-body"><div class="stats">'
-        + '<div class="stat-card"><div class="stat-label">调用数</div><div class="stat-value">' + a.total_calls + '</div></div>'
-        + '<div class="stat-card"><div class="stat-label">成功率</div><div class="stat-value">' + (a.success_rate * 100).toFixed(0) + '%</div></div>'
-        + '</div></div></div>';
+      return '<div class="activity-agent">'
+        + '<div class="activity-agent-name">' + escapeHtml(a.agent_name) + '</div>'
+        + '<div class="activity-agent-stats">'
+        + '<span>调用: <strong>' + a.total_calls + '</strong></span>'
+        + '<span>成功率: <strong>' + (a.success_rate * 100).toFixed(0) + '%</strong></span>'
+        + '</div></div>';
     }).join('');
     el.innerHTML = html;
   } catch (e) {
-    el.innerHTML = '<div class="empty">加载失败</div>';
+    el.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>加载失败</div>';
   }
 }
 
@@ -122,7 +229,7 @@ async function loadTimeline() {
   try {
     var data = await fetchJSON('/api/timeline?limit=30');
     if (!data.events || !data.events.length) {
-      el.innerHTML = '<div class="empty">暂无事件</div>';
+      el.innerHTML = '<div class="empty"><div class="empty-icon">📅</div>暂无事件</div>';
       return;
     }
     var html = data.events.map(function(e) {
@@ -134,7 +241,7 @@ async function loadTimeline() {
     }).join('');
     el.innerHTML = html;
   } catch (e) {
-    el.innerHTML = '<div class="empty">加载失败</div>';
+    el.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>加载失败</div>';
   }
 }
 
@@ -178,7 +285,7 @@ function showTimelineDetail(eventType, detail) {
   } else {
     title.textContent = '📋 事件详情';
     meta.innerHTML = '';
-    body.innerHTML = '<div class="modal-section-content">' + escapeHtml(JSON.stringify(detail, null, 2)) + '</div>';
+    body.innerHTML = '<div class="modal-section-content" style="font-family:var(--font-data);font-size:12px;">' + escapeHtml(JSON.stringify(detail, null, 2)) + '</div>';
   }
   
   modal.classList.add('active');

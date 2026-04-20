@@ -2,85 +2,95 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>👁️ Curious Agent — 好奇探索器</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="description" content="Curious Agent - 好奇探索器，智能知识图谱探索系统">
+<meta name="theme-color" content="#0a0d12">
+
+<title>Curious Agent — 好奇探索器</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="css/base.css">
+
 <style>
-#graph-svg{width:100%;height:960px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:grab;display:block}
+#graph-svg{width:100%;height:960px;border:var(--border-medium);background:var(--paper);cursor:grab;display:block}
 #graph-svg:active{cursor:grabbing}
 .graph-node circle{transition:r .15s}
-.graph-node:hover circle{filter:brightness(1.3)}
-.graph-node text{font-size:11px;fill:var(--text-muted);pointer-events:none}
+.graph-node:hover circle{filter:brightness(0.9)}
+.graph-node text{font-size:11px;fill:var(--ink-muted);pointer-events:none}
 .graph-link{stroke-opacity:.6}
-.graph-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
-.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)}
+.graph-legend{display:flex;flex-wrap:wrap;gap:var(--space-4);margin-top:var(--space-2)}
+.legend-item{display:flex;align-items:center;gap:var(--space-1);font-size:12px;color:var(--ink-muted)}
 .legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.graph-controls{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:12px 16px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:10px}
+.graph-controls{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-4);padding:var(--space-4);background:var(--paper);border:var(--border-medium);margin-bottom:var(--space-2)}
 .graph-controls .ctrl-group{display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px}
-.graph-controls .ctrl-label{font-size:11px;color:var(--text-muted);display:flex;justify-content:space-between}
-.graph-controls .ctrl-label span{font-weight:600;color:var(--accent)}
-.graph-controls input[type=range]{width:100%;height:4px;accent-color:var(--accent);cursor:pointer}
-.graph-controls .ctrl-check{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none;flex:1;min-width:90px}
-.graph-controls input[type=checkbox]{accent-color:var(--accent);cursor:pointer;width:14px;height:14px}
-.graph-controls .btn-reset{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-size:12px;flex-shrink:0}
-.graph-controls .btn-reset:hover{border-color:var(--accent);color:var(--accent}
-.scores-row{display:flex;gap:12px;align-items:stretch;margin-top:10px}
-.score-input{display:flex;align-items:center;gap:6px;flex:1}
-.score-input label{font-size:12px;color:var(--text-muted);flex-shrink:0}
-.score-input input{flex:1;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;min-width:0}
-.score-input input:focus{outline:none;border-color:var(--accent)}
+.graph-controls .ctrl-label{font-size:11px;color:var(--ink-muted);display:flex;justify-content:space-between}
+.graph-controls .ctrl-label span{font-weight:600;color:var(--accent-primary)}
+.graph-controls input[type=range]{width:100%;height:4px;accent-color:var(--accent-primary);cursor:pointer}
+.graph-controls .ctrl-check{display:flex;align-items:center;gap:var(--space-1);cursor:pointer;user-select:none;flex:1;min-width:90px}
+.graph-controls input[type=checkbox]{accent-color:var(--accent-primary);cursor:pointer;width:14px;height:14px}
+.graph-controls .btn-reset{padding:var(--space-2) var(--space-4);border:var(--border-medium);background:var(--white);color:var(--ink-secondary);cursor:pointer;font-size:12px;flex-shrink:0}
+.graph-controls .btn-reset:hover{border-color:var(--accent-primary);color:var(--accent-primary)}
+.scores-row{display:flex;gap:var(--space-4);align-items:stretch;margin-top:var(--space-2)}
+.score-input{display:flex;align-items:center;gap:var(--space-1);flex:1}
+.score-input label{font-size:12px;color:var(--ink-muted);flex-shrink:0}
+.score-input input{flex:1;padding:var(--space-2) var(--space-4);background:var(--white);border:var(--border-medium);color:var(--ink-primary);font-size:13px;min-width:0}
+.score-input input:focus{outline:none;border-color:var(--accent-primary)}
 </style>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
+
 <div class="container">
 
   <header>
     <div class="logo">
       <span class="logo-icon">👁️</span>
-      <span>Curious Agent</span>
+      <span class="logo-text">Curious Agent</span>
       <span class="logo-sub">好奇探索器</span>
     </div>
-    <div class="header-actions">
-      <button class="btn" onclick="refreshAll()">🔄 刷新</button>
-      <button class="btn btn-primary" onclick="runExplore()">▶ 运行探索</button>
-    </div>
+    <nav class="header-actions">
+      <button class="btn" onclick="refreshAll()" data-tooltip="刷新所有数据">🔄 刷新</button>
+      <button class="btn btn-primary" onclick="runExplore()" data-tooltip="启动新的探索任务">▶ 运行探索</button>
+    </nav>
   </header>
 
-  <div class="view-tabs">
-    <button class="view-tab active" data-view="list" onclick="switchView('list')">📋 列表视图</button>
-    <button class="view-tab" data-view="graph" onclick="switchView('graph')">🔮 图谱视图</button>
-    <button class="view-tab" data-view="internal" onclick="switchView('internal')">🧭 内部可视化</button>
-    <button class="view-tab" data-view="external" onclick="switchView('external')">🤖 外部Agent调用记录</button>
-  </div>
+  <nav class="view-tabs" role="tablist" aria-label="视图切换">
+    <button class="view-tab active" role="tab" aria-selected="true" data-view="list" onclick="switchView('list')">📋 列表视图</button>
+    <button class="view-tab" role="tab" aria-selected="false" data-view="graph" onclick="switchView('graph')">🔮 图谱视图</button>
+    <button class="view-tab" role="tab" aria-selected="false" data-view="internal" onclick="switchView('internal')">🧭 内部可视化</button>
+    <button class="view-tab" role="tab" aria-selected="false" data-view="external" onclick="switchView('external')">🤖 外部调用</button>
+  </nav>
 
-  <div class="stats" id="stats">
-    <div class="stat-card">
+  <section class="stats" aria-label="系统统计">
+    <article class="stat-card">
       <div class="stat-label">知识节点</div>
       <div class="stat-value" id="stat-nodes">—</div>
       <div class="stat-sub" id="stat-known">— 已知</div>
-    </div>
-    <div class="stat-card">
+    </article>
+    <article class="stat-card">
       <div class="stat-label">待探索好奇心</div>
       <div class="stat-value" id="stat-pending">—</div>
       <div class="stat-sub">队列深度</div>
-    </div>
-    <div class="stat-card">
+    </article>
+    <article class="stat-card">
       <div class="stat-label">探索历史</div>
       <div class="stat-value" id="stat-history">—</div>
       <div class="stat-sub" id="stat-notified">— 已通知</div>
-    </div>
-    <div class="stat-card">
+    </article>
+    <article class="stat-card">
       <div class="stat-label">最后更新</div>
-      <div class="stat-value" id="stat-last" style="font-size:14px;line-height:1.4;padding-top:6px;">—</div>
+      <div class="stat-value" id="stat-last" style="font-size:14px;line-height:1.4;padding-top:var(--space-xs)">—</div>
       <div class="stat-sub">探索器状态</div>
-    </div>
-  </div>
+    </article>
+  </section>
 
-  <div id="list-view" class="view-container active"></div>
-  <div id="graph-view" class="view-container"></div>
-  <div id="internal-view" class="view-container"></div>
-  <div id="external-view" class="view-container"></div>
+  <main>
+    <section id="list-view" class="view-container active" role="tabpanel" aria-label="列表视图"></section>
+    <section id="graph-view" class="view-container" role="tabpanel" aria-label="图谱视图"></section>
+    <section id="internal-view" class="view-container" role="tabpanel" aria-label="内部可视化"></section>
+    <section id="external-view" class="view-container" role="tabpanel" aria-label="外部Agent调用记录"></section>
+  </main>
 
 </div>
 
@@ -99,7 +109,7 @@ function loadViewContent(viewName) {
     if (viewName === 'internal') loadInternalView();
     if (viewName === 'external') loadExternalView();
   }).catch(function(e) {
-    container.innerHTML = '<div class="empty">加载视图失败: ' + e.message + '</div>';
+    container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>加载视图失败: ' + e.message + '</div>';
   });
 }
 
@@ -109,6 +119,7 @@ function switchView(view) {
   tabs.forEach(function(t) {
     var v = t.getAttribute('data-view');
     t.classList.toggle('active', v === view);
+    t.setAttribute('aria-selected', v === view ? 'true' : 'false');
   });
   var containers = document.querySelectorAll('.view-container');
   containers.forEach(function(c) {
@@ -122,10 +133,25 @@ function switchView(view) {
 function loadAll() {
   loadState().then(function() {
     loadListView();
-    log('📊 状态已刷新', 'ok');
+    showToast('📊 状态已刷新', 'success');
   }).catch(function(e) {
-    log('⚠️ 无法加载状态: ' + e.message, 'error');
+    showToast('⚠️ 无法加载状态: ' + e.message, 'error');
   });
+}
+
+function showToast(message, type) {
+  var container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+  var toast = document.createElement('div');
+  toast.className = 'toast toast-' + (type || 'info');
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(function() { toast.remove(); }, 3000);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -139,15 +165,15 @@ document.addEventListener('DOMContentLoaded', function() {
 setInterval(loadAll, 30000);
 </script>
 
-<div class="modal-overlay" id="detail-modal" onclick="if(event.target===this)closeModal()">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title" id="modal-title">—</div>
-      <button class="modal-close" onclick="closeModal()">×</button>
-    </div>
+<div class="modal-overlay" id="detail-modal" onclick="if(event.target===this)closeModal()" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <article class="modal">
+    <header class="modal-header">
+      <h2 class="modal-title" id="modal-title">—</h2>
+      <button class="modal-close" onclick="closeModal()" aria-label="关闭">×</button>
+    </header>
     <div class="modal-meta" id="modal-meta"></div>
     <div class="modal-body" id="modal-body"></div>
-  </div>
+  </article>
 </div>
 
 </body>

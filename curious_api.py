@@ -126,7 +126,7 @@ def _is_hook_endpoint(path):
 def _build_audit_record(req, resp, latency_ms):
     """Build audit record from request and response."""
     headers = {
-        k: v for k, v in dict(req.headers).items()
+        k.lower(): v for k, v in dict(req.headers).items()
         if k.lower() in ("x-openclaw-agent-id", "x-openclaw-hook-name",
                          "x-openclaw-hook-event", "x-openclaw-hook-type",
                          "x-openclaw-session-id")
@@ -149,9 +149,9 @@ def _build_audit_record(req, resp, latency_ms):
             inferred_hook_name = name
             break
     
-    hook_name = headers.get("X-OpenClaw-Hook-Name") or inferred_hook_name
-    hook_type = headers.get("X-OpenClaw-Hook-Type", "api_call")
-    hook_event = headers.get("X-OpenClaw-Hook-Event", path)
+    hook_name = headers.get("x-openclaw-hook-name") or inferred_hook_name
+    hook_type = headers.get("x-openclaw-hook-type", "api_call")
+    hook_event = headers.get("x-openclaw-hook-event", path)
 
     req_payload = None
     try:
@@ -182,8 +182,8 @@ def _build_audit_record(req, resp, latency_ms):
         "hook_name": hook_name,
         "hook_type": hook_type,
         "hook_event": hook_event,
-        "agent_id": headers.get("X-OpenClaw-Agent-Id", "unknown"),
-        "agent_session": headers.get("X-OpenClaw-Session-Id"),
+        "agent_id": headers.get("x-openclaw-agent-id", "unknown"),
+        "agent_session": headers.get("x-openclaw-session-id"),
         "endpoint": req.path,
         "method": req.method,
         "request_headers": json.dumps(headers),
@@ -2630,8 +2630,8 @@ def api_agents():
             agents.append({
                 **info,
                 "last_seen_at": last_seen,
-                "total_calls": row["total"],
-                "success_rate": row["success"] / max(row["total"], 1),
+                "total_calls": row["total"] or 0,
+                "success_rate": (row["success"] or 0) / max(row["total"] or 1, 1),
                 "avg_latency_ms": int(row["avg_latency"] or 0),
             })
         conn.close()

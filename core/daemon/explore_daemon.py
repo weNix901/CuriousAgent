@@ -6,6 +6,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+import nest_asyncio
 from loguru import logger
 
 
@@ -63,6 +64,9 @@ class ExploreDaemon(threading.Thread):
     
     def run(self):
         """Main daemon loop: claim → explore → mark done."""
+        # Allow nested asyncio.run() calls from tools within this event loop
+        nest_asyncio.apply()
+        
         # Create QueueStorage in this thread to avoid SQLite threading issues
         from core.tools.queue_tools import QueueStorage
         queue_storage = QueueStorage()

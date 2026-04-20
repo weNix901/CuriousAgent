@@ -126,24 +126,6 @@ function escapeJs(s) {
 
 var currentView = 'list';
 
-function switchView(view) {
-  currentView = view;
-  var tabs = document.querySelectorAll('.view-tab');
-  tabs.forEach(function(t) {
-    var v = t.getAttribute('data-view');
-    t.classList.toggle('active', v === view);
-  });
-  var containers = document.querySelectorAll('.view-container');
-  containers.forEach(function(c) {
-    var v = c.id.replace('-view', '');
-    c.classList.toggle('active', v === view);
-    c.style.display = v === view ? 'block' : 'none';
-  });
-  if (view === 'graph') setTimeout(renderGraph, 100);
-  if (view === 'internal') loadInternalView && loadInternalView();
-  if (view === 'external') loadExternalView && loadExternalView();
-}
-
 function deleteQueue(topic) {
   if (!confirm('确认删除好奇心: ' + topic + '?')) return;
   fetchJSON('/api/curious/queue?topic=' + encodeURIComponent(topic), { method: 'DELETE' })
@@ -244,7 +226,7 @@ function showDetail(type, id) {
         if (summaryObj.tech_stack && summaryObj.tech_stack.length > 0) {
           bodyHtml += '<div class="modal-section"><div class="modal-section-title">🔧 技术栈</div>'
             + '<div class="modal-section-content">'
-            + summaryObj.tech_stack.map(function(ts) { return '<span style="display:inline-block;padding:2px 8px;margin:2px;background:var(--bg);border:1px solid var(--border);border-radius:4px;font-size:12px;">' + escapeHtml(ts) + '</span>'; }).join(' ')
+            + summaryObj.tech_stack.map(function(ts) { return '<span style="display:inline-block;padding:2px 8px;margin:2px;background:var(--paper);border:var(--border-medium);font-size:12px;">' + escapeHtml(ts) + '</span>'; }).join(' ')
             + '</div></div>';
         }
         
