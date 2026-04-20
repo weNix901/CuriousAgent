@@ -31,9 +31,9 @@ UI_DIR = os.path.join(os.path.dirname(__file__), "ui")
 HOOK_ENDPOINTS = {
     "/api/knowledge/confidence",
     "/api/knowledge/learn",
-    "/api/kg/overview",
     "/api/knowledge/check",
     "/api/knowledge/record",
+    "/api/knowledge/session/startup",
 }
 
 _audit_db_path = os.path.join(os.path.dirname(__file__), "knowledge", "hook_audit.db")
@@ -137,7 +137,7 @@ def _build_audit_record(req, resp, latency_ms):
     hook_name_map = {
         "/api/knowledge/confidence": "knowledge-query-skill",
         "/api/knowledge/learn": "knowledge-learn-hook",
-        "/api/kg/overview": "knowledge-bootstrap-hook",
+        "/api/knowledge/session/startup": "knowledge-bootstrap-hook",
         "/api/knowledge/check": "knowledge-gate-hook",
         "/api/kg/confidence": "knowledge-gate-hook",
         "/api/knowledge/record": "knowledge-inject-hook",
@@ -161,11 +161,28 @@ def _build_audit_record(req, resp, latency_ms):
         pass
 
     resp_payload = None
+    injection_preview = None
     try:
-        if resp.is_json and len(resp.get_data(as_text=True)) < 4096:
-            resp_payload = resp.get_data(as_text=True)
-    except Exception:
-        pass
+        resp_data = resp.get_data(as_text=True)
+        parsed = json.loads(resp_data) if resp_data else {}
+        
+        if hook_name in ("knowledge-bootstrap-hook", "knowledge-bootstrap"):
+            injection_content = parsed.get("injection_content", "")
+            metadata = parsed.get("metadata", {})
+            
+            resp_payload = json.dumps({
+                "status": parsed.get("status"),
+                "nodes_count": metadata.get("nodes_count", 0),
+                "nodes_used": metadata.get("nodes_used", []),
+                "sections_enabled": metadata.get("sections_enabled", []),
+                "injection_preview": injection_content[:3000] if injection_content else None
+            }, ensure_ascii=False)
+        elif len(resp_data) < 4096:
+            resp_payload = resp_data
+        else:
+            resp_payload = resp_data[:4000] + "...[truncated]"
+    except Exception as e:
+        print(f"[audit] resp_payload error: {e}")
 
     raw_topic = req.args.get("topic", "")
     if not raw_topic and req_payload:
@@ -493,23 +510,27 @@ def api_state():
     queue_items = kg.list_pending()
     
     exploration_log = []
-    mc_exp_log = mc.get("exploration_log", [])
-    notified_map = {}
-    for entry in mc_exp_log:
-        if entry.get("topic") and entry.get("notified"):
-            notified_map[entry["topic"]] = True
+    exploration_log_total = 0
+    notified_total = 0
     try:
         conn = _get_traces_db()
+        total_row = conn.execute(
+            "SELECT COUNT(*) as total, SUM(notified) as notified_sum FROM explorer_traces WHERE status = 'done'"
+        ).fetchone()
+        exploration_log_total = total_row["total"] or 0
+        notified_total = total_row["notified_sum"] or 0
+        
         rows = conn.execute(
-            "SELECT topic, status, started_at as timestamp, total_steps, quality_score FROM explorer_traces WHERE status = 'done' ORDER BY started_at DESC LIMIT 50"
+            "SELECT trace_id, topic, status, started_at as timestamp, total_steps, quality_score, notified FROM explorer_traces WHERE status = 'done' ORDER BY started_at DESC LIMIT 50"
         ).fetchall()
         for r in rows:
             exploration_log.append({
+                "trace_id": r["trace_id"],
                 "topic": r["topic"],
                 "timestamp": r["timestamp"],
                 "action": "explore",
                 "findings": f"Completed in {r['total_steps']} steps, quality={r['quality_score']}",
-                "notified_user": notified_map.get(r["topic"], False)
+                "notified_user": bool(r["notified"])
             })
         conn.close()
     except Exception as e:
@@ -520,6 +541,8 @@ def api_state():
         "knowledge": {**summary, "topics": topics_with_quality},
         "curiosity_queue": queue_items,
         "exploration_log": exploration_log,
+        "exploration_log_total": exploration_log_total,
+        "notified_total": notified_total,
         "last_update": state.get("last_update")
     })
 
@@ -1094,22 +1117,86 @@ def api_kg_roots():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
-@app.route("/api/kg/overview")
-def api_kg_overview():
-    """Get KG overview for frontend visualization."""
+@app.route("/api/knowledge/session/startup")
+def api_session_startup():
+    """Get complete injection content for bootstrap hook.
+    
+    CA backend assembles:
+    - KG nodes (filtered by min_quality, max_nodes)
+    - Behavior guidelines (from config.json templates)
+    
+    Returns complete injection content directly (no file paths).
+    """
     try:
+        from core.config import get_bootstrap_config
         from core.kg.repository_factory import get_kg_factory
+        
+        bootstrap_cfg = get_bootstrap_config()
+        max_nodes = bootstrap_cfg.get("max_nodes", 5)
+        min_quality = bootstrap_cfg.get("min_quality", 0)
+        sections = bootstrap_cfg.get("injection_sections", {})
         
         kg_factory = get_kg_factory()
         overview = kg_factory.get_graph_overview_sync()
+        nodes = overview.get("nodes", [])
+        
+        filtered_nodes = [
+            n for n in nodes 
+            if (n.get("quality") or 0) >= min_quality
+        ][:max_nodes]
+        
+        injection_parts = []
+        
+        DEFAULT_KG_TEMPLATE = "[CA Knowledge Summary]\n你最近探索的话题：\n{nodes_list}"
+        DEFAULT_COGNITIVE_TEMPLATE = "[CA Cognitive Framework]\n回答知识问题时，先判断 KG 置信度：\n- 🟢 Expert (≥85%): 直接从 KG 知识回答，引用来源\n- 🟡 Intermediate (60-85%): KG 知识 + 搜索补充\n- 🟠 Beginner (30-60%): 先搜索，再回答，注入 CA 探索\n- 🔴 Novice (<30%): LLM 回答 + 必须注入 CA 探索"
+        DEFAULT_SKILL_TEMPLATE = '[CA Skill Rules]\n调用 knowledge-query Skill ONLY when:\n- ✅ 概念解释类：「什么是 X」、「解释 Y」、「X 的原理」\n- ❌ 命令执行类：直接执行，不查询 KG'
+        DEFAULT_TOPIC_TEMPLATE = '[Topic Extraction Rules]\n提取核心话题时：\n- 长度：2-10 字（名词短语）\n- 剔除：「什么是」、「解释」、「怎么」、「帮我」'
+        
+        kg_section = sections.get("kg-summary") or sections.get("kg_summary", {})
+        if kg_section.get("enabled", True) and filtered_nodes:
+            nodes_list = "\n".join([
+                f"{i+1}. **{n.get('topic', 'N/A')}** (quality: {n.get('quality', 'N/A')})"
+                for i, n in enumerate(filtered_nodes)
+            ])
+            template = kg_section.get("template", DEFAULT_KG_TEMPLATE)
+            injection_parts.append(template.replace("{nodes_list}", nodes_list))
+        
+        cognitive_section = sections.get("cognitive-framework") or sections.get("cognitive_framework", {})
+        if cognitive_section.get("enabled", True):
+            template = cognitive_section.get("template", DEFAULT_COGNITIVE_TEMPLATE)
+            injection_parts.append(template)
+        
+        skill_section = sections.get("skill-rules") or sections.get("skill_rules", {})
+        if skill_section.get("enabled", True):
+            template = skill_section.get("template", DEFAULT_SKILL_TEMPLATE)
+            injection_parts.append(template)
+        
+        topic_section = sections.get("topic-extraction") or sections.get("topic_extraction", {})
+        if topic_section.get("enabled", True):
+            template = topic_section.get("template", DEFAULT_TOPIC_TEMPLATE)
+            injection_parts.append(template)
+        
+        injection_content = "\n\n".join(injection_parts)
         
         return jsonify({
             "status": "ok",
-            "nodes": overview["nodes"],
-            "edges": overview["edges"]
+            "injection_content": injection_content,
+            "metadata": {
+                "nodes_count": len(nodes),
+                "nodes_used": [
+                    {"topic": n.get("topic"), "quality": n.get("quality")} 
+                    for n in filtered_nodes
+                ],
+                "sections_enabled": [
+                    k.replace("-", "_") for k, v in sections.items() 
+                    if v.get("enabled", True)
+                ],
+                "assembled_at": datetime.now(timezone.utc).isoformat()
+            }
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 @app.route("/api/kg/nodes/<path:node_id>")
@@ -2610,6 +2697,12 @@ _agent_registry = {
         "agent_name": "R1D3 Researcher",
         "connected_at": "2026-04-15T22:00:00Z",
         "hooks_used": ["knowledge-query-skill", "knowledge-learn-hook", "knowledge-bootstrap-hook", "knowledge-gate-hook", "knowledge-inject-hook"],
+    },
+    "unknown": {
+        "agent_id": "unknown",
+        "agent_name": "未识别调用",
+        "connected_at": None,
+        "hooks_used": ["未带 agent-id header 的调用"],
     }
 }
 
