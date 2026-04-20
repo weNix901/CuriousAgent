@@ -4,65 +4,118 @@
     <div class="panel-header">
       <div class="panel-title">🪝 Bootstrap Hook 配置</div>
       <div class="panel-controls">
-        <button class="btn btn-success btn-sm" id="save-bootstrap-config" onclick="saveBootstrapConfig()">💾 保存</button>
+        <button class="btn btn-success btn-sm" onclick="saveBootstrapConfig()">💾 保存</button>
         <button class="btn btn-sm" onclick="resetBootstrapConfig()">🔄 重置默认</button>
       </div>
     </div>
-    <div class="panel-body" id="bootstrap-config-panel">
-      <div class="config-grid">
-        <div class="config-item">
-          <label class="config-label">
-            <input type="checkbox" id="bootstrap-enabled" checked>
-            <span>启用 Session 启动注入</span>
-          </label>
-          <div class="config-hint">Agent 启动时自动注入 CA 知识图谱摘要</div>
-        </div>
-        
-        <div class="config-item">
-          <label class="config-label">超时时间 (ms)</label>
-          <div class="config-slider-row">
-            <input type="range" id="bootstrap-timeout" min="500" max="5000" value="1500" oninput="updateSliderValue(this)">
-            <span class="slider-value" id="bootstrap-timeout-value">1500</span>
+    <div class="panel-body">
+      <div class="bootstrap-config-grid">
+        <div class="config-section">
+          <div class="config-section-title">基础设置</div>
+          <div class="config-row">
+            <label class="config-checkbox">
+              <input type="checkbox" id="bootstrap-enabled" checked>
+              <span>启用 Session 启动注入</span>
+            </label>
           </div>
-          <div class="config-hint">API 调用超时时间，网络较差时可适当增加</div>
-        </div>
-        
-        <div class="config-item">
-          <label class="config-label">注入节点数</label>
-          <div class="config-slider-row">
-            <input type="range" id="bootstrap-max-nodes" min="1" max="20" value="5" oninput="updateSliderValue(this)">
-            <span class="slider-value" id="bootstrap-max-nodes-value">5</span>
+          <div class="config-row">
+            <div class="config-field">
+              <label>超时时间 (ms)</label>
+              <div class="slider-row">
+                <input type="range" id="bootstrap-timeout" min="500" max="5000" value="1500" oninput="updateSlider('bootstrap-timeout')">
+                <span class="slider-value" id="bootstrap-timeout-val">1500</span>
+              </div>
+            </div>
+            <div class="config-field">
+              <label>注入节点数</label>
+              <div class="slider-row">
+                <input type="range" id="bootstrap-max-nodes" min="1" max="20" value="5" oninput="updateSlider('bootstrap-max-nodes')">
+                <span class="slider-value" id="bootstrap-max-nodes-val">5</span>
+              </div>
+            </div>
           </div>
-          <div class="config-hint">注入到 Agent 的知识节点数量上限</div>
-        </div>
-        
-        <div class="config-item">
-          <label class="config-label">最小质量阈值</label>
-          <div class="config-slider-row">
-            <input type="range" id="bootstrap-min-quality" min="0" max="10" value="0" step="0.5" oninput="updateSliderValue(this)">
-            <span class="slider-value" id="bootstrap-min-quality-value">0</span>
+          <div class="config-row">
+            <div class="config-field">
+              <label>最小质量阈值</label>
+              <div class="slider-row">
+                <input type="range" id="bootstrap-min-quality" min="0" max="10" value="0" step="0.5" oninput="updateSlider('bootstrap-min-quality')">
+                <span class="slider-value" id="bootstrap-min-quality-val">0</span>
+              </div>
+            </div>
+            <div class="config-field">
+              <label>排序方式</label>
+              <select id="bootstrap-sort-by">
+                <option value="created_at">最近创建</option>
+                <option value="quality">质量最高</option>
+                <option value="depth">深度最高</option>
+              </select>
+            </div>
           </div>
-          <div class="config-hint">只注入质量评分 ≥ 此值的节点（0 表示不过滤）</div>
         </div>
-        
-        <div class="config-item">
-          <label class="config-label">排序方式</label>
-          <select id="bootstrap-sort-by">
-            <option value="created_at">最近创建</option>
-            <option value="quality">质量最高</option>
-            <option value="depth">深度最高</option>
-          </select>
-          <div class="config-hint">知识节点的排序策略</div>
-        </div>
-        
-        <div class="config-item">
-          <label class="config-label">目标 Agent</label>
-          <select id="bootstrap-target-agent">
-            <option value="researcher">researcher (R1D3)</option>
-            <option value="coder">coder</option>
-            <option value="all">全部 Agent</option>
-          </select>
-          <div class="config-hint">接收知识注入的 Agent 类型</div>
+
+        <div class="config-section">
+          <div class="config-section-title">注入内容模块</div>
+          <div class="injection-sections">
+            <div class="section-item">
+              <div class="section-header">
+                <label class="config-checkbox">
+                  <input type="checkbox" id="section-kg-summary" checked onchange="toggleSectionEdit('kg-summary')">
+                  <span class="section-name">📊 KG 摘要</span>
+                </label>
+                <button class="btn btn-sm section-edit-btn" onclick="editSectionTemplate('kg-summary')">📝 编辑</button>
+              </div>
+              <div class="section-desc">注入最近探索的 Top N 知识节点</div>
+              <div class="section-template-edit" id="template-kg-summary" style="display:none">
+                <textarea id="template-kg-summary-text" rows="3"></textarea>
+                <button class="btn btn-sm" onclick="saveSectionTemplate('kg-summary')">保存模板</button>
+              </div>
+            </div>
+
+            <div class="section-item">
+              <div class="section-header">
+                <label class="config-checkbox">
+                  <input type="checkbox" id="section-cognitive-framework" checked onchange="toggleSectionEdit('cognitive-framework')">
+                  <span class="section-name">🧠 Cognitive 框架</span>
+                </label>
+                <button class="btn btn-sm section-edit-btn" onclick="editSectionTemplate('cognitive-framework')">📝 编辑</button>
+              </div>
+              <div class="section-desc">4级置信度策略 (Expert→Novice)</div>
+              <div class="section-template-edit" id="template-cognitive-framework" style="display:none">
+                <textarea id="template-cognitive-framework-text" rows="5"></textarea>
+                <button class="btn btn-sm" onclick="saveSectionTemplate('cognitive-framework')">保存模板</button>
+              </div>
+            </div>
+
+            <div class="section-item">
+              <div class="section-header">
+                <label class="config-checkbox">
+                  <input type="checkbox" id="section-skill-rules" checked onchange="toggleSectionEdit('skill-rules')">
+                  <span class="section-name">⚡ Skill 触发规则</span>
+                </label>
+                <button class="btn btn-sm section-edit-btn" onclick="editSectionTemplate('skill-rules')">📝 编辑</button>
+              </div>
+              <div class="section-desc">knowledge-query 调用时机</div>
+              <div class="section-template-edit" id="template-skill-rules" style="display:none">
+                <textarea id="template-skill-rules-text" rows="5"></textarea>
+                <button class="btn btn-sm" onclick="saveSectionTemplate('skill-rules')">保存模板</button>
+              </div>
+            </div>
+
+            <div class="section-item">
+              <div class="section-header">
+                <label class="config-checkbox">
+                  <input type="checkbox" id="section-topic-extraction" checked onchange="toggleSectionEdit('topic-extraction')">
+                  <span class="section-name">🎯 Topic 提取规则</span>
+                </label>
+                <button class="btn btn-sm section-edit-btn" onclick="editSectionTemplate('topic-extraction')">📝 编辑</button>
+              </div>
+              <div class="section-desc">2-10字核心话题提取规则</div>
+              <div class="section-template-edit" id="template-topic-extraction" style="display:none">
+                <textarea id="template-topic-extraction-text" rows="3"></textarea>
+                <button class="btn btn-sm" onclick="saveSectionTemplate('topic-extraction')">保存模板</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -74,11 +127,11 @@
       <div class="panel-controls">
         <select id="hook-filter" onchange="refreshHookBoard()">
           <option value="">全部调用</option>
-          <option value="knowledge-query-skill">knowledge-query-skill 🔹</option>
-          <option value="knowledge-learn-hook">knowledge-learn-hook 🪝</option>
-          <option value="knowledge-bootstrap-hook">knowledge-bootstrap-hook 🪝</option>
-          <option value="knowledge-gate-hook">knowledge-gate-hook 🪝</option>
-          <option value="knowledge-inject-hook">knowledge-inject-hook 🪝</option>
+          <option value="knowledge-query-skill">knowledge-query-skill</option>
+          <option value="knowledge-learn-hook">knowledge-learn-hook</option>
+          <option value="knowledge-bootstrap-hook">knowledge-bootstrap-hook</option>
+          <option value="knowledge-gate-hook">knowledge-gate-hook</option>
+          <option value="knowledge-inject-hook">knowledge-inject-hook</option>
         </select>
         <button class="btn btn-sm" onclick="refreshHookBoard()">🔄</button>
       </div>
@@ -110,70 +163,117 @@
 </div>
 
 <style>
-.config-grid {
+.bootstrap-config-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
 }
-
 @media (max-width: 1023px) {
-  .config-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .bootstrap-config-grid { grid-template-columns: 1fr; }
 }
-
-@media (max-width: 767px) {
-  .config-grid {
-    grid-template-columns: 1fr;
-  }
+.config-section {
+  border: var(--border-medium);
+  padding: var(--space-4);
 }
-
-.config-item {
+.config-section-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: var(--border-medium);
+}
+.config-row {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
 }
-
-.config-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-primary);
+.config-row:last-child { margin-bottom: 0; }
+.config-checkbox {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
+  cursor: pointer;
 }
-
-.config-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+.config-checkbox input { width: 18px; height: 18px; }
+.config-field {
+  flex: 1;
 }
-
-.config-slider-row {
+.config-field label {
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-bottom: var(--space-1);
+  display: block;
+}
+.slider-row {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
-
-.config-slider-row input[type="range"] {
-  flex: 1;
-}
-
+.slider-row input[type="range"] { flex: 1; }
 .slider-value {
   font-family: 'Courier New', monospace;
   font-size: 13px;
   color: var(--accent-primary);
-  min-width: 50px;
+  min-width: 40px;
   text-align: right;
 }
-
-.config-hint {
+.config-field select {
+  width: 100%;
+}
+.injection-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.section-item {
+  border: var(--border-medium);
+  padding: var(--space-3);
+}
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-1);
+}
+.section-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+.section-desc {
   font-size: 11px;
   color: var(--ink-muted);
-  line-height: 1.5;
 }
-
-.btn-sm {
-  padding: 4px 10px;
+.section-template-edit {
+  margin-top: var(--space-2);
+}
+.section-template-edit textarea {
+  width: 100%;
   font-size: 12px;
+  font-family: 'Courier New', monospace;
+  padding: var(--space-2);
+  background: var(--paper);
+  border: var(--border-medium);
+  color: var(--ink-primary);
+  resize: vertical;
 }
+.section-edit-btn {
+  opacity: 0.6;
+}
+.section-item:hover .section-edit-btn {
+  opacity: 1;
+}
+.activity-agent {
+  padding: var(--space-3);
+  border-bottom: var(--border-medium);
+}
+.activity-agent:last-child { border-bottom: none; }
+.activity-agent-name { font-weight: 600; font-size: 14px; }
+.activity-agent-stats {
+  font-size: 12px;
+  color: var(--ink-secondary);
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-1);
+}
+.activity-agent-stats strong { color: var(--accent-primary); }
 </style>
