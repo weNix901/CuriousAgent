@@ -2808,5 +2808,123 @@ def api_update_bootstrap_config():
     })
 
 
+# =============================================================================
+# Configuration Management API (v0.3.3)
+# =============================================================================
+
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    """Get current configuration."""
+    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            return jsonify(json.load(f))
+    return jsonify({"error": "Config file not found"}), 404
+
+
+@app.route('/api/config', methods=['POST'])
+def update_config():
+    """Update configuration (immediate effect + persist)."""
+    new_config = request.json
+    
+    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    with open(config_path, 'w') as f:
+        json.dump(new_config, f, indent=2)
+    
+    return jsonify({"status": "ok", "message": "Configuration updated"})
+
+
+@app.route('/api/config/reset', methods=['POST'])
+def reset_config():
+    """Reset configuration to defaults."""
+    example_path = os.path.join(os.path.dirname(__file__), 'config.json.example')
+    config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+    
+    if os.path.exists(example_path):
+        with open(example_path, 'r') as f:
+            default_config = json.load(f)
+        with open(config_path, 'w') as f:
+            json.dump(default_config, f, indent=2)
+        return jsonify({"status": "ok", "message": "Configuration reset"})
+    return jsonify({"error": "No default config found"}), 404
+
+
+# =============================================================================
+# Trusted Sources Management API (v0.3.3)
+# =============================================================================
+
+@app.route('/api/trusted-sources', methods=['GET'])
+def get_trusted_sources():
+    """List all trusted sources."""
+    from core.trusted_sources import TrustedSourceManager
+    manager = TrustedSourceManager()
+    manager.load()
+    return jsonify(manager.get_all_sources())
+
+
+@app.route('/api/trusted-sources', methods=['POST'])
+def add_trusted_source():
+    """Add a new trusted source."""
+    from core.trusted_sources import TrustedSourceManager
+    data = request.json
+    manager = TrustedSourceManager()
+    manager.load()
+    
+    manager.add_source(
+        domain=data['domain'],
+        name=data['name'],
+        source_type=data['type'],
+        trust_level=data['trust_level'],
+        notes=data.get('notes', '')
+    )
+    
+    return jsonify({"status": "ok"})
+
+
+@app.route('/api/trusted-sources/<domain>', methods=['PUT'])
+def update_trusted_source(domain):
+    """Update a trusted source."""
+    from core.trusted_sources import TrustedSourceManager
+    data = request.json
+    manager = TrustedSourceManager()
+    manager.load()
+    
+    if domain in manager.sources:
+        manager.sources[domain].update(data)
+        manager.save()
+    
+    return jsonify({"status": "ok"})
+
+
+@app.route('/api/trusted-sources/<domain>', methods=['DELETE'])
+def delete_trusted_source(domain):
+    """Delete a trusted source."""
+    from core.trusted_sources import TrustedSourceManager
+    manager = TrustedSourceManager()
+    manager.load()
+    manager.remove_source(domain)
+    return jsonify({"status": "ok"})
+
+
+@app.route('/api/trusted-sources/<domain>/toggle', methods=['POST'])
+def toggle_trusted_source(domain):
+    """Enable/disable a trusted source."""
+    from core.trusted_sources import TrustedSourceManager
+    manager = TrustedSourceManager()
+    manager.load()
+    manager.toggle_source(domain)
+    return jsonify({"status": "ok"})
+
+
+@app.route('/api/trusted-sources/check', methods=['GET'])
+def check_trusted_source():
+    """Check if URL is from trusted source."""
+    from core.trusted_sources import TrustedSourceManager
+    url = request.args.get('url')
+    manager = TrustedSourceManager()
+    manager.load()
+    return jsonify(manager.check_url(url))
+
+
 if __name__ == "__main__":
     main()
