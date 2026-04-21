@@ -2,6 +2,7 @@
 import asyncio
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -285,7 +286,7 @@ class ParsePdfTool(Tool):
 
 
 class ProcessPaperTool(Tool):
-    """Full pipeline: download PDF, parse, and extract text."""
+    """Full pipeline: download PDF, parse, save, and extract text."""
     
     @property
     def name(self) -> str:
@@ -293,7 +294,7 @@ class ProcessPaperTool(Tool):
     
     @property
     def description(self) -> str:
-        return "Download a PDF paper from URL, parse it, and extract text content"
+        return "Download a PDF paper from URL, parse it, save to papers/, and extract text content"
     
     @property
     def parameters(self) -> dict[str, Any]:
@@ -304,30 +305,40 @@ class ProcessPaperTool(Tool):
                     "type": "string",
                     "description": "URL of the PDF paper to process"
                 },
-                "temp_path": {
+                "topic": {
                     "type": "string",
-                    "description": "Optional temporary path for downloaded PDF"
+                    "description": "Topic name for generating stable file paths"
                 }
             },
-            "required": ["url"]
+            "required": ["url", "topic"]
         }
     
     async def execute(self, **kwargs: Any) -> str:
+        import json
+        from core.tools.paper_tools import paper_storage_paths, PAPERS_DIR
+        
         url = kwargs.get("url", "")
-        temp_path = kwargs.get("temp_path", "/tmp/temp_paper.pdf")
+        topic = kwargs.get("topic", "")
         
         if not url:
             return "Error: url parameter is required"
+        if not topic:
+            return "Error: topic parameter is required"
+        
+        # Generate stable paths
+        pdf_path, txt_path = paper_storage_paths(topic)
+        os.makedirs(PAPERS_DIR, exist_ok=True)
         
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=60)) as response:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=120)) as response:
                     if response.status != 200:
                         return f"Error: HTTP {response.status}"
                     
                     pdf_bytes = await response.read()
                     
-                    with open(temp_path, "wb") as f:
+                    # Save PDF
+                    with open(pdf_path, "wb") as f:
                         f.write(pdf_bytes)
         except asyncio.TimeoutError:
             return "Error: Download timed out"
@@ -335,26 +346,32 @@ class ProcessPaperTool(Tool):
             return f"Error: Failed to download - {str(e)}"
         
         try:
-            with pdfplumber.open(temp_path) as pdf:
+            with pdfplumber.open(pdf_path) as pdf:
                 pages_text = []
                 for i, page in enumerate(pdf.pages, 1):
                     text = page.extract_text() or ""
                     if text.strip():
                         pages_text.append(text)
                 
-                try:
-                    Path(temp_path).unlink()
-                except Exception as e:
-                    logger.warning(f"Failed to delete temp file '{temp_path}': {e}", exc_info=True)
-                
                 if not pages_text:
-                    return "Warning: No text could be extracted from PDF"
+                    return json.dumps({
+                        "pdf_path": pdf_path,
+                        "txt_path": None,
+                        "text_length": 0,
+                        "warning": "No text could be extracted from PDF"
+                    })
                 
                 full_text = "\n\n".join(pages_text)
-                return f"Extracted from {url}:\n\n{full_text[:8000]}"
+                
+                # Save TXT
+                with open(txt_path, "w", encoding="utf-8") as f:
+                    f.write(full_text)
+                
+                return json.dumps({
+                    "pdf_path": pdf_path,
+                    "txt_path": txt_path,
+                    "text_length": len(full_text),
+                    "summary": full_text[:500]  # Summary can be truncated for display
+                })
         except Exception as e:
-            try:
-                Path(temp_path).unlink()
-            except Exception as cleanup_err:
-                logger.warning(f"Failed to delete temp file '{temp_path}' on error: {cleanup_err}", exc_info=True)
             return f"Error: Failed to parse PDF - {str(e)}"

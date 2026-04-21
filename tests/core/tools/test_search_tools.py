@@ -489,10 +489,12 @@ class TestProcessPaperTool:
         
         with patch('core.tools.search_tools.aiohttp.ClientSession', return_value=mock_session):
             with patch('core.tools.search_tools.pdfplumber.open', return_value=mock_pdf):
-                tool = ProcessPaperTool()
-                result = await tool.execute(url="https://arxiv.org/pdf/test.pdf")
-                
-                assert "Paper content" in result or "extracted" in result.lower()
+                with patch('core.tools.search_tools.os.makedirs'):
+                    tool = ProcessPaperTool()
+                    result = await tool.execute(url="https://arxiv.org/pdf/test.pdf", topic="test-paper")
+                    
+                    # New implementation returns JSON with paths and text_length
+                    assert "pdf_path" in result or "text_length" in result
 
     @pytest.mark.asyncio
     async def test_process_paper_returns_metadata(self):
@@ -521,10 +523,11 @@ class TestProcessPaperTool:
         
         with patch('core.tools.search_tools.aiohttp.ClientSession', return_value=mock_session):
             with patch('core.tools.search_tools.pdfplumber.open', return_value=mock_pdf):
-                tool = ProcessPaperTool()
-                result = await tool.execute(url="https://arxiv.org/pdf/test.pdf")
-                
-                assert isinstance(result, str)
+                with patch('core.tools.search_tools.os.makedirs'):
+                    tool = ProcessPaperTool()
+                    result = await tool.execute(url="https://arxiv.org/pdf/test.pdf", topic="test-paper")
+                    
+                    assert isinstance(result, str)
 
     @pytest.mark.asyncio
     async def test_process_paper_download_fails(self):
@@ -536,10 +539,11 @@ class TestProcessPaperTool:
         mock_session.__aexit__ = AsyncMock(return_value=False)
         
         with patch('core.tools.search_tools.aiohttp.ClientSession', return_value=mock_session):
-            tool = ProcessPaperTool()
-            result = await tool.execute(url="https://arxiv.org/pdf/test.pdf")
-            
-            assert "Error" in result
+            with patch('core.tools.search_tools.os.makedirs'):
+                tool = ProcessPaperTool()
+                result = await tool.execute(url="https://arxiv.org/pdf/test.pdf", topic="test-paper")
+                
+                assert "Error" in result
 
     @pytest.mark.asyncio
     async def test_process_paper_parse_fails(self):
@@ -560,11 +564,11 @@ class TestProcessPaperTool:
         
         with patch('core.tools.search_tools.aiohttp.ClientSession', return_value=mock_session):
             with patch('core.tools.search_tools.pdfplumber.open', side_effect=Exception("Parse failed")):
-                
-                tool = ProcessPaperTool()
-                result = await tool.execute(url="https://arxiv.org/pdf/test.pdf")
-                
-                assert "Error" in result
+                with patch('core.tools.search_tools.os.makedirs'):
+                    tool = ProcessPaperTool()
+                    result = await tool.execute(url="https://arxiv.org/pdf/test.pdf", topic="test-paper")
+                    
+                    assert "Error" in result
 
     def test_process_paper_has_name(self):
         from core.tools.search_tools import ProcessPaperTool
@@ -586,6 +590,7 @@ class TestProcessPaperTool:
         
         assert params["type"] == "object"
         assert "url" in params["properties"]
+        assert "topic" in params["properties"]
 
 
 class TestSearchToolsIntegration:
