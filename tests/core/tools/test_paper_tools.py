@@ -72,3 +72,41 @@ def test_read_paper_text_tool_file_not_found():
     
     assert "Error" in result
     assert "not found" in result.lower()
+
+
+from core.tools.paper_tools import ExtractKnowledgePointsTool, ExtractFormulasTool
+
+def test_extract_knowledge_points_tool_structure():
+    """Test tool has correct name and parameters."""
+    tool = ExtractKnowledgePointsTool()
+    assert tool.name == "extract_knowledge_points"
+    assert "paper_text" in tool.parameters
+    assert "topic" in tool.parameters
+    assert "parent_topic" in tool.parameters
+
+def test_extract_knowledge_points_tool_returns_json():
+    """Test tool returns valid JSON."""
+    tool = ExtractKnowledgePointsTool()
+    result = asyncio.run(tool.execute(
+        paper_text="Test text",
+        topic="Test",
+        parent_topic="Parent"
+    ))
+    data = json.loads(result)
+    assert "knowledge_points" in data
+    assert "status" in data
+
+def test_extract_formulas_tool_structure():
+    """Test tool has correct name and parameters."""
+    tool = ExtractFormulasTool()
+    assert tool.name == "extract_formulas"
+    assert "txt_path" in tool.parameters
+    assert "sections" in tool.parameters
+
+def test_extract_formulas_tool_returns_json():
+    """Test tool returns valid JSON."""
+    tool = ExtractFormulasTool()
+    result = asyncio.run(tool.execute(txt_path="papers/test.txt"))
+    data = json.loads(result)
+    assert "formulas" in data
+    assert "status" in data

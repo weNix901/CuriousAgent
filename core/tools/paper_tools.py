@@ -88,3 +88,60 @@ class ReadPaperTextTool(Tool):
         
         logger.info(f"Read paper text: {txt_path} ({len(text)} chars)")
         return text  # Return full text, no truncation
+
+
+class ExtractKnowledgePointsTool(Tool):
+    """Extract knowledge points from paper text with 6-element structure."""
+    
+    @property
+    def name(self) -> str:
+        return "extract_knowledge_points"
+    
+    @property
+    def description(self) -> str:
+        return "Extract structured knowledge points from paper text using 6-element model"
+    
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return {
+            "paper_text": {"type": "string", "description": "Full paper text"},
+            "topic": {"type": "string", "description": "Paper topic"},
+            "parent_topic": {"type": "string", "description": "Parent summary topic"}
+        }
+    
+    async def execute(self, paper_text: str, topic: str, parent_topic: str, **kwargs) -> str:
+        # Phase 1: LLM overview → identify knowledge points list
+        # Phase 2: For each KP, locate paragraph → 6-element extraction
+        # Phase 3: Return structured JSON
+        # TODO: Implement LLM-based extraction
+        return json.dumps({"knowledge_points": [], "status": "not_implemented"})
+
+
+class ExtractFormulasTool(Tool):
+    """Extract mathematical formulas from text sections."""
+    
+    @property
+    def name(self) -> str:
+        return "extract_formulas"
+    
+    @property
+    def description(self) -> str:
+        return "Extract mathematical formulas from PDF pages or text sections"
+    
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return {
+            "txt_path": {"type": "string", "description": "Path to TXT file"},
+            "sections": {
+                "type": "array",
+                "items": {"type": "object"},
+                "description": "List of {start_line, end_line} to process"
+            }
+        }
+    
+    async def execute(self, txt_path: str, sections: list = None, **kwargs) -> str:
+        # Phase 1: Detect math-dense paragraphs from text
+        # Phase 2: For math-dense sections, extract formulas
+        # Phase 3: Return formula list [{"formula": "LaTeX", "context": "...", "page": N}]
+        # TODO: Implement regex + LLM vision extraction
+        return json.dumps({"formulas": [], "status": "not_implemented"})
