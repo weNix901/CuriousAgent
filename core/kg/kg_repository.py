@@ -76,7 +76,20 @@ class KGRepository:
             n.confidence = $confidence,
             n.status = $status,
             n.depth = $depth,
-            n.created_at = timestamp()
+            n.created_at = timestamp(),
+            n.definition = $definition,
+            n.formula = $formula,
+            n.fact = $fact,
+            n.examples = $examples,
+            n.completeness_score = $completeness_score,
+            n.source_url = $source_url,
+            n.source_type = $source_type,
+            n.source_trusted = $source_trusted,
+            n.local_file_path = $local_file_path,
+            n.extracted_text_path = $extracted_text_path,
+            n.source_missing = $source_missing,
+            n.parent_topic = $parent_topic,
+            n.deep_read_status = $deep_read_status
         """
         
         if embedding is not None:
@@ -94,7 +107,20 @@ class KGRepository:
             "quality": metadata.get("quality", 0.0),
             "confidence": metadata.get("confidence", 0.0),
             "status": metadata.get("status", "pending"),
-            "depth": metadata.get("depth", 5)
+            "depth": metadata.get("depth", 5),
+            "definition": metadata.get("definition"),
+            "formula": metadata.get("formula"),
+            "fact": metadata.get("fact"),
+            "examples": metadata.get("examples", []),
+            "completeness_score": metadata.get("completeness_score", 1),
+            "source_url": metadata.get("source_url"),
+            "source_type": metadata.get("source_type", "web"),
+            "source_trusted": metadata.get("source_trusted", False),
+            "local_file_path": metadata.get("local_file_path"),
+            "extracted_text_path": metadata.get("extracted_text_path"),
+            "source_missing": metadata.get("source_missing", False),
+            "parent_topic": metadata.get("parent_topic"),
+            "deep_read_status": metadata.get("deep_read_status", "pending"),
         }
         
         if embedding is not None:
