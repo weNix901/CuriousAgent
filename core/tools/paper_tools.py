@@ -60,3 +60,31 @@ class SavePaperTextTool(Tool):
             "pdf_path": pdf_path,
             "text_length": len(text)
         })
+
+
+class ReadPaperTextTool(Tool):
+    """Read previously saved paper text from file."""
+    
+    @property
+    def name(self) -> str:
+        return "read_paper_text"
+    
+    @property
+    def description(self) -> str:
+        return "Read full text content from a paper TXT file"
+    
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return {
+            "txt_path": {"type": "string", "description": "Path to TXT file"}
+        }
+    
+    async def execute(self, txt_path: str, **kwargs) -> str:
+        if not os.path.exists(txt_path):
+            return f"Error: File not found - {txt_path}"
+        
+        with open(txt_path, "r", encoding="utf-8") as f:
+            text = f.read()
+        
+        logger.info(f"Read paper text: {txt_path} ({len(text)} chars)")
+        return text  # Return full text, no truncation
