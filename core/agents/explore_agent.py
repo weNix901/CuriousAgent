@@ -312,6 +312,7 @@ class ExploreAgent(CAAgent):
                     "success": True,
                     "content": final_summary,
                     "iterations": iterations,
+                    "trace_id": trace_id,
                 }
 
             step_start = time.time()
@@ -394,6 +395,7 @@ class ExploreAgent(CAAgent):
             "success": True,
             "content": final_summary + f"\n\nReached max iterations ({self.config.max_iterations})",
             "iterations": iterations,
+            "trace_id": trace_id,
         }
 
     def _parse_react_response(self, response: str) -> dict[str, Any]:

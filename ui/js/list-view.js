@@ -14,7 +14,7 @@ function renderCuriosity(queue) {
       + '<span class="item-score ' + scoreClass(item.score) + '">' + item.score.toFixed(1) + '</span></div>'
       + '<div class="item-reason">→ ' + escapeHtml(item.reason) + '</div>'
       + '<div class="item-meta"><span>⏳ ' + item.status + '</span><span>📅 ' + timeAgo(item.created_at) + '</span></div>'
-      + '<div class="item-actions" style="position:absolute;bottom:8px;right:8px;"><button class="delete-link" onclick="event.stopPropagation();deleteQueueItem(' + item.id + ', \'' + escapeJs(item.topic) + '\')">删除</button></div>'
+      + '<button class="delete-link" style="position:absolute;bottom:var(--space-2);right:0;" onclick="event.stopPropagation();deleteQueueItem(' + item.id + ', \'' + escapeJs(item.topic) + '\')">删除</button>'
       + '</div>';
   }).join('');
 }
@@ -36,10 +36,12 @@ function deleteQueueItem(itemId, topic) {
     });
 }
 
-function renderHistory(logs) {
+function renderHistory(logs, totalCount) {
   var container = document.getElementById('history-list');
   var recent = [].concat(logs).reverse().slice(0, 15);
-  document.getElementById('history-count').textContent = recent.length + ' 条';
+  // 显示总数而不是切片后的长度，保持与顶部统计卡片一致
+  var displayCount = totalCount || logs.length;
+  document.getElementById('history-count').textContent = displayCount + ' 条';
 
   if (!recent.length) {
     container.innerHTML = '<div class="empty">暂无探索记录</div>';
@@ -47,7 +49,7 @@ function renderHistory(logs) {
   }
 
   container.innerHTML = recent.map(function(item) {
-    return '<div class="history-item" data-topic-key="' + escapeHtml(item.topic) + '" onclick="showDetail(\'history\',this.dataset.topicKey)">'
+    return '<div class="history-item" data-trace-id="' + escapeHtml(item.trace_id || '') + '" onclick="showDetail(\'history\',this.dataset.traceId)">'
       + '<div class="history-top"><span class="history-title">' + escapeHtml(item.topic) + '</span>'
       + '<span class="history-time">' + timeAgo(item.timestamp) + '</span></div>'
       + '<div class="history-findings">' + escapeHtml(item.findings && item.findings.substring(0, 150)) + '...</div>'
@@ -88,7 +90,7 @@ function renderKnowledge(topics) {
       + '<div class="item-meta"><span>🕐 ' + timeAgo(v.last_updated) + '</span>'
       + (v.sources && v.sources.length ? '<span>📚 ' + v.sources.length + ' 来源</span>' : '')
       + '<span class="click-hint">👆 详情</span></div>'
-      + '<div class="item-actions" style="position:absolute;bottom:8px;right:8px;"><button class="delete-link" onclick="event.stopPropagation();deleteKnowledgeNode(\'' + escapeJs(topic) + '\')">删除</button></div>'
+      + '<button class="delete-link" style="position:absolute;bottom:var(--space-2);right:0;" onclick="event.stopPropagation();deleteKnowledgeNode(\'' + escapeJs(topic) + '\')">删除</button>'
       + '</div>';
   }).join('');
 }
@@ -123,13 +125,14 @@ function renderStats(data) {
   var topics = data.knowledge && data.knowledge.topics || {};
   var knownCount = Object.values(topics).filter(function(v) { return v.known; }).length;
   var pending = (data.curiosity_queue || []).filter(function(i) { return i.status === 'pending'; }).length;
-  var notified = (data.exploration_log || []).filter(function(l) { return l.notified_user; }).length;
+  var totalHistory = data.exploration_log_total || (data.exploration_log || []).length;
+  var totalNotified = data.notified_total || (data.exploration_log || []).filter(function(l) { return l.notified_user; }).length;
 
   document.getElementById('stat-nodes').textContent = Object.keys(topics).length;
   document.getElementById('stat-known').textContent = knownCount + ' 已知';
   document.getElementById('stat-pending').textContent = pending;
-  document.getElementById('stat-history').textContent = (data.exploration_log || []).length;
-  document.getElementById('stat-notified').textContent = notified + ' 已通知';
+  document.getElementById('stat-history').textContent = totalHistory;
+  document.getElementById('stat-notified').textContent = totalNotified + ' 已通知';
   document.getElementById('stat-last').textContent = data.last_update ? timeAgo(data.last_update) : '—';
 }
 
@@ -228,7 +231,7 @@ function loadListView() {
   if (!state) return;
   renderStats(state);
   renderCuriosity(state.curiosity_queue || []);
-  renderHistory(state.exploration_log || []);
+  renderHistory(state.exploration_log || [], state.exploration_log_total);
   renderKnowledge(state.knowledge && state.knowledge.topics || {});
   loadMetaState();
 }

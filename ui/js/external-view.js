@@ -76,10 +76,47 @@ function toggleSectionEdit(name) {
 }
 
 function editSectionTemplate(name) {
-  var editDiv = document.getElementById('template-' + name);
-  if (editDiv) {
-    editDiv.style.display = editDiv.style.display === 'none' ? 'block' : 'none';
+  var modal = document.getElementById('detail-modal');
+  var title = document.getElementById('modal-title');
+  var meta = document.getElementById('modal-meta');
+  var body = document.getElementById('modal-body');
+  
+  var currentTemplate = bootstrapConfig.injection_sections[name]?.template || DEFAULT_TEMPLATES[name] || '';
+  var displayName = {
+    'kg-summary': '📊 KG 摘要模板',
+    'cognitive-framework': '🧠 Cognitive 框架模板',
+    'skill-rules': '⚡ Skill 触发规则模板',
+    'topic-extraction': '🎯 Topic 提取规则模板'
+  }[name] || name;
+  
+  title.textContent = '📝 ' + displayName;
+  meta.innerHTML = '<span class="modal-meta-item">编辑模板内容</span>';
+  
+  body.innerHTML = '<div class="modal-section">'
+    + '<textarea id="modal-template-edit" style="width:100%;height:320px;font-size:13px;font-family:var(--font-data);padding:var(--space-3);background:var(--paper);border:var(--border-medium);color:var(--ink-primary);resize:vertical;line-height:1.6;">' + escapeHtml(currentTemplate) + '</textarea>'
+    + '</div>'
+    + '<div style="display:flex;gap:var(--space-3);justify-content:flex-end;margin-top:var(--space-4);">'
+    + '<button class="btn" onclick="closeModal()">取消</button>'
+    + '<button class="btn btn-primary" onclick="saveTemplateFromModal(\'' + name + '\')">💾 保存模板</button>'
+    + '</div>';
+  
+  modal.classList.add('active');
+}
+
+function saveTemplateFromModal(name) {
+  var textarea = document.getElementById('modal-template-edit');
+  if (!textarea) return;
+  
+  var newTemplate = textarea.value;
+  if (!bootstrapConfig.injection_sections[name]) {
+    bootstrapConfig.injection_sections[name] = { enabled: true, template: newTemplate };
+  } else {
+    bootstrapConfig.injection_sections[name].template = newTemplate;
   }
+  
+  document.getElementById('template-' + name + '-text').value = newTemplate;
+  closeModal();
+  showToast('✅ 模板已更新: ' + name, 'success');
 }
 
 function saveSectionTemplate(name) {
@@ -180,18 +217,22 @@ async function showHookDetail(hookId) {
     var bodyHtml = '<div class="modal-section"><div class="modal-section-title">基本信息</div>'
       + '<div class="modal-section-content">Endpoint: ' + escapeHtml(data.endpoint) + '<br>Method: ' + data.method + '<br>Agent: ' + data.agent_id + '<br>Status Code: ' + data.status_code + '</div></div>';
     
-    if (data.hook_name === 'knowledge-bootstrap-hook' && data.response_payload) {
+    if ((data.hook_name === 'knowledge-bootstrap-hook' || data.hook_name === 'knowledge-bootstrap') && data.response_payload) {
       try {
         var resp = JSON.parse(data.response_payload);
-        var nodes = resp.nodes || [];
-        var edges = resp.edges || [];
-        bodyHtml += '<div class="modal-section"><div class="modal-section-title">注入内容</div>'
-          + '<div class="modal-section-content">节点: ' + nodes.length + ' | 关系: ' + edges.length + '</div></div>';
-        if (nodes.length > 0) {
-          var topNodes = nodes.slice(0, 5).map(function(n, i) {
-            return '<div>' + (i+1) + '. ' + escapeHtml(n.id || n.topic) + ' (quality: ' + (n.quality || 'N/A') + ')</div>';
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title">KG 数据</div>'
+          + '<div class="modal-section-content">节点总数: ' + (resp.nodes_count || 0) + ' | 过滤后: ' + (resp.filtered_nodes_count || 0) + '</div></div>';
+        
+        if (resp.top_nodes && resp.top_nodes.length > 0) {
+          var topNodesHtml = resp.top_nodes.map(function(n, i) {
+            return '<div>' + (i+1) + '. ' + escapeHtml(n.topic || 'N/A') + ' <span style="color:var(--accent-primary);">(quality: ' + (n.quality || 'N/A') + ')</span></div>';
           }).join('');
-          bodyHtml += '<div class="modal-section"><div class="modal-section-title">Top 5 节点</div><div class="modal-section-content">' + topNodes + '</div></div>';
+          bodyHtml += '<div class="modal-section"><div class="modal-section-title">Top 节点</div><div class="modal-section-content">' + topNodesHtml + '</div></div>';
+        }
+        
+        if (resp.injection_preview) {
+          bodyHtml += '<div class="modal-section"><div class="modal-section-title">📋 注入内容预览</div>'
+            + '<div class="modal-section-content" style="white-space:pre-wrap;font-size:13px;line-height:1.6;background:var(--paper);padding:var(--space-3);border:var(--border-medium);max-height:400px;overflow-y:auto;">' + escapeHtml(resp.injection_preview) + '</div></div>';
         }
       } catch (parseErr) {
         bodyHtml += '<div class="modal-section"><div class="modal-section-title">响应</div>'
@@ -242,8 +283,9 @@ async function loadTimeline() {
       el.innerHTML = '<div class="empty"><div class="empty-icon">📅</div>暂无事件</div>';
       return;
     }
-    var html = data.events.map(function(e) {
-      return '<div class="history-item" onclick="showTimelineDetail(\'' + e.type + '\',\'' + JSON.stringify(e.detail || {}).replace(/'/g, "\\'") + '\')">'
+    var html = data.events.map(function(e, i) {
+      var detailJson = JSON.stringify(e.detail || {}).replace(/"/g, '&quot;');
+      return '<div class="history-item" data-type="' + escapeHtml(e.type || '') + '" data-detail="' + detailJson + '" onclick="showTimelineDetail(this)">'
         + '<div class="history-top"><span>' + (e.emoji || '📋') + ' ' + escapeHtml(e.summary) + '</span>'
         + '<span class="history-time">' + timeAgo(e.timestamp) + '</span></div>'
         + '<span class="click-hint">👆 详情</span></div>';
@@ -254,17 +296,19 @@ async function loadTimeline() {
   }
 }
 
-function showTimelineDetail(type, detailStr) {
+function showTimelineDetail(el) {
   var modal = document.getElementById('detail-modal');
   var title = document.getElementById('modal-title');
   var meta = document.getElementById('modal-meta');
   var body = document.getElementById('modal-body');
   
   try {
+    var type = el.dataset.type || '未知事件';
+    var detailStr = el.dataset.detail || '{}';
     var detail = JSON.parse(detailStr);
     title.textContent = type + ' 详情';
     meta.innerHTML = '';
-    body.innerHTML = '<div class="modal-section-content" style="font-family:var(--font-data);font-size:12px;">' + escapeHtml(JSON.stringify(detail, null, 2)) + '</div>';
+    body.innerHTML = '<div class="modal-section-content" style="font-family:var(--font-data);font-size:12px;white-space:pre-wrap;">' + escapeHtml(JSON.stringify(detail, null, 2)) + '</div>';
     modal.classList.add('active');
   } catch (e) {
     showToast('解析失败', 'error');

@@ -24,7 +24,8 @@ class TraceWriter:
             status TEXT NOT NULL DEFAULT 'running',
             total_steps INTEGER DEFAULT 0, tools_used TEXT,
             kg_nodes_created TEXT, quality_score REAL,
-            error TEXT, llm_total_tokens INTEGER, duration_ms INTEGER
+            error TEXT, llm_total_tokens INTEGER, duration_ms INTEGER,
+            notified INTEGER DEFAULT 0
         )""")
         self._conn.execute("""CREATE TABLE IF NOT EXISTS trace_steps (
             step_id TEXT PRIMARY KEY, trace_id TEXT NOT NULL, step_num INTEGER NOT NULL,
@@ -84,15 +85,24 @@ class TraceWriter:
                      total_steps: int = 0, tools_used: list = None,
                      kg_nodes_created: list = None, quality_score: float = None,
                      error: str = None, llm_total_tokens: int = None,
-                     duration_ms: int = None):
+                     duration_ms: int = None, notified: bool = False):
         self._conn.execute(
             """UPDATE explorer_traces SET finished_at=?, status=?, total_steps=?,
                tools_used=?, kg_nodes_created=?, quality_score=?, error=?,
-               llm_total_tokens=?, duration_ms=? WHERE trace_id=?""",
+               llm_total_tokens=?, duration_ms=?, notified=? WHERE trace_id=?""",
             (datetime.now(timezone.utc).isoformat(), status, total_steps,
              json.dumps(tools_used or [], ensure_ascii=False),
              json.dumps(kg_nodes_created or [], ensure_ascii=False),
-             quality_score, error, llm_total_tokens, duration_ms, trace_id),
+             quality_score, error, llm_total_tokens, duration_ms,
+             1 if notified else 0, trace_id),
+        )
+        self._conn.commit()
+
+    def update_notified(self, trace_id: str, notified: bool) -> None:
+        """Update notified field for an existing trace."""
+        self._conn.execute(
+            "UPDATE explorer_traces SET notified=? WHERE trace_id=?",
+            (1 if notified else 0, trace_id),
         )
         self._conn.commit()
 

@@ -24,6 +24,7 @@ from core import knowledge_graph_compat as kg
 from core.curiosity_engine import CuriosityEngine
 from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig
 from core.tools.registry import ToolRegistry
+from core.trace.explorer_trace import TraceWriter
 from core.reasoning_compressor import ReasoningCompressor, CompressionLevel
 from core.curiosity_decomposer import CuriosityDecomposer
 from core.quality_v2 import QualityV2Assessor
@@ -181,6 +182,11 @@ def run_one_cycle(depth: str = "medium") -> dict:
         pass
     
     monitor.record_exploration(topic, quality, marginal, notified=notified)
+
+    trace_id = agent_result.get("trace_id") if isinstance(agent_result, dict) else getattr(agent_result, "trace_id", None)
+    if trace_id:
+        trace_writer = TraceWriter()
+        trace_writer.update_notified(trace_id, notified)
 
     # Track competence for gap-driven exploration (Bug #28 fix)
     from core.competence_tracker import CompetenceTracker
