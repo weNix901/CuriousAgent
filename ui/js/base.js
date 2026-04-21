@@ -76,7 +76,7 @@ function loadStats() {
   document.getElementById('stat-nodes').textContent = Object.keys(topics).length;
   document.getElementById('stat-known').textContent = known.length + ' 已知';
   document.getElementById('stat-pending').textContent = pending.length;
-  document.getElementById('stat-history').textContent = (state.exploration_log || []).length;
+  document.getElementById('stat-history').textContent = state.exploration_log_total || (state.exploration_log || []).length;
 }
 
 function loadQueue() {
@@ -208,13 +208,11 @@ function showDetail(type, id) {
       var bodyHtml = '';
       
       if (summaryObj) {
-        // 概述
         if (summaryObj.summary) {
           bodyHtml += '<div class="modal-section"><div class="modal-section-title">📖 概述</div>'
             + '<div class="modal-section-content">' + escapeHtml(summaryObj.summary) + '</div></div>';
         }
         
-        // 关键要点
         if (summaryObj.key_points && summaryObj.key_points.length > 0) {
           bodyHtml += '<div class="modal-section"><div class="modal-section-title">💡 关键要点</div>'
             + '<ul class="modal-sources">' + summaryObj.key_points.map(function(kp) {
@@ -222,7 +220,6 @@ function showDetail(type, id) {
             }).join('') + '</ul></div>';
         }
         
-        // 技术栈/标签
         if (summaryObj.tech_stack && summaryObj.tech_stack.length > 0) {
           bodyHtml += '<div class="modal-section"><div class="modal-section-title">🔧 技术栈</div>'
             + '<div class="modal-section-content">'
@@ -230,7 +227,6 @@ function showDetail(type, id) {
             + '</div></div>';
         }
         
-        // 应用场景
         if (summaryObj.use_cases && summaryObj.use_cases.length > 0) {
           bodyHtml += '<div class="modal-section"><div class="modal-section-title">🎯 应用场景</div>'
             + '<ul class="modal-sources">' + summaryObj.use_cases.map(function(uc) {
@@ -238,7 +234,6 @@ function showDetail(type, id) {
             }).join('') + '</ul></div>';
         }
         
-        // 参考资料
         if (summaryObj.references && summaryObj.references.length > 0) {
           bodyHtml += '<div class="modal-section"><div class="modal-section-title">📚 参考资料</div>'
             + '<ul class="modal-sources">' + summaryObj.references.map(function(ref) {
@@ -251,7 +246,6 @@ function showDetail(type, id) {
             }).join('') + '</ul></div>';
         }
         
-        // 其他字段
         var extraFields = ['length', 'source', 'author', 'date', 'version', 'status', 'type', 'category'];
         var extraHtml = '';
         extraFields.forEach(function(field) {
@@ -264,12 +258,10 @@ function showDetail(type, id) {
             + '<div class="modal-section-content">' + extraHtml + '</div></div>';
         }
       } else {
-        // 普通文本summary
         bodyHtml = '<div class="modal-section"><div class="modal-section-title">📖 概述</div>'
           + '<div class="modal-section-content">' + escapeHtml(summaryText) + '</div></div>';
       }
       
-      // 来源链接
       if (node.sources && node.sources.length > 0) {
         bodyHtml += '<div class="modal-section"><div class="modal-section-title">🔗 来源链接</div>'
           + '<ul class="modal-sources">' + node.sources.map(function(s) {
@@ -279,6 +271,56 @@ function showDetail(type, id) {
       
       body.innerHTML = bodyHtml || '<div class="empty">暂无内容</div>';
       modal.classList.add('active');
+    });
+  } else if (type === 'history') {
+    if (!id) { alert('缺少 trace_id'); return; }
+    fetchJSON('/api/explorer/trace/' + encodeURIComponent(id)).then(function(data) {
+      var modal = document.getElementById('detail-modal');
+      var title = document.getElementById('modal-title');
+      var meta = document.getElementById('modal-meta');
+      var body = document.getElementById('modal-body');
+      var trace = data.trace || {};
+      var steps = data.steps || [];
+      
+      title.textContent = '📋 ' + (trace.topic || '探索记录');
+      meta.innerHTML = '<span class="modal-meta-item">状态: ' + (trace.status || '-') + '</span>'
+        + '<span class="modal-meta-item">步骤数: ' + (trace.total_steps || steps.length) + '</span>'
+        + '<span class="modal-meta-item">质量: ' + (trace.quality_score || '-') + '</span>'
+        + '<span class="modal-meta-item">耗时: ' + (trace.duration_ms ? Math.round(trace.duration_ms / 1000) + 's' : '-') + '</span>';
+      
+      var bodyHtml = '';
+      if (steps.length > 0) {
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title">🔍 执行步骤</div>'
+          + '<div class="modal-steps">' + steps.map(function(s, i) {
+            return '<div class="step-item" style="margin-bottom:8px;padding:8px;background:var(--paper);border:var(--border-medium);">'
+              + '<div style="font-size:11px;color:var(--ink-muted);margin-bottom:4px;">步骤 ' + (s.step_num || i + 1) + ' · ' + timeAgo(s.timestamp) + '</div>'
+              + '<div style="font-weight:600;margin-bottom:4px;">' + escapeHtml(s.action || '-') + '</div>'
+              + '<div style="font-size:12px;color:var(--ink-secondary);">' + escapeHtml(s.output_summary || s.action_input || '') + '</div>'
+              + '</div>';
+          }).join('') + '</div></div>';
+      }
+      
+      if (trace.tools_used) {
+        try {
+          var tools = JSON.parse(trace.tools_used);
+          if (tools.length > 0) {
+            bodyHtml += '<div class="modal-section"><div class="modal-section-title">🔧 使用工具</div>'
+              + '<div class="modal-section-content">' + tools.map(function(t) {
+                return '<span style="display:inline-block;padding:2px 8px;margin:2px;background:var(--paper);border:var(--border-medium);font-size:12px;">' + escapeHtml(t) + '</span>';
+              }).join(' ') + '</div></div>';
+          }
+        } catch (e) {}
+      }
+      
+      if (trace.error) {
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title" style="color:var(--error);">❌ 错误信息</div>'
+          + '<div class="modal-section-content" style="color:var(--error);">' + escapeHtml(trace.error) + '</div></div>';
+      }
+      
+      body.innerHTML = bodyHtml || '<div class="empty">暂无详情</div>';
+      modal.classList.add('active');
+    }).catch(function(e) {
+      alert('加载失败: ' + e.message);
     });
   }
 }

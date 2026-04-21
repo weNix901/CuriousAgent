@@ -30,9 +30,6 @@ DREAM_AGENT_TOOLS = [
     "llm_call",
     "llm_embed",
     "llm_score",
-    "exploration_log_read",
-    "exploration_log_query",
-    "exploration_log_stats",
 ]
 
 

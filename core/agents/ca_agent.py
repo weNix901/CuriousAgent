@@ -11,6 +11,7 @@ class AgentResult:
     content: str
     success: bool
     iterations_used: int
+    trace_id: str = None
 
 
 @dataclass

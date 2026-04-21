@@ -107,7 +107,7 @@ header { display: flex; align-items: center; justify-content: space-between; mar
 .panel-body::-webkit-scrollbar-track { background: var(--paper); }
 .panel-body::-webkit-scrollbar-thumb { background: var(--ink-light); }
 
-.item { padding: var(--space-3) 0; border-bottom: var(--border-thin); cursor: pointer; transition: background 0.1s; }
+.item { position: relative; padding: var(--space-3) 0; border-bottom: var(--border-thin); cursor: pointer; transition: background 0.1s; }
 .item:last-child { border-bottom: none; }
 .item:hover { background: var(--paper); }
 .item-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-1); }
