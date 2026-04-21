@@ -102,18 +102,29 @@ class SearchWebTool(Tool):
         return "Error: No search providers available"
     
     def _format_results(self, result: dict) -> str:
+        from core.trusted_sources import TrustedSourceManager
+        
         results = result.get("results", [])
         count = result.get("result_count", 0)
         
         if count == 0:
             return "No results found"
         
+        # Check trusted sources
+        trusted_manager = TrustedSourceManager()
+        trusted_manager.load()
+        
         lines = [f"Found {count} results:"]
         for i, item in enumerate(results, 1):
             title = item.get("title", "Untitled")
             url = item.get("url", "")
             snippet = item.get("snippet", "")[:200]
-            lines.append(f"{i}. {title}\n   URL: {url}\n   {snippet}")
+            
+            # Check if URL is from trusted source
+            trust_check = trusted_manager.check_url(url)
+            trust_marker = " [TRUSTED]" if trust_check["is_trusted"] else ""
+            
+            lines.append(f"{i}. {title}{trust_marker}\n   URL: {url}\n   {snippet}")
         
         return "\n\n".join(lines)
 
