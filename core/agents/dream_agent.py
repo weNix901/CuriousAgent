@@ -2,7 +2,7 @@
 import re
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from typing import List, Dict
 from urllib.parse import urlparse
@@ -11,9 +11,7 @@ from core.agents.ca_agent import CAAgent, CAAgentConfig, AgentResult
 from core.tools.registry import ToolRegistry
 from core.tools.queue_tools import QueueStorage
 from core import knowledge_graph_compat as knowledge_graph
-from core.embedding_service import EmbeddingService
 from core.kg.repository_factory import get_kg_factory
-from collections import defaultdict
 import numpy as np
 
 
@@ -139,12 +137,26 @@ class DreamAgent(CAAgent):
             if topic and topic not in candidates:
                 candidates.append(topic)
         
-        # 2. Get KG nodes with anomaly status
-        # Anomaly includes: DEPRECATED, DISPUTED, FROZEN, ORPHAN (dormant)
-        dormant = knowledge_graph.get_dormant_nodes()
-        for topic in dormant:
+        # 2. Get dormant topics from state.json (not Neo4j - no dormant marker there)
+        # Dormant = completed topics that haven't been dreamed recently (> 30 days)
+        # or topics with very low quality (< 3.0) that need re-examination
+        meta_cognitive = state.get("meta_cognitive", {})
+        completed_topics = meta_cognitive.get("completed_topics", {})
+        for topic, completion_data in completed_topics.items():
             if topic not in candidates:
-                candidates.append(topic)
+                # Check if not dreamed recently (dormant)
+                topic_data = topics.get(topic, {})
+                dreamed_at = topic_data.get("dreamed_at")
+                if dreamed_at:
+                    try:
+                        dreamed_dt = datetime.fromisoformat(dreamed_at)
+                        age_days = (datetime.now(timezone.utc) - dreamed_dt).days
+                        if age_days > 30:  # Dormant if not dreamed in 30 days
+                            candidates.append(topic)
+                    except (ValueError, TypeError):
+                        candidates.append(topic)  # Invalid date = treat as dormant
+                else:
+                    candidates.append(topic)  # Never dreamed = dormant
         
         # 3. Get nodes with high citation count but low quality
         state = knowledge_graph.get_state()
@@ -152,7 +164,7 @@ class DreamAgent(CAAgent):
         for name, data in topics.items():
             citation_count = len(data.get("cites", [])) + len(data.get("cited_by", []))
             quality = data.get("quality", 0.0)
-            if citation_count > 5 and quality < 0.5 and name not in candidates:
+            if citation_count > 5 and quality < 5.0 and name not in candidates:
                 candidates.append(name)
         
         # 4. Jaccard deduplication (already done by collecting unique names)
@@ -199,16 +211,22 @@ class DreamAgent(CAAgent):
             scores["quality"] = quality
             
             # 5. Surprise: how unexpected is this topic based on existing connections
-            connections = knowledge_graph.get_directly_connected(candidate)
+            # Use state.json relations (children + cites) instead of Neo4j
+            children = topic_data.get("children", []) or []
+            cites = topic_data.get("cites", []) or []
+            connections = set(children + cites)
             expected = set()
             for neighbor in connections:
-                expected.update(knowledge_graph.get_directly_connected(neighbor))
+                neighbor_data = topics.get(neighbor, {})
+                neighbor_children = neighbor_data.get("children", []) or []
+                neighbor_cites = neighbor_data.get("cites", []) or []
+                expected.update(neighbor_children + neighbor_cites)
             surprise = 1.0 - (len(connections) / len(expected) if expected else 0.5)
             scores["surprise"] = surprise
             
             # 6. CrossDomain: number of different domains the topic connects to
-            # We approximate this by looking at the depth of the topic
-            depth = knowledge_graph.get_topic_depth(candidate)
+            # Use state.json depth instead of Neo4j (get_topic_depth returns 0.0 for missing nodes)
+            depth = topic_data.get("depth", 5.0) or 5.0
             max_expected_depth = 10.0
             scores["cross_domain"] = min(depth / max_expected_depth, 1.0)
             
