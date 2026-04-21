@@ -5,6 +5,7 @@ Tests are written BEFORE implementation exists.
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 import asyncio
+from core.kg.knowledge_node import KnowledgeNode, KnowledgeContent, KnowledgeSource, KnowledgeRelations, KnowledgeCitation
 
 
 class TestKGRepositoryImports:
@@ -222,3 +223,44 @@ class TestKGRepositoryBatch:
         repo = KGRepository(mock_client)
         await repo.merge_nodes(["node-1", "node-2"])
         mock_client.execute_write.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_create_knowledge_node_from_model():
+    from core.kg.kg_repository import KGRepository
+    mock_client = AsyncMock()
+    mock_client.execute_write = AsyncMock(return_value=[{"id": "Test Node", "status": "pending"}])
+    
+    repo = KGRepository(mock_client)
+    
+    node = KnowledgeNode(
+        topic="Test Node",
+        content=KnowledgeContent(definition="Test definition"),
+        source=KnowledgeSource(source_url="https://example.com", source_type="web"),
+        relations=KnowledgeRelations(),
+        citation=KnowledgeCitation()
+    )
+    
+    result = await repo.create_knowledge_node_from_model(node)
+    assert result == "Test Node"
+    mock_client.execute_write.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_create_knowledge_node_from_model_with_parent():
+    from core.kg.kg_repository import KGRepository
+    mock_client = AsyncMock()
+    mock_client.execute_write = AsyncMock(return_value=[{"id": "Child Node", "status": "pending"}])
+    
+    repo = KGRepository(mock_client)
+    
+    node = KnowledgeNode(
+        topic="Child Node",
+        content=KnowledgeContent(definition="Child definition"),
+        source=KnowledgeSource(source_type="paper"),
+        relations=KnowledgeRelations(parent="Parent Node"),
+        citation=KnowledgeCitation()
+    )
+    
+    result = await repo.create_knowledge_node_from_model(node)
+    assert result == "Child Node"
