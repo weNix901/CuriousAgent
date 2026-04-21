@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "updated_at": "2026-04-21T00:00:00Z",
+  "sources": [
+    {
+      "domain": "arxiv.org",
+      "name": "arXiv",
+      "type": "preprint",
+      "trust_level": 5,
+      "enabled": true,
+      "notes": "AI/CS 开放论文库"
+    },
+    {
+      "domain": "nature.com",
+      "name": "Nature",
+      "type": "journal",
+      "trust_level": 5,
+      "enabled": true,
+      "notes": "Nature 系列期刊"
+    },
+    {
+      "domain": "ieee.org",
+      "name": "IEEE",
+      "type": "conference",
+      "trust_level": 5,
+      "enabled": true,
+      "notes": "IEEE 论文库"
+    },
+    {
+      "domain": "ieeeexplore.ieee.org",
+      "name": "IEEE Xplore",
+      "type": "conference",
+      "trust_level": 5,
+      "enabled": true,
+      "notes": "IEEE Xplore 数字图书馆"
+    },
+    {
+      "domain": "acm.org",
+      "name": "ACM",
+      "type": "conference",
+      "trust_level": 5,
+      "enabled": true,
+      "notes": "ACM 数字图书馆"
+    },
+    {
+      "domain": "dl.acm.org",
+      "name": "ACM DL",
+      "type": "conference",
+      "trust_level": 5,
+      "enabled": true,
+      "notes": "ACM 数字图书馆"
+    },
+    {
+      "domain": "springer.com",
+      "name": "Springer",
+      "type": "journal",
+      "trust_level": 4,
+      "enabled": true,
+      "notes": "Springer 出版物"
+    },
+    {
+      "domain": "link.springer.com",
+      "name": "Springer Link",
+      "type": "journal",
+      "trust_level": 4,
+      "enabled": true,
+      "notes": "Springer Link 平台"
+    },
+    {
+      "domain": "elsevier.com",
+      "name": "Elsevier",
+      "type": "journal",
+      "trust_level": 4,
+      "enabled": true,
+      "notes": "ScienceDirect"
+    },
+    {
+      "domain": "sciencedirect.com",
+      "name": "ScienceDirect",
+      "type": "journal",
+      "trust_level": 4,
+      "enabled": true,
+      "notes": "ScienceDirect 平台"
+    },
+    {
+      "domain": "semanticscholar.org",
+      "name": "Semantic Scholar",
+      "type": "index",
+      "trust_level": 4,
+      "enabled": true,
+      "notes": "AI2 学术搜索"
+    },
+    {
+      "domain": "openreview.net",
+      "name": "OpenReview",
+      "type": "conference",
+      "trust_level": 4,
+      "enabled": true,
+      "notes": "开放评审论文"
+    },
+    {
+      "domain": "aclanthology.org",
+      "name": "ACL Anthology",
+      "type": "conference",
+      "trust_level": 4,
+      "enabled": true,
+      "notes": "NLP 领域论文"
+    }
+  ]
+}
