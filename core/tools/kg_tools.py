@@ -171,7 +171,7 @@ class AddToKGTool(Tool):
     
     @property
     def description(self) -> str:
-        return "Add a new knowledge node to the knowledge graph"
+        return "Add a new knowledge node to the knowledge graph with optional 6-element structure"
     
     @property
     def parameters(self) -> dict[str, Any]:
@@ -182,7 +182,14 @@ class AddToKGTool(Tool):
                 "content": {"type": "string", "description": "Knowledge summary content", "default": ""},
                 "source_urls": {"type": "array", "description": "List of source URLs for attribution", "default": []},
                 "metadata": {"type": "object", "description": "Metadata (depth, quality, confidence)", "default": {}},
-                "relations": {"type": "array", "description": "Relations to other nodes", "default": []}
+                "relations": {"type": "array", "description": "Relations to other nodes", "default": []},
+                # v0.3.3 6-element fields
+                "definition": {"type": "string", "description": "Knowledge point definition", "default": None},
+                "core": {"type": "string", "description": "Core mechanism/algorithm", "default": None},
+                "context": {"type": "string", "description": "Background context", "default": None},
+                "examples": {"type": "array", "description": "Concrete examples", "default": None},
+                "formula": {"type": "string", "description": "Key formula (LaTeX)", "default": None},
+                "parent_topic": {"type": "string", "description": "Parent summary topic", "default": None},
             },
             "required": ["topic"]
         }
@@ -194,6 +201,32 @@ class AddToKGTool(Tool):
         metadata = kwargs.get("metadata", {})
         relations = kwargs.get("relations", [])
         
+        # v0.3.3 6-element fields
+        definition = kwargs.get("definition")
+        core = kwargs.get("core")
+        context = kwargs.get("context")
+        examples = kwargs.get("examples")
+        formula = kwargs.get("formula")
+        parent_topic = kwargs.get("parent_topic")
+        
+        # Add 6-element fields to metadata
+        if definition is not None:
+            metadata["definition"] = definition
+        if core is not None:
+            metadata["core"] = core
+        if context is not None:
+            metadata["context"] = context
+        if examples is not None:
+            metadata["examples"] = examples
+        if formula is not None:
+            metadata["formula"] = formula
+        if parent_topic is not None:
+            metadata["parent_topic"] = parent_topic
+        
+        # Calculate completeness score (5 elements max)
+        completeness = sum(1 for v in [definition, core, context, examples, formula] if v)
+        metadata["completeness_score"] = completeness
+        
         if self._repository:
             result = await self._repository.add_to_knowledge_graph(
                 topic=topic,
@@ -202,8 +235,8 @@ class AddToKGTool(Tool):
                 metadata=metadata,
                 relations=relations
             )
-            return f"Added node with {len(source_urls)} sources: {result}"
-        return f"Node added: {topic}"
+            return f"Added node: {topic} (completeness: {completeness}/5)"
+        return f"Node added: {topic} (completeness: {completeness}/5)"
     
     def to_schema(self) -> dict[str, Any]:
         return super().to_schema()

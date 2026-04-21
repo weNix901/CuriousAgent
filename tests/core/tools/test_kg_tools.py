@@ -321,6 +321,100 @@ class TestAddToKGTool:
         assert schema["type"] == "function"
         assert schema["function"]["name"] == "add_to_kg"
         assert "topic" in str(schema["function"]["parameters"])
+    
+    @pytest.mark.asyncio
+    async def test_add_to_kg_tool_6_element_fields(self):
+        """Test add_to_kg tool accepts 6-element fields."""
+        from core.tools.kg_tools import AddToKGTool
+        
+        mock_repo = MockKGRepository()
+        
+        tool = AddToKGTool(repository=mock_repo)
+        result = await tool.execute(
+            topic="knowledge_point",
+            definition="A definition of the concept",
+            core="The core mechanism",
+            context="Background context",
+            examples=["example1", "example2"],
+            formula="E = mc^2",
+            parent_topic="parent_summary"
+        )
+        
+        assert "knowledge_point" in result
+        assert "completeness: 5/5" in result
+        node = mock_repo._nodes["knowledge_point"]
+        assert node["metadata"]["definition"] == "A definition of the concept"
+        assert node["metadata"]["core"] == "The core mechanism"
+        assert node["metadata"]["context"] == "Background context"
+        assert node["metadata"]["examples"] == ["example1", "example2"]
+        assert node["metadata"]["formula"] == "E = mc^2"
+        assert node["metadata"]["parent_topic"] == "parent_summary"
+        assert node["metadata"]["completeness_score"] == 5
+    
+    @pytest.mark.asyncio
+    async def test_add_to_kg_tool_completeness_score_partial(self):
+        """Test completeness score with partial 6-element fields."""
+        from core.tools.kg_tools import AddToKGTool
+        
+        mock_repo = MockKGRepository()
+        
+        tool = AddToKGTool(repository=mock_repo)
+        result = await tool.execute(
+            topic="partial_knowledge",
+            definition="Only definition",
+            core="Only core"
+        )
+        
+        assert "completeness: 2/5" in result
+        node = mock_repo._nodes["partial_knowledge"]
+        assert node["metadata"]["completeness_score"] == 2
+    
+    @pytest.mark.asyncio
+    async def test_add_to_kg_tool_completeness_score_zero(self):
+        """Test completeness score with no 6-element fields."""
+        from core.tools.kg_tools import AddToKGTool
+        
+        mock_repo = MockKGRepository()
+        
+        tool = AddToKGTool(repository=mock_repo)
+        result = await tool.execute(
+            topic="no_elements",
+            content="Just content"
+        )
+        
+        assert "completeness: 0/5" in result
+        node = mock_repo._nodes["no_elements"]
+        assert node["metadata"]["completeness_score"] == 0
+    
+    @pytest.mark.asyncio
+    async def test_add_to_kg_tool_schema_has_6_element_params(self):
+        """Test schema includes 6-element field parameters."""
+        from core.tools.kg_tools import AddToKGTool
+        tool = AddToKGTool()
+        schema = tool.to_schema()
+        
+        params = schema["function"]["parameters"]["properties"]
+        assert "definition" in params
+        assert "core" in params
+        assert "context" in params
+        assert "examples" in params
+        assert "formula" in params
+        assert "parent_topic" in params
+    
+    @pytest.mark.asyncio
+    async def test_add_to_kg_tool_without_repository(self):
+        """Test add_to_kg tool works without repository."""
+        from core.tools.kg_tools import AddToKGTool
+        
+        tool = AddToKGTool()
+        result = await tool.execute(
+            topic="test_topic",
+            definition="test definition",
+            core="test core"
+        )
+        
+        assert "Node added: test_topic" in result
+        assert "completeness: 2/5" in result
 
 
 class TestUpdateKGStatusTool:
