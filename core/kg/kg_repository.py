@@ -1,6 +1,7 @@
 """KG Repository for knowledge graph operations."""
 import logging
 from typing import Any, Dict, List, Optional
+from core.kg.knowledge_node import KnowledgeNode
 
 logger = logging.getLogger(__name__)
 
@@ -362,3 +363,49 @@ class KGRepository:
 
         result = await self._client.execute_query(limit=limit, query=query)
         return result
+
+    async def create_knowledge_node_from_model(self, node: KnowledgeNode) -> str:
+        """Create a knowledge node from KnowledgeNode Pydantic model.
+        
+        Converts the composed KnowledgeNode model into the flat metadata dict
+        format expected by create_knowledge_node.
+        """
+        metadata = {
+            "heat": node.heat,
+            "quality": node.quality,
+            "status": node.status,
+            "deep_read_status": node.deep_read_status,
+            "definition": node.content.definition,
+            "formula": node.content.formula,
+            "fact": node.content.fact,
+            "examples": node.content.examples or [],
+            "completeness_score": node.content.completeness_score,
+            "source_url": node.source.source_url,
+            "source_type": node.source.source_type,
+            "source_trusted": node.source.source_trusted,
+            "local_file_path": node.source.local_file_path,
+            "extracted_text_path": node.source.extracted_text_path,
+            "source_missing": node.source.source_missing,
+            "parent_topic": node.relations.parent,
+            "children": node.relations.children or [],
+            "depends_on": node.relations.depends_on or [],
+            "related_to": node.relations.related_to or [],
+            "keywords": node.keywords or [],
+        }
+        
+        relations = []
+        if node.relations.parent:
+            relations.append({
+                "parent": node.relations.parent,
+                "type": "DERIVED_FROM"
+            })
+        
+        return await self.create_knowledge_node(
+            topic=node.topic,
+            content=node.content.definition,
+            source_urls=[node.source.source_url] if node.source.source_url else [],
+            metadata=metadata,
+            relations=relations,
+            key_points=node.content.examples or [],
+            keywords=node.keywords or []
+        )
