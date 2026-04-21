@@ -137,6 +137,10 @@ class DreamAgent(CAAgent):
             if topic and topic not in candidates:
                 candidates.append(topic)
         
+        # Load state.json for dormant and quality checks
+        state = knowledge_graph.get_state()
+        topics = state["knowledge"]["topics"]
+        
         # 2. Get dormant topics from state.json (not Neo4j - no dormant marker there)
         # Dormant = completed topics that haven't been dreamed recently (> 30 days)
         # or topics with very low quality (< 3.0) that need re-examination
@@ -159,8 +163,6 @@ class DreamAgent(CAAgent):
                     candidates.append(topic)  # Never dreamed = dormant
         
         # 3. Get nodes with high citation count but low quality
-        state = knowledge_graph.get_state()
-        topics = state["knowledge"]["topics"]
         for name, data in topics.items():
             citation_count = len(data.get("cites", [])) + len(data.get("cited_by", []))
             quality = data.get("quality", 0.0)
