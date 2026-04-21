@@ -146,5 +146,47 @@
         "novice": "🔴 No KG knowledge. Search the web. Then answer from LLM if search fails. ALWAYS inject this topic to CA for exploration. Next time it will be in KG!"
       }
     }
+  },
+  "deepread": {
+    "daemon": {
+      "interval_seconds": 1800,
+      "enabled": true
+    },
+    "extraction": {
+      "paragraph_overlap_percent": 15,
+      "overlap_min_chars": 0,
+      "overlap_max_chars": 500,
+      "context_extend_paragraphs": 2
+    },
+    "formula": {
+      "regex_enabled": true,
+      "llm_vision_enabled": true,
+      "llm_vision_provider": "kimi"
+    },
+    "quality": {
+      "completeness_min": 2,
+      "retry_count": 1,
+      "retry_discard": true
+    }
+  },
+  "archive_strategy": {
+    "enabled": false,
+    "trigger_temperature": 30,
+    "estimated_archive_count": 50,
+    "delete_txt": true,
+    "compress_pdf": true,
+    "keep_metadata": true
+  },
+  "temperature_system": {
+    "enabled": true,
+    "decay_factor": 0.95,
+    "hot_threshold": 80,
+    "warm_threshold": 30,
+    "self_heal_enabled": true
+  },
+  "trusted_sources": {
+    "enabled": true,
+    "priority_search": true,
+    "config_path": "config/trusted_sources.json"
   }
 }
