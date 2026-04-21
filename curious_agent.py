@@ -351,6 +351,9 @@ def daemon_mode(interval_minutes: int = 30):
 
     from core.daemon.explore_daemon import ExploreDaemon, ExploreDaemonConfig
     from core.daemon.dream_daemon import DreamDaemon, DreamDaemonConfig
+    # === v0.3.3: DeepReadAgent + DeepReadDaemon ===
+    from core.agents.deep_read_agent import DeepReadAgent, DeepReadAgentConfig
+    from core.daemon.deep_read_daemon import DeepReadDaemon, DeepReadDaemonConfig
     from core.tools.registry import ToolRegistry
     from core.tools.queue_tools import QueueStorage
 
@@ -479,6 +482,19 @@ def daemon_mode(interval_minutes: int = 30):
     
     dream_thread = threading.Thread(target=run_dream_daemon_async, name="DreamDaemon", daemon=True)
     
+    # === v0.3.3: DeepReadAgent + DeepReadDaemon ===
+    deep_read_config = DeepReadAgentConfig(
+        model="volcengine",
+        max_iterations=20,
+    )
+    deep_read_agent = DeepReadAgent(config=deep_read_config, tool_registry=tool_registry)
+    
+    deep_read_daemon_config = DeepReadDaemonConfig(
+        poll_interval_seconds=1800,  # 30 minutes
+        enabled=True,
+    )
+    deep_read_daemon = DeepReadDaemon(deep_read_agent=deep_read_agent, config=deep_read_daemon_config)
+    
     # Keep SleepPruner for now
     from core.sleep_pruner import SleepPruner
     sleep_pruner = SleepPruner(
@@ -496,6 +512,7 @@ def daemon_mode(interval_minutes: int = 30):
         explore_daemon.stop()
         sleep_pruner.stop()
         dream_daemon.stop()
+        deep_read_daemon.stop()
         cleanup_pid()
     
     signal.signal(signal.SIGINT, handle_shutdown)
@@ -509,6 +526,9 @@ def daemon_mode(interval_minutes: int = 30):
     # Start DreamDaemon in its own thread (async)
     dream_thread.start()
     print(f"[v0.2.9]   ✓ DreamDaemon started (thread)")
+    
+    deep_read_daemon.start()
+    print("[v0.3.3]   ✓ DeepReadDaemon started (30min interval)")
     
     print("[v0.2.6] All agents running. Monitoring status...")
     print()
@@ -582,6 +602,10 @@ def daemon_mode(interval_minutes: int = 30):
     sleep_pruner.stop()
     sleep_pruner.join(timeout=5.0)
     print("[v0.2.9] ✓ SleepPruner stopped")
+    
+    deep_read_daemon.stop()
+    deep_read_daemon.join(timeout=5.0)
+    print("[v0.3.3] ✓ DeepReadDaemon stopped")
     
     print("[v0.2.9] All agents stopped. Exiting.")
 
