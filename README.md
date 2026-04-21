@@ -1,6 +1,6 @@
 # 👁️ Curious Agent
 
-[![Status](https://img.shields.io/badge/status-v0.3.1-blue)](#)
+[![Status](https://img.shields.io/badge/status-v0.3.2-blue)](#)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](#)
 [![OpenClaw](https://img.shields.io/badge/openclaw-2026.3+-green)](#)
 [![Tests](https://img.shields.io/badge/tests-97%20modules-brightgreen)](#)
@@ -502,6 +502,7 @@ All agent and daemon parameters are controlled via `config.json`. No hard-coded 
 
 | Version | Theme | Date |
 |---------|-------|------|
+| **v0.3.2** | Bootstrap Hook System Refactor — `/api/knowledge/session/startup` endpoint, unified behavior guidelines in config.json, 1 Skill + 4 Hooks explicit integration | 2026-04-21 |
 | **v0.3.1-patch** | Bug fixes + Repo cleanup + KG design fix | 2026-04-19 |
 | **v0.3.1** | Observability Layer — Hook audit, trace visualization, WebUI multi-file, external agent tracking | 2026-04-17 |
 | **v0.3.0** | Cognitive Framework — Know what it knows, know what it doesn't know. 4-level confidence, auto-inject unknowns, `/api/knowledge/*` endpoints | 2026-04-15 |
@@ -561,6 +562,18 @@ Yes. It's designed as an OpenClaw plugin. The `shared_knowledge/` directory prov
 
 **How does it know what to explore next?**
 Four signals: (1) curiosity queue (manually injected or dream-generated), (2) competence gaps (topics you've never explored), (3) metacognitive quality scoring (diminishing returns detection), (4) root technology tracing (surface-to-fundamental connections).
+
+**What changed in v0.3.2?**
+
+Bootstrap Hook System Refactor — Unified injection architecture:
+- New `/api/knowledge/session/startup` endpoint: CA backend assembles complete injection content (KG nodes + behavior guidelines)
+- Removed `/api/kg/overview` endpoint (no longer needed)
+- `handler.ts` simplified: only calls API and injects returned content
+- Unified behavior guidelines storage in `config.json` (no more hardcoded templates)
+- Updated README with explicit Skills/Hooks table: **1 Skill + 4 Hooks**
+- Removed obsolete `skills/curious-agent/SKILL.md` (covered by installation guide)
+- Added API tests for session startup endpoint
+
 **What changed in v0.3.1-patch?**
 
 Bug fixes + Repo cleanup + KG design clarification:

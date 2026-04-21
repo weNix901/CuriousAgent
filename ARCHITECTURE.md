@@ -1,4 +1,4 @@
-# Curious Agent Architecture (v0.3.1-patch)
+# Curious Agent Architecture (v0.3.2)
 
 ## 目标
 
@@ -512,6 +512,7 @@ curious-agent/
 
 | Version | Theme |
 |---------|-------|
+| v0.3.2 | Bootstrap Hook System Refactor |
 | v0.3.1-patch | Bug fixes + KG design fix + Repo cleanup |
 | v0.3.1 | Observability Layer |
 | v0.3.0 | Cognitive Framework |
