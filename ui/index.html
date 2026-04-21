@@ -60,6 +60,7 @@
     <button class="view-tab" role="tab" aria-selected="false" data-view="graph" onclick="switchView('graph')">🔮 图谱视图</button>
     <button class="view-tab" role="tab" aria-selected="false" data-view="internal" onclick="switchView('internal')">🧭 内部可视化</button>
     <button class="view-tab" role="tab" aria-selected="false" data-view="external" onclick="switchView('external')">🤖 外部调用</button>
+    <button class="view-tab" role="tab" aria-selected="false" data-view="settings" onclick="switchView('settings')">⚙️ 设置</button>
   </nav>
 
   <section class="stats" aria-label="系统统计">
@@ -90,6 +91,7 @@
     <section id="graph-view" class="view-container" role="tabpanel" aria-label="图谱视图"></section>
     <section id="internal-view" class="view-container" role="tabpanel" aria-label="内部可视化"></section>
     <section id="external-view" class="view-container" role="tabpanel" aria-label="外部Agent调用记录"></section>
+    <section id="settings-view" class="view-container" role="tabpanel" aria-label="系统设置"></section>
   </main>
 
 </div>
@@ -99,6 +101,7 @@
 <script src="js/graph-view.js"></script>
 <script src="js/internal-view.js"></script>
 <script src="js/external-view.js"></script>
+<script src="js/settings-view.js"></script>
 <script>
 function loadViewContent(viewName) {
   var container = document.getElementById(viewName + '-view');
@@ -108,6 +111,7 @@ function loadViewContent(viewName) {
     if (viewName === 'graph') setTimeout(renderGraph, 100);
     if (viewName === 'internal') loadInternalView();
     if (viewName === 'external') loadExternalView();
+    if (viewName === 'settings') loadSettings();
   }).catch(function(e) {
     container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>加载视图失败: ' + e.message + '</div>';
   });
