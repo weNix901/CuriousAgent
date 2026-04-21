@@ -301,12 +301,24 @@ class ExploreAgent(CAAgent):
                     final_summary = f"Exploration of '{topic}' complete with {len(collected_sources)} sources"
                 
                 add_tool = self.tool_registry.get("add_to_kg")
+                process_tool = self.tool_registry.get("process_paper")
                 if add_tool and final_summary:
+                    pdf_path = None
+                    txt_path = None
+                    source_url = collected_sources[0] if collected_sources else None
+                    
                     await add_tool.execute(
                         topic=topic,
                         content=final_summary[:2000],
                         source_urls=collected_sources,
                         metadata={"depth": iterations, "quality": 5.0 + len(collected_sources)}
+                    )
+                    
+                    await self._enqueue_deep_read(
+                        topic=topic,
+                        pdf_path=pdf_path,
+                        txt_path=txt_path,
+                        source_url=source_url
                     )
                 return {
                     "success": True,
@@ -384,12 +396,24 @@ class ExploreAgent(CAAgent):
             final_summary = f"Exploration of '{topic}' reached max iterations with {len(collected_sources)} sources"
         
         add_tool = self.tool_registry.get("add_to_kg")
+        process_tool = self.tool_registry.get("process_paper")
         if add_tool and final_summary:
+            pdf_path = None
+            txt_path = None
+            source_url = collected_sources[0] if collected_sources else None
+            
             await add_tool.execute(
                 topic=topic,
                 content=final_summary[:2000],
                 source_urls=collected_sources,
                 metadata={"depth": iterations, "quality": 5.0 + len(collected_sources)}
+            )
+            
+            await self._enqueue_deep_read(
+                topic=topic,
+                pdf_path=pdf_path,
+                txt_path=txt_path,
+                source_url=source_url
             )
         return {
             "success": True,
@@ -511,3 +535,27 @@ class ExploreAgent(CAAgent):
         except Exception as e:
             logger.warning(f"Failed to mark item {item_id} as done: {e}", exc_info=True)
             return False
+
+    async def _enqueue_deep_read(self, topic: str, pdf_path: str | None, txt_path: str | None, source_url: str | None):
+        """Enqueue a deep_read task after summary is written to KG."""
+        from core.tools.queue_tools import QueueStorage
+        
+        try:
+            queue = QueueStorage()
+            queue.initialize()
+            
+            queue.add_item(
+                topic=topic,
+                priority=8,  # Higher priority than normal exploration
+                metadata={
+                    "task_type": "deep_read",
+                    "summary_topic": topic,
+                    "pdf_path": pdf_path,
+                    "txt_path": txt_path,
+                    "source_url": source_url
+                }
+            )
+            
+            logger.info(f"Enqueued deep_read task for: {topic}")
+        except Exception as e:
+            logger.warning(f"Failed to enqueue deep_read for {topic}: {e}")
