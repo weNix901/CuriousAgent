@@ -21,3 +21,27 @@ def test_paper_storage_paths_different_topics():
     pdf2, txt2 = paper_storage_paths("Transformer Architecture")
     assert pdf1 != pdf2
     assert txt1 != txt2
+
+
+import asyncio
+import json
+import os
+from core.tools.paper_tools import SavePaperTextTool, PAPERS_DIR
+
+def test_save_paper_text_tool_creates_file():
+    """Test that SavePaperTextTool creates TXT file and returns path."""
+    tool = SavePaperTextTool()
+    
+    result = asyncio.run(tool.execute(
+        topic="TestPaper",
+        text="This is test paper content for testing."
+    ))
+    
+    data = json.loads(result)
+    assert "txt_path" in data
+    assert "pdf_path" in data
+    assert "text_length" in data
+    assert os.path.exists(data["txt_path"])
+    
+    # Cleanup
+    os.remove(data["txt_path"])
