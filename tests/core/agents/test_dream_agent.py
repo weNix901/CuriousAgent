@@ -63,8 +63,10 @@ class TestDreamAgentConfig:
             system_prompt="test"
         )
         
-        assert config.min_score_threshold == 0.8
-        assert config.min_recall_count == 3
+        # v0.3.3 bug fix: threshold lowered from 0.8 to 0.5 to avoid filtering out valid nodes
+        assert config.min_score_threshold == 0.5
+        # v0.3.3 bug fix: min_recall_count lowered from 3 to 1 to avoid dormant queue issues
+        assert config.min_recall_count == 1
 
 
 class TestDreamAgent:
