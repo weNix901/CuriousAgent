@@ -45,3 +45,30 @@ def test_save_paper_text_tool_creates_file():
     
     # Cleanup
     os.remove(data["txt_path"])
+
+
+from core.tools.paper_tools import ReadPaperTextTool
+
+def test_read_paper_text_tool_reads_existing_file():
+    """Test that ReadPaperTextTool reads TXT file content."""
+    # Create test file
+    test_path = "papers/test_read.txt"
+    os.makedirs("papers", exist_ok=True)
+    with open(test_path, "w", encoding="utf-8") as f:
+        f.write("Test paper content for reading.")
+    
+    tool = ReadPaperTextTool()
+    result = asyncio.run(tool.execute(txt_path=test_path))
+    
+    assert "Test paper content for reading." in result
+    
+    # Cleanup
+    os.remove(test_path)
+
+def test_read_paper_text_tool_file_not_found():
+    """Test that ReadPaperTextTool returns error for missing file."""
+    tool = ReadPaperTextTool()
+    result = asyncio.run(tool.execute(txt_path="papers/nonexistent.txt"))
+    
+    assert "Error" in result
+    assert "not found" in result.lower()
