@@ -12,7 +12,19 @@ function buildGraphData() {
     var name = item[0], v = item[1], inQ = !!qMap[name.toLowerCase()];
     var score = 0;
     if (inQ) for (var i = 0; i < queue.length; i++) if (queue[i].topic === name) { score = queue[i].score || 0; break; }
-    return { id: name, depth: v.depth || 0, quality: v.quality, score: score, summary: v.summary || '', sources: v.sources || [], inQueue: inQ };
+    return { 
+      id: name, 
+      depth: v.depth || 0, 
+      quality: v.quality, 
+      score: score, 
+      summary: v.summary || '', 
+      sources: v.sources || [], 
+      inQueue: inQ,
+      completeness: v.completeness_score || 0,
+      definition: v.definition || '',
+      core: v.core || '',
+      context: v.context || ''
+    };
   });
 
   var links = [], seen = {};
@@ -159,7 +171,11 @@ function renderGraph() {
   nodeSel.append('text').attr('class', 'node-label').attr('dx', function(d) { return Math.max(20, d.depth * 2) + 4; }).attr('dy', 4)
     .text(function(d) { return d.id.length > 26 ? d.id.substring(0, 23) + '...' : d.id; });
 
-  nodeSel.append('title').text(function(d) { return d.id + '\n质量:' + (d.quality || '待探索') + ' | ' + (d.inQueue ? '待探索' : '已探索'); });
+  nodeSel.append('title').text(function(d) { 
+    var info = d.id + '\n质量:' + (d.quality || '待探索') + ' | 完整性:' + (d.completeness || 0) + '/5';
+    if (d.definition) info += '\n定义: ' + d.definition.slice(0, 50) + '...';
+    return info;
+  });
 
   var charge = parseInt(document.getElementById('ctrl-charge') && document.getElementById('ctrl-charge').value || '-280');
   var dist = parseInt(document.getElementById('ctrl-distance') && document.getElementById('ctrl-distance').value || '130');

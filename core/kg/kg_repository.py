@@ -78,6 +78,8 @@ class KGRepository:
             n.depth = $depth,
             n.created_at = timestamp(),
             n.definition = $definition,
+            n.core = $core,
+            n.context = $context,
             n.formula = $formula,
             n.fact = $fact,
             n.examples = $examples,
@@ -109,6 +111,8 @@ class KGRepository:
             "status": metadata.get("status", "pending"),
             "depth": metadata.get("depth", 5),
             "definition": metadata.get("definition"),
+            "core": metadata.get("core"),
+            "context": metadata.get("context"),
             "formula": metadata.get("formula"),
             "fact": metadata.get("fact"),
             "examples": metadata.get("examples", []),
@@ -219,12 +223,15 @@ class KGRepository:
             return await self.query_knowledge(query_text, limit=top_k)
 
     async def get_node(self, topic: str) -> Optional[Dict[str, Any]]:
-        """Get a single node by exact topic match."""
+        """Get a single node by exact topic match including 6-element fields."""
         query = """
         MATCH (n:Knowledge {topic: $topic})
         RETURN n.topic as topic, n.content as content, n.status as status,
                n.heat as heat, n.quality as quality, n.confidence as confidence,
-               n.depth as depth, n.source_urls as source_urls
+               n.depth as depth, n.source_urls as source_urls,
+               n.definition as definition, n.core as core, n.context as context,
+               n.examples as examples, n.formula as formula,
+               n.completeness_score as completeness_score, n.parent_topic as parent_topic
         """
 
         result = await self._client.execute_query(query, topic=topic)

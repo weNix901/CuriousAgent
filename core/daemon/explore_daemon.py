@@ -88,7 +88,7 @@ class ExploreDaemon(threading.Thread):
         if not self.queue_storage:
             return
         
-        pending_items = self.queue_storage.get_pending_items(limit=1)
+        pending_items = self.queue_storage.get_pending_items(limit=1, exclude_task_type="deep_read")
         
         if not pending_items:
             logger.debug("ExploreDaemon: queue empty, waiting...")

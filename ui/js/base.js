@@ -1,5 +1,6 @@
 var API_BASE = '';
 var state = null; 
+var JS_VERSION = '0.3.3-6element';  // Force cache refresh 
 
 function timeAgo(ts) {
   if (!ts) return '';
@@ -197,7 +198,8 @@ function showDetail(type, id) {
       title.textContent = '📚 ' + id;
       meta.innerHTML = '<span class="modal-meta-item">质量: ' + (node.quality || '-') + '</span>'
         + '<span class="modal-meta-item">状态: ' + (node.status || '未探索') + '</span>'
-        + '<span class="modal-meta-item">' + depthLabel(node.depth || 5) + '</span>';
+        + '<span class="modal-meta-item">' + depthLabel(node.depth || 5) + '</span>'
+        + '<span class="modal-meta-item">完整性: ' + (node.completeness_score || 0) + '/5</span>';
       
       var summaryText = node.summary || '暂无摘要';
       var summaryObj = null;
@@ -207,8 +209,35 @@ function showDetail(type, id) {
       
       var bodyHtml = '';
       
+      if (node.definition) {
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title">📖 定义</div>'
+          + '<div class="modal-section-content">' + escapeHtml(node.definition) + '</div></div>';
+      }
+      
+      if (node.core) {
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title">⚙️ 核心机制</div>'
+          + '<div class="modal-section-content">' + escapeHtml(node.core) + '</div></div>';
+      }
+      
+      if (node.context) {
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title">📌 背景</div>'
+          + '<div class="modal-section-content">' + escapeHtml(node.context) + '</div></div>';
+      }
+      
+      if (node.examples && node.examples.length > 0) {
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title">💡 示例</div>'
+          + '<ul class="modal-sources">' + node.examples.map(function(ex) {
+            return '<li>' + escapeHtml(ex) + '</li>';
+          }).join('') + '</ul></div>';
+      }
+      
+      if (node.formula) {
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title">🔢 公式</div>'
+          + '<div class="modal-section-content" style="font-family:monospace;">' + escapeHtml(node.formula) + '</div></div>';
+      }
+      
       if (summaryObj) {
-        if (summaryObj.summary) {
+        if (summaryObj.summary && !node.definition) {
           bodyHtml += '<div class="modal-section"><div class="modal-section-title">📖 概述</div>'
             + '<div class="modal-section-content">' + escapeHtml(summaryObj.summary) + '</div></div>';
         }
@@ -257,8 +286,8 @@ function showDetail(type, id) {
           bodyHtml += '<div class="modal-section"><div class="modal-section-title">📋 其他信息</div>'
             + '<div class="modal-section-content">' + extraHtml + '</div></div>';
         }
-      } else {
-        bodyHtml = '<div class="modal-section"><div class="modal-section-title">📖 概述</div>'
+      } else if (!node.definition && !node.core) {
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title">📖 概述</div>'
           + '<div class="modal-section-content">' + escapeHtml(summaryText) + '</div></div>';
       }
       
@@ -267,6 +296,11 @@ function showDetail(type, id) {
           + '<ul class="modal-sources">' + node.sources.map(function(s) {
             return '<li><a href="' + escapeHtml(s) + '" target="_blank">' + escapeHtml(s) + '</a></li>';
           }).join('') + '</ul></div>';
+      }
+      
+      if (node.parent_topic) {
+        bodyHtml += '<div class="modal-section"><div class="modal-section-title">⬆️ 父节点</div>'
+          + '<div class="modal-section-content"><a href="#" onclick="showDetail(\'knowledge\', \'' + escapeJs(node.parent_topic) + '\'); return false;">' + escapeHtml(node.parent_topic) + '</a></div></div>';
       }
       
       body.innerHTML = bodyHtml || '<div class="empty">暂无内容</div>';

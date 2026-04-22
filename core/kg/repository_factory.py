@@ -117,13 +117,45 @@ class KGRepositoryFactory:
                    k.content as summary, 
                    k.source_urls as sources,
                    k.status as status,
-                   k.quality as quality, k.depth as depth
+                   k.quality as quality, 
+                   k.depth as depth,
+                   k.definition as definition,
+                   k.core as core,
+                   k.context as context,
+                   k.examples as examples,
+                   k.formula as formula,
+                   k.completeness_score as completeness_score,
+                   k.parent_topic as parent_topic
             ORDER BY k.created_at DESC
             SKIP $offset LIMIT $limit
             """
             results = await self._client.execute_query(query, offset=offset, limit=limit)
             return [dict(r) for r in results]
         return asyncio.run(_get())
+
+    async def get_all_nodes_async(self, limit: int = 100, offset: int = 0) -> list:
+        """Async version of get_all_nodes."""
+        await self._ensure_connected()
+        query = """
+        MATCH (k:Knowledge)
+        RETURN k.topic as topic, 
+               k.content as summary, 
+               k.source_urls as sources,
+               k.status as status,
+               k.quality as quality, 
+               k.depth as depth,
+               k.definition as definition,
+               k.core as core,
+               k.context as context,
+               k.examples as examples,
+               k.formula as formula,
+               k.completeness_score as completeness_score,
+               k.parent_topic as parent_topic
+        ORDER BY k.created_at DESC
+        SKIP $offset LIMIT $limit
+        """
+        results = await self._client.execute_query(query, offset=offset, limit=limit)
+        return [dict(r) for r in results]
 
     def get_all_relations_sync(self) -> list:
         """获取所有关系"""

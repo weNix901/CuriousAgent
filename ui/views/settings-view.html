@@ -1,92 +1,90 @@
 <!-- ui/views/settings-view.html -->
-<section id="settings-view" class="view-container" role="tabpanel" aria-label="系统设置">
-  <div class="panel">
-    <h2>⚙️ 系统设置</h2>
-    <p class="muted">所有配置修改立即生效，并持久化到 config.json</p>
-    
-    <!-- DeepRead 配置 -->
-    <div class="config-card">
-      <h3>📖 深度阅读配置</h3>
-      <div class="config-row">
-        <label>段落重叠百分比 (%)</label>
-        <input type="range" id="overlap-percent" min="0" max="50" value="15" 
-               oninput="document.getElementById('overlap-percent-value').textContent=this.value; updateDeepReadConfig('paragraph_overlap_percent', this.value)">
-        <span id="overlap-percent-value">15</span>
-      </div>
-      <div class="config-row">
-        <label>上下文扩展段落数</label>
-        <input type="number" id="context-extend" min="0" max="10" value="2"
-               onchange="updateDeepReadConfig('context_extend_paragraphs', this.value)">
-      </div>
-      <div class="config-row">
-        <label>最小完整度阈值</label>
-        <input type="number" id="completeness-min" min="1" max="6" value="2"
-               onchange="updateDeepReadConfig('completeness_min', this.value)">
-      </div>
+<div class="panel">
+  <h2>⚙️ 系统设置</h2>
+  <p class="muted">所有配置修改立即生效，并持久化到 config.json</p>
+  
+  <!-- DeepRead 配置 -->
+  <div class="config-card">
+    <h3>📖 深度阅读配置</h3>
+    <div class="config-row">
+      <label>段落重叠百分比 (%)</label>
+      <input type="range" id="overlap-percent" min="0" max="50" value="15" 
+             oninput="document.getElementById('overlap-percent-value').textContent=this.value; updateDeepReadConfig('paragraph_overlap_percent', this.value)">
+      <span id="overlap-percent-value">15</span>
     </div>
-    
-    <!-- 温度系统配置 -->
-    <div class="config-card">
-      <h3>🌡️ 温度系统配置</h3>
-      <div class="config-row">
-        <label>
-          <input type="checkbox" id="temperature-enabled" checked
-                 onchange="toggleTemperature(this.checked)">
-          启用温度系统
-        </label>
-      </div>
-      <div class="config-row">
-        <label>衰减因子</label>
-        <input type="range" id="decay-factor" min="0.80" max="0.99" step="0.01" value="0.95"
-               oninput="document.getElementById('decay-factor-value').textContent=this.value; updateTemperatureConfig('decay_factor', this.value)">
-        <span id="decay-factor-value">0.95</span>
-      </div>
-      <div class="config-row">
-        <label>热点阈值</label>
-        <input type="number" id="hot-threshold" min="50" max="100" value="80"
-               onchange="updateTemperatureConfig('hot_threshold', this.value)">
-      </div>
-      <div class="config-row">
-        <label>温区阈值</label>
-        <input type="number" id="warm-threshold" min="10" max="70" value="30"
-               onchange="updateTemperatureConfig('warm_threshold', this.value)">
-      </div>
+    <div class="config-row">
+      <label>上下文扩展段落数</label>
+      <input type="number" id="context-extend" min="0" max="10" value="2"
+             onchange="updateDeepReadConfig('context_extend_paragraphs', this.value)">
     </div>
-    
-    <!-- 归档策略配置 -->
-    <div class="config-card">
-      <h3>📦 归档策略配置</h3>
-      <div class="config-row">
-        <label>
-          <input type="checkbox" id="archive-enabled"
-                 onchange="toggleArchive(this.checked)">
-          启用归档策略
-        </label>
-      </div>
-      <div class="config-row">
-        <label>触发温度</label>
-        <input type="number" id="archive-temperature" min="10" max="50" value="30"
-               onchange="updateArchiveConfig('trigger_temperature', this.value)">
-      </div>
-      <div class="config-row">
-        <label>
-          <input type="checkbox" id="delete-txt" checked
-                 onchange="updateArchiveConfig('delete_txt', this.checked)">
-          归档时删除 TXT
-        </label>
-      </div>
-      <div class="config-row">
-        <label>
-          <input type="checkbox" id="compress-pdf" checked
-                 onchange="updateArchiveConfig('compress_pdf', this.checked)">
-          归档时压缩 PDF
-        </label>
-      </div>
-    </div>
-    
-    <!-- 保存按钮 -->
-    <div class="config-actions">
-      <button class="btn" onclick="resetConfig()">🔄 重置为默认</button>
+    <div class="config-row">
+      <label>最小完整度阈值</label>
+      <input type="number" id="completeness-min" min="1" max="6" value="2"
+             onchange="updateDeepReadConfig('completeness_min', this.value)">
     </div>
   </div>
-</section>
+  
+  <!-- 温度系统配置 -->
+  <div class="config-card">
+    <h3>🌡️ 温度系统配置</h3>
+    <div class="config-row">
+      <label>
+        <input type="checkbox" id="temperature-enabled" checked
+               onchange="toggleTemperature(this.checked)">
+        启用温度系统
+      </label>
+    </div>
+    <div class="config-row">
+      <label>衰减因子</label>
+      <input type="range" id="decay-factor" min="0.80" max="0.99" step="0.01" value="0.95"
+             oninput="document.getElementById('decay-factor-value').textContent=this.value; updateTemperatureConfig('decay_factor', this.value)">
+      <span id="decay-factor-value">0.95</span>
+    </div>
+    <div class="config-row">
+      <label>热点阈值</label>
+      <input type="number" id="hot-threshold" min="50" max="100" value="80"
+             onchange="updateTemperatureConfig('hot_threshold', this.value)">
+    </div>
+    <div class="config-row">
+      <label>温区阈值</label>
+      <input type="number" id="warm-threshold" min="10" max="70" value="30"
+             onchange="updateTemperatureConfig('warm_threshold', this.value)">
+    </div>
+  </div>
+  
+  <!-- 归档策略配置 -->
+  <div class="config-card">
+    <h3>📦 归档策略配置</h3>
+    <div class="config-row">
+      <label>
+        <input type="checkbox" id="archive-enabled"
+               onchange="toggleArchive(this.checked)">
+        启用归档策略
+      </label>
+    </div>
+    <div class="config-row">
+      <label>触发温度</label>
+      <input type="number" id="archive-temperature" min="10" max="50" value="30"
+             onchange="updateArchiveConfig('trigger_temperature', this.value)">
+    </div>
+    <div class="config-row">
+      <label>
+        <input type="checkbox" id="delete-txt" checked
+               onchange="updateArchiveConfig('delete_txt', this.checked)">
+        归档时删除 TXT
+      </label>
+    </div>
+    <div class="config-row">
+      <label>
+        <input type="checkbox" id="compress-pdf" checked
+               onchange="updateArchiveConfig('compress_pdf', this.checked)">
+        归档时压缩 PDF
+      </label>
+    </div>
+  </div>
+  
+  <!-- 保存按钮 -->
+  <div class="config-actions">
+    <button class="btn" onclick="resetConfig()">🔄 重置为默认</button>
+  </div>
+</div>

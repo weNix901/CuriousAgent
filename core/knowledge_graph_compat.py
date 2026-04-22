@@ -318,13 +318,20 @@ def mark_topic_done(topic: str, reason: str) -> None:
     _save_state(state)
 
 
-async def add_knowledge_async(topic: str, depth: int = 5, summary: str = "", sources: Optional[list] = None, quality: Optional[float] = None) -> None:
+async def add_knowledge_async(
+    topic: str, 
+    depth: int = 5, 
+    summary: str = "", 
+    sources: Optional[list] = None, 
+    quality: Optional[float] = None,
+    metadata: Optional[dict] = None
+) -> None:
     kg_factory = _get_kg_factory()
     
     from core.concept_normalizer import get_default_normalizer
     normalizer = get_default_normalizer()
     
-    all_nodes = kg_factory.get_all_nodes_sync(limit=100)
+    all_nodes = await kg_factory.get_all_nodes_async(limit=100)
     
     best_match = None
     best_similarity = 0.0
@@ -344,17 +351,20 @@ async def add_knowledge_async(topic: str, depth: int = 5, summary: str = "", sou
         logger.info(f"Merge knowledge into existing node: '{topic}' → '{best_match}' ({best_type}, sim={best_similarity:.2f})")
         topic = best_match
     
-    metadata = {
+    full_metadata = {
         "depth": depth,
         "quality": quality if quality is not None else 0,
         "status": "done"
     }
     
+    if metadata:
+        full_metadata.update(metadata)
+    
     await kg_factory.create_knowledge_node_async(
         topic=topic,
         content=summary,
         source_urls=sources or [],
-        metadata=metadata
+        metadata=full_metadata
     )
 
 
@@ -431,7 +441,14 @@ def get_state() -> dict:
                 "known": node.get("status") == "done",
                 "last_updated": node.get("created_at", ""),
                 "children": [],
-                "cites": []
+                "cites": [],
+                "definition": node.get("definition", ""),
+                "core": node.get("core", ""),
+                "context": node.get("context", ""),
+                "examples": node.get("examples", []),
+                "formula": node.get("formula", ""),
+                "completeness_score": node.get("completeness_score", 0),
+                "parent_topic": node.get("parent_topic", ""),
             }
     
     return {

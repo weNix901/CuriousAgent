@@ -16,7 +16,7 @@ import webbrowser
 from datetime import datetime, timezone
 
 from flask import Flask, jsonify, request, send_from_directory, g
-from core.config import get_config
+from core.config import get_config as get_ca_config
 
 app = Flask(__name__)
 
@@ -441,7 +441,7 @@ def api_quota_status():
         from core.search_quota import get_quota_manager
         from core.config import get_config
         
-        cfg = get_config()
+        cfg = get_ca_config()
         quota = cfg.knowledge.get("search").daily_quota
         qm = get_quota_manager()
         
@@ -641,10 +641,10 @@ def api_inject():
 
         # ===== T-9 集成点 开始 =====
         # 【集成点 6】inject_priority: source=r1d3 时优先处理
-        config = get_config()
+        config = get_ca_config()
         from core.knowledge_graph_compat import update_curiosity_score
         source = data.get("source", "default")
-        priority_cfg = get_config().behavior.get("injection")
+        priority_cfg = get_ca_config().behavior.get("injection")
 
         priority_triggered = False
         if priority_cfg.enabled and source in priority_cfg.priority_sources:
@@ -1201,7 +1201,7 @@ def api_session_startup():
 
 @app.route("/api/kg/nodes/<path:node_id>")
 def api_kg_node_detail(node_id):
-    """Get single KG node full details."""
+    """Get single KG node full details including 6-element structure."""
     try:
         from core.kg.repository_factory import get_kg_factory
         
@@ -1219,7 +1219,14 @@ def api_kg_node_detail(node_id):
             "sources": node.get("source_urls") or node.get("sources", []),
             "explore_count": node.get("explore_count", 0),
             "depth": node.get("depth", 5),
-            "created_at": node.get("created_at", "")
+            "created_at": node.get("created_at", ""),
+            "definition": node.get("definition", ""),
+            "core": node.get("core", ""),
+            "context": node.get("context", ""),
+            "examples": node.get("examples", []),
+            "formula": node.get("formula", ""),
+            "completeness_score": node.get("completeness_score", 0),
+            "parent_topic": node.get("parent_topic", "")
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1378,7 +1385,7 @@ def api_knowledge_check():
         if not topic:
             return jsonify({"error": "topic is required"}), 400
         
-        config = get_config()
+        config = get_ca_config()
         hook_config = {
             "confidence_threshold": config.hooks.confidence_threshold,
             "auto_inject_unknowns": config.hooks.auto_inject_unknowns,
@@ -1430,7 +1437,7 @@ def api_knowledge_learn():
         if not topic:
             return jsonify({"error": "topic is required"}), 400
         
-        config = get_config()
+        config = get_ca_config()
         hook_config = {
             "confidence_threshold": config.hooks.confidence_threshold,
             "auto_inject_unknowns": config.hooks.auto_inject_unknowns,
@@ -1474,7 +1481,7 @@ def api_knowledge_analytics():
         from core.hooks.cognitive_hook import CognitiveHook
         from core.config import get_config
         
-        config = get_config()
+        config = get_ca_config()
         hook_config = {
             "confidence_threshold": config.hooks.confidence_threshold,
             "auto_inject_unknowns": config.hooks.auto_inject_unknowns,
@@ -1589,7 +1596,7 @@ def assess_quality_assertion():
     from core.llm_client import LLMClient
     from core import knowledge_graph_compat as kg
     
-    config = get_config()
+    config = get_ca_config()
     llm = LLMClient()
     embedding_service = EmbeddingService(config.knowledge.get("embedding"))
     assertion_index = AssertionIndex()
@@ -1626,7 +1633,7 @@ def api_agents_explore():
             return jsonify({"error": "topic is required"}), 400
         
         # Read from config
-        cfg = get_config()
+        cfg = get_ca_config()
         agent_cfg = cfg.agents.get("explore", {})
         
         tool_registry = ToolRegistry()
@@ -1682,7 +1689,7 @@ def api_agents_dream():
         from core.agents.dream_agent import DreamAgent, DreamAgentConfig
         from core.tools.registry import ToolRegistry
         
-        cfg = get_config()
+        cfg = get_ca_config()
         agent_cfg = cfg.agents.get("dream", {})
         
         if hasattr(agent_cfg, 'scoring_weights'):
@@ -1731,7 +1738,7 @@ def api_agents_daemon_explore():
         from core.tools.queue_tools import QueueStorage
         
         # Read config from config.json
-        cfg = get_config()
+        cfg = get_ca_config()
         daemon_cfg = cfg.daemon.get("explore")
         agent_cfg = cfg.agents.get("explore")
         poll_interval = daemon_cfg.poll_interval_seconds
@@ -1784,7 +1791,7 @@ def api_agents_daemon_dream():
         from core.agents.dream_agent import DreamAgentConfig as DreamAgentAgentConfig
         from core.daemon.dream_daemon import DreamDaemon, DreamDaemonConfig
 
-        cfg = get_config()
+        cfg = get_ca_config()
         daemon_cfg = cfg.daemon.get("dream")
         agent_dream_cfg = cfg.agents.get("dream")
 
@@ -2254,7 +2261,7 @@ def api_explorer_run():
         from core.config import get_config
         from core.tools.queue_tools import QueueStorage
         
-        cfg = get_config()
+        cfg = get_ca_config()
         explore_cfg = cfg.agents.get('explore')
         
         queue = QueueStorage()
@@ -2553,7 +2560,7 @@ def api_providers_heatmap():
 
         try:
             from core.search_quota import get_quota_manager
-            cfg = get_config()
+            cfg = get_ca_config()
             quota = cfg.knowledge.get("search").daily_quota
             qm = get_quota_manager()
             serper = qm.get_status("serper", quota.serper, quota.enabled)
@@ -2924,6 +2931,50 @@ def check_trusted_source():
     manager = TrustedSourceManager()
     manager.load()
     return jsonify(manager.check_url(url))
+
+
+@app.route('/api/web-scrape/enqueue', methods=['POST'])
+def api_web_scrape_enqueue():
+    """Scrape web content and enqueue for DeepRead."""
+    data = request.get_json() or {}
+    url = data.get('url')
+    topic = data.get('topic')
+    priority = data.get('priority', 8)
+    
+    if not url or not topic:
+        return jsonify({"error": "url and topic are required"}), 400
+    
+    import asyncio
+    
+    async def scrape_and_enqueue():
+        from core.tools.web_scrape_tools import ScrapeWebForDeepReadTool
+        tool = ScrapeWebForDeepReadTool()
+        return await tool.execute(url=url, topic=topic, priority=priority)
+    
+    result = asyncio.run(scrape_and_enqueue())
+    
+    if result.startswith("Success"):
+        return jsonify({"status": "ok", "message": result})
+    else:
+        return jsonify({"status": "error", "error": result}), 400
+
+
+@app.route('/api/web-scrape/batch', methods=['POST'])
+def api_web_scrape_batch():
+    """Batch scrape KG nodes with source_urls but no completeness."""
+    data = request.get_json() or {}
+    limit = data.get('limit', 10)
+    min_quality = data.get('min_quality', 5)
+    
+    import asyncio
+    
+    async def batch_scrape():
+        from core.tools.web_scrape_tools import BatchWebScrapeTool
+        tool = BatchWebScrapeTool()
+        return await tool.execute(limit=limit, min_quality=min_quality)
+    
+    result = asyncio.run(batch_scrape())
+    return jsonify({"status": "ok", "result": result})
 
 
 if __name__ == "__main__":
