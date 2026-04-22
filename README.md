@@ -1,334 +1,228 @@
-# 👁️ Curious Agent
+# Curious Agent
 
-[![Status](https://img.shields.io/badge/status-v0.3.2-blue)](#)
+[![Version](https://img.shields.io/badge/version-v0.3.3-blue)](https://github.com/weNix901/CuriousAgent)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](#)
-[![OpenClaw](https://img.shields.io/badge/openclaw-2026.3+-green)](#)
-[![Tests](https://img.shields.io/badge/tests-97%20modules-brightgreen)](#)
+[![Neo4j](https://img.shields.io/badge/neo4j-5.x-green)](#)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#)
 
-**Autonomous knowledge explorer that builds, traces, and evolves a living knowledge graph — without being asked.**
+> **把论文变成知识图谱，把知识变成能力——100%覆盖、6维结构、自主进化**
 
-> 不是等待提问的搜索引擎，而是**主动构建知识图谱**、**持续追踪知识缺口**、**把发现内化为行为**的自主 Agent。
+不是等待提问的搜索引擎，而是**主动阅读论文**、**提取结构化知识点**、**构建可追溯知识图谱**的自主 Agent。
 
 ---
 
-## What Is Curious Agent?
+## 核心差异化
 
-Curious Agent is a **self-evolving knowledge explorer** that runs as an OpenClaw plugin. It doesn't wait for questions — it generates its own curiosity, explores gaps in its knowledge graph, scores every discovery for quality, and promotes high-value findings into behavioral rules that permanently change how the host Agent thinks and acts.
+| 传统知识管理 | Curious Agent |
+|-------------|---------------|
+| ❌ 只存储摘要，不理解结构 | ✅ **6维知识点提取**：定义、核心、背景、示例、公式、关系 |
+| ❌ PDF 必须手动处理 | ✅ **多源管道**：PDF、arXiv HTML、GitHub README、官方文档 |
+| ❌ 只读前几页，遗漏核心内容 | ✅ **100%全覆盖**：滑动窗口读取全文，无遗漏 |
+| ❌ 知识散落，无法追溯 | ✅ **图谱结构**：每个知识点可追溯到论文原文 |
+| ❌ 需要手动触发 | ✅ **7×24 自主运行**：探索、深读、洞察三Agent协同 |
 
-**The analogy:** If a search engine is a shovel (dig once, forget everything), Curious Agent is a spider — every discovery becomes a node in a growing web, and the web itself tells it where to explore next.
+---
+
+## 一句话定位
+
+**Curious Agent = DeepRead (论文深读) + KG (知识图谱) + AutoEvolution (自主进化)**
 
 ```
-You inject a topic: "agent memory systems"
-    ↓
-Curious Agent asks itself:
-  "What do I already know about this?
-   Where are my blind spots?
-   What's the highest-value sub-topic to explore first?"
-    ↓
-Decomposes into a tree:
-  agent memory
-  ├── short-term memory → working memory capacity
-  ├── long-term memory  → metacognitive monitoring
-  └── retrieval         → episodic buffer
-    ↓
-ExploreAgent (ReAct loop) explores each branch autonomously
-    ↓
-Every finding is scored, filtered, and written to KG (Neo4j)
-    ↓
-High-quality findings (≥ 7.0) become behavioral rules:
-  "When answering complex questions, I must first
-   evaluate my confidence (1-10) and state it clearly."
-    ↓
-Spreading activation traces root technologies:
-  metacognitive monitoring → transformer attention
-  "This surface-level concept traces back to
-   the fundamental Attention mechanism."
+论文 PDF / 网页 / GitHub README
+         ↓
+    DeepReadAgent (滑动窗口 100% 覆盖)
+         ↓
+    6-element 知识点提取
+         ↓
+    Neo4j 知识图谱 (可追溯、可关联)
+         ↓
+    高质量发现 → 行为规则 → 永久能力升级
 ```
 
-### Unified Agent Architecture (v0.3.0)
+---
 
-ExploreAgent and DreamAgent are **two configurations of the same `CAAgent` class** — only the config differs. This is a clean, maintainable architecture:
+## v0.3.3 核心特性
+
+### 📖 DeepReadAgent — 论文深读引擎
+
+**问题**：传统方法只读前 8000 字符，论文 80% 内容被遗漏。
+
+**解决方案**：滑动窗口全覆盖读取
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    CAAgent (unified class)                   │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  AgentRunner (Nanobot ReAct engine)                 │   │
-│  │  • Thought → Action → Observation loop             │   │
-│  │  • Hook System (pre/post callbacks)                 │   │
-│  │  • ErrorClassifier (Hermes, layered error handling) │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                           │                                │
-│                           ▼                                │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │  ToolRegistry (21 tools, 4 categories)              │   │
-│  │  • KG (9)  • Queue (5)  • Search (5)  • LLM (2)    │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-         │                                    │
-         ▼                                    ▼
-┌──────────────────┐              ┌──────────────────┐
-│  ExploreAgent    │              │   DreamAgent     │
-│  (ReAct loop)    │              │  (L1→L4 cycle)   │
-│  • 14 Tools      │              │  • 15 Tools      │
-│  • Continuous    │              │  • Heartbeat 6h  │
-│  • Writes KG     │              │  • Writes Queue  │
-└──────────────────┘              └──────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│              CognitiveHook (v0.3.0 NEW)                      │
-│  "Know what it knows, know what it doesn't know"            │
-│                                                             │
-│  POST /api/knowledge/check  → KG confidence + guidance      │
-│  POST /api/knowledge/learn  → Inject unknown to CA queue    │
-│  GET  /api/knowledge/analytics → Interaction stats          │
-│  POST /api/knowledge/record → Save search results to KG     │
-│                                                             │
-│  4-level confidence: Expert → Intermediate → Beginner → Novice │
-│  Auto-inject unknowns for CA exploration                    │
-└─────────────────────────────────────────────────────────────┘
+论文长度 ≤30K  →  1 段 (8000 chars)
+论文长度 30-80K →  9 段 (重叠 3000 chars)
+论文长度 >80K  →  20 段 (157% 覆盖率)
 ```
 
-Both agents run under daemons:
+**效果**：
+- 51K 论文 → 提取 9 个知识点（vs 传统方法 5 个）
+- 每个知识点包含完整 6-element 结构
 
-| Daemon | Agent | Schedule | Role |
-|--------|-------|----------|------|
-| **ExploreDaemon** | ExploreAgent | Poll every 5 min | Continuous topic exploration |
-| **DreamDaemon** | DreamAgent | Heartbeat every 6h | Creative insight generation |
-| **SleepPruner** | — | Adaptive 4–24h | KG maintenance (prune dormant nodes) |
+### 🔬 6-Element 知识点结构
 
-All parameters — models, intervals, thresholds, scoring weights, tool lists — come from `config.json`. Zero hard-coded configuration.
+每个知识点不再只是摘要，而是完整的结构化信息：
 
----
+| 元素 | 说明 | 示例 |
+|------|------|------|
+| **definition** | 定义（1-2句） | Long-Tailed Knowledge Distillation (LTKD) is a framework... |
+| **core** | 核心机制 | Decomposes KL into cross-group + within-group loss |
+| **context** | 背景 | Introduced by Seonghak Kim, Agency for Defense Development |
+| **examples** | 应用示例 | CIFAR-100-LT, TinyImageNet-LT, ImageNet-LT |
+| **formula** | 关键公式 | KL(p_T || p_S) |
+| **relationships** | 关联概念 | parent=Knowledge Distillation, related=Teacher Bias |
 
-## Curious Agent Is Right for You If
+### 🌐 多源输入管道
 
-- ✅ You want an AI that **explores topics on its own**, not just when prompted
-- ✅ You care about **knowledge structure** — connections, roots, hierarchies — not just lists of summaries
-- ✅ You want your AI to **get smarter over time** by converting discoveries into behavioral rules
-- ✅ You need **confidence-aware answers** — your AI knows what it knows and says so
-- ✅ You want **quality-filtered knowledge** — only high-signal findings enter the graph
-- ✅ You're building a **digital life form** (数字生命体) with intrinsic curiosity, not a tool
-- ✅ You want agents running **autonomously 24/7** with full observability and config-driven control
-- ✅ You need R1D3 to **auto-inject unknowns** — when it doesn't know, CA will explore and learn
+不只支持 PDF，还能直接抓取网页内容：
 
----
+| 来源 | 支持状态 | 说明 |
+|------|---------|------|
+| **arXiv PDF** | ✅ | 自动下载、解析、提取 |
+| **arXiv HTML** | ✅ | 网页抓取，无需 PDF |
+| **GitHub README** | ✅ | 代码仓库文档直接提取 |
+| **官方文档** | ✅ | Python.org, TensorFlow, PyTorch, HuggingFace |
+| **ACL Anthology** | ✅ | NLP 论文库 |
 
-## Features
-
-### 🕸️ Knowledge Graph Weaving
-
-Every discovery becomes a node in Neo4j. Nodes connect via parent-child relationships, citations, and dream-generated cross-links. The more you explore, the denser the web — and the web itself guides future exploration.
-
-### 🎯 Curiosity-Driven Decomposition
-
-Four-stage cascade: LLM reasoning → multi-provider verification → KG inference → user clarification. Hallucinated sub-topics are filtered before they enter the queue.
-
-### 🤖 ReAct Loop Exploration
-
-ExploreAgent uses a ReAct loop (Thought → Action → Observation) with 14 tools. Instead of fixed search strategies, the LLM autonomously decides when to search, when to analyze, and when to stop — adapting to each topic's complexity.
-
-### 📊 Metacognitive Quality Scoring
-
-Each exploration is scored on information gain, confidence delta, and graph structural change. Low-value explorations are silently discarded. The Agent knows when to stop drilling and switch topics.
-
-### 🌙 DreamAgent Insight Pipeline
-
-L1→L4 multi-cycle pipeline — **zero search API calls** (pure KG + LLM analysis):
-
-| Level | Name | Input → Output |
-|-------|------|---------------|
-| L1 | Light Sleep | ExplorationLog + KG anomalies → ≤100 candidates |
-| L2 | Deep Sleep | Candidates → Top 20 (6-dimension scored) |
-| L3 | Filtering | Scored → Filtered (threshold gate) |
-| L4 | REM Sleep | Filtered → Queue topics for ExploreAgent |
-
-**6-dimension scoring:** Relevance (0.25), Quality (0.20), Frequency (0.15), Recency (0.15), Surprise (0.15), CrossDomain (0.10).
-
-### 🌳 Root Technology Tracing
-
-Spreading activation algorithm (Collins & Loftus, 1975) traces any knowledge node back to its root technology. metacognitive monitoring and planning look unrelated on the surface — but both trace back to `transformer attention`.
-
-### 🔄 Behavior Rule Internalization
-
-High-quality discoveries (≥ 7.0) don't just sit in a database. They become behavioral rules — skills, reflection templates, decision frameworks — that permanently change how the host Agent operates.
-
-### ⚙️ Fully Config-Driven
-
-All agents, daemons, models, intervals, thresholds, tool lists, and scoring weights are loaded from `config.json`. Zero hard-coded configuration in source code.
-
-### 🔗 OpenClaw Integration
-
-CA 通过 **1 个 Skill + 4 个 Hooks** 与外部 Agent（如 R1D3）集成：
-
-**提供的 Skill（Agent 主动调用）：**
-
-| Skill | 目录 | 触发时机 | 功能 |
-|-------|------|---------|------|
-| **knowledge-query** | `openclaw-skills/knowledge-query/` | Agent 判断需要知识查询时 | 查询 KG 置信度，返回回答策略 |
-
-**提供的 Hooks（事件自动拦截）：**
-
-| Hook | 类型 | 目录 | 事件 | 功能 |
-|------|------|------|------|------|
-| **knowledge-bootstrap** | Internal | `openclaw-hooks/internal/knowledge-bootstrap/` | `agent:bootstrap` | Session 启动注入知识摘要 + 行为规范 |
-| **knowledge-learn** | Internal | `openclaw-hooks/internal/knowledge-learn/` | `message:sent` | 检测低置信度回答，注入 CA 探索队列 |
-| **knowledge-gate** | Plugin | `openclaw-hooks/plugins/knowledge-gate/` | `before_agent_reply` | 回复前二次 KG 检查，注入上下文 |
-| **knowledge-inject** | Plugin | `openclaw-hooks/plugins/knowledge-inject/` | `after_tool_call` | web_search 后自动记录到 KG |
-
-Bidirectional sync via `shared_knowledge/`. R1D3 (host Agent) queries confidence, injects topics, reads discoveries. Curious Agent writes findings back. The two Agents evolve together.
-
-### 🧠 Cognitive Framework (v0.3.0 NEW)
-
-**"Know what it knows, know what it doesn't know"** — R1D3 can now assess its KG confidence before answering:
-
-| Confidence | Level | Action |
-|------------|-------|--------|
-| ≥ 0.85 | Expert 🟢 | Answer from KG, cite sources |
-| 0.6-0.85 | Intermediate 🟡 | KG + web search supplement |
-| 0.3-0.6 | Beginner 🟠 | Search first, inject to CA |
-| < 0.3 | Novice 🔴 | LLM fallback + **ALWAYS** inject to CA |
-
-**When R1D3 doesn't know → automatically triggers CA exploration → next time, topic is in KG.**
-
-**API endpoints:**
-- `POST /api/knowledge/check` — Query KG confidence + get guidance
-- `POST /api/knowledge/learn` — Inject unknown topic to CA queue
-- `GET /api/knowledge/analytics` — KG hit/search/fallback stats
-- `POST /api/knowledge/record` — Save web search results to KG
-
----
-
-## Problems Curious Agent Solves
-
-| Without Curious Agent | With Curious Agent |
-|----------------------|-------------------|
-| ❌ Every search starts from zero. No memory of past explorations. | ✅ Knowledge graph persists and grows. Past explorations inform future ones. |
-| ❌ AI gives confident answers about topics it barely understands. | ✅ Confidence-aware: states certainty level, explores more when unsure. |
-| ❌ Same topic explored 10 times with declining quality. | ✅ Metacognitive tracking detects diminishing returns and switches topics. |
-| ❌ Discoveries live in chat history, never become capabilities. | ✅ High-quality findings → behavioral rules → permanent capability upgrades. |
-| ❌ No understanding of how concepts connect at a deep level. | ✅ Spreading activation traces any node to its root technology. |
-| ❌ Agent configuration scattered across code, hardcoded values everywhere. | ✅ Single `config.json` source. All agents and daemons dynamically configured. |
-| ❌ You have to manually kick off each exploration. | ✅ Daemons run 24/7 on configurable schedules. Heartbeat-driven autonomy. |
-| ❌ When R1D3 doesn't know something, it just guesses. | ✅ Auto-inject unknowns to CA. Next time, topic is in KG — no more guessing. |
-
----
-
-## Why Curious Agent Is Special
-
-| | |
-|---|---|
-| **Unified CAAgent.** | ExploreAgent and DreamAgent share one class. Only config differs. Clean, maintainable, no duplication. |
-| **ReAct loop, not fixed scripts.** | LLM autonomously decides when to search, analyze, or stop. Adapts to topic complexity. |
-| **21 Tools, 4 categories.** | KG (9), Queue (5), Search (5), LLM (2). Unified ToolRegistry with typed interfaces. |
-| **DreamAgent uses zero search API.** | Pure KG + LLM analysis. L1→L4 pipeline generates insights without consuming Serper/Bocha quota. |
-| **Hermes error classification.** | Layered error handling from NousResearch's Hermes Agent — transient vs permanent vs retryable. |
-| **Quality-gated knowledge.** | Only findings passing the quality gate enter the graph and shared knowledge layer. |
-| **Root technology tracing.** | Cross-subgraph activation convergence automatically surfaces fundamental mechanisms. |
-| **Config-driven architecture.** | Every parameter in `config.json`. Change intervals, models, thresholds without touching code. |
-| **Cognitive Framework (v0.3.0).** | 4-level confidence assessment. Auto-inject unknowns. R1D3 learns what it doesn't know. |
-
----
-
-## What Curious Agent Is Not
-
-| | |
-|---|---|
-| **Not a search engine.** | It builds a knowledge graph, not a list of links. |
-| **Not a chatbot.** | Agents have jobs to do, not chat windows. |
-| **Not an agent framework.** | It runs inside OpenClaw as a plugin, not as a standalone framework. |
-| **Not a prompt manager.** | Agents bring their own prompts. Curious Agent manages knowledge, not text. |
-| **Not a single-agent tool.** | Designed for multi-agent collaboration: ExploreAgent + DreamAgent + SleepPruner. |
-
----
-
-## Quickstart
-
-### Prerequisites
-
-- Python 3.11+
-- Neo4j (running locally, or JSON fallback)
-- API keys: Bocha, Serper, Volcengine, SiliconFlow (in `.env`)
-
-### Install & Run
+**一键抓取入队**：
 
 ```bash
-cd /root/dev/curious-agent
+curl -X POST http://localhost:4848/api/web-scrape/enqueue \
+  -d '{"url": "https://arxiv.org/html/2506.18496v2", "topic": "LTKD"}'
+# → Scraped 51K chars, queued for DeepRead
+```
 
-# Install dependencies
+### 🕸️ Neo4j 知识图谱
+
+所有知识点存储在 Neo4j，支持：
+
+- **追溯**：每个知识点可追溯到原文位置
+- **关联**：自动建立 parent-child、citation 关系
+- **可视化**：Web UI 图谱交互（拖拽、缩放、点击查看详情）
+- **查询**：置信度查询、根技术追溯、热度分析
+
+### 🤖 三 Agent 协同架构
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Curious Agent Daemon                          │
+│                                                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │ ExploreAgent │  │ DeepReadAgent│  │  DreamAgent  │          │
+│  │   (ReAct)    │  │  (滑动窗口)   │  │   (L1→L4)   │          │
+│  │              │  │              │  │              │          │
+│  │ Web Search   │  │ PDF/网页深读  │  │ KG 洞察生成  │          │
+│  │ KG 写入      │  │ 6-element提取 │  │ 队列补充     │          │
+│  │ Queue 入队   │  │ KG 结构化写入 │  │ 跨域联想     │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+│        ↓                  ↓                  ↓                  │
+│   5min poll          30min poll          6h heartbeat           │
+│                                                                  │
+│  ┌──────────────┐                                               │
+│  │ SleepPruner │  ← KG 维护：清理低热度节点                      │
+│  │  (自适应)   │                                                 │
+│  └──────────────┘                                               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+| Agent | 触发 | 功能 | 工具数 |
+|-------|------|------|--------|
+| **ExploreAgent** | 5min poll | Web 搜索 → KG 写入 → Queue 入队 | 14 |
+| **DeepReadAgent** | 30min poll | 论文深读 → 6-element → KG 结构化 | 8 |
+| **DreamAgent** | 6h heartbeat | KG 洞察 → 新探索候选 | 15 |
+
+### ⚙️ Web UI 可视化配置
+
+Settings Tab 支持实时配置：
+
+- **DeepRead 配置**：段落重叠、上下文扩展、完整度阈值
+- **温度系统配置**：衰减因子、热点/温区阈值
+- **归档策略配置**：触发温度、TXT/PDF 处理
+
+所有配置持久化到 `config.json`，无需重启。
+
+---
+
+## Quick Start
+
+### 安装
+
+```bash
+git clone https://github.com/weNix901/CuriousAgent.git
+cd curious-agent
+
 pip install -r requirements.txt
-
-# Configure (edit config.json as needed)
 cp config.example.json config.json
+# 编辑 .env 配置 API keys
+```
 
-# One-command start
+### 启动
+
+```bash
 bash start.sh
 ```
 
-**Services started:**
+**服务启动**：
 
-| Service | Port | Role |
-|---------|------|------|
-| curious_api | 4848 | REST API + Web UI |
-| curious_agent | — | Two-agent daemon (ExploreAgent + DreamAgent) + SleepPruner |
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| **curious_api** | 4848 | REST API + Web UI |
+| **curious_agent --daemon** | - | 三 Agent 协同运行 |
 
-**Access:**
-- 🌐 Web UI: http://10.1.0.13:4848/
-- 📡 API: http://10.1.0.13:4848/api/curious/state
+**访问**：
+- 🌐 Web UI: `http://localhost:4848/`
+- 📡 API: `http://localhost:4848/api/curious/state`
 
-### Inject a Topic
+### 使用
 
-```bash
-python3 curious_agent.py --inject "agent memory systems" \
-  --score 8.5 --depth 8.0 --reason "research interest"
-```
-
-### Run Daemon Mode
+**1. 注入探索话题**：
 
 ```bash
-# Two-agent daemon (recommended)
-python3 curious_agent.py --daemon
-
-# Config-driven: intervals, models, thresholds all from config.json
-# Ctrl+C stops all agents gracefully
-```
-
-### API Quick Reference
-
-```bash
-# State
-curl http://localhost:4848/api/curious/state
-
-# Inject topic
 curl -X POST http://localhost:4848/api/curious/inject \
-  -H "Content-Type: application/json" \
-  -d '{"topic":"metacognition","score":8.5,"depth":8.0}'
-
-# Confidence check (R1D3 integration)
-curl "http://localhost:4848/api/knowledge/confidence?topic=agent+memory"
-
-# Root technology tracing
-curl "http://localhost:4848/api/kg/trace/metacognitive%20monitoring"
-
-# Root pool
-curl http://localhost:4848/api/kg/roots
-
-# === v0.3.0 Cognitive Framework ===
-
-# Check KG confidence + get guidance
-curl -X POST http://localhost:4848/api/knowledge/check \
-  -H "Content-Type: application/json" \
-  -d '{"topic":"FlashAttention"}'
-
-# Inject unknown topic for CA exploration
-curl -X POST http://localhost:4848/api/knowledge/learn \
-  -H "Content-Type: application/json" \
-  -d '{"topic":"FlashAttention","strategy":"llm_answer"}'
-
-# Get cognitive stats
-curl http://localhost:4848/api/knowledge/analytics
+  -d '{"topic": "FlashAttention", "score": 8.5}'
 ```
+
+**2. 抓取网页入队深读**：
+
+```bash
+curl -X POST http://localhost:4848/api/web-scrape/enqueue \
+  -d '{"url": "https://arxiv.org/html/2506.18496v2", "topic": "LTKD"}'
+```
+
+**3. 查询 KG 知识点**：
+
+```bash
+curl "http://localhost:4848/api/kg/nodes/Long-Tailed%20Knowledge%20Distillation"
+```
+
+**4. 查看图谱可视化**：
+
+打开 Web UI → Graph Tab → 拖拽节点、点击查看 6-element 详情
+
+---
+
+## API Reference
+
+### 核心 API
+
+| Endpoint | 说明 |
+|----------|------|
+| `GET /api/curious/state` | 系统状态（队列、KG、日志） |
+| `POST /api/curious/inject` | 注入探索话题 |
+| `GET /api/queue` | 队列状态 |
+| `GET /api/kg/nodes/{topic}` | 知识点详情（含 6-element） |
+| `GET /api/kg/roots` | 根技术池 |
+| `GET /api/kg/trace/{topic}` | 根技术追溯 |
+
+### v0.3.3 新增
+
+| Endpoint | 说明 |
+|----------|------|
+| `POST /api/web-scrape/enqueue` | 网页抓取入队深读 |
+| `POST /api/web-scrape/batch` | 批量处理 KG 无知识点节点 |
+| `GET /api/config` | 获取配置 |
+| `POST /api/config` | 更新配置 |
+| `GET /api/trusted-sources` | 信任源列表 |
 
 ---
 
@@ -336,185 +230,62 @@ curl http://localhost:4848/api/knowledge/analytics
 
 ```
 curious-agent/
-├── curious_agent.py              # CLI entry + daemon orchestration
-├── curious_api.py                # Flask REST API + Web UI (+ /api/knowledge/* endpoints)
-├── config.json                   # Central configuration (all agents, daemons, models)
-├── start.sh                      # One-command startup
+├── curious_agent.py           # CLI + Daemon 协调
+├── curious_api.py             # Flask API + Web UI
+├── config.json                # 中央配置
+├── start.sh                   # 一键启动
+│
 ├── core/
-│   ├── hooks/                   # v0.3.0: Cognitive hook system
-│   │   └── cognitive_hook.py    # CognitiveHook — confidence + guidance
-│   ├── agents/                  # v0.2.9: Unified Agent framework
-│   │   ├── ca_agent.py          # CAAgent — unified Agent class
-│   │   ├── explore_agent.py     # ExploreAgent (ReAct loop, 14 Tools)
-│   │   ├── dream_agent.py       # DreamAgent (L1→L4 pipeline, 15 Tools)
-│   │   └── evolution.py         # Self-Evolution engine
-│   ├── tools/                   # v0.2.9: Tool system (21 Tools)
-│   │   ├── registry.py           # ToolRegistry (unified registration)
-│   │   ├── base.py               # Tool base class
-│   │   ├── kg_tools.py           # KG Tools (9): query_kg, add_to_kg, ...
-│   │   ├── queue_tools.py        # Queue Tools (5): add_to_queue, claim, ...
-│   │   ├── search_tools.py       # Search Tools (5): search_web, fetch_page, ...
-│   │   └── llm_tools.py          # LLM Tools (2): llm_analyze, llm_summarize
-│   ├── frameworks/               # v0.2.9: Execution frameworks
-│   │   ├── agent_runner.py       # Nanobot ReAct execution engine
-│   │   ├── agent_hook.py         # Hook callback system
-│   │   ├── error_classifier.py   # Hermes error classifier (NousResearch)
-│   │   ├── heartbeat.py          # Nanobot Heartbeat service (HKUDS)
-│   │   └── retry_utils.py        # Retry strategy utilities
-│   ├── daemon/                   # v0.2.9: Daemon processes
-│   │   ├── explore_daemon.py     # ExploreAgent continuous guardian
-│   │   └── dream_daemon.py       # DreamAgent heartbeat guardian
-│   ├── kg/                       # v0.2.9: Knowledge storage layer
-│   │   ├── kg_repository.py      # KG Repository abstraction
-│   │   ├── neo4j_client.py       # Neo4j operations wrapper
-│   │   ├── json_kg_repository.py # JSON fallback repository
-│   │   └── repository_factory.py # Repository factory
-│   ├── configs/                  # v0.2.9: Python config dataclasses
-│   │   ├── agent_explore.py      # ExploreAgent config
-│   │   ├── agent_dream.py        # DreamAgent config
-│   │   └── llm_providers.py      # Multi-LLM provider config
-│   ├── config.py                 # Central config loader (config.json → dataclasses)
-│   ├── knowledge_graph.py        # Knowledge graph (parent-child, root tracing)
-│   ├── curiosity_decomposer.py   # 4-stage topic decomposition
-│   ├── quality_v2.py             # Information gain quality scoring
-│   ├── competence_tracker.py     # Competence gap tracking
-│   ├── curiosity_engine.py       # ICM fusion scoring
-│   ├── explorer.py               # Layered explorer (L1 Web + L2 ArXiv)
-│   ├── insight_synthesizer.py    # Cross-topic insight synthesis
-│   ├── discovery_writer.py       # Quality-gated discovery persistence
-│   ├── event_bus.py              # Event bus (pub/sub)
-│   ├── embedding_service.py      # Embedding service (SiliconFlow)
-│   ├── providers/                # Search providers
-│   │   ├── bocha_provider.py
-│   │   └── serper_provider.py
-│   ├── spider/                   # Spider engine internals (legacy)
-│   │   ├── state.py
-│   │   └── checkpoint.py
-│   └── repository/               # Storage layer (legacy)
-│       ├── base.py
-│       └── json_repository.py
-├── migrations/
-│   └── migrate_json_to_neo4j.py  # JSON → Neo4j migration script
-├── shared_knowledge/             # Shared knowledge layer (R1D3 ↔ Curious Agent)
-├── tests/                        # 97 test modules
-│   ├── hooks/                    # CognitiveHook tests (v0.3.0)
-│   ├── agents/                   # CAAgent, ExploreAgent, DreamAgent, hooks
-│   ├── frameworks/               # agent_runner, agent_hook, heartbeat, retry
-│   ├── tools/                    # base, kg_tools, queue_tools, search_tools, llm_tools
-│   ├── daemon/                   # explore_daemon, dream_daemon
-│   ├── kg/                       # kg_repository, neo4j_client, repository_factory
-│   ├── configs/                  # config, llm_providers, hooks_config
-│   └── e2e/                      # Real exploration E2E tests
-├── docs/                         # Design documents
-│   └── integration-guide.md      # v0.3.0 R1D3 integration guide
-└── ui/                           # Web UI (D3.js knowledge graph visualization)
-```
-
----
-
-## Configuration
-
-All agent and daemon parameters are controlled via `config.json`. No hard-coded values in source code.
-
-```json
-{
-  "hooks": {
-    "cognitive": {
-      "confidence_threshold": 0.6,
-      "auto_inject_unknowns": true,
-      "search_before_llm": true
-    }
-  },
-  "agents": {
-    "explore": {
-      "model": "volcengine",
-      "max_iterations": 10,
-      "tools": [
-        "search_web", "query_kg", "add_to_kg", "claim_queue",
-        "mark_done", "get_queue", "llm_analyze", "llm_summarize",
-        "fetch_page", "process_paper", "update_kg_status",
-        "update_kg_metadata", "get_node_relations", "add_to_queue"
-      ]
-    },
-    "dream": {
-      "scoring_weights": {
-        "relevance": 0.25, "frequency": 0.15, "recency": 0.15,
-        "quality": 0.20, "surprise": 0.15, "cross_domain": 0.10
-      },
-      "min_score_threshold": 0.8,
-      "min_recall_count": 3,
-      "max_candidates": 100,
-      "max_scored": 20
-    }
-  },
-  "daemon": {
-    "explore": {
-      "poll_interval_seconds": 300,
-      "max_retries": 3,
-      "retry_delay_seconds": 15
-    },
-    "dream": {
-      "interval_seconds": 21600
-    }
-  },
-  "knowledge": {
-    "root_seeds": [
-      "transformer attention", "gradient descent",
-      "backpropagation", "softmax", "RL reward signal",
-      "uncertainty quantification"
-    ],
-    "search": {
-      "primary": "serper",
-      "fallback": "bocha",
-      "fallback_on_empty": true,
-      "daily_quota": { "enabled": true, "serper": 100, "bocha": 50, "reset_hour": 0 }
-    },
-    "kg": {
-      "enabled": true,
-      "uri": "bolt://localhost:7687",
-      "fallback_to_json": false
-    }
-  },
-  "behavior": {
-    "curiosity": {
-      "max_explore_count": 3,
-      "min_marginal_return": 0.3,
-      "high_quality_threshold": 7.0
-    },
-    "notification": { "enabled": true, "min_quality": 7.0 }
-  },
-  "llm": {
-    "default_provider": "volcengine",
-    "selection_strategy": "capability",
-    "providers": {
-      "volcengine": {
-        "api_url": "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
-        "models": [{ "model": "ark-code-latest", "weight": 3 }]
-      }
-    }
-  }
-}
+│   ├── agents/
+│   │   ├── ca_agent.py        # 统一 Agent 类
+│   │   ├── explore_agent.py   # ExploreAgent (ReAct)
+│   │   ├── deep_read_agent.py # DeepReadAgent (v0.3.3)
+│   │   └── dream_agent.py     # DreamAgent (L1→L4)
+│   │
+│   ├── tools/
+│   │   ├── paper_tools.py     # PDF/TXT 处理
+│   │   ├── web_scrape_tools.py # 网页抓取 (v0.3.3)
+│   │   ├── kg_tools.py        # KG 操作
+│   │   ├── queue_tools.py     # 队列操作
+│   │   └── llm_tools.py       # LLM 分析
+│   │
+│   ├── daemon/
+│   │   ├── explore_daemon.py  # ExploreAgent 守护
+│   │   ├── deep_read_daemon.py # DeepReadDaemon (v0.3.3)
+│   │   └── dream_daemon.py    # DreamAgent 守护
+│   │
+│   ├── kg/
+│   │   ├── kg_repository.py   # KG Repository
+│   │   └── repository_factory.py
+│   │
+│   └── hooks/
+│       └── cognitive_hook.py  # 认知框架 Hook
+│
+├── config/
+│   └── trusted_sources.json   # 信任源配置 (v0.3.3)
+│
+├── ui/                        # Web UI
+│   ├── index.html
+│   ├── css/base.css
+│   ├── js/*.js
+│   └── views/*.html
+│
+├── papers/                    # 论文 TXT 存储
+├── knowledge/                 # KG 状态
+└── tests/                     # 测试套件
 ```
 
 ---
 
 ## Release History
 
-| Version | Theme | Date |
-|---------|-------|------|
-| **v0.3.2** | Bootstrap Hook System Refactor — `/api/knowledge/session/startup` endpoint, unified behavior guidelines in config.json, 1 Skill + 4 Hooks explicit integration | 2026-04-21 |
-| **v0.3.1-patch** | Bug fixes + Repo cleanup + KG design fix | 2026-04-19 |
-| **v0.3.1** | Observability Layer — Hook audit, trace visualization, WebUI multi-file, external agent tracking | 2026-04-17 |
-| **v0.3.0** | Cognitive Framework — Know what it knows, know what it doesn't know. 4-level confidence, auto-inject unknowns, `/api/knowledge/*` endpoints | 2026-04-15 |
-| **v0.2.9** | Agent architecture refactor — CAAgent unified class, ReAct loop, 21 Tools, Neo4j storage, Hermes error handling | 2026-04-13 |
-| **v0.2.8** | Deadlock fixes — SpiderAgent queue stuck, KG quality issues | 2026-04-xx |
-| **v0.2.7** | Queue atomicity + QualityV2 fix + Parent link | 2026-03-31 |
-| **v0.2.6** | Three-agent concurrent architecture (Spider/Dream/Pruner) | 2026-03-29 |
-| **v0.2.5** | KG root technology tracing (Spreading activation) | 2026-03-28 |
-| **v0.2.4** | R1D3 integration + InsightSynthesizer + Spider Engine | 2026-03-26 |
-| **v0.2.3** | Full capability landing (decomposition, quality, behavior) | 2026-03-23 |
-| **v0.2.2** | Meta-cognitive monitor (MGV loop) | 2026-03-21 |
-| **v0.2.1** | ICM fusion scoring | 2026-03-15 |
+| Version | Theme | Highlights |
+|---------|-------|-----------|
+| **v0.3.3** | DeepRead + Web Scrape | 滑动窗口100%覆盖、6-element结构、网页抓取管道、Settings UI |
+| v0.3.2 | Bootstrap Hook | Session startup API、行为规范统一 |
+| v0.3.1 | Observability | Hook审计、追踪可视化、外部Agent跟踪 |
+| v0.3.0 | Cognitive | 4级置信度、自动注入未知话题 |
+| v0.2.9 | Agent Refactor | 统一CAAgent、ReAct循环、21工具 |
 
 ---
 
@@ -522,90 +293,28 @@ All agent and daemon parameters are controlled via `config.json`. No hard-coded 
 
 | Status | Feature |
 |--------|---------|
-| ✅ | Unified CAAgent framework (ExploreAgent + DreamAgent) |
-| ✅ | ReAct loop exploration (LLM-autonomous search strategy) |
-| ✅ | 21 Tools across 4 categories (KG, Queue, Search, LLM) |
-| ✅ | DreamAgent L1→L4 insight pipeline (zero search API) |
-| ✅ | Neo4j knowledge graph storage |
-| ✅ | Hermes error classification + retry utilities |
-| ✅ | Fully config-driven (zero hard-coded values) |
-| ✅ | OpenClaw bidirectional sync |
-| ✅ | **CognitiveHook — 4-level confidence framework** |
-| ✅ | **/api/knowledge/* endpoints for R1D3 integration** |
-| ✅ | **Auto-inject unknown topics to CA queue** |
-| ✅ | **Hook audit middleware + trace writers (v0.3.1)** |
-| ✅ | **WebUI 4-tab dashboard (v0.3.1)** |
-| ✅ | **External agent tracking + timeline (v0.3.1)** |
-| ✅ | OpenClaw Skill + Hooks integration (knowledge-query + 4 hooks) |
-| ⚪ | Neo4j as primary store (JSON fallback retirement) |
-| ⚪ | Self-Evolution engine (Bayesian weight updates) |
-| ⚪ | Adaptive interval scheduling (based on queue depth) |
-| ⚪ | Dexterous Agent integration (experience-driven execution) |
-| ⚪ | R1D3 Skill interface integration |
-| ⚪ | Web UI dashboard for real-time monitoring |
+| ✅ | DeepReadAgent 滑动窗口全覆盖 |
+| ✅ | 6-element 知识点结构 |
+| ✅ | 网页抓取管道 (arXiv HTML、GitHub、文档) |
+| ✅ | Neo4j KG 可视化 |
+| ✅ | Settings Web UI |
+| ✅ | 三 Agent 协同架构 |
+| ⚪ | 自适应调度（基于队列深度） |
+| ⚪ | 自进化引擎（Bayesian权重更新） |
+| ⚪ | 多语言论文支持 |
 
 ---
 
-## FAQ
+## Why Curious Agent
 
-**How is Curious Agent different from a regular AI search?**
-Regular search gives you links. Curious Agent builds a structured knowledge graph, traces connections between concepts, and converts high-value findings into permanent behavioral capabilities.
-
-**Does it run continuously?**
-Yes. ExploreAgent polls the queue every 5 minutes. DreamAgent generates insights every 6 hours. Both are configurable via `config.json`.
-
-**What happens to low-quality explorations?**
-They're silently discarded. Only findings that pass the quality gate (≥ 7.0) enter the knowledge graph and shared knowledge layer.
-
-**Can I use it with my own AI agent?**
-Yes. It's designed as an OpenClaw plugin. The `shared_knowledge/` directory provides bidirectional sync between Curious Agent and the host Agent.
-
-**How does it know what to explore next?**
-Four signals: (1) curiosity queue (manually injected or dream-generated), (2) competence gaps (topics you've never explored), (3) metacognitive quality scoring (diminishing returns detection), (4) root technology tracing (surface-to-fundamental connections).
-
-**What changed in v0.3.2?**
-
-Bootstrap Hook System Refactor — Unified injection architecture:
-- New `/api/knowledge/session/startup` endpoint: CA backend assembles complete injection content (KG nodes + behavior guidelines)
-- Removed `/api/kg/overview` endpoint (no longer needed)
-- `handler.ts` simplified: only calls API and injects returned content
-- Unified behavior guidelines storage in `config.json` (no more hardcoded templates)
-- Updated README with explicit Skills/Hooks table: **1 Skill + 4 Hooks**
-- Removed obsolete `skills/curious-agent/SKILL.md` (covered by installation guide)
-- Added API tests for session startup endpoint
-
-**What changed in v0.3.1-patch?**
-
-Bug fixes + Repo cleanup + KG design clarification:
-- 搜索顺序: Serper (primary) → Bocha (fallback)
-- KG 只存 `status=done` 的知识，Queue 存待探索 topics
-- `add_child()` / `add_citation()` 不再创建 KG 占位节点
-- Repo 清理: 移除 3400+ 运行时/敏感文件
-- UI fixes: stat-log typo, 图谱控件事件绑定, 节点斥力范围 -600~+100
-- 安全审计: 无 API key 泄露，配置文件已移除
-
-**What changed in v0.3.1?**
-
-Observability Layer — Full visibility into CA's internal work and external interactions:
-- Hook audit middleware: All OpenClaw hook calls logged to SQLite
-- Trace writers: Explorer/Dream Agent execution steps captured
-- External Agent tracking: Agent registry, activity timeline, global event stream
-- WebUI 4-tab dashboard: List view, Graph view, Internal view, External view
-- 30+ new API endpoints: `/api/audit/*`, `/api/explorer/*`, `/api/dream/*`, `/api/timeline`, `/api/agents`
-- Bug fixes: Endpoint mismatch (`/api/knowledge/confidence`), Flask `g.start_time`, `holder_id` parameters
-
-**What changed in v0.3.0?**
-
-Cognitive Framework — R1D3 can now "know what it knows and know what it doesn't know":
-- 4-level confidence assessment (Expert → Intermediate → Beginner → Novice)
-- Auto-inject unknown topics to CA queue for exploration
-- `/api/knowledge/*` endpoints for KG confidence check, learning, analytics
-- When R1D3 doesn't know something, CA will explore it — next time it's in KG
-- Legacy Spider code removed (spider_engine.py deleted)
-
-**What changed in v0.2.9?**
-
-The biggest refactor yet. SpiderAgent and DreamAgent became proper Agents (CAAgent) with ReAct loops and Tool interfaces. 21 tools across 4 categories. Hermes error handling from NousResearch. Neo4j storage layer. DreamAgent generates insights without any search API calls. All configuration moved to `config.json` — zero hard-coded values.
+| | |
+|---|---|
+| **100%覆盖** | 滑动窗口确保论文每一页都被阅读，无遗漏 |
+| **结构化知识** | 6-element 让知识点可理解、可追溯、可关联 |
+| **多源输入** | PDF、网页、GitHub——任何有价值的文本都能处理 |
+| **自主运行** | 7×24 不间断探索、深读、洞察 |
+| **可视化** | Web UI 图谱交互，配置实时生效 |
+| **可追溯** | 每个知识点追溯到原文，不凭空生成 |
 
 ---
 
@@ -615,4 +324,4 @@ MIT © 2026
 
 ---
 
-_设计理念：**好奇驱动，主动探索，元认知调控，自我进化**_
+> **设计理念：好奇驱动、主动探索、深度理解、自主进化**
