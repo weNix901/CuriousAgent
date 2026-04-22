@@ -514,11 +514,14 @@ def api_state():
         kg_factory = get_kg_factory()
         edges = kg_factory.get_all_relations_sync()
         for e in edges:
-            kg_edges.append({
-                "source": e.get("source", ""),
-                "target": e.get("target", ""),
-                "type": e.get("relation_type", "")
-            })
+            src = e.get("source", "")
+            tgt = e.get("target", "")
+            if src and tgt and src != tgt:
+                kg_edges.append({
+                    "source": src,
+                    "target": tgt,
+                    "type": e.get("relation_type", "")
+                })
     except Exception as e:
         pass
     

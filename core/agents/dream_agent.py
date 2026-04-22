@@ -377,7 +377,8 @@ class DreamAgent(CAAgent):
             )
             topics_added.append(topic)
             
-            self._create_cites_edge(source_node, topic)
+            if source_node != topic:
+                self._create_cites_edge(source_node, topic)
         
         return topics_added
 
