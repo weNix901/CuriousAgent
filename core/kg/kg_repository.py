@@ -308,19 +308,19 @@ class KGRepository:
         relation_type: str = "IS_CHILD_OF"
     ) -> bool:
         """Create a relation between two topics."""
-        query = """
-        MATCH (a:Knowledge {topic: $from_topic})
-        MATCH (b:Knowledge {topic: $to_topic})
-        MERGE (a)-[r:%s]->(b)
-        RETURN created(r) as created
-        """ % relation_type
+        query = f"""
+        MATCH (a:Knowledge {{topic: $from_topic}})
+        MATCH (b:Knowledge {{topic: $to_topic}})
+        CREATE (a)-[r:{relation_type}]->(b)
+        RETURN true as success
+        """
 
         result = await self._client.execute_write(
             query,
             from_topic=from_topic,
             to_topic=to_topic
         )
-        return len(result) > 0
+        return result[0].get("success", False) if result else False
 
     async def mark_dormant(self, topic: str) -> bool:
         """Mark a node as dormant."""
