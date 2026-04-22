@@ -29,13 +29,30 @@ function buildGraphData() {
 
   var links = [], seen = {};
 
+  // v0.3.3: Use Neo4j edges from API
+  var kgEdges = state.kg_edges || [];
+  kgEdges.forEach(function(e) {
+    if (topics[e.source] && topics[e.target]) {
+      var key = [e.source, e.target].sort().join('|');
+      if (!seen[key]) {
+        seen[key] = true;
+        var type = e.type === 'DERIVED_FROM' ? 'decomposition' : e.type.toLowerCase();
+        links.push({ source: e.source, target: e.target, type: type });
+      }
+    }
+  });
+
+  // Legacy: fallback to topics.children
   for (var parent in topics) {
     var children = (topics[parent] && topics[parent].children) || [];
     for (var i = 0; i < children.length; i++) {
       var child = children[i];
       if (topics[child]) {
-        links.push({ source: parent, target: child, type: 'decomposition' });
-        seen[[parent, child].sort().join('|')] = true;
+        var key = [parent, child].sort().join('|');
+        if (!seen[key]) {
+          seen[key] = true;
+          links.push({ source: parent, target: child, type: 'decomposition' });
+        }
       }
     }
   }
