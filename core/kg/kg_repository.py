@@ -91,7 +91,8 @@ class KGRepository:
             n.extracted_text_path = $extracted_text_path,
             n.source_missing = $source_missing,
             n.parent_topic = $parent_topic,
-            n.deep_read_status = $deep_read_status
+            n.deep_read_status = $deep_read_status,
+            n.shared_at = NULL
         """
         
         if embedding is not None:
@@ -223,7 +224,6 @@ class KGRepository:
             return await self.query_knowledge(query_text, limit=top_k)
 
     async def get_node(self, topic: str) -> Optional[Dict[str, Any]]:
-        """Get a single node by exact topic match including 6-element fields."""
         query = """
         MATCH (n:Knowledge {topic: $topic})
         RETURN n.topic as topic, n.content as content, n.status as status,
@@ -231,7 +231,8 @@ class KGRepository:
                n.depth as depth, n.source_urls as source_urls,
                n.definition as definition, n.core as core, n.context as context,
                n.examples as examples, n.formula as formula,
-               n.completeness_score as completeness_score, n.parent_topic as parent_topic
+               n.completeness_score as completeness_score, n.parent_topic as parent_topic,
+               n.shared_at as shared_at
         """
 
         result = await self._client.execute_query(query, topic=topic)
@@ -442,3 +443,133 @@ class KGRepository:
             key_points=node.content.examples or [],
             keywords=node.keywords or []
         )
+
+    async def mark_shared(self, topic: str) -> bool:
+        """Mark a knowledge node as shared with R1D3."""
+        from datetime import datetime, timezone
+        
+        query = """
+        MATCH (n:Knowledge {topic: $topic})
+        SET n.shared_at = $shared_at
+        RETURN n.topic as topic
+        """
+        
+        result = await self._client.execute_write(
+            query,
+            topic=topic,
+            shared_at=datetime.now(timezone.utc).isoformat()
+        )
+        return len(result) > 0
+
+    async def get_unshared_nodes(self, status: str = "done", limit: int = 100) -> List[Dict[str, Any]]:
+        """Get nodes that haven been shared with R1D3 (shared_at is NULL)."""
+        query = """
+        MATCH (n:Knowledge)
+        WHERE n.status = $status AND n.shared_at IS NULL
+        RETURN n.topic as topic,
+               n.definition as definition,
+               n.core as core,
+               n.context as context,
+               n.examples as examples,
+               n.formula as formula,
+               n.completeness_score as completeness_score,
+               n.quality as quality,
+               n.parent_topic as parent_topic,
+               n.source_urls as source_urls,
+               n.status as status
+        ORDER BY n.quality DESC, n.completeness_score DESC
+        LIMIT $limit
+        """
+        
+        result = await self._client.execute_query(query, status=status, limit=limit)
+        return result
+
+    async def export_for_r1d3(self, since: str = None, status: str = "done", limit: int = 100) -> List[Dict[str, Any]]:
+        """Export nodes for R1D3 consumption with optional since timestamp."""
+        if since:
+            query = """
+            MATCH (n:Knowledge)
+            WHERE n.status = $status AND n.created_at >= $since
+            RETURN n.topic as topic,
+                   n.definition as definition,
+                   n.core as core,
+                   n.context as context,
+                   n.examples as examples,
+                   n.formula as formula,
+                   n.completeness_score as completeness_score,
+                   n.quality as quality,
+                   n.parent_topic as parent_topic,
+                   n.source_urls as source_urls,
+                   n.status as status,
+                   n.shared_at as shared_at
+            ORDER BY n.created_at DESC
+            LIMIT $limit
+            """
+            result = await self._client.execute_query(query, status=status, since=since, limit=limit)
+        else:
+            query = """
+            MATCH (n:Knowledge)
+            WHERE n.status = $status
+            RETURN n.topic as topic,
+                   n.definition as definition,
+                   n.core as core,
+                   n.context as context,
+                   n.examples as examples,
+                   n.formula as formula,
+                   n.completeness_score as completeness_score,
+                   n.quality as quality,
+                   n.parent_topic as parent_topic,
+                   n.source_urls as source_urls,
+                   n.status as status,
+                   n.shared_at as shared_at
+            ORDER BY n.quality DESC, n.completeness_score DESC
+            LIMIT $limit
+            """
+            result = await self._client.execute_query(query, status=status, limit=limit)
+        
+        return result
+
+    def mark_shared_sync(self, topic: str) -> bool:
+        """Synchronous wrapper for mark_shared."""
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, self.mark_shared(topic))
+                    return future.result()
+            else:
+                return loop.run_until_complete(self.mark_shared(topic))
+        except RuntimeError:
+            return asyncio.run(self.mark_shared(topic))
+
+    def get_unshared_nodes_sync(self, status: str = "done", limit: int = 100) -> List[Dict[str, Any]]:
+        """Synchronous wrapper for get_unshared_nodes."""
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, self.get_unshared_nodes(status, limit))
+                    return future.result()
+            else:
+                return loop.run_until_complete(self.get_unshared_nodes(status, limit))
+        except RuntimeError:
+            return asyncio.run(self.get_unshared_nodes(status, limit))
+
+    def export_for_r1d3_sync(self, since: str = None, status: str = "done", limit: int = 100) -> List[Dict[str, Any]]:
+        """Synchronous wrapper for export_for_r1d3."""
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, self.export_for_r1d3(since, status, limit))
+                    return future.result()
+            else:
+                return loop.run_until_complete(self.export_for_r1d3(since, status, limit))
+        except RuntimeError:
+            return asyncio.run(self.export_for_r1d3(since, status, limit))

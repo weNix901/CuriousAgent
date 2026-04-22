@@ -1253,7 +1253,8 @@ def api_kg_node_detail(node_id):
             "examples": examples,
             "formula": node.get("formula", ""),
             "completeness_score": node.get("completeness_score", 0),
-            "parent_topic": node.get("parent_topic", "")
+            "parent_topic": node.get("parent_topic", ""),
+            "shared_at": node.get("shared_at", None)
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1390,6 +1391,68 @@ def api_kg_quality_distribution():
                 dist["low"].append(name)
         
         return jsonify({k: {"count": len(v), "topics": v} for k, v in dist.items()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/kg/unshared")
+def api_kg_unshared():
+    """Get knowledge nodes not yet shared with R1D3 (shared_at IS NULL)."""
+    try:
+        from core.kg.repository_factory import get_kg_factory
+        
+        status = request.args.get("status", "done")
+        limit = int(request.args.get("limit", 100))
+        
+        kg_factory = get_kg_factory()
+        nodes = kg_factory.get_unshared_nodes_sync(status=status, limit=limit)
+        
+        return jsonify({
+            "status": "ok",
+            "count": len(nodes),
+            "nodes": nodes
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/kg/export")
+def api_kg_export():
+    """Export knowledge nodes for R1D3 consumption."""
+    try:
+        from core.kg.repository_factory import get_kg_factory
+        from datetime import datetime
+        
+        since = request.args.get("since", "")
+        status = request.args.get("status", "done")
+        limit = int(request.args.get("limit", 100))
+        
+        kg_factory = get_kg_factory()
+        nodes = kg_factory.export_for_r1d3_sync(since=since, status=status, limit=limit)
+        
+        return jsonify({
+            "status": "ok",
+            "exported_at": datetime.now().isoformat(),
+            "count": len(nodes),
+            "nodes": nodes
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/kg/mark_shared/<path:topic>", methods=["POST"])
+def api_kg_mark_shared(topic):
+    """Mark a knowledge node as shared with R1D3."""
+    try:
+        from core.kg.repository_factory import get_kg_factory
+        
+        kg_factory = get_kg_factory()
+        success = kg_factory.mark_shared_sync(topic)
+        
+        if success:
+            return jsonify({"status": "ok", "topic": topic, "shared": True})
+        else:
+            return jsonify({"status": "error", "error": "Node not found"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

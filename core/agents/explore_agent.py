@@ -320,6 +320,10 @@ class ExploreAgent(CAAgent):
                         txt_path=txt_path,
                         source_url=source_url
                     )
+                
+                quality = 5.0 + len(collected_sources)
+                self._push_webhook(topic, quality=quality, source_type="explore")
+                
                 return {
                     "success": True,
                     "content": final_summary,
@@ -415,6 +419,10 @@ class ExploreAgent(CAAgent):
                 txt_path=txt_path,
                 source_url=source_url
             )
+        
+        quality = 5.0 + len(collected_sources)
+        self._push_webhook(topic, quality=quality, source_type="explore")
+        
         return {
             "success": True,
             "content": final_summary + f"\n\nReached max iterations ({self.config.max_iterations})",
@@ -559,3 +567,11 @@ class ExploreAgent(CAAgent):
             logger.info(f"Enqueued deep_read task for: {topic}")
         except Exception as e:
             logger.warning(f"Failed to enqueue deep_read for {topic}: {e}")
+
+    def _push_webhook(self, topic: str, quality: float = 0.0, completeness_score: int = 0, source_type: str = "explore"):
+        """Push discovery webhook to R1D3 (non-blocking)."""
+        try:
+            from core.tools.webhook_tools import push_discovery_webhook
+            push_discovery_webhook(topic, quality=quality, completeness_score=completeness_score, source_type=source_type)
+        except Exception as e:
+            logger.warning(f"Webhook push failed for {topic}: {e}")

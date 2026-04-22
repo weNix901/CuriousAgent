@@ -223,6 +223,27 @@ class KGRepositoryFactory:
             )
         return asyncio.run(_query())
 
+    def mark_shared_sync(self, topic: str) -> bool:
+        """Sync wrapper for mark_shared."""
+        async def _mark():
+            repo = await self._ensure_connected()
+            return await repo.mark_shared(topic)
+        return asyncio.run(_mark())
+
+    def get_unshared_nodes_sync(self, status: str = "done", limit: int = 100) -> list:
+        """Sync wrapper for get_unshared_nodes."""
+        async def _get():
+            repo = await self._ensure_connected()
+            return await repo.get_unshared_nodes(status=status, limit=limit)
+        return asyncio.run(_get())
+
+    def export_for_r1d3_sync(self, since: str = None, status: str = "done", limit: int = 100) -> list:
+        """Sync wrapper for export_for_r1d3."""
+        async def _export():
+            repo = await self._ensure_connected()
+            return await repo.export_for_r1d3(since=since, status=status, limit=limit)
+        return asyncio.run(_export())
+
 
 def get_kg_factory() -> KGRepositoryFactory:
     """Get KG repository factory singleton."""
