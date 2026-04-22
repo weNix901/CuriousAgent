@@ -507,6 +507,21 @@ def api_state():
         topic_copy["quality"] = v.get("quality") or quality_map.get(name)
         topics_with_quality[name] = topic_copy
     
+    # v0.3.3: Add Neo4j edges for graph visualization
+    kg_edges = []
+    try:
+        from core.kg.repository_factory import get_kg_factory
+        kg_factory = get_kg_factory()
+        edges = kg_factory.get_all_relations_sync()
+        for e in edges:
+            kg_edges.append({
+                "source": e.get("source", ""),
+                "target": e.get("target", ""),
+                "type": e.get("relation_type", "")
+            })
+    except Exception as e:
+        pass
+    
     queue_items = kg.list_pending()
     
     exploration_log = []
@@ -539,6 +554,7 @@ def api_state():
     return jsonify({
         "status": "ok",
         "knowledge": {**summary, "topics": topics_with_quality},
+        "kg_edges": kg_edges,
         "curiosity_queue": queue_items,
         "exploration_log": exploration_log,
         "exploration_log_total": exploration_log_total,
