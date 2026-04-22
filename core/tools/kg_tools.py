@@ -235,6 +235,15 @@ class AddToKGTool(Tool):
                 metadata=metadata,
                 relations=relations
             )
+            
+            # v0.3.3: Create DERIVED_FROM relation if parent_topic exists
+            if parent_topic:
+                try:
+                    from core import knowledge_graph_compat as kg
+                    kg.add_child(parent_topic, topic)
+                except Exception as e:
+                    logger.warning(f"Failed to create DERIVED_FROM relation: {e}")
+            
             return f"Added node: {topic} (completeness: {completeness}/5)"
         return f"Node added: {topic} (completeness: {completeness}/5)"
     
