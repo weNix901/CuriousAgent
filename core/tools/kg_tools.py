@@ -1,6 +1,9 @@
 """KG Tools for Knowledge Graph operations."""
+import logging
 from typing import Any
 from core.tools.base import Tool
+
+logger = logging.getLogger(__name__)
 
 
 class QueryKGTool(Tool):
@@ -228,19 +231,18 @@ class AddToKGTool(Tool):
         metadata["completeness_score"] = completeness
         
         if self._repository:
-            result = await self._repository.add_to_knowledge_graph(
+            result = await self._repository.create_knowledge_node(
                 topic=topic,
                 content=content,
                 source_urls=source_urls,
-                metadata=metadata,
-                relations=relations
+                relations=relations,
+                metadata=metadata
             )
             
             # v0.3.3: Create DERIVED_FROM relation if parent_topic exists
             if parent_topic:
                 try:
-                    from core import knowledge_graph_compat as kg
-                    kg.add_child(parent_topic, topic)
+                    await self._repository.add_relation(parent_topic, topic, "DERIVED_FROM")
                 except Exception as e:
                     logger.warning(f"Failed to create DERIVED_FROM relation: {e}")
             
@@ -328,7 +330,7 @@ class UpdateKGMetadataTool(Tool):
         confidence = kwargs.get("confidence")
         
         if self._repository:
-            success = await self._repository.update_kg_metadata(
+            success = await self._repository.update_metadata(
                 topic=topic,
                 heat=heat,
                 quality=quality,

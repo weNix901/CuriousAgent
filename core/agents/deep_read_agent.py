@@ -165,6 +165,9 @@ class DeepReadAgent(CAAgent):
         # 2. LLM overview → identify knowledge points
         kp_list = await self._identify_knowledge_points(full_text, topic)
         
+        # 2.5 Create summary node in KG
+        await self._create_summary_node(topic, source_url=source_url, kp_count=len(kp_list.get("knowledge_points", [])))
+        
         # 3. Write each knowledge point
         written = 0
         for kp in kp_list.get("knowledge_points", []):
@@ -431,6 +434,22 @@ Only return the JSON object, no markdown code blocks."""
                 parent_topic=parent_topic,
             )
     
+    async def _create_summary_node(self, topic: str, source_url: str = None, kp_count: int = 0):
+        """Create summary node in KG before writing child knowledge points."""
+        add_tool = self.tool_registry.get("add_to_kg")
+        if add_tool:
+            await add_tool.execute(
+                topic=topic,
+                content=f"Summary of {kp_count} knowledge points",
+                source_urls=[source_url] if source_url else [],
+                definition=None,
+                core=None,
+                context=None,
+                examples=None,
+                formula=None,
+                parent_topic=None,
+            )
+    
     async def _update_summary_metadata(self, topic: str, child_count: int):
         """Update summary node metadata after deep read."""
         update_tool = self.tool_registry.get("update_kg_metadata")
@@ -444,6 +463,6 @@ Only return the JSON object, no markdown code blocks."""
         try:
             queue = QueueStorage()
             queue.initialize()
-            queue.mark_done(item_id=item["id"])
+            queue.mark_done(item_id=item["id"], holder_id=self.holder_id)
         except Exception as e:
             logger.warning(f"Failed to mark done: {e}")
