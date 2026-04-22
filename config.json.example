@@ -102,6 +102,13 @@
       "enabled": true,
       "min_quality": 7.0
     },
+    "webhook": {
+      "enabled": false,
+      "r1d3_url": "http://localhost:8080/webhooks/discovery",
+      "timeout_seconds": 10,
+      "retry_count": 3,
+      "retry_delay_seconds": 5
+    },
     "user_interests": [
       "agent framework",
       "self-reflection",

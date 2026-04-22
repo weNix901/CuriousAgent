@@ -181,6 +181,10 @@ class DeepReadAgent(CAAgent):
         await self._update_summary_metadata(topic, child_count=written)
         
         logger.info(f"Deep read complete: {topic} → {written} knowledge points")
+        
+        avg_completeness = sum(kp.get("completeness_score", 0) for kp in kp_list.get("knowledge_points", [])) / max(len(kp_list.get("knowledge_points", [])), 1)
+        self._push_webhook(topic, completeness_score=int(avg_completeness), source_type="deep_read")
+        
         return AgentResult(
             content=f"Extracted {written} knowledge points from {topic}",
             success=written > 0,
@@ -466,3 +470,11 @@ Only return the JSON object, no markdown code blocks."""
             queue.mark_done(item_id=item["id"], holder_id=self.holder_id)
         except Exception as e:
             logger.warning(f"Failed to mark done: {e}")
+
+    def _push_webhook(self, topic: str, quality: float = 0.0, completeness_score: int = 0, source_type: str = "deep_read"):
+        """Push discovery webhook to R1D3 (non-blocking)."""
+        try:
+            from core.tools.webhook_tools import push_discovery_webhook
+            push_discovery_webhook(topic, quality=quality, completeness_score=completeness_score, source_type=source_type)
+        except Exception as e:
+            logger.warning(f"Webhook push failed for {topic}: {e}")

@@ -59,3 +59,4 @@ class KnowledgeNode(BaseModel):
     quality: float = 0.0
     status: str = "pending"  # pending|done|dormant
     deep_read_status: str = "pending"  # pending|processing|completed|failed
+    shared_at: Optional[str] = None  # ISO timestamp when shared with R1D3
