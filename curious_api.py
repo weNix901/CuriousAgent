@@ -1230,6 +1230,14 @@ def api_kg_node_detail(node_id):
         if not node:
             return jsonify({"error": "not found"}), 404
         
+        examples_raw = node.get("examples", [])
+        if isinstance(examples_raw, str):
+            examples = [examples_raw] if examples_raw else []
+        elif isinstance(examples_raw, list):
+            examples = examples_raw
+        else:
+            examples = []
+        
         return jsonify({
             "id": node_id,
             "quality": node.get("quality", 0),
@@ -1242,7 +1250,7 @@ def api_kg_node_detail(node_id):
             "definition": node.get("definition", ""),
             "core": node.get("core", ""),
             "context": node.get("context", ""),
-            "examples": node.get("examples", []),
+            "examples": examples,
             "formula": node.get("formula", ""),
             "completeness_score": node.get("completeness_score", 0),
             "parent_topic": node.get("parent_topic", "")
