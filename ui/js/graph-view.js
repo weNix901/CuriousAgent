@@ -29,9 +29,11 @@ function buildGraphData() {
 
   var links = [], seen = {};
 
-  // v0.3.3: Use Neo4j edges from API
+  // v0.3.3: Use Neo4j edges from API (DERIVED_FROM, CITES)
   var kgEdges = state.kg_edges || [];
   kgEdges.forEach(function(e) {
+    // Skip self-referencing edges
+    if (e.source === e.target) return;
     if (topics[e.source] && topics[e.target]) {
       var key = [e.source, e.target].sort().join('|');
       if (!seen[key]) {
@@ -69,6 +71,10 @@ function buildGraphData() {
     }
   }
 
+  // DISABLED: Semantic similarity links (title token overlap)
+  // This generated 165+ noise links from simple word overlaps like "Long" matching unrelated topics.
+  // DERIVED_FROM and CITES provide actual structured knowledge; token overlap does not.
+  /*
   var STOP = ['in', 'for', 'the', 'and', 'of', 'to', 'a', 'based'];
   function tokens(s) { 
     var result = [];
@@ -108,6 +114,7 @@ function buildGraphData() {
       }
     }
   }
+  */
 
   return { nodes: nodes, links: links };
 }
