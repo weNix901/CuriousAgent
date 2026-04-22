@@ -420,14 +420,23 @@ def daemon_mode(interval_minutes: int = 30):
         
         async def get_node_relations(self, topic):
             return []
+        
+        async def update_kg_relation(self, from_topic, to_topic, relation_type="DERIVED_FROM", action="add"):
+            if action == "add":
+                kg.add_child(from_topic, to_topic)
+                return True
+            return False
+        
+        async def query_kg_children(self, topic):
+            return []
     
     kg_repo = KGRepository()
     
     # Register tools for ExploreAgent (ReAct loop)
     from core.tools.search_tools import SearchWebTool, FetchPageTool, ProcessPaperTool
-    from core.tools.kg_tools import QueryKGTool, AddToKGTool, UpdateKGStatusTool, UpdateKGMetadataTool, GetNodeRelationsTool
+    from core.tools.kg_tools import QueryKGTool, AddToKGTool, UpdateKGStatusTool, UpdateKGMetadataTool, GetNodeRelationsTool, UpdateKGRelationTool
     from core.tools.queue_tools import AddToQueueTool, ClaimQueueTool, GetQueueTool, MarkDoneTool, MarkFailedTool
-    from core.tools.llm_tools import LLMAnalyzeTool, LLMSummarizeTool
+    from core.tools.llm_tools import LLMAnalyzeTool, LLMSummarizeTool, LLMCallTool
     
     tool_registry.register(SearchWebTool())
     tool_registry.register(FetchPageTool())
@@ -437,6 +446,7 @@ def daemon_mode(interval_minutes: int = 30):
     tool_registry.register(UpdateKGStatusTool(repository=kg_repo))
     tool_registry.register(UpdateKGMetadataTool(repository=kg_repo))
     tool_registry.register(GetNodeRelationsTool(repository=kg_repo))
+    tool_registry.register(UpdateKGRelationTool(repository=kg_repo))
     tool_registry.register(AddToQueueTool(storage=queue_storage))
     tool_registry.register(ClaimQueueTool(storage=queue_storage))
     tool_registry.register(GetQueueTool(storage=queue_storage))
@@ -444,7 +454,20 @@ def daemon_mode(interval_minutes: int = 30):
     tool_registry.register(MarkFailedTool(storage=queue_storage))
     tool_registry.register(LLMAnalyzeTool())
     tool_registry.register(LLMSummarizeTool())
-    print(f"[v0.2.9] Registered {len(tool_registry)} tools")
+    tool_registry.register(LLMCallTool())
+    
+    # === v0.3.3: Paper tools for DeepReadAgent ===
+    from core.tools.paper_tools import ReadPaperTextTool, ExtractKnowledgePointsTool, ExtractFormulasTool
+    tool_registry.register(ReadPaperTextTool())
+    tool_registry.register(ExtractKnowledgePointsTool())
+    tool_registry.register(ExtractFormulasTool())
+    
+    # === v0.3.3: Web scrape tools for Plan A+B hybrid ===
+    from core.tools.web_scrape_tools import ScrapeWebForDeepReadTool, BatchWebScrapeTool
+    tool_registry.register(ScrapeWebForDeepReadTool())
+    tool_registry.register(BatchWebScrapeTool())
+    
+    print(f"[v0.3.3] Registered {len(tool_registry)} tools (including paper_tools + web_scrape)")
     
     # ExploreDaemon: continuous exploration using ExploreAgent (ReAct nanobot)
     from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig

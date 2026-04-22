@@ -102,6 +102,8 @@ class DeepReadAgent(CAAgent):
             items = queue.get_pending_items(limit=50)
             for item in items:
                 meta = item.get("metadata", {})
+                if isinstance(meta, str):
+                    meta = json.loads(meta)
                 if meta.get("task_type") == "deep_read":
                     claimed = queue.claim_item(
                         item_id=item["id"],
@@ -110,29 +112,29 @@ class DeepReadAgent(CAAgent):
                     )
                     if claimed:
                         logger.info(f"Claimed deep_read item: {item['topic']}")
+                        item["metadata"] = meta
                         return item
         except Exception as e:
             logger.warning(f"Failed to claim deep_read item: {e}")
         return None
     
     async def _process_paper(self, item: dict) -> AgentResult:
-        """Process a single paper: read TXT → extract KP → write to KG."""
+        """Process a single paper: read TXT → extract KP → write to KG.
+        
+        Supports both PDF papers and web-scraped content (TXT only).
+        """
         meta = item.get("metadata", {})
+        if isinstance(meta, str):
+            meta = json.loads(meta)
         topic = meta.get("summary_topic", item.get("topic", "unknown"))
         txt_path = meta.get("txt_path")
         pdf_path = meta.get("pdf_path")
         source_url = meta.get("source_url")
+        source_type = meta.get("source_type", "pdf")
         
-        # 0. PDF recovery check
-        if not pdf_path or not os.path.exists(pdf_path):
-            if not await self._recover_missing_pdf(topic, source_url, pdf_path):
-                return AgentResult(
-                    content=f"PDF missing and cannot recover: {topic}",
-                    success=False,
-                    iterations_used=0,
-                )
-        
-        if not txt_path or not os.path.exists(txt_path):
+        if txt_path and os.path.exists(txt_path):
+            logger.info(f"TXT available for {topic}, skipping PDF check (source_type={source_type}")
+        elif pdf_path and os.path.exists(pdf_path):
             txt_path = await self._parse_pdf_to_txt(pdf_path, topic)
             if not txt_path:
                 return AgentResult(
@@ -140,6 +142,16 @@ class DeepReadAgent(CAAgent):
                     success=False,
                     iterations_used=0,
                 )
+        elif source_url:
+            if await self._recover_missing_pdf(topic, source_url, pdf_path):
+                txt_path = await self._parse_pdf_to_txt(pdf_path, topic)
+        
+        if not txt_path or not os.path.exists(txt_path):
+            return AgentResult(
+                content=f"No TXT available for {topic} (pdf_path={pdf_path}, source_url={source_url})",
+                success=False,
+                iterations_used=0,
+            )
         
         # 1. Read full text
         read_tool = self.tool_registry.get("read_paper_text")
@@ -205,10 +217,205 @@ class DeepReadAgent(CAAgent):
                 return txt_path
         return None
     
+    def _get_overview_sections(self, full_text: str) -> list:
+        """Get full coverage sections using sliding window.
+        
+        Uses overlapping windows to ensure 100% coverage:
+        - Window size: 8000 chars
+        - Step size: 5000 chars (overlap: 3000 chars)
+        - Covers entire paper without gaps
+        """
+        length = len(full_text)
+        
+        if length <= 8000:
+            return [full_text]
+        
+        sections = []
+        window_size = 8000
+        step_size = 5000
+        
+        pos = 0
+        while pos < length:
+            end = min(pos + window_size, length)
+            sections.append(full_text[pos:end])
+            pos += step_size
+            
+            if end == length:
+                break
+        
+        return sections
+    
     async def _identify_knowledge_points(self, full_text: str, topic: str) -> dict:
-        """Use LLM to identify knowledge points in paper."""
-        # Placeholder: returns empty list until extract_knowledge_points tool is implemented
-        return {"knowledge_points": []}
+        """Use LLM to identify knowledge points in paper.
+        
+        Two-phase approach:
+        1. LLM overview on multiple segments → identify candidate knowledge points
+        2. For each candidate, extract 6-element structure from relevant sections
+        """
+        sections = self._get_overview_sections(full_text)
+        
+        llm_tool = self.tool_registry.get("llm_call")
+        if not llm_tool:
+            logger.warning("llm_call tool not available, skipping KP extraction")
+            return {"knowledge_points": []}
+        
+        json_example = '''[
+  {"topic": "concept name", "relevance_score": 8, "section_hint": "keywords"}
+]'''
+        
+        all_candidates = []
+        for i, section_text in enumerate(sections):
+            section_prompt = """You are analyzing an academic paper: """ + topic + """
+
+Paper content (section """ + str(i + 1) + """):
+""" + section_text + """
+
+Identify 3-8 independent knowledge points/concepts from this section.
+Return JSON array format:
+""" + json_example + """
+
+Only return the JSON array."""
+
+            try:
+                section_result = await llm_tool.execute(prompt=section_prompt, task_type="analysis")
+                candidates = self._parse_json_from_response(section_result)
+                if candidates:
+                    all_candidates.extend(candidates)
+            except Exception as e:
+                logger.warning(f"Section {i + 1} extraction failed: {e}")
+        
+        if not all_candidates:
+            logger.warning("No KP candidates identified for " + topic)
+            return {"knowledge_points": []}
+        
+        deduped_candidates = self._deduplicate_candidates(all_candidates)
+        
+        knowledge_points = []
+        for candidate in deduped_candidates[:10]:
+            kp_topic = candidate.get("topic", "")
+            section_hint = candidate.get("section_hint", "")
+            
+            relevant_text = self._locate_relevant_section(full_text, kp_topic, section_hint)
+            
+            kp = await self._extract_knowledge_point_structure(kp_topic, relevant_text, topic)
+            
+            if kp and kp.get("completeness_score", 0) >= 2:
+                knowledge_points.append(kp)
+        
+        logger.info("Identified " + str(len(knowledge_points)) + " knowledge points for " + topic + " (from " + str(len(sections)) + " sections)")
+        return {"knowledge_points": knowledge_points}
+    
+    def _deduplicate_candidates(self, candidates: list) -> list:
+        seen = {}
+        result = []
+        
+        for c in candidates:
+            topic = c.get("topic", "").lower().strip()
+            if not topic:
+                continue
+            
+            if topic not in seen:
+                seen[topic] = c
+                result.append(c)
+            else:
+                existing_score = seen[topic].get("relevance_score", 0)
+                new_score = c.get("relevance_score", 0)
+                if new_score > existing_score:
+                    idx = result.index(seen[topic])
+                    result[idx] = c
+                    seen[topic] = c
+        
+        return sorted(result, key=lambda x: x.get("relevance_score", 0), reverse=True)
+    
+    def _parse_json_from_response(self, response: str) -> list:
+        """Parse JSON array from LLM response."""
+        import json
+        import re
+        
+        # Try direct parse
+        try:
+            return json.loads(response)
+        except:
+            pass
+        
+        # Try extracting from markdown code block
+        json_match = re.search(r'```(?:json)?\s*([\[\{].*?[\]\}])\s*```', response, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(1))
+            except:
+                pass
+        
+        # Try finding array in response
+        array_match = re.search(r'\[\s*\{.*?\}\s*\]', response, re.DOTALL)
+        if array_match:
+            try:
+                return json.loads(array_match.group(0))
+            except:
+                pass
+        
+        return []
+    
+    def _locate_relevant_section(self, full_text: str, kp_topic: str, section_hint: str) -> str:
+        """Locate relevant paragraphs for a knowledge point."""
+        paragraphs = full_text.split("\n\n")
+        relevant = []
+        
+        keywords = [kw.lower() for kw in (kp_topic + " " + section_hint).split() if len(kw) > 3]
+        
+        for para in paragraphs:
+            para_lower = para.lower()
+            if any(kw in para_lower for kw in keywords):
+                relevant.append(para)
+        
+        # Return top 5 most relevant paragraphs (max 2000 chars)
+        result = "\n\n".join(relevant[:5])
+        if len(result) > 2000:
+            result = result[:2000]
+        
+        return result if result else full_text[:2000]
+    
+    async def _extract_knowledge_point_structure(self, kp_topic: str, relevant_text: str, parent_topic: str) -> dict | None:
+        """Extract 6-element structure for a knowledge point."""
+        llm_tool = self.tool_registry.get("llm_call")
+        if not llm_tool:
+            return None
+        
+        json_template = '''{
+  "topic": "''' + kp_topic + '''",
+  "definition": "what is this concept (1-2 sentences)",
+  "core": "core mechanism/algorithm (key points)",
+  "context": "background - who/when/why introduced",
+  "examples": "concrete examples or applications",
+  "formula": "key formulas in LaTeX if any, or N/A",
+  "relationships": ["related concepts"],
+  "completeness_score": 3
+}'''
+        
+        extract_prompt = f"""Extract structured knowledge about "{kp_topic}" from this text:
+
+{relevant_text}
+
+Return JSON with this structure:
+{json_template}
+
+Only return the JSON object, no markdown code blocks."""
+
+        try:
+            result = await llm_tool.execute(prompt=extract_prompt, task_type="extraction")
+            kp = self._parse_json_from_response(result)
+            
+            if isinstance(kp, dict):
+                kp["topic"] = kp_topic
+                return kp
+            elif isinstance(kp, list) and len(kp) > 0:
+                kp[0]["topic"] = kp_topic
+                return kp[0]
+            
+        except Exception as e:
+            logger.warning(f"Failed to extract KP structure for {kp_topic}: {e}")
+        
+        return None
     
     async def _write_knowledge_point(self, kp: dict, parent_topic: str):
         """Write a single knowledge point to KG."""
@@ -225,10 +432,10 @@ class DeepReadAgent(CAAgent):
             )
     
     async def _update_summary_metadata(self, topic: str, child_count: int):
-        """Update summary node with child count."""
+        """Update summary node metadata after deep read."""
         update_tool = self.tool_registry.get("update_kg_metadata")
         if update_tool:
-            await update_tool.execute(topic=topic, depth=child_count)
+            await update_tool.execute(topic=topic, confidence=min(1.0, child_count / 10))
     
     async def _mark_done(self, item: dict):
         """Mark queue item as done."""

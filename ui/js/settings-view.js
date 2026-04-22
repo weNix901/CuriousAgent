@@ -104,6 +104,3 @@ async function resetConfig() {
     await loadSettings();
   }
 }
-
-// Initialize on load
-document.addEventListener('DOMContentLoaded', loadSettings);

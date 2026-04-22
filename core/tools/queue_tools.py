@@ -119,18 +119,42 @@ class QueueStorage:
             raise RuntimeError("Failed to get lastrowid after insert")
         return rowid
 
-    def get_pending_items(self, limit: int | None = None) -> list[dict]:
+    def get_pending_items(self, limit: int | None = None, exclude_task_type: str | None = None) -> list[dict]:
+        """Get pending items from queue, optionally excluding certain task_types.
+        
+        Args:
+            limit: Maximum number of items to return
+            exclude_task_type: Task type to exclude (e.g., 'deep_read')
+        
+        Returns:
+            List of pending queue items
+        """
         conn = self._get_connection()
         cursor = conn.cursor()
-        query = """
-            SELECT * FROM queue
-            WHERE status = 'pending'
-            ORDER BY priority DESC, created_at ASC
-        """
+        
+        if exclude_task_type:
+            # Filter out items with specific task_type in metadata JSON
+            query = """
+                SELECT * FROM queue
+                WHERE status = 'pending'
+                AND (metadata IS NULL OR json_extract(metadata, '$.task_type') IS NULL OR json_extract(metadata, '$.task_type') != ?)
+                ORDER BY priority DESC, created_at ASC
+            """
+            cursor.execute(query, (exclude_task_type,))
+        else:
+            query = """
+                SELECT * FROM queue
+                WHERE status = 'pending'
+                ORDER BY priority DESC, created_at ASC
+            """
+            cursor.execute(query)
+        
         if limit:
-            query += f" LIMIT {limit}"
-        cursor.execute(query)
-        rows = cursor.fetchall()
+            # Apply limit after filtering (SQLite doesn't support LIMIT with parameterized offset)
+            rows = cursor.fetchmany(limit)
+        else:
+            rows = cursor.fetchall()
+        
         return [dict(row) for row in rows]
 
     def get_completed_items(self, limit: int | None = None) -> list[dict]:

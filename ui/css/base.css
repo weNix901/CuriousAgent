@@ -160,6 +160,18 @@ header { display: flex; align-items: center; justify-content: space-between; mar
 .view-container.active { display: block; animation: fadeIn 0.2s; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+/* Settings view config cards */
+.config-card { background: var(--white); border: var(--border-medium); padding: var(--space-4); margin-bottom: var(--space-4); }
+.config-card h3 { font-size: 14px; font-weight: 600; color: var(--ink-primary); margin-bottom: var(--space-3); padding-bottom: var(--space-2); border-bottom: var(--border-medium); }
+.config-row { display: flex; align-items: center; justify-content: space-between; padding: var(--space-2) 0; border-bottom: var(--border-thin); }
+.config-row:last-child { border-bottom: none; }
+.config-row label { font-size: 13px; color: var(--ink-secondary); flex: 1; }
+.config-row input[type="number"] { width: 60px; padding: var(--space-1) var(--space-2); background: var(--paper); border: var(--border-medium); font-size: 13px; }
+.config-row input[type="range"] { width: 120px; accent-color: var(--accent-primary); }
+.config-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent-primary); }
+.config-row span { font-size: 13px; font-weight: 600; color: var(--accent-primary); min-width: 30px; text-align: right; }
+.config-actions { display: flex; gap: var(--space-3); padding-top: var(--space-4); }
+
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(26, 26, 46, 0.85); z-index: 1000; align-items: center; justify-content: center; padding: var(--space-5); }
 .modal-overlay.active { display: flex; animation: modalFadeIn 0.2s; }
 @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }

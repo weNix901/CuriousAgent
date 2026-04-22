@@ -212,3 +212,54 @@ Be concise and focus on the most essential information."""
             pass
 
         return response
+
+
+class LLMCallTool(Tool):
+    """Generic LLM call tool with customizable prompt."""
+
+    @property
+    def name(self) -> str:
+        return "llm_call"
+
+    @property
+    def description(self) -> str:
+        return "Call LLM with a custom prompt for flexible text generation or analysis"
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": "The prompt to send to the LLM"
+                },
+                "task_type": {
+                    "type": "string",
+                    "description": "Type of task (analysis, extraction, generation)",
+                    "default": "general"
+                }
+            },
+            "required": ["prompt"]
+        }
+
+    async def execute(self, **kwargs: Any) -> str:
+        prompt = kwargs.get("prompt", "")
+        task_type = kwargs.get("task_type", "general")
+
+        if not prompt:
+            return "Error: Empty prompt provided"
+
+        providers = ["volcengine", "minimax"]
+        last_error = None
+
+        for provider in providers:
+            try:
+                client = LLMClient(provider_name=provider)
+                response = client.chat(prompt)
+                return response
+            except Exception as e:
+                last_error = e
+                continue
+
+        return f"Error: All providers failed: {str(last_error)}"
