@@ -121,7 +121,13 @@ function buildGraphData() {
 
 function nodeColor(d) {
   var q = d.quality;
-  if (q === undefined || q === null) return '#8b949e';
+  if (q === undefined || q === null) {
+    var c = d.completeness || 0;
+    if (c >= 4) return '#3fb950';
+    if (c >= 2) return '#d29922';
+    if (c >= 1) return '#f85149';
+    return '#8b949e';
+  }
   if (q >= 7) return '#3fb950';
   if (q >= 5) return '#d29922';
   return '#f85149';
