@@ -32,14 +32,14 @@ DEFAULT_TOOLS = [
     "read_paper_text",
     "extract_formulas",
     "extract_knowledge_points",
-    "download_paper",  # For PDF recovery
+    "download_paper",
     "add_to_kg",
     "add_kg_relation",
     "query_kg",
     "query_kg_children",
     "claim_queue",
     "mark_done",
-    "llm_call",
+    "llm_extract_knowledge",
 ]
 
 
@@ -383,33 +383,16 @@ Only return the JSON array."""
         return result if result else full_text[:2000]
     
     async def _extract_knowledge_point_structure(self, kp_topic: str, relevant_text: str, parent_topic: str) -> dict | None:
-        """Extract 6-element structure for a knowledge point."""
-        llm_tool = self.tool_registry.get("llm_call")
-        if not llm_tool:
+        extract_tool = self.tool_registry.get("llm_extract_knowledge")
+        if not extract_tool:
             return None
         
-        json_template = '''{
-  "topic": "''' + kp_topic + '''",
-  "definition": "what is this concept (1-2 sentences)",
-  "core": "core mechanism/algorithm (key points)",
-  "context": "background - who/when/why introduced",
-  "examples": "concrete examples or applications",
-  "formula": "key formulas in LaTeX if any, or N/A",
-  "relationships": ["related concepts"],
-  "completeness_score": 3
-}'''
-        
-        extract_prompt = f"""Extract structured knowledge about "{kp_topic}" from this text:
-
-{relevant_text}
-
-Return JSON with this structure:
-{json_template}
-
-Only return the JSON object, no markdown code blocks."""
-
         try:
-            result = await llm_tool.execute(prompt=extract_prompt, task_type="extraction")
+            result = await extract_tool.execute(
+                content=relevant_text,
+                topic=kp_topic,
+                source_url=""
+            )
             kp = self._parse_json_from_response(result)
             
             if isinstance(kp, dict):
@@ -425,17 +408,27 @@ Only return the JSON object, no markdown code blocks."""
         return None
     
     async def _write_knowledge_point(self, kp: dict, parent_topic: str):
-        """Write a single knowledge point to KG."""
         add_tool = self.tool_registry.get("add_to_kg")
         if add_tool:
+            content_obj = kp.get("content", {})
+            source_obj = kp.get("source", {})
+            relations_obj = kp.get("relations", {})
+            
             await add_tool.execute(
                 topic=kp.get("topic", "unknown"),
-                definition=kp.get("definition"),
-                core=kp.get("core"),
-                context=kp.get("context"),
-                examples=kp.get("examples"),
-                formula=kp.get("formula"),
-                parent_topic=parent_topic,
+                definition=content_obj.get("definition"),
+                core=content_obj.get("fact"),
+                context=content_obj.get("formula"),
+                examples=content_obj.get("examples", []),
+                formula=content_obj.get("formula"),
+                parent_topic=relations_obj.get("parent", parent_topic),
+                metadata={
+                    "quality": kp.get("quality", 7.0),
+                    "keywords": kp.get("keywords", []),
+                    "source_type": source_obj.get("source_type", "paper"),
+                    "source_trusted": source_obj.get("source_trusted", False),
+                    "completeness_score": content_obj.get("completeness_score", 0)
+                }
             )
     
     async def _create_summary_node(self, topic: str, source_url: str = None, kp_count: int = 0):
