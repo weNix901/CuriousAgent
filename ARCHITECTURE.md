@@ -227,7 +227,7 @@ v0.2.9 重构后的统一 Agent 类。ExploreAgent 和 DreamAgent 只是 `CAAgen
 - KG Tools (9): `query_kg`, `add_to_kg`, `update_kg_status`, `get_node_relations`, ...
 - Queue Tools (5): `add_to_queue`, `claim_queue`, `mark_done`, `mark_failed`, `get_queue`
 - Search Tools (5): `search_web`, `fetch_page`, `process_paper`, `analyze_pdf`, ...
-- LLM Tools (2): `llm_analyze`, `llm_summarize`
+- LLM Tools (2): `llm_analyze`, `llm_extract_knowledge`
 
 ### ExploreAgent
 

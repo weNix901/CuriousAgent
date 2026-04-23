@@ -35,7 +35,7 @@ DREAM_TOOLS = [
     "search_web",
     "fetch_page",
     "llm_analyze",
-    "llm_summarize",
+    "llm_extract_knowledge",
 ]
 
 

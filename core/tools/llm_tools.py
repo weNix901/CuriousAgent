@@ -109,16 +109,16 @@ Be concise but comprehensive. Focus on the most important aspects."""
         return response
 
 
-class LLMSummarizeTool(Tool):
-    """Tool for summarizing content to key points."""
+class LLMKnowledgeExtractTool(Tool):
+    """Extract structured knowledge using object-oriented KnowledgeNode model."""
 
     @property
     def name(self) -> str:
-        return "llm_summarize"
+        return "llm_extract_knowledge"
 
     @property
     def description(self) -> str:
-        return "Summarize content to key points and a brief summary"
+        return "Extract structured knowledge with Content, Source, Relations, and Citation objects"
 
     @property
     def parameters(self) -> dict[str, Any]:
@@ -127,78 +127,97 @@ class LLMSummarizeTool(Tool):
             "properties": {
                 "content": {
                     "type": "string",
-                    "description": "The content to summarize"
+                    "description": "The content to extract knowledge from"
                 },
-                "max_length": {
-                    "type": "integer",
-                    "description": "Maximum length of summary in words",
-                    "default": 100
+                "topic": {
+                    "type": "string",
+                    "description": "The topic name for the knowledge point"
+                },
+                "source_url": {
+                    "type": "string",
+                    "description": "Optional source URL for traceability"
                 }
             },
-            "required": ["content"]
+            "required": ["content", "topic"]
         }
 
     async def execute(self, **kwargs: Any) -> str:
-        """Execute the summarization tool."""
         content = kwargs.get("content", "")
-        max_length = kwargs.get("max_length", 100)
+        topic = kwargs.get("topic", "")
+        source_url = kwargs.get("source_url", "")
 
-        if not content:
-            return json.dumps({
-                "error": "Empty content provided",
-                "summary": "",
-                "key_points": [],
-                "length": 0
-            })
+        if not content or not topic:
+            return json.dumps({"error": "content and topic are required"})
 
-        result = await self._summarize_with_fallback(content, max_length)
+        result = await self._extract_with_fallback(content, topic, source_url)
         return result
 
-    async def _summarize_with_fallback(self, content: str, max_length: int) -> str:
-        """Summarize content with provider fallback."""
+    async def _extract_with_fallback(self, content: str, topic: str, source_url: str) -> str:
         providers = ["volcengine", "minimax"]
         last_error = None
 
         for provider in providers:
             try:
-                result = await self._call_llm(
-                    content=content,
-                    max_length=max_length,
-                    provider=provider
-                )
-                return result
+                return await self._call_extraction(content, topic, source_url, provider)
             except Exception as e:
                 last_error = e
                 continue
 
-        return json.dumps({
-            "error": f"All providers failed: {str(last_error)}",
-            "summary": "",
-            "key_points": [],
-            "length": 0
-        })
+        return json.dumps({"error": f"All providers failed: {str(last_error)}"})
 
-    async def _call_llm(self, content: str, max_length: int, provider: str) -> str:
-        """Call LLM for summarization."""
+    async def _call_extraction(self, content: str, topic: str, source_url: str, provider: str) -> str:
         client = LLMClient(provider_name=provider)
 
-        prompt = f"""Summarize the following content concisely.
+        prompt = f"""Extract structured knowledge about "{topic}" from this content.
 
-Content to summarize:
-{content}
+Content:
+{content[:6000]}
 
-Constraints:
-- Summary should be approximately {max_length} words or less
-- Extract the most important key points
+Return a JSON object with this EXACT structure:
 
-Return a JSON object with exactly this structure:
 {{
-  "summary": "brief summary of the content",
-  "key_points": ["list of 3-5 key points"],
-  "length": <actual word count of summary>
+  "topic": "{topic}",
+  "content": {{
+    "definition": "What is this concept? (1-2 sentences)",
+    "formula": "Key formula or N/A",
+    "fact": "Key facts or properties",
+    "examples": ["Example 1", "Example 2"],
+    "completeness_score": 3
+  }},
+  "source": {{
+    "source_url": "{source_url or 'N/A'}",
+    "source_type": "web",
+    "source_trusted": false,
+    "local_file_path": null,
+    "local_file_type": null,
+    "source_missing": false
+  }},
+  "relations": {{
+    "parent": "Parent topic or null",
+    "children": [],
+    "depends_on": ["Prerequisite 1"],
+    "related_to": ["Related 1"],
+    "cites": [],
+    "applied_in": ["Application 1"]
+  }},
+  "citation": {{
+    "citation_title": null,
+    "citation_authors": [],
+    "citation_year": null,
+    "citation_venue": null
+  }},
+  "keywords": ["keyword1", "keyword2"],
+  "quality": 7.0,
+  "status": "done"
 }}
 
-Be concise and focus on the most essential information."""
+Rules:
+- definition: Atomic description (what is it)
+- formula: LaTeX or code pattern, or "N/A"
+- examples: Concrete instances
+- completeness_score: 1-6 based on filled fields
+- quality: 0-10 extraction confidence
+- status: Always "done" """
 
         response = client.chat(prompt)
 
@@ -212,54 +231,3 @@ Be concise and focus on the most essential information."""
             pass
 
         return response
-
-
-class LLMCallTool(Tool):
-    """Generic LLM call tool with customizable prompt."""
-
-    @property
-    def name(self) -> str:
-        return "llm_call"
-
-    @property
-    def description(self) -> str:
-        return "Call LLM with a custom prompt for flexible text generation or analysis"
-
-    @property
-    def parameters(self) -> dict[str, Any]:
-        return {
-            "type": "object",
-            "properties": {
-                "prompt": {
-                    "type": "string",
-                    "description": "The prompt to send to the LLM"
-                },
-                "task_type": {
-                    "type": "string",
-                    "description": "Type of task (analysis, extraction, generation)",
-                    "default": "general"
-                }
-            },
-            "required": ["prompt"]
-        }
-
-    async def execute(self, **kwargs: Any) -> str:
-        prompt = kwargs.get("prompt", "")
-        task_type = kwargs.get("task_type", "general")
-
-        if not prompt:
-            return "Error: Empty prompt provided"
-
-        providers = ["volcengine", "minimax"]
-        last_error = None
-
-        for provider in providers:
-            try:
-                client = LLMClient(provider_name=provider)
-                response = client.chat(prompt)
-                return response
-            except Exception as e:
-                last_error = e
-                continue
-
-        return f"Error: All providers failed: {str(last_error)}"

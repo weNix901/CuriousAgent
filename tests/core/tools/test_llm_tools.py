@@ -1,7 +1,7 @@
-"""Tests for LLM tools (llm_analyze, llm_summarize)."""
+"""Tests for LLM tools (llm_analyze, llm_extract_knowledge)."""
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
-from core.tools.llm_tools import LLMAnalyzeTool, LLMSummarizeTool
+from core.tools.llm_tools import LLMAnalyzeTool, LLMKnowledgeExtractTool
 
 
 class TestLLMAnalyzeTool:
@@ -105,103 +105,65 @@ class TestLLMAnalyzeTool:
             assert "minimax" in mock_call.call_args_list[1][1]["provider"]
 
 
-class TestLLMSummarizeTool:
-    """Tests for llm_summarize tool."""
+class TestLLMKnowledgeExtractTool:
+    """Tests for llm_extract_knowledge tool."""
 
     def test_tool_name_property(self):
-        """Test tool name is correct."""
-        tool = LLMSummarizeTool()
-        assert tool.name == "llm_summarize"
+        tool = LLMKnowledgeExtractTool()
+        assert tool.name == "llm_extract_knowledge"
 
     def test_tool_description_property(self):
-        """Test tool description is correct."""
-        tool = LLMSummarizeTool()
-        assert "summarize" in tool.description.lower()
+        tool = LLMKnowledgeExtractTool()
+        assert "extract" in tool.description.lower()
 
-    def test_tool_parameters_has_content(self):
-        """Test parameters schema includes content field."""
-        tool = LLMSummarizeTool()
+    def test_tool_parameters_has_content_and_topic(self):
+        tool = LLMKnowledgeExtractTool()
         params = tool.parameters
         assert params["type"] == "object"
-        assert "properties" in params
         assert "content" in params["properties"]
-
-    def test_tool_parameters_has_max_length(self):
-        """Test parameters schema includes max_length field."""
-        tool = LLMSummarizeTool()
-        params = tool.parameters
-        assert "max_length" in params["properties"]
+        assert "topic" in params["properties"]
 
     def test_tool_to_schema_format(self):
-        """Test tool schema is in correct format."""
-        tool = LLMSummarizeTool()
+        tool = LLMKnowledgeExtractTool()
         schema = tool.to_schema()
         assert schema["type"] == "function"
         assert "function" in schema
-        assert schema["function"]["name"] == "llm_summarize"
+        assert schema["function"]["name"] == "llm_extract_knowledge"
 
     @pytest.mark.asyncio
-    async def test_summarize_returns_key_points(self):
-        """Test llm_summarize returns key points from content."""
-        tool = LLMSummarizeTool()
-        mock_response = '{"summary": "Brief summary", "key_points": ["point1", "point2"], "length": 50}'
+    async def test_extract_returns_structured_knowledge(self):
+        tool = LLMKnowledgeExtractTool()
+        mock_response = '{"topic": "Test", "content": {"definition": "Test def", "formula": "N/A", "fact": "Test fact", "examples": ["ex1"], "completeness_score": 3}, "source": {"source_url": "N/A", "source_type": "web", "source_trusted": false, "local_file_path": null, "local_file_type": null, "source_missing": false}, "relations": {"parent": null, "children": [], "depends_on": [], "related_to": [], "cites": [], "applied_in": []}, "citation": {"citation_title": null, "citation_authors": [], "citation_year": null, "citation_venue": null}, "keywords": ["test"], "quality": 7.0, "status": "done"}'
         
-        with patch.object(tool, '_call_llm', new_callable=AsyncMock) as mock_call:
+        with patch.object(tool, '_call_extraction', new_callable=AsyncMock) as mock_call:
             mock_call.return_value = mock_response
-            result = await tool.execute(content="Long content to summarize")
+            result = await tool.execute(content="Test content", topic="Test")
             
-            assert "summary" in result
-            assert "key_points" in result
+            assert "topic" in result
+            assert "content" in result
             mock_call.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_summarize_respects_max_length(self):
-        """Test llm_summarize respects max_length parameter."""
-        tool = LLMSummarizeTool()
-        mock_response = '{"summary": "Short summary", "key_points": [], "length": 30}'
+    async def test_extract_handles_json_parse_error(self):
+        tool = LLMKnowledgeExtractTool()
         
-        with patch.object(tool, '_call_llm', new_callable=AsyncMock) as mock_call:
-            mock_call.return_value = mock_response
-            await tool.execute(content="Long content", max_length=100)
-            
-            call_args = mock_call.call_args
-            assert call_args[1]["max_length"] == 100
-
-    @pytest.mark.asyncio
-    async def test_summarize_handles_json_parse_error(self):
-        """Test llm_summarize handles JSON parse errors gracefully."""
-        tool = LLMSummarizeTool()
-        
-        with patch.object(tool, '_call_llm', new_callable=AsyncMock) as mock_call:
+        with patch.object(tool, '_call_extraction', new_callable=AsyncMock) as mock_call:
             mock_call.return_value = "not valid json"
-            result = await tool.execute(content="Test content")
+            result = await tool.execute(content="Test content", topic="Test")
             
             assert isinstance(result, str)
 
     @pytest.mark.asyncio
-    async def test_summarize_uses_volcengine_provider(self):
-        """Test llm_summarize uses volcengine as primary provider."""
-        tool = LLMSummarizeTool()
-        mock_response = '{"summary": "Summary", "key_points": [], "length": 20}'
+    async def test_extract_uses_volcengine_provider(self):
+        tool = LLMKnowledgeExtractTool()
+        mock_response = '{"topic": "Test", "content": {"definition": "Test"}}'
         
-        with patch.object(tool, '_call_llm', new_callable=AsyncMock) as mock_call:
+        with patch.object(tool, '_call_extraction', new_callable=AsyncMock) as mock_call:
             mock_call.return_value = mock_response
-            await tool.execute(content="Test")
+            await tool.execute(content="Test", topic="Test")
             
             call_args = mock_call.call_args
             assert call_args[1]["provider"] == "volcengine"
-
-    @pytest.mark.asyncio
-    async def test_summarize_fallback_to_minimax(self):
-        """Test llm_summarize falls back to minimax on volcengine failure."""
-        tool = LLMSummarizeTool()
-        mock_response = '{"summary": "Summary", "key_points": [], "length": 20}'
-        
-        with patch.object(tool, '_call_llm', new_callable=AsyncMock) as mock_call:
-            mock_call.side_effect = [Exception("volcengine failed"), mock_response]
-            result = await tool.execute(content="Test")
-            
-            assert mock_call.call_count == 2
             assert "minimax" in mock_call.call_args_list[1][1]["provider"]
 
 

@@ -375,4 +375,4 @@ class TestExploreAgentToolSubset:
         from core.agents.explore_agent import DEFAULT_TOOLS
         
         # Should have LLM analysis capabilities
-        assert "llm_analyze" in DEFAULT_TOOLS or "llm_summarize" in DEFAULT_TOOLS
+        assert "llm_analyze" in DEFAULT_TOOLS or "llm_extract_knowledge" in DEFAULT_TOOLS

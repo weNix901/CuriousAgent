@@ -1732,7 +1732,7 @@ def api_agents_explore():
         
         from core.tools.search_tools import SearchWebTool, FetchPageTool
         from core.tools.queue_tools import AddToQueueTool, ClaimQueueTool, GetQueueTool, MarkDoneTool, MarkFailedTool
-        from core.tools.llm_tools import LLMAnalyzeTool, LLMSummarizeTool
+        from core.tools.llm_tools import LLMAnalyzeTool, LLMKnowledgeExtractTool
         
         tool_registry.register(SearchWebTool())
         tool_registry.register(FetchPageTool())
@@ -1742,7 +1742,7 @@ def api_agents_explore():
         tool_registry.register(MarkDoneTool(storage=queue_storage))
         tool_registry.register(MarkFailedTool(storage=queue_storage))
         tool_registry.register(LLMAnalyzeTool())
-        tool_registry.register(LLMSummarizeTool())
+        tool_registry.register(LLMKnowledgeExtractTool())
         
         if hasattr(agent_cfg, 'model'):
             model = agent_cfg.model
