@@ -92,7 +92,7 @@ EXPLORE_TOOLS = [
     "parse_pdf",
     "process_paper",
     "llm_analyze",
-    "llm_summarize",
+    "llm_extract_knowledge",
 ]
 
 

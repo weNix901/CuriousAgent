@@ -19,14 +19,14 @@ Your workflow for each topic:
 2. For each promising URL, use fetch_page to get full content
 3. Use llm_analyze to judge if content is useful for this topic
 4. Collect useful source URLs for attribution
-5. At the end, use llm_summarize to generate a knowledge summary
+5. At the end, use llm_extract_knowledge to generate structured knowledge
 6. The system will automatically write to KG with your collected sources
 
 Available tools:
 - search_web(query): Search the web - returns title, snippet, URL
 - fetch_page(url): Fetch full content from a URL - track this URL as a source!
 - llm_analyze(content, topic): Analyze content quality and relevance
-- llm_summarize(content, topic): Summarize collected content into knowledge
+- llm_extract_knowledge(content, topic, source_url): Extract structured knowledge with Content, Source, Relations, Citation
 - query_kg(topic): Query existing knowledge
 
 CRITICAL: You MUST respond in valid JSON format ONLY. No other format is accepted.
@@ -61,7 +61,7 @@ DEFAULT_TOOLS = [
     "mark_done",
     "get_queue",
     "llm_analyze",
-    "llm_summarize",
+    "llm_extract_knowledge",
     "fetch_page",
     "process_paper",
     "extract_paper_citations",
@@ -255,7 +255,7 @@ class ExploreAgent(CAAgent):
                     "search_web": "query",
                     "fetch_page": "url",
                     "llm_analyze": "content",
-                    "llm_summarize": "content",
+                    "llm_extract_knowledge": "content",
                     "query_kg": "topic",
                     "add_to_kg": "topic",
                     "mark_done": "topic",
@@ -284,17 +284,22 @@ class ExploreAgent(CAAgent):
                 )
                 
                 final_summary = ""
+                extracted_knowledge = None
                 if useful_content_parts:
-                    summarize_tool = self.tool_registry.get("llm_summarize")
-                    if summarize_tool:
-                        content_to_summarize = "\n".join(useful_content_parts[-5:])
-                        summary_result = await summarize_tool.execute(
-                            content=content_to_summarize,
-                            topic=topic
+                    extract_tool = self.tool_registry.get("llm_extract_knowledge")
+                    if extract_tool:
+                        content_to_extract = "\n".join(useful_content_parts[-5:])
+                        source_url = collected_sources[0] if collected_sources else ""
+                        extract_result = await extract_tool.execute(
+                            content=content_to_extract,
+                            topic=topic,
+                            source_url=source_url
                         )
-                        final_summary = summary_result if isinstance(summary_result, str) else str(summary_result)
-                    else:
-                        final_summary = f"Explored {topic} with {len(collected_sources)} sources"
+                        try:
+                            extracted_knowledge = json.loads(extract_result)
+                            final_summary = extracted_knowledge.get("content", {}).get("definition", "")
+                        except:
+                            final_summary = extract_result
                 elif content_parts:
                     final_summary = "\n".join(content_parts[-3:])
                 else:
@@ -307,12 +312,32 @@ class ExploreAgent(CAAgent):
                     txt_path = None
                     source_url = collected_sources[0] if collected_sources else None
                     
-                    await add_tool.execute(
-                        topic=topic,
-                        content=final_summary[:2000],
-                        source_urls=collected_sources,
-                        metadata={"depth": iterations, "quality": 5.0 + len(collected_sources)}
-                    )
+                    if extracted_knowledge:
+                        await add_tool.execute(
+                            topic=extracted_knowledge.get("topic", topic),
+                            content=extracted_knowledge.get("content", {}).get("definition", ""),
+                            source_urls=collected_sources,
+                            definition=extracted_knowledge.get("content", {}).get("definition", ""),
+                            core=extracted_knowledge.get("content", {}).get("fact", ""),
+                            context=extracted_knowledge.get("content", {}).get("formula", ""),
+                            examples=extracted_knowledge.get("content", {}).get("examples", []),
+                            formula=extracted_knowledge.get("content", {}).get("formula", ""),
+                            parent_topic=extracted_knowledge.get("relations", {}).get("parent"),
+                            metadata={
+                                "depth": iterations,
+                                "quality": extracted_knowledge.get("quality", 5.0 + len(collected_sources)),
+                                "keywords": extracted_knowledge.get("keywords", []),
+                                "source_type": extracted_knowledge.get("source", {}).get("source_type", "web"),
+                                "source_trusted": extracted_knowledge.get("source", {}).get("source_trusted", False)
+                            }
+                        )
+                    else:
+                        await add_tool.execute(
+                            topic=topic,
+                            content=final_summary[:2000],
+                            source_urls=collected_sources,
+                            metadata={"depth": iterations, "quality": 5.0 + len(collected_sources)}
+                        )
                     
                     await self._enqueue_deep_read(
                         topic=topic,
@@ -337,7 +362,7 @@ class ExploreAgent(CAAgent):
                 step_num=iterations,
                 action=action,
                 action_input=json.dumps(action_input, ensure_ascii=False)[:500] if action_input else "",
-                llm_call=(action in ["llm_analyze", "llm_summarize"]),
+                llm_call=(action in ["llm_analyze", "llm_extract_knowledge"]),
             )
 
             observation = await self._execute_action(action, action_input)
@@ -383,15 +408,22 @@ class ExploreAgent(CAAgent):
         )
 
         final_summary = ""
+        extracted_knowledge = None
         if useful_content_parts:
-            summarize_tool = self.tool_registry.get("llm_summarize")
-            if summarize_tool:
-                content_to_summarize = "\n".join(useful_content_parts[-5:])
-                summary_result = await summarize_tool.execute(
-                    content=content_to_summarize,
-                    topic=topic
+            extract_tool = self.tool_registry.get("llm_extract_knowledge")
+            if extract_tool:
+                content_to_extract = "\n".join(useful_content_parts[-5:])
+                source_url = collected_sources[0] if collected_sources else ""
+                extract_result = await extract_tool.execute(
+                    content=content_to_extract,
+                    topic=topic,
+                    source_url=source_url
                 )
-                final_summary = summary_result if isinstance(summary_result, str) else str(summary_result)
+                try:
+                    extracted_knowledge = json.loads(extract_result)
+                    final_summary = extracted_knowledge.get("content", {}).get("definition", "")
+                except:
+                    final_summary = extract_result
             else:
                 final_summary = f"Explored {topic} with {len(collected_sources)} sources"
         elif content_parts:
@@ -406,12 +438,32 @@ class ExploreAgent(CAAgent):
             txt_path = None
             source_url = collected_sources[0] if collected_sources else None
             
-            await add_tool.execute(
-                topic=topic,
-                content=final_summary[:2000],
-                source_urls=collected_sources,
-                metadata={"depth": iterations, "quality": 5.0 + len(collected_sources)}
-            )
+            if extracted_knowledge:
+                await add_tool.execute(
+                    topic=extracted_knowledge.get("topic", topic),
+                    content=extracted_knowledge.get("content", {}).get("definition", ""),
+                    source_urls=collected_sources,
+                    definition=extracted_knowledge.get("content", {}).get("definition", ""),
+                    core=extracted_knowledge.get("content", {}).get("fact", ""),
+                    context=extracted_knowledge.get("content", {}).get("formula", ""),
+                    examples=extracted_knowledge.get("content", {}).get("examples", []),
+                    formula=extracted_knowledge.get("content", {}).get("formula", ""),
+                    parent_topic=extracted_knowledge.get("relations", {}).get("parent"),
+                    metadata={
+                        "depth": iterations,
+                        "quality": extracted_knowledge.get("quality", 5.0 + len(collected_sources)),
+                        "keywords": extracted_knowledge.get("keywords", []),
+                        "source_type": extracted_knowledge.get("source", {}).get("source_type", "web"),
+                        "source_trusted": extracted_knowledge.get("source", {}).get("source_trusted", False)
+                    }
+                )
+            else:
+                await add_tool.execute(
+                    topic=topic,
+                    content=final_summary[:2000],
+                    source_urls=collected_sources,
+                    metadata={"depth": iterations, "quality": 5.0 + len(collected_sources)}
+                )
             
             await self._enqueue_deep_read(
                 topic=topic,

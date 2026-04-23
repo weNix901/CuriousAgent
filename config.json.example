@@ -11,7 +11,7 @@
         "mark_done",
         "get_queue",
         "llm_analyze",
-        "llm_summarize",
+        "llm_extract_knowledge",
         "fetch_page",
         "process_paper",
         "update_kg_status",

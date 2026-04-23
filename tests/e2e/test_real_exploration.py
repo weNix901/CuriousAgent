@@ -111,7 +111,7 @@ def setup_explorer_agent(holder_id: str) -> ExploreAgent:
         AddToQueueTool, ClaimQueueTool, GetQueueTool,
         MarkDoneTool, MarkFailedTool
     )
-    from core.tools.llm_tools import LLMAnalyzeTool, LLMSummarizeTool
+    from core.tools.llm_tools import LLMAnalyzeTool, LLMKnowledgeExtractTool
     
     kg_repo = None
     for tool_class in [QueryKGTool, QueryKGByStatusTool, QueryKGByHeatTool,
@@ -126,7 +126,7 @@ def setup_explorer_agent(holder_id: str) -> ExploreAgent:
                        MarkDoneTool, MarkFailedTool]:
         registry.register(tool_class(storage))
     
-    for tool_class in [LLMAnalyzeTool, LLMSummarizeTool]:
+    for tool_class in [LLMAnalyzeTool, LLMKnowledgeExtractTool]:
         try:
             registry.register(tool_class())
         except TypeError:
