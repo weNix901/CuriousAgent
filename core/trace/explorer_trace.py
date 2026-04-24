@@ -31,7 +31,7 @@ class TraceWriter:
             step_id TEXT PRIMARY KEY, trace_id TEXT NOT NULL, step_num INTEGER NOT NULL,
             timestamp TEXT NOT NULL, action TEXT NOT NULL, action_input TEXT,
             output_summary TEXT, output_size INTEGER DEFAULT 0,
-            duration_ms INTEGER DEFAULT 0, llm_call INTEGER DEFAULT 0, llm_tokens INTEGER,
+            duration_ms INTEGER DEFAULT 0, is_llm_step INTEGER DEFAULT 0, llm_tokens INTEGER,
             FOREIGN KEY (trace_id) REFERENCES explorer_traces(trace_id)
         )""")
         self._conn.execute("""CREATE INDEX IF NOT EXISTS idx_trace_steps_trace
@@ -47,7 +47,17 @@ class TraceWriter:
         )""")
         self._conn.execute("CREATE INDEX IF NOT EXISTS idx_dream_traces_status ON dream_traces(status)")
         self._conn.execute("CREATE INDEX IF NOT EXISTS idx_dream_traces_time ON dream_traces(started_at)")
+        self._migrate_llm_call_to_is_llm_step()
         self._conn.commit()
+
+    def _migrate_llm_call_to_is_llm_step(self):
+        """Migrate legacy llm_call column to is_llm_step if needed."""
+        try:
+            cols = [row[1] for row in self._conn.execute("PRAGMA table_info(trace_steps)").fetchall()]
+            if "llm_call" in cols and "is_llm_step" not in cols:
+                self._conn.execute("ALTER TABLE trace_steps RENAME COLUMN llm_call TO is_llm_step")
+        except sqlite3.OperationalError:
+            pass
 
     def start_trace(self, topic: str, queue_item_id: Optional[int] = None) -> str:
         trace_id = str(uuid.uuid4())
@@ -59,15 +69,15 @@ class TraceWriter:
         return trace_id
 
     def record_step(self, trace_id: str, step_num: int, action: str,
-                    action_input: str = "", llm_call: bool = False) -> str:
+                    action_input: str = "", is_llm_step: bool = False) -> str:
         step_id = str(uuid.uuid4())
         self._conn.execute(
             """INSERT INTO trace_steps (step_id, trace_id, step_num, timestamp, action,
-               action_input, output_summary, output_size, duration_ms, llm_call, llm_tokens)
+               action_input, output_summary, output_size, duration_ms, is_llm_step, llm_tokens)
                VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             (step_id, trace_id, step_num, datetime.now(timezone.utc).isoformat(),
              action, action_input[:500] if action_input else None, "", 0, 0,
-             1 if llm_call else 0, None),
+             1 if is_llm_step else 0, None),
         )
         self._conn.commit()
         return step_id

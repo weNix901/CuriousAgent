@@ -25,7 +25,7 @@ DREAM_AGENT_TOOLS = [
     "queue_write",
     "queue_read",
     "queue_status",
-    "llm_call",
+    "llm_candidate_identify",
     "llm_embed",
     "llm_score",
 ]

@@ -109,6 +109,57 @@ Be concise but comprehensive. Focus on the most important aspects."""
         return response
 
 
+class LLMCandidateIdentifyTool(Tool):
+    """Identify knowledge point candidates from content."""
+
+    @property
+    def name(self) -> str:
+        return "llm_candidate_identify"
+
+    @property
+    def description(self) -> str:
+        return "Identify knowledge point candidates from content with relevance scoring"
+
+    @property
+    def parameters(self) -> dict[str, Any]:
+        return {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": "The prompt to send to the LLM"
+                },
+                "task_type": {
+                    "type": "string",
+                    "description": "Type of task (analysis, extraction, generation)",
+                    "default": "general"
+                }
+            },
+            "required": ["prompt"]
+        }
+
+    async def execute(self, **kwargs: Any) -> str:
+        prompt = kwargs.get("prompt", "")
+        task_type = kwargs.get("task_type", "general")
+
+        if not prompt:
+            return "Error: Empty prompt provided"
+
+        providers = ["volcengine", "minimax"]
+        last_error = None
+
+        for provider in providers:
+            try:
+                client = LLMClient(provider_name=provider)
+                response = client.chat(prompt)
+                return response
+            except Exception as e:
+                last_error = e
+                continue
+
+        return f"Error: All providers failed: {str(last_error)}"
+
+
 class LLMKnowledgeExtractTool(Tool):
     """Extract structured knowledge using object-oriented KnowledgeNode model."""
 

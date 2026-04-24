@@ -306,7 +306,6 @@ class ExploreAgent(CAAgent):
                     final_summary = f"Exploration of '{topic}' complete with {len(collected_sources)} sources"
                 
                 add_tool = self.tool_registry.get("add_to_kg")
-                process_tool = self.tool_registry.get("process_paper")
                 if add_tool and final_summary:
                     pdf_path = None
                     txt_path = None
@@ -319,7 +318,7 @@ class ExploreAgent(CAAgent):
                             source_urls=collected_sources,
                             definition=extracted_knowledge.get("content", {}).get("definition", ""),
                             core=extracted_knowledge.get("content", {}).get("fact", ""),
-                            context=extracted_knowledge.get("content", {}).get("formula", ""),
+                            context=extracted_knowledge.get("content", {}).get("context", ""),
                             examples=extracted_knowledge.get("content", {}).get("examples", []),
                             formula=extracted_knowledge.get("content", {}).get("formula", ""),
                             parent_topic=extracted_knowledge.get("relations", {}).get("parent"),
@@ -362,7 +361,7 @@ class ExploreAgent(CAAgent):
                 step_num=iterations,
                 action=action,
                 action_input=json.dumps(action_input, ensure_ascii=False)[:500] if action_input else "",
-                llm_call=(action in ["llm_analyze", "llm_extract_knowledge"]),
+                is_llm_step=(action in ["llm_analyze", "llm_extract_knowledge"]),
             )
 
             observation = await self._execute_action(action, action_input)
@@ -432,7 +431,6 @@ class ExploreAgent(CAAgent):
             final_summary = f"Exploration of '{topic}' reached max iterations with {len(collected_sources)} sources"
         
         add_tool = self.tool_registry.get("add_to_kg")
-        process_tool = self.tool_registry.get("process_paper")
         if add_tool and final_summary:
             pdf_path = None
             txt_path = None
@@ -445,7 +443,7 @@ class ExploreAgent(CAAgent):
                     source_urls=collected_sources,
                     definition=extracted_knowledge.get("content", {}).get("definition", ""),
                     core=extracted_knowledge.get("content", {}).get("fact", ""),
-                    context=extracted_knowledge.get("content", {}).get("formula", ""),
+                    context=extracted_knowledge.get("content", {}).get("context", ""),
                     examples=extracted_knowledge.get("content", {}).get("examples", []),
                     formula=extracted_knowledge.get("content", {}).get("formula", ""),
                     parent_topic=extracted_knowledge.get("relations", {}).get("parent"),

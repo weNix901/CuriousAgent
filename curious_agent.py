@@ -436,7 +436,7 @@ def daemon_mode(interval_minutes: int = 30):
     from core.tools.search_tools import SearchWebTool, FetchPageTool, ProcessPaperTool
     from core.tools.kg_tools import QueryKGTool, AddToKGTool, UpdateKGStatusTool, UpdateKGMetadataTool, GetNodeRelationsTool, UpdateKGRelationTool
     from core.tools.queue_tools import AddToQueueTool, ClaimQueueTool, GetQueueTool, MarkDoneTool, MarkFailedTool
-    from core.tools.llm_tools import LLMAnalyzeTool, LLMKnowledgeExtractTool, LLMCallTool
+    from core.tools.llm_tools import LLMAnalyzeTool, LLMKnowledgeExtractTool, LLMCandidateIdentifyTool
     
     tool_registry.register(SearchWebTool())
     tool_registry.register(FetchPageTool())
@@ -454,7 +454,7 @@ def daemon_mode(interval_minutes: int = 30):
     tool_registry.register(MarkFailedTool(storage=queue_storage))
     tool_registry.register(LLMAnalyzeTool())
     tool_registry.register(LLMKnowledgeExtractTool())
-    tool_registry.register(LLMCallTool())
+    tool_registry.register(LLMCandidateIdentifyTool())
     
     # === v0.3.3: Paper tools for DeepReadAgent ===
     from core.tools.paper_tools import ReadPaperTextTool, ExtractKnowledgePointsTool, ExtractFormulasTool
@@ -775,7 +775,7 @@ def _register_explore_agent_tools(tool_registry, queue_storage):
     from core.tools.search_tools import SearchWebTool, FetchPageTool, ProcessPaperTool
     from core.tools.kg_tools import QueryKGTool, AddToKGTool, UpdateKGStatusTool, UpdateKGMetadataTool, GetNodeRelationsTool
     from core.tools.queue_tools import AddToQueueTool, ClaimQueueTool, GetQueueTool, MarkDoneTool, MarkFailedTool
-    from core.tools.llm_tools import LLMAnalyzeTool, LLMKnowledgeExtractTool
+    from core.tools.llm_tools import LLMAnalyzeTool, LLMKnowledgeExtractTool, LLMCandidateIdentifyTool
     
     # KGRepository: async wrapper for proper async KG operations
     import asyncio
@@ -838,6 +838,7 @@ def _register_explore_agent_tools(tool_registry, queue_storage):
     tool_registry.register(MarkFailedTool(storage=queue_storage))
     tool_registry.register(LLMAnalyzeTool())
     tool_registry.register(LLMKnowledgeExtractTool())
+    tool_registry.register(LLMCandidateIdentifyTool())
 
 
 def run_explore_agent(topic: str) -> dict:
