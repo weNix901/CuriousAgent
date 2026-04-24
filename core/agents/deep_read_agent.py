@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import uuid
 from typing import Any
 
 from core.agents.ca_agent import CAAgent, CAAgentConfig, AgentResult
@@ -40,6 +41,7 @@ DEFAULT_TOOLS = [
     "claim_queue",
     "mark_done",
     "llm_extract_knowledge",
+    "llm_candidate_identify",
 ]
 
 
@@ -75,7 +77,7 @@ class DeepReadAgent(CAAgent):
     def __init__(self, config: DeepReadAgentConfig, tool_registry: ToolRegistry):
         super().__init__(config=config, tool_registry=tool_registry)
         self.name = config.name
-        self.holder_id = json.dumps({})  # placeholder
+        self.holder_id = str(uuid.uuid4())
     
     async def run(self) -> AgentResult:
         """Main loop: claim → process → mark_done."""
@@ -133,7 +135,7 @@ class DeepReadAgent(CAAgent):
         source_type = meta.get("source_type", "pdf")
         
         if txt_path and os.path.exists(txt_path):
-            logger.info(f"TXT available for {topic}, skipping PDF check (source_type={source_type}")
+            logger.info(f"TXT available for {topic}, skipping PDF check (source_type={source_type})")
         elif pdf_path and os.path.exists(pdf_path):
             txt_path = await self._parse_pdf_to_txt(pdf_path, topic)
             if not txt_path:
@@ -261,9 +263,9 @@ class DeepReadAgent(CAAgent):
         """
         sections = self._get_overview_sections(full_text)
         
-        llm_tool = self.tool_registry.get("llm_call")
+        llm_tool = self.tool_registry.get("llm_candidate_identify")
         if not llm_tool:
-            logger.warning("llm_call tool not available, skipping KP extraction")
+            logger.warning("llm_candidate_identify tool not available, skipping KP extraction")
             return {"knowledge_points": []}
         
         json_example = '''[
@@ -418,7 +420,7 @@ Only return the JSON array."""
                 topic=kp.get("topic", "unknown"),
                 definition=content_obj.get("definition"),
                 core=content_obj.get("fact"),
-                context=content_obj.get("formula"),
+                context=content_obj.get("context"),
                 examples=content_obj.get("examples", []),
                 formula=content_obj.get("formula"),
                 parent_topic=relations_obj.get("parent", parent_topic),

@@ -20,7 +20,7 @@ class TestDreamAgentConfig:
         config = DreamAgentConfig(
             name="dream_agent",
             system_prompt="You are a dream agent",
-            tools=["kg_query", "queue_write", "llm_call"],
+            tools=["kg_query", "queue_write", "llm_candidate_identify"],
             scoring_weights={
                 "relevance": 0.25,
                 "frequency": 0.15,
@@ -33,7 +33,7 @@ class TestDreamAgentConfig:
         
         assert config.name == "dream_agent"
         assert config.system_prompt == "You are a dream agent"
-        assert config.tools == ["kg_query", "queue_write", "llm_call"]
+        assert config.tools == ["kg_query", "queue_write", "llm_candidate_identify"]
         assert config.scoring_weights["relevance"] == 0.25
 
     def test_dream_agent_config_default_scoring_weights(self):
@@ -369,13 +369,14 @@ class TestDreamAgentToolSubset:
         
         assert "queue_write" in config.tools
 
-    def test_dream_agent_tools_include_llm_call(self):
-        """DreamAgent default tools should include llm_call."""
+    def test_dream_agent_tools_include_llm_tools(self):
+        """DreamAgent default tools should include LLM tools."""
         from core.agents.dream_agent import DreamAgentConfig
         
         config = DreamAgentConfig(name="dream", system_prompt="test")
         
-        assert "llm_call" in config.tools
+        assert "llm_candidate_identify" in config.tools
+        assert "llm_embed" in config.tools
 
     def test_dream_agent_tools_exclude_kg_write(self):
         """DreamAgent default tools should NOT include kg_write."""

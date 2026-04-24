@@ -952,57 +952,6 @@ def api_knowledge_synthesize():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
-@app.route("/api/discoveries/unshared", methods=["GET"])
-def api_discoveries_unshared():
-    """Get unshared discoveries for R1D3 to consume"""
-    try:
-        from core.sync.r1d3_sync import R1D3Sync
-        
-        sync = R1D3Sync()
-        discoveries = sync.get_unshared_discoveries()
-        
-        return jsonify({
-            "status": "ok",
-            "count": len(discoveries),
-            "discoveries": discoveries
-        })
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"status": "error", "error": str(e)}), 500
-
-
-@app.route("/api/discoveries/mark_shared", methods=["POST"])
-def api_discoveries_mark_shared():
-    """Mark a discovery as shared"""
-    try:
-        from core.sync.r1d3_sync import R1D3Sync
-        
-        data = request.get_json() or {}
-        filename = data.get("filename", "").strip()
-        
-        if not filename:
-            return jsonify({"error": "filename is required"}), 400
-        
-        sync = R1D3Sync()
-        success = sync.mark_discovery_shared(filename)
-        
-        if success:
-            return jsonify({
-                "status": "ok",
-                "message": f"Discovery {filename} marked as shared"
-            })
-        else:
-            return jsonify({
-                "status": "error",
-                "error": f"Failed to mark {filename} as shared"
-            }), 400
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"status": "error", "error": str(e)}), 500
-
-
 def main():
     import signal
     parser = argparse.ArgumentParser(description="Curious Agent API Server")
@@ -1732,7 +1681,7 @@ def api_agents_explore():
         
         from core.tools.search_tools import SearchWebTool, FetchPageTool
         from core.tools.queue_tools import AddToQueueTool, ClaimQueueTool, GetQueueTool, MarkDoneTool, MarkFailedTool
-        from core.tools.llm_tools import LLMAnalyzeTool, LLMKnowledgeExtractTool
+        from core.tools.llm_tools import LLMAnalyzeTool, LLMKnowledgeExtractTool, LLMCandidateIdentifyTool
         
         tool_registry.register(SearchWebTool())
         tool_registry.register(FetchPageTool())
@@ -1743,6 +1692,7 @@ def api_agents_explore():
         tool_registry.register(MarkFailedTool(storage=queue_storage))
         tool_registry.register(LLMAnalyzeTool())
         tool_registry.register(LLMKnowledgeExtractTool())
+        tool_registry.register(LLMCandidateIdentifyTool())
         
         if hasattr(agent_cfg, 'model'):
             model = agent_cfg.model
@@ -2130,77 +2080,6 @@ def api_queue_by_topic(topic):
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
-
-# Discoveries API endpoints
-@app.route("/api/discoveries", methods=["GET"])
-def api_discoveries_list():
-    """List all discoveries."""
-    try:
-        import os
-        import json
-        from pathlib import Path
-        
-        shared_knowledge = Path(__file__).parent / "shared_knowledge" / "ca" / "discoveries"
-        if not shared_knowledge.exists():
-            return jsonify({"status": "ok", "discoveries": [], "count": 0})
-            
-        discoveries = []
-        for json_file in shared_knowledge.glob("*.json"):
-            try:
-                with open(json_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    data["filename"] = json_file.name
-                    discoveries.append(data)
-            except (json.JSONDecodeError, IOError):
-                continue
-            
-        # Sort by created_at descending
-        discoveries.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-        
-        return jsonify({
-            "status": "ok",
-            "discoveries": discoveries,
-            "count": len(discoveries)
-        })
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"status": "error", "error": str(e)}), 500
-
-
-@app.route("/api/discoveries/<id>/share", methods=["POST"])
-def api_discoveries_share(id):
-    """Mark discovery as shared."""
-    try:
-        import os
-        import json
-        from pathlib import Path
-        from datetime import datetime, timezone
-        
-        shared_knowledge = Path(__file__).parent / "shared_knowledge" / "ca" / "discoveries"
-        discovery_file = shared_knowledge / f"{id}.json"
-        
-        if not discovery_file.exists():
-            return jsonify({"error": "Discovery not found"}), 404
-            
-        with open(discovery_file, "r+", encoding="utf-8") as f:
-            data = json.load(f)
-            data["shared"] = True
-            data["shared_at"] = datetime.now(timezone.utc).isoformat()
-            f.seek(0)
-            json.dump(data, f, indent=2, ensure_ascii=False)
-            f.truncate()
-            
-        return jsonify({
-            "status": "ok",
-            "marked_shared": True,
-            "discovery_id": id
-        })
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 # Auth API endpoints

@@ -76,18 +76,3 @@ class TestR1D3APIEndpoints:
             data = json.loads(response.data)
             assert data["status"] == "ok"
             assert data["insights_count"] == 1
-
-    def test_api_r1d3_unshared_discoveries(self):
-        with patch('core.sync.r1d3_sync.R1D3Sync') as MockSync:
-            mock_sync = Mock()
-            mock_sync.get_unshared_discoveries.return_value = [
-                {"topic": "discovery1"}
-            ]
-            MockSync.return_value = mock_sync
-            
-            response = self.client.get('/api/discoveries/unshared')
-            
-            assert response.status_code == 200
-            data = json.loads(response.data)
-            assert data["status"] == "ok"
-            assert data["count"] == 1
