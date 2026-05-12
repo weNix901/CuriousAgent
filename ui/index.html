@@ -60,6 +60,7 @@
     <button class="view-tab" role="tab" aria-selected="false" data-view="graph" onclick="switchView('graph')">🔮 图谱视图</button>
     <button class="view-tab" role="tab" aria-selected="false" data-view="internal" onclick="switchView('internal')">🧭 内部可视化</button>
     <button class="view-tab" role="tab" aria-selected="false" data-view="external" onclick="switchView('external')">🤖 外部调用</button>
+    <button class="view-tab" role="tab" aria-selected="false" data-view="trusted-sources" onclick="switchView('trusted-sources')">🔒 可信数据源</button>
     <button class="view-tab" role="tab" aria-selected="false" data-view="settings" onclick="switchView('settings')">⚙️ 设置</button>
   </nav>
 
@@ -91,6 +92,7 @@
     <section id="graph-view" class="view-container" role="tabpanel" aria-label="图谱视图"></section>
     <section id="internal-view" class="view-container" role="tabpanel" aria-label="内部可视化"></section>
     <section id="external-view" class="view-container" role="tabpanel" aria-label="外部Agent调用记录"></section>
+    <section id="trusted-sources-view" class="view-container" role="tabpanel" aria-label="可信数据源"></section>
     <section id="settings-view" class="view-container" role="tabpanel" aria-label="系统设置"></section>
   </main>
 
@@ -101,16 +103,19 @@
 <script src="js/graph-view.js?v=033"></script>
 <script src="js/internal-view.js?v=033"></script>
 <script src="js/external-view.js?v=033"></script>
+<script src="js/trusted-sources.js?v=034"></script>
 <script src="js/settings-view.js?v=035"></script>
 <script>
 function loadViewContent(viewName) {
   var container = document.getElementById(viewName + '-view');
-  fetch('views/' + viewName + '-view.html').then(function(r) { return r.text(); }).then(function(html) {
+  var viewFile = viewName === 'trusted-sources' ? 'trusted-sources.html' : viewName + '-view.html';
+  fetch('views/' + viewFile).then(function(r) { return r.text(); }).then(function(html) {
     container.innerHTML = html;
     if (viewName === 'list') loadListView();
     if (viewName === 'graph') setTimeout(renderGraph, 100);
     if (viewName === 'internal') loadInternalView();
     if (viewName === 'external') loadExternalView();
+    if (viewName === 'trusted-sources') loadSources();
     if (viewName === 'settings') loadSettings();
   }).catch(function(e) {
     container.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div>加载视图失败: ' + e.message + '</div>';

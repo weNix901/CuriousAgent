@@ -1,0 +1,115 @@
+<div class="panel">
+  <h2>🔒 可信数据源</h2>
+  <p class="muted">管理可信的数据源域名，控制哪些网站的内容可以被自动抓取和阅读</p>
+
+  <div class="config-card">
+    <h3>🔍 检查 URL 可信度</h3>
+    <div class="inject-row" style="margin-bottom: var(--space-3);">
+      <input type="text" id="check-url-input" placeholder="输入要检查的 URL，例如: https://arxiv.org/abs/1234" style="flex: 1;">
+      <button class="btn btn-primary" onclick="checkUrl()">检查</button>
+    </div>
+    <div id="check-result" style="display: none; padding: var(--space-3); background: var(--paper); border: var(--border-medium); border-radius: var(--radius-md);">
+      <span id="check-result-icon"></span>
+      <span id="check-result-text"></span>
+    </div>
+  </div>
+
+  <div class="config-card">
+    <h3>➕ 添加可信数据源</h3>
+    <form id="add-source-form" onsubmit="addSource(event)">
+      <div class="config-row">
+        <label>域名 (Domain)</label>
+        <input type="text" id="source-domain" placeholder="例如: arxiv.org" required>
+      </div>
+      <div class="config-row">
+        <label>名称 (Name)</label>
+        <input type="text" id="source-name" placeholder="例如: arXiv 论文库" required>
+      </div>
+      <div class="config-row">
+        <label>类型 (Type)</label>
+        <select id="source-type" required>
+          <option value="academic">学术论文 (Academic)</option>
+          <option value="documentation">技术文档 (Documentation)</option>
+          <option value="github">GitHub 仓库</option>
+          <option value="blog">技术博客 (Blog)</option>
+          <option value="news">新闻资讯 (News)</option>
+          <option value="other">其他 (Other)</option>
+        </select>
+      </div>
+      <div class="config-row">
+        <label>信任等级 (Trust Level)</label>
+        <select id="source-trust-level" required>
+          <option value="high">高 (High)</option>
+          <option value="medium" selected>中 (Medium)</option>
+          <option value="low">低 (Low)</option>
+        </select>
+      </div>
+      <div class="config-actions">
+        <button type="submit" class="btn btn-primary">添加数据源</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="config-card">
+    <h3>📋 可信数据源列表</h3>
+    <div class="panel-controls" style="margin-bottom: var(--space-3);">
+      <button class="btn" onclick="exportSources()">📤 导出 JSON</button>
+      <button class="btn" onclick="document.getElementById('import-file').click()">📥 导入 JSON</button>
+      <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importSources()">
+    </div>
+    <div id="sources-table-container">
+      <table class="sources-table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="background: var(--paper); border-bottom: var(--border-medium);">
+            <th style="padding: var(--space-2) var(--space-3); text-align: left; font-size: 12px; font-weight: 600; color: var(--ink-muted);">域名</th>
+            <th style="padding: var(--space-2) var(--space-3); text-align: left; font-size: 12px; font-weight: 600; color: var(--ink-muted);">名称</th>
+            <th style="padding: var(--space-2) var(--space-3); text-align: left; font-size: 12px; font-weight: 600; color: var(--ink-muted);">类型</th>
+            <th style="padding: var(--space-2) var(--space-3); text-align: left; font-size: 12px; font-weight: 600; color: var(--ink-muted);">信任等级</th>
+            <th style="padding: var(--space-2) var(--space-3); text-align: left; font-size: 12px; font-weight: 600; color: var(--ink-muted);">状态</th>
+            <th style="padding: var(--space-2) var(--space-3); text-align: left; font-size: 12px; font-weight: 600; color: var(--ink-muted);">操作</th>
+          </tr>
+        </thead>
+        <tbody id="sources-table-body">
+        </tbody>
+      </table>
+      <div id="sources-empty" class="empty" style="display: none;">
+        <div class="empty-icon">📭</div>
+        暂无可信数据源
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.sources-table th,
+.sources-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-thin);
+  font-size: 13px;
+}
+.sources-table tbody tr:hover {
+  background: var(--paper);
+}
+.sources-table .domain-cell {
+  font-family: 'Courier New', monospace;
+  color: var(--accent-primary);
+}
+.sources-table .type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+}
+.type-academic { background: var(--accent-light); color: var(--accent-primary); border: 1px solid var(--accent-primary); }
+.type-documentation { background: #e0f2fe; color: #0369a1; border: 1px solid #0369a1; }
+.type-github { background: #f3e8ff; color: #7c3aed; border: 1px solid #7c3aed; }
+.type-blog { background: #fef3c7; color: #d97706; border: 1px solid #d97706; }
+.type-news { background: #fee2e2; color: #dc2626; border: 1px solid #dc2626; }
+.type-other { background: var(--paper-dark); color: var(--ink-muted); border: 1px solid var(--ink-light); }
+.trust-high { color: var(--success); font-weight: 600; }
+.trust-medium { color: var(--warning); font-weight: 600; }
+.trust-low { color: var(--ink-muted); }
+.status-enabled { color: var(--success); }
+.status-disabled { color: var(--ink-light); }
+</style>
