@@ -224,51 +224,35 @@ class LLMKnowledgeExtractTool(Tool):
 Content:
 {content[:6000]}
 
-Return a JSON object with this EXACT structure:
+Return a JSON object with this EXACT structure (flat 6-element model):
 
 {{
   "topic": "{topic}",
-  "content": {{
-    "definition": "What is this concept? (1-2 sentences)",
-    "formula": "Key formula or N/A",
-    "fact": "Key facts or properties",
-    "examples": ["Example 1", "Example 2"],
-    "completeness_score": 3
-  }},
+  "definition": "What is this concept (1-2 sentences)",
+  "core": "Core mechanism/algorithm/process",
+  "context": "Background (who proposed, when, why)",
+  "examples": ["Concrete example 1", "Concrete example 2"],
+  "formula": "Key formula in LaTeX or N/A",
+  "relationships": [{{"type": "RELATED", "topic": "related concept"}}],
   "source": {{
     "source_url": "{source_url or 'N/A'}",
-    "source_type": "web",
-    "source_trusted": false,
-    "local_file_path": null,
-    "local_file_type": null,
-    "source_missing": false
-  }},
-  "relations": {{
-    "parent": "Parent topic or null",
-    "children": [],
-    "depends_on": ["Prerequisite 1"],
-    "related_to": ["Related 1"],
-    "cites": [],
-    "applied_in": ["Application 1"]
-  }},
-  "citation": {{
-    "citation_title": null,
-    "citation_authors": [],
-    "citation_year": null,
-    "citation_venue": null
+    "source_type": "paper",
+    "source_trusted": false
   }},
   "keywords": ["keyword1", "keyword2"],
   "quality": 7.0,
-  "status": "done"
+  "completeness_score": 3
 }}
 
 Rules:
 - definition: Atomic description (what is it)
-- formula: LaTeX or code pattern, or "N/A"
-- examples: Concrete instances
-- completeness_score: 1-6 based on filled fields
-- quality: 0-10 extraction confidence
-- status: Always "done" """
+- core: Mechanism/algorithm/process (NOT 'fact')
+- context: Background info (who proposed, when, why)
+- examples: Concrete instances (list of strings)
+- formula: LaTeX or 'N/A'
+- relationships: List of {{type, topic}} pairs
+- completeness_score: 1-6 based on number of filled flat fields (definition, core, context, examples, formula, relationships)
+- quality: 0-10 extraction confidence"""
 
         response = client.chat(prompt)
 
