@@ -35,7 +35,7 @@ DEFAULT_TOOLS = [
     "extract_knowledge_points",
     "download_paper",
     "add_to_kg",
-    "add_kg_relation",
+    "update_kg_relation",
     "query_kg",
     "query_kg_children",
     "claim_queue",
@@ -80,7 +80,14 @@ class DeepReadAgent(CAAgent):
         self.holder_id = str(uuid.uuid4())
     
     async def run(self) -> AgentResult:
-        """Main loop: claim → process → mark_done."""
+        """Main loop: check tools → claim → process → mark_done."""
+        if not self.tool_registry.get("read_paper_text"):
+            return AgentResult(
+                content="read_paper_text tool not available",
+                success=False,
+                iterations_used=0,
+            )
+
         item = await self._claim_deep_read_item()
         if not item:
             return AgentResult(
@@ -88,7 +95,7 @@ class DeepReadAgent(CAAgent):
                 success=False,
                 iterations_used=0,
             )
-        
+
         result = await self._process_paper(item)
         await self._mark_done(item)
         return result
@@ -155,12 +162,7 @@ class DeepReadAgent(CAAgent):
                 iterations_used=0,
             )
         
-        # 1. Read full text
-        read_tool = self.tool_registry.get("read_paper_text")
-        if not read_tool:
-            return AgentResult(content="read_paper_text tool not available", success=False, iterations_used=0)
-        
-        full_text = await read_tool.execute(txt_path=txt_path)
+        full_text = await self.tool_registry.get("read_paper_text").execute(txt_path=txt_path)
         if full_text.startswith("Error"):
             return AgentResult(content=f"Failed to read paper: {full_text}", success=False, iterations_used=0)
         
@@ -168,7 +170,7 @@ class DeepReadAgent(CAAgent):
         kp_list = await self._identify_knowledge_points(full_text, topic)
         
         # 2.5 Create summary node in KG
-        await self._create_summary_node(topic, source_url=source_url, kp_count=len(kp_list.get("knowledge_points", [])))
+        await self._create_summary_node(topic, source_url=source_url, kp_count=len(kp_list.get("knowledge_points", [])), pdf_path=pdf_path, txt_path=txt_path)
         
         # 3. Write each knowledge point
         written = 0
@@ -411,43 +413,84 @@ Only return the JSON array."""
     
     async def _write_knowledge_point(self, kp: dict, parent_topic: str):
         add_tool = self.tool_registry.get("add_to_kg")
-        if add_tool:
-            content_obj = kp.get("content", {})
-            source_obj = kp.get("source", {})
-            relations_obj = kp.get("relations", {})
-            
-            await add_tool.execute(
-                topic=kp.get("topic", "unknown"),
-                definition=content_obj.get("definition"),
-                core=content_obj.get("fact"),
-                context=content_obj.get("context"),
-                examples=content_obj.get("examples", []),
-                formula=content_obj.get("formula"),
-                parent_topic=relations_obj.get("parent", parent_topic),
-                metadata={
-                    "quality": kp.get("quality", 7.0),
-                    "keywords": kp.get("keywords", []),
-                    "source_type": source_obj.get("source_type", "paper"),
-                    "source_trusted": source_obj.get("source_trusted", False),
-                    "completeness_score": content_obj.get("completeness_score", 0)
-                }
+        if not add_tool:
+            return
+
+        content_obj = kp.get("content", {})
+        source_obj = kp.get("source", {})
+        relations_obj = kp.get("relations", {})
+        is_nested = bool(content_obj)
+
+        definition = kp.get("definition") if not is_nested else content_obj.get("definition")
+        core = kp.get("core") or kp.get("fact") or content_obj.get("core") or content_obj.get("fact")
+        context = kp.get("context") if not is_nested else content_obj.get("context")
+        examples = kp.get("examples", []) if not is_nested else content_obj.get("examples", [])
+        formula = kp.get("formula") if not is_nested else content_obj.get("formula")
+        parent = relations_obj.get("parent", parent_topic)
+
+        await add_tool.execute(
+            topic=kp.get("topic", "unknown"),
+            definition=definition,
+            core=core,
+            context=context,
+            examples=examples,
+            formula=formula,
+            parent_topic=parent,
+            metadata={
+                "quality": kp.get("quality", 7.0),
+                "keywords": kp.get("keywords", []),
+                "source_type": source_obj.get("source_type", "paper"),
+                "source_trusted": source_obj.get("source_trusted", False),
+                "completeness_score": content_obj.get("completeness_score", 0)
+            }
+        )
+
+        relation_tool = self.tool_registry.get("update_kg_relation")
+        if relation_tool:
+            await relation_tool.execute(
+                from_topic=kp.get("topic", "unknown"),
+                to_topic=parent,
+                relation_type="DERIVED_FROM",
+                action="add"
             )
     
-    async def _create_summary_node(self, topic: str, source_url: str = None, kp_count: int = 0):
-        """Create summary node in KG before writing child knowledge points."""
+    async def _create_summary_node(self, topic: str, source_url: str = None, kp_count: int = 0, pdf_path: str = None, txt_path: str = None):
+        from core.trusted_sources import TrustedSourceManager
+
         add_tool = self.tool_registry.get("add_to_kg")
-        if add_tool:
-            await add_tool.execute(
-                topic=topic,
-                content=f"Summary of {kp_count} knowledge points",
-                source_urls=[source_url] if source_url else [],
-                definition=None,
-                core=None,
-                context=None,
-                examples=None,
-                formula=None,
-                parent_topic=None,
-            )
+        if not add_tool:
+            return
+
+        tsm = TrustedSourceManager()
+        tsm.load()
+        source_origin = {"type": "url", "url": source_url, "domain": None, "is_trusted": False}
+        if source_url:
+            check = tsm.check_url(source_url)
+            source_origin["domain"] = check.get("domain")
+            source_origin["is_trusted"] = check.get("is_trusted", False)
+
+        metadata = {
+            "node_type": "summary",
+            "child_count": kp_count,
+            "deep_read_status": "pending",
+        }
+        if pdf_path:
+            metadata["pdf_path"] = pdf_path
+        if txt_path:
+            metadata["txt_path"] = txt_path
+
+        await add_tool.execute(
+            topic=topic,
+            content=f"Summary of {kp_count} knowledge points",
+            source_urls=[source_url] if source_url else [],
+            definition=None,
+            core=None,
+            context=None,
+            examples=None,
+            formula=None,
+            parent_topic=None,
+            metadata=metadata,
+        )
     
     async def _update_summary_metadata(self, topic: str, child_count: int):
         """Update summary node metadata after deep read."""

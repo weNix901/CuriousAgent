@@ -3,6 +3,18 @@ import pytest
 from core.agents.deep_read_agent import DeepReadAgent, DeepReadAgentConfig, DEFAULT_TOOLS
 
 
+class _MockReadPaperText:
+    name = "read_paper_text"
+    description = "mock"
+    parameters = {"type": "object", "properties": {"txt_path": {"type": "string"}}, "required": ["txt_path"]}
+
+    async def execute(self, **kwargs):
+        return "mock paper text"
+
+    def to_schema(self):
+        return {"type": "function", "function": {"name": self.name, "description": self.description, "parameters": self.parameters}}
+
+
 class TestDeepReadAgentConfig:
     def test_import_deep_read_agent_config(self):
         """Test that DeepReadAgentConfig can be imported."""
@@ -62,11 +74,14 @@ class TestDeepReadAgent:
     def test_deep_read_agent_run_returns_no_items(self):
         """Test that run returns failure when no deep_read items."""
         import asyncio
+        from unittest.mock import AsyncMock
         config = DeepReadAgentConfig()
         from core.tools.registry import ToolRegistry
         registry = ToolRegistry()
+        registry.register(_MockReadPaperText())
         agent = DeepReadAgent(config=config, tool_registry=registry)
-        
+        agent._claim_deep_read_item = AsyncMock(return_value=None)
+
         result = asyncio.run(agent.run())
         assert result.success is False
         assert "No deep_read items" in result.content
