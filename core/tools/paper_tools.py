@@ -330,15 +330,22 @@ Context text:
 
 class ExtractFormulasTool(Tool):
     """Extract mathematical formulas from text sections."""
-    
+
+    # Unicode math symbols for density detection
+    MATH_SYMBOLS = set(
+        "∑∫∂√±≤≥≠∈∝∞αβγδεθλμπσφω+-*/=^_"
+    )
+    MATH_DENSITY_THRESHOLD = 0.01
+    MAX_MATH_PARAGRAPHS = 5
+
     @property
     def name(self) -> str:
         return "extract_formulas"
-    
+
     @property
     def description(self) -> str:
         return "Extract mathematical formulas from PDF pages or text sections"
-    
+
     @property
     def parameters(self) -> dict[str, Any]:
         return {
@@ -349,10 +356,141 @@ class ExtractFormulasTool(Tool):
                 "description": "List of {start_line, end_line} to process"
             }
         }
-    
-    async def execute(self, txt_path: str, sections: list = None, **kwargs) -> str:
-        # Phase 1: Detect math-dense paragraphs from text
-        # Phase 2: For math-dense sections, extract formulas
-        # Phase 3: Return formula list [{"formula": "LaTeX", "context": "...", "page": N}]
-        # TODO: Implement regex + LLM vision extraction
-        return json.dumps({"formulas": [], "status": "not_implemented"})
+
+    async def execute(self, txt_path: str, sections: list | None = None, **kwargs) -> str:
+        if not os.path.exists(txt_path):
+            return json.dumps({"formulas": [], "status": "file_not_found", "error": f"File not found: {txt_path}"})
+
+        with open(txt_path, "r", encoding="utf-8") as f:
+            text = f.read()
+
+        if not text.strip():
+            return json.dumps({"formulas": [], "status": "no_math_content"})
+
+        # Phase 1: Split into paragraphs and detect math-dense ones
+        paragraphs = text.split("\n\n")
+        math_dense_paragraphs = []
+
+        for idx, para in enumerate(paragraphs):
+            if self._is_math_dense(para):
+                math_dense_paragraphs.append((idx, para))
+
+        if not math_dense_paragraphs:
+            logger.info("No math-dense paragraphs found in %s", txt_path)
+            return json.dumps({"formulas": [], "status": "no_math_content"})
+
+        # Limit to max 5 math-dense paragraphs
+        math_dense_paragraphs = math_dense_paragraphs[:self.MAX_MATH_PARAGRAPHS]
+        logger.info("Found %d math-dense paragraphs in %s (processing %d)",
+                     len(math_dense_paragraphs), txt_path, len(math_dense_paragraphs))
+
+        # Phase 2: Extract formulas from each math-dense paragraph
+        all_formulas = []
+        for para_idx, para_text in math_dense_paragraphs:
+            formulas = await self._extract_formulas_from_section(para_text, para_idx)
+            all_formulas.extend(formulas)
+
+        logger.info("Extracted %d formulas from %s", len(all_formulas), txt_path)
+
+        return json.dumps({
+            "formulas": all_formulas,
+            "status": "success"
+        })
+
+    def _is_math_dense(self, paragraph: str) -> bool:
+        """Check if a paragraph has high math symbol density (>1%)."""
+        if not paragraph.strip():
+            return False
+
+        math_count = sum(1 for char in paragraph if char in self.MATH_SYMBOLS)
+        total_chars = len(paragraph)
+
+        if total_chars == 0:
+            return False
+
+        density = math_count / total_chars
+        return density > self.MATH_DENSITY_THRESHOLD
+
+    async def _extract_formulas_from_section(self, paragraph: str, para_index: int) -> list[dict]:
+        """Extract LaTeX formulas from a math-dense paragraph using LLM."""
+        prompt = f"""You are a mathematical formula extraction expert. Analyze the following text and extract ALL mathematical formulas.
+
+For each formula found, provide:
+- formula: The LaTeX representation of the formula
+- context: A brief description of what the formula represents or where it's used
+- source_location: "paragraph_{para_index}"
+
+Return ONLY a JSON array of objects with this exact structure:
+[
+  {{"formula": "E = mc^2", "context": "Einstein's mass-energy equivalence", "source_location": "paragraph_{para_index}"}},
+  ...
+]
+
+If no clear formulas are found, return an empty array: []
+
+Text:
+---
+{paragraph}
+---"""
+
+        response = self._call_llm_with_fallback(prompt)
+        if not response:
+            logger.warning("LLM call failed for paragraph %d", para_index)
+            return []
+
+        formulas = self._parse_json_response(response, expect_array=True)
+        if not isinstance(formulas, list):
+            logger.warning("Non-array response for paragraph %d: %s", para_index, type(formulas))
+            return []
+
+        # Validate and normalize results
+        valid_formulas = []
+        for item in formulas:
+            if isinstance(item, dict) and "formula" in item:
+                valid_formulas.append({
+                    "formula": str(item.get("formula", "")).strip(),
+                    "context": str(item.get("context", "")).strip(),
+                    "source_location": str(item.get("source_location", f"paragraph_{para_index}")).strip()
+                })
+
+        logger.info("Extracted %d formulas from paragraph %d", len(valid_formulas), para_index)
+        return valid_formulas
+
+    def _call_llm_with_fallback(self, prompt: str) -> str | None:
+        """Call LLM with provider fallback: volcengine → minimax."""
+        from core.llm_client import LLMClient
+
+        for provider in ["volcengine", "minimax"]:
+            try:
+                client = LLMClient(provider_name=provider)
+                response = client.chat(prompt)
+                if response and response.strip():
+                    return response
+            except Exception as e:
+                logger.warning("LLM call failed with provider=%s: %s", provider, e)
+                continue
+
+        logger.error("All LLM providers failed")
+        return None
+
+    def _parse_json_response(self, response: str, expect_array: bool = False) -> Any:
+        """Parse JSON from LLM response with regex fallback."""
+        # Primary: direct json.loads
+        try:
+            return json.loads(response)
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        # Fallback: regex extraction
+        try:
+            if expect_array:
+                match = re.search(r'\[\s*\{.*?\}\s*\]', response, re.DOTALL)
+            else:
+                match = re.search(r'\{\s*".*?".*?\}', response, re.DOTALL)
+
+            if match:
+                return json.loads(match.group())
+        except (json.JSONDecodeError, AttributeError):
+            pass
+
+        return None
