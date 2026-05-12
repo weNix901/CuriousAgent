@@ -3,6 +3,7 @@
 import hashlib
 import os
 import json
+import re
 import logging
 from typing import Any
 
@@ -110,11 +111,221 @@ class ExtractKnowledgePointsTool(Tool):
         }
     
     async def execute(self, paper_text: str, topic: str, parent_topic: str, **kwargs) -> str:
-        # Phase 1: LLM overview → identify knowledge points list
-        # Phase 2: For each KP, locate paragraph → 6-element extraction
-        # Phase 3: Return structured JSON
-        # TODO: Implement LLM-based extraction
-        return json.dumps({"knowledge_points": [], "status": "not_implemented"})
+        # Phase 1: LLM overview → identify 5-15 candidate knowledge points
+        candidates = await self._phase1_overview(paper_text, topic, parent_topic)
+        
+        if not candidates:
+            return json.dumps({"knowledge_points": [], "status": "no_candidates_found"})
+        
+        # Phase 2: For each candidate (max 12), extract 6-element structure
+        knowledge_points = []
+        for candidate in candidates[:12]:
+            kp = await self._extract_6_element(candidate, paper_text)
+            if kp:
+                knowledge_points.append(kp)
+        
+        return json.dumps({
+            "knowledge_points": knowledge_points,
+            "status": "success"
+        })
+    
+    def _call_llm_with_fallback(self, prompt: str) -> str | None:
+        """Call LLM with provider fallback: volcengine → minimax."""
+        from core.llm_client import LLMClient
+        
+        for provider in ["volcengine", "minimax"]:
+            try:
+                client = LLMClient(provider_name=provider)
+                response = client.chat(prompt)
+                if response and response.strip():
+                    return response
+            except Exception as e:
+                logger.warning(f"LLM call failed with provider={provider}: {e}")
+                continue
+        
+        logger.error("All LLM providers failed")
+        return None
+    
+    def _parse_json_response(self, response: str, expect_array: bool = False) -> Any:
+        """Parse JSON from LLM response with regex fallback."""
+        # Primary: direct json.loads
+        try:
+            return json.loads(response)
+        except (json.JSONDecodeError, ValueError):
+            pass
+        
+        # Fallback: regex extraction
+        try:
+            if expect_array:
+                match = re.search(r'\[\s*\{.*?\}\s*\]', response, re.DOTALL)
+            else:
+                match = re.search(r'\{\s*"topic".*?\}', response, re.DOTALL)
+            
+            if match:
+                return json.loads(match.group())
+        except (json.JSONDecodeError, AttributeError):
+            pass
+        
+        return None
+    
+    async def _phase1_overview(self, paper_text: str, topic: str, parent_topic: str) -> list[dict]:
+        """Phase 1: LLM overview to identify 5-15 candidate knowledge points."""
+        truncated = paper_text[:12000]
+        
+        prompt = f"""You are a knowledge extraction expert. Analyze the following academic paper text and identify 5-15 key knowledge points.
+
+Topic: {topic}
+Parent Topic: {parent_topic}
+
+For each knowledge point, identify:
+- topic: The name/title of the knowledge point
+- source_section: Which section of the paper it comes from
+- relevance_score: A score from 0.0 to 1.0 indicating relevance to the main topic
+
+Return ONLY a JSON array of objects with this exact structure:
+[
+  {{"topic": "Knowledge Point Name", "source_section": "Section Name", "relevance_score": 0.9}},
+  ...
+]
+
+Paper text:
+---
+{truncated}
+---"""
+        
+        response = self._call_llm_with_fallback(prompt)
+        if not response:
+            logger.warning("Phase 1 LLM call failed, returning no candidates")
+            return []
+        
+        candidates = self._parse_json_response(response, expect_array=True)
+        if not isinstance(candidates, list):
+            logger.warning(f"Phase 1 returned non-array: {type(candidates)}")
+            return []
+        
+        # Validate and filter candidates
+        valid_candidates = []
+        for c in candidates:
+            if isinstance(c, dict) and "topic" in c and "source_section" in c:
+                valid_candidates.append({
+                    "topic": str(c.get("topic", "")),
+                    "source_section": str(c.get("source_section", "")),
+                    "relevance_score": float(c.get("relevance_score", 0.5))
+                })
+        
+        logger.info(f"Phase 1 identified {len(valid_candidates)} candidates")
+        return valid_candidates
+    
+    def _locate_paragraphs(self, paper_text: str, topic: str, section_hint: str, max_chars: int = 2000) -> str:
+        """Locate relevant paragraphs using keyword matching."""
+        paragraphs = paper_text.split("\n\n")
+        
+        # Extract keywords from topic + section_hint (words > 3 chars)
+        keywords = []
+        for text in [topic, section_hint]:
+            words = re.findall(r'[a-zA-Z\u4e00-\u9fff]{4,}', text)
+            keywords.extend([w.lower() for w in words])
+        
+        if not keywords:
+            # Fallback: return first few paragraphs
+            combined = "\n\n".join(paragraphs[:5])
+            return combined[:max_chars]
+        
+        # Score each paragraph by keyword matches
+        scored = []
+        for para in paragraphs:
+            para_lower = para.lower()
+            score = sum(1 for kw in keywords if kw in para_lower)
+            if score > 0:
+                scored.append((score, para))
+        
+        # Sort by score descending, take top 5
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top_paragraphs = [p for _, p in scored[:5]]
+        
+        if not top_paragraphs:
+            combined = "\n\n".join(paragraphs[:5])
+        else:
+            combined = "\n\n".join(top_paragraphs)
+        
+        return combined[:max_chars]
+    
+    async def _extract_6_element(self, candidate: dict, paper_text: str) -> dict | None:
+        """Phase 2: Extract 6-element structure for a single candidate."""
+        topic = candidate["topic"]
+        section_hint = candidate.get("source_section", "")
+        
+        # Locate relevant paragraphs
+        context_text = self._locate_paragraphs(paper_text, topic, section_hint)
+        
+        prompt = f"""Extract a structured knowledge point from the following text.
+
+Knowledge Point Topic: {topic}
+Section Hint: {section_hint}
+
+Extract the following 6 elements:
+- definition: A concise 1-2 sentence definition
+- core: The core principle or mechanism
+- context: Background, who proposed it, when, why
+- examples: Concrete usage examples or applications
+- formula: Mathematical expressions (empty string if none)
+- relationships: Related concepts, parent/sibling concepts
+
+Return ONLY a JSON object with this exact structure:
+{{
+  "definition": "...",
+  "core": "...",
+  "context": "...",
+  "examples": "...",
+  "formula": "",
+  "relationships": "..."
+}}
+
+Context text:
+---
+{context_text}
+---"""
+        
+        response = self._call_llm_with_fallback(prompt)
+        if not response:
+            logger.warning(f"Phase 2 LLM call failed for candidate: {topic}")
+            return None
+        
+        result = self._parse_json_response(response, expect_array=False)
+        if not isinstance(result, dict):
+            logger.warning(f"Phase 2 returned non-object for candidate: {topic}")
+            return None
+        
+        # Build the 6-element knowledge point
+        fields = {
+            "definition": str(result.get("definition", "")).strip(),
+            "core": str(result.get("core", "")).strip(),
+            "context": str(result.get("context", "")).strip(),
+            "examples": str(result.get("examples", "")).strip(),
+            "formula": str(result.get("formula", "")).strip(),
+            "relationships": str(result.get("relationships", "")).strip()
+        }
+        
+        completeness = self._calc_completeness(fields)
+        
+        return {
+            "topic": topic,
+            "source_section": section_hint,
+            "relevance_score": candidate.get("relevance_score", 0.5),
+            "definition": fields["definition"],
+            "core": fields["core"],
+            "context": fields["context"],
+            "examples": fields["examples"],
+            "formula": fields["formula"],
+            "relationships": fields["relationships"],
+            "completeness_score": completeness
+        }
+    
+    def _calc_completeness(self, fields: dict) -> float:
+        """Calculate completeness score based on non-empty fields."""
+        scored_fields = ["definition", "core", "context", "examples", "formula"]
+        non_empty = sum(1 for f in scored_fields if fields.get(f, "").strip())
+        return round(non_empty / len(scored_fields), 2)
 
 
 class ExtractFormulasTool(Tool):
