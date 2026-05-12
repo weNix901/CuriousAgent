@@ -324,7 +324,18 @@ Context text:
     def _calc_completeness(self, fields: dict) -> float:
         """Calculate completeness score based on non-empty fields."""
         scored_fields = ["definition", "core", "context", "examples", "formula"]
-        non_empty = sum(1 for f in scored_fields if fields.get(f, "").strip())
+        non_empty = 0
+        for f in scored_fields:
+            val = fields.get(f)
+            if val is None:
+                continue
+            # Handle both string and list types
+            if isinstance(val, list):
+                if len(val) > 0:
+                    non_empty += 1
+            elif isinstance(val, str):
+                if val.strip() and val != "N/A":
+                    non_empty += 1
         return round(non_empty / len(scored_fields), 2)
 
 
