@@ -241,6 +241,51 @@ class TestQueueStorage:
         storage.close()
         assert storage._connection is None
 
+    def test_delete_item_success(self, queue_storage):
+        """Test deleting a claimed item successfully."""
+        item_id = queue_storage.add_item("test topic", priority=5)
+        holder_id = str(uuid.uuid4())
+        queue_storage.claim_item(item_id, holder_id)
+
+        result = queue_storage.delete_item(item_id, holder_id)
+        assert result is True
+
+        conn = queue_storage._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM queue WHERE id = ?", (item_id,))
+        assert cursor.fetchone()[0] == 0
+        conn.close()
+
+    def test_delete_item_wrong_holder(self, queue_storage):
+        """Test deleting with wrong holder_id fails and item remains."""
+        item_id = queue_storage.add_item("test topic", priority=5)
+        holder_a = str(uuid.uuid4())
+        holder_b = str(uuid.uuid4())
+        queue_storage.claim_item(item_id, holder_a)
+
+        result = queue_storage.delete_item(item_id, holder_b)
+        assert result is False
+
+        conn = queue_storage._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT status FROM queue WHERE id = ?", (item_id,))
+        assert cursor.fetchone()[0] == "claimed"
+        conn.close()
+
+    def test_delete_item_not_claimed(self, queue_storage):
+        """Test deleting a pending (unclaimed) item fails."""
+        item_id = queue_storage.add_item("test topic", priority=5)
+        holder_id = str(uuid.uuid4())
+
+        result = queue_storage.delete_item(item_id, holder_id)
+        assert result is False
+
+        conn = queue_storage._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT status FROM queue WHERE id = ?", (item_id,))
+        assert cursor.fetchone()[0] == "pending"
+        conn.close()
+
 
 class TestAddToQueueTool:
     """Tests for AddToQueueTool."""

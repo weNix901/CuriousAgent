@@ -9,6 +9,8 @@ from typing import Any
 import nest_asyncio
 from loguru import logger
 
+from core.kg.repository_factory import get_kg_factory
+
 
 @dataclass
 class ExploreDaemonConfig:
@@ -29,8 +31,9 @@ class ExploreDaemon(threading.Thread):
     1. Poll queue for pending items
     2. Claim an item
     3. Run ExploreAgent to explore the topic
-    4. Mark item as done (or failed after retries)
-    5. Repeat
+    4. Verify KG content; delete item if valid, keep claimed if empty
+    5. On max retries, delete item and log dead letter
+    6. Repeat
     """
     
     def __init__(
@@ -63,7 +66,7 @@ class ExploreDaemon(threading.Thread):
         self.running = False
     
     def run(self):
-        """Main daemon loop: claim → explore → mark done."""
+        """Main daemon loop: claim → explore → verify KG → delete/keep."""
         # Allow nested asyncio.run() calls from tools within this event loop
         nest_asyncio.apply()
         
@@ -110,8 +113,19 @@ class ExploreDaemon(threading.Thread):
                 result = await self.explore_agent.run(topic, pre_claimed_item_id=item_id)
                 
                 if result.success:
-                    self.queue_storage.mark_done(item_id, self.explore_agent.holder_id)
-                    logger.info(f"ExploreDaemon: completed item {item_id} - {topic}")
+                    try:
+                        kg_factory = get_kg_factory()
+                        node = kg_factory.get_node_sync(topic)
+                        if node and node.get('content') and len(str(node.get('content', ''))) > 10:
+                            # KG has valid content → delete queue item
+                            self.queue_storage.delete_item(item_id, self.explore_agent.holder_id)
+                            logger.info(f"ExploreDaemon: item {item_id} {topic} → KG verified, queue deleted")
+                        else:
+                            # KG empty or content too brief → keep claimed, timeout will release
+                            logger.warning(f"ExploreDaemon: KG empty/brief for {topic}, keeping claimed (will timeout)")
+                    except Exception as e:
+                        # KG verification itself failed (Neo4j down, etc.) → keep claimed, don't delete
+                        logger.warning(f"ExploreDaemon: KG verification failed for {topic}: {e}, keeping claimed")
                     return
                 else:
                     retries += 1
@@ -124,10 +138,11 @@ class ExploreDaemon(threading.Thread):
                     await asyncio.sleep(self.config.retry_delay_seconds)
         
         if retries >= self.config.max_retries:
-            self.queue_storage.mark_failed(
-                item_id,
-                self.explore_agent.holder_id,
-                requeue=False,
-                reason="Max retries exceeded"
-            )
-            logger.warning(f"ExploreDaemon: marked item {item_id} as failed after {retries} retries")
+            self._log_dead_letter(item_id, topic, "max_retries_exceeded")
+            self.queue_storage.delete_item(item_id, self.explore_agent.holder_id)
+            logger.warning(f"ExploreDaemon: deleted item {item_id} after max retries - {topic}")
+            return
+
+    def _log_dead_letter(self, item_id: int, topic: str, reason: str):
+        """Log dead letter for analysis (non-blocking)."""
+        logger.warning(f"[DEAD_LETTER] item_id={item_id}, topic={topic}, reason={reason}")

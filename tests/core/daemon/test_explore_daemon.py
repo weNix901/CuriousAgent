@@ -55,21 +55,21 @@ class TestExploreDaemonConfig:
         """Default config should have sensible defaults."""
         config = ExploreDaemonConfig()
         
-        assert config.poll_interval == 5.0
+        assert config.poll_interval_seconds == 300.0
         assert config.max_retries == 3
-        assert config.retry_delay == 1.0
+        assert config.retry_delay_seconds == 15.0
     
     def test_custom_config_values(self):
         """Custom config values should be respected."""
         config = ExploreDaemonConfig(
-            poll_interval=10.0,
+            poll_interval_seconds=10.0,
             max_retries=5,
-            retry_delay=2.0
+            retry_delay_seconds=2.0
         )
         
-        assert config.poll_interval == 10.0
+        assert config.poll_interval_seconds == 10.0
         assert config.max_retries == 5
-        assert config.retry_delay == 2.0
+        assert config.retry_delay_seconds == 2.0
 
 
 class TestExploreDaemonLoop:
@@ -86,40 +86,40 @@ class TestExploreDaemonLoop:
     @pytest.mark.asyncio
     async def test_explore_daemon_calls_agent_run_in_loop(self):
         """ExploreDaemon should call explore_agent.run() in its loop."""
-        # Create mock agent that returns success
         mock_agent = MagicMock()
         mock_agent.run = AsyncMock(return_value=MagicMock(success=True, content="Explored"))
         
-        # Create mock queue tools
         mock_queue_storage = MagicMock()
         mock_queue_storage.get_pending_items.return_value = [
             {"id": 1, "topic": "test_topic", "priority": 5}
         ]
         mock_queue_storage.claim_item.return_value = True
-        mock_queue_storage.mark_done.return_value = True
+        mock_queue_storage.delete_item.return_value = True
         
-        daemon = ExploreDaemon(
-            explore_agent=mock_agent,
-            queue_storage=mock_queue_storage,
-            config=ExploreDaemonConfig(poll_interval=0.1)
-        )
-        
-        # Start daemon in background
-        daemon.start()
-        
-        # Wait for one iteration
-        time.sleep(0.3)
-        
-        # Stop daemon
-        daemon.stop()
-        daemon.join(timeout=2.0)
-        
-        # Verify agent was called
-        assert mock_agent.run.called
+        with patch("core.daemon.explore_daemon.get_kg_factory") as mock_kg_factory:
+            mock_kg_instance = MagicMock()
+            mock_kg_instance.get_node_sync.return_value = {"content": "Valid KG content here"}
+            mock_kg_factory.return_value = mock_kg_instance
+            
+            with patch("core.tools.queue_tools.QueueStorage") as MockQueueStorage:
+                MockQueueStorage.return_value = mock_queue_storage
+                
+                daemon = ExploreDaemon(
+                    explore_agent=mock_agent,
+                    queue_storage=mock_queue_storage,
+                    config=ExploreDaemonConfig(poll_interval_seconds=0.1)
+                )
+                
+                daemon.start()
+                time.sleep(0.3)
+                daemon.stop()
+                daemon.join(timeout=2.0)
+                
+                assert mock_agent.run.called
     
     @pytest.mark.asyncio
     async def test_explore_daemon_marks_done_after_exploration(self):
-        """ExploreDaemon should mark item as done after successful exploration."""
+        """ExploreDaemon should delete item after successful exploration with KG verification."""
         mock_agent = MagicMock()
         mock_agent.holder_id = "test_holder"
         mock_agent.run = AsyncMock(return_value=MagicMock(success=True, content="Explored"))
@@ -129,21 +129,31 @@ class TestExploreDaemonLoop:
             {"id": 1, "topic": "test_topic", "priority": 5}
         ]
         mock_queue_storage.claim_item.return_value = True
-        mock_queue_storage.mark_done.return_value = True
+        mock_queue_storage.delete_item.return_value = True
         
-        daemon = ExploreDaemon(
-            explore_agent=mock_agent,
-            queue_storage=mock_queue_storage,
-            config=ExploreDaemonConfig(poll_interval=0.1)
-        )
-        
-        daemon.start()
-        time.sleep(0.3)
-        daemon.stop()
-        daemon.join(timeout=2.0)
-        
-        # Verify mark_done was called
-        assert mock_queue_storage.mark_done.called
+        with patch("core.daemon.explore_daemon.get_kg_factory") as mock_kg_factory:
+            mock_kg_instance = MagicMock()
+            mock_kg_instance.get_node_sync.return_value = {
+                "content": "Valid KG content that is longer than 10 chars"
+            }
+            mock_kg_factory.return_value = mock_kg_instance
+            
+            with patch("core.tools.queue_tools.QueueStorage") as MockQueueStorage:
+                MockQueueStorage.return_value = mock_queue_storage
+                
+                daemon = ExploreDaemon(
+                    explore_agent=mock_agent,
+                    queue_storage=mock_queue_storage,
+                    config=ExploreDaemonConfig(poll_interval_seconds=0.1)
+                )
+                
+                daemon.start()
+                time.sleep(0.3)
+                daemon.stop()
+                daemon.join(timeout=2.0)
+                
+                # Verify delete_item was called (KG verified path)
+                assert mock_queue_storage.delete_item.called
 
 
 class TestExploreDaemonGracefulShutdown:
@@ -176,7 +186,7 @@ class TestExploreDaemonGracefulShutdown:
         daemon = ExploreDaemon(
             explore_agent=mock_agent,
             queue_storage=mock_queue_storage,
-            config=ExploreDaemonConfig(poll_interval=0.1)
+            config=ExploreDaemonConfig(poll_interval_seconds=0.1)
         )
         
         # Simulate signal
@@ -197,19 +207,22 @@ class TestExploreDaemonEmptyQueue:
         mock_queue_storage = MagicMock()
         mock_queue_storage.get_pending_items.return_value = []  # Empty queue
         
-        daemon = ExploreDaemon(
-            explore_agent=mock_agent,
-            queue_storage=mock_queue_storage,
-            config=ExploreDaemonConfig(poll_interval=0.1)
-        )
-        
-        daemon.start()
-        time.sleep(0.3)
-        daemon.stop()
-        daemon.join(timeout=2.0)
-        
-        # Agent should NOT have been called (no items to explore)
-        assert not mock_agent.run.called
+        with patch("core.tools.queue_tools.QueueStorage") as MockQueueStorage:
+            MockQueueStorage.return_value = mock_queue_storage
+            
+            daemon = ExploreDaemon(
+                explore_agent=mock_agent,
+                queue_storage=mock_queue_storage,
+                config=ExploreDaemonConfig(poll_interval_seconds=0.1)
+            )
+            
+            daemon.start()
+            time.sleep(0.3)
+            daemon.stop()
+            daemon.join(timeout=2.0)
+            
+            # Agent should NOT have been called (no items to explore)
+            assert not mock_agent.run.called
 
 
 class TestExploreDaemonRetryLogic:
@@ -233,30 +246,37 @@ class TestExploreDaemonRetryLogic:
             {"id": 1, "topic": "test_topic", "priority": 5}
         ]
         mock_queue_storage.claim_item.return_value = True
-        mock_queue_storage.mark_failed.return_value = True
-        mock_queue_storage.mark_done.return_value = True
+        mock_queue_storage.delete_item.return_value = True
         
-        daemon = ExploreDaemon(
-            explore_agent=mock_agent,
-            queue_storage=mock_queue_storage,
-            config=ExploreDaemonConfig(
-                poll_interval=0.1,
-                max_retries=2,
-                retry_delay=0.05
-            )
-        )
-        
-        daemon.start()
-        time.sleep(0.5)
-        daemon.stop()
-        daemon.join(timeout=2.0)
-        
-        # Agent should have been called multiple times (retry)
-        assert mock_agent.run.call_count >= 1
+        with patch("core.daemon.explore_daemon.get_kg_factory") as mock_kg_factory:
+            mock_kg_instance = MagicMock()
+            mock_kg_instance.get_node_sync.return_value = {"content": "Valid KG content here"}
+            mock_kg_factory.return_value = mock_kg_instance
+            
+            with patch("core.tools.queue_tools.QueueStorage") as MockQueueStorage:
+                MockQueueStorage.return_value = mock_queue_storage
+                
+                daemon = ExploreDaemon(
+                    explore_agent=mock_agent,
+                    queue_storage=mock_queue_storage,
+                    config=ExploreDaemonConfig(
+                        poll_interval_seconds=0.1,
+                        max_retries=2,
+                        retry_delay_seconds=0.05
+                    )
+                )
+                
+                daemon.start()
+                time.sleep(0.5)
+                daemon.stop()
+                daemon.join(timeout=2.0)
+                
+                # Agent should have been called multiple times (retry)
+                assert mock_agent.run.call_count >= 1
     
     @pytest.mark.asyncio
     async def test_explore_daemon_marks_failed_after_max_retries(self):
-        """ExploreDaemon should mark item as failed after max_retries exhausted."""
+        """ExploreDaemon should delete item after max_retries exhausted (dead letter)."""
         mock_agent = MagicMock()
         mock_agent.holder_id = "test_holder"
         mock_agent.run = AsyncMock(
@@ -268,22 +288,141 @@ class TestExploreDaemonRetryLogic:
             {"id": 1, "topic": "test_topic", "priority": 5}
         ]
         mock_queue_storage.claim_item.return_value = True
-        mock_queue_storage.mark_failed.return_value = True
+        mock_queue_storage.delete_item.return_value = True
         
-        daemon = ExploreDaemon(
-            explore_agent=mock_agent,
-            queue_storage=mock_queue_storage,
-            config=ExploreDaemonConfig(
-                poll_interval=0.1,
-                max_retries=2,
-                retry_delay=0.05
+        with patch("core.tools.queue_tools.QueueStorage") as MockQueueStorage:
+            MockQueueStorage.return_value = mock_queue_storage
+            
+            daemon = ExploreDaemon(
+                explore_agent=mock_agent,
+                queue_storage=mock_queue_storage,
+                config=ExploreDaemonConfig(
+                    poll_interval_seconds=0.1,
+                    max_retries=2,
+                    retry_delay_seconds=0.05
+                )
             )
-        )
-        
-        daemon.start()
-        time.sleep(0.5)
-        daemon.stop()
-        daemon.join(timeout=2.0)
-        
-        # mark_failed should have been called
-        assert mock_queue_storage.mark_failed.called
+            
+            daemon.start()
+            time.sleep(0.5)
+            daemon.stop()
+            daemon.join(timeout=2.0)
+            
+            # delete_item should have been called (replaces old mark_failed)
+            assert mock_queue_storage.delete_item.called
+
+
+class TestExploreDaemonKGEmpty:
+    """Test that items stay claimed when KG has no valid content."""
+
+    @pytest.mark.asyncio
+    async def test_explore_daemon_keeps_claimed_when_kg_content_too_short(self):
+        """Item should stay claimed (not deleted) when KG content is <= 10 chars."""
+        mock_agent = MagicMock()
+        mock_agent.holder_id = "test_holder"
+        mock_agent.run = AsyncMock(return_value=MagicMock(success=True, content="Explored"))
+
+        mock_queue_storage = MagicMock()
+        mock_queue_storage.get_pending_items.return_value = [
+            {"id": 1, "topic": "test_topic", "priority": 5}
+        ]
+        mock_queue_storage.claim_item.return_value = True
+
+        with patch("core.daemon.explore_daemon.get_kg_factory") as mock_kg_factory:
+            mock_kg_instance = MagicMock()
+            # KG content too short (<= 10 chars)
+            mock_kg_instance.get_node_sync.return_value = {"content": "short"}
+            mock_kg_factory.return_value = mock_kg_instance
+
+            with patch("core.tools.queue_tools.QueueStorage") as MockQueueStorage:
+                MockQueueStorage.return_value = mock_queue_storage
+
+                daemon = ExploreDaemon(
+                    explore_agent=mock_agent,
+                    queue_storage=mock_queue_storage,
+                    config=ExploreDaemonConfig(poll_interval_seconds=0.1)
+                )
+
+                daemon.start()
+                time.sleep(0.3)
+                daemon.stop()
+                daemon.join(timeout=2.0)
+
+                # delete_item should NOT have been called (KG content too short)
+                assert not mock_queue_storage.delete_item.called
+
+    @pytest.mark.asyncio
+    async def test_explore_daemon_keeps_claimed_when_kg_node_missing(self):
+        """Item should stay claimed when KG node doesn't exist yet."""
+        mock_agent = MagicMock()
+        mock_agent.holder_id = "test_holder"
+        mock_agent.run = AsyncMock(return_value=MagicMock(success=True, content="Explored"))
+
+        mock_queue_storage = MagicMock()
+        mock_queue_storage.get_pending_items.return_value = [
+            {"id": 1, "topic": "test_topic", "priority": 5}
+        ]
+        mock_queue_storage.claim_item.return_value = True
+
+        with patch("core.daemon.explore_daemon.get_kg_factory") as mock_kg_factory:
+            mock_kg_instance = MagicMock()
+            # KG node returns None (doesn't exist)
+            mock_kg_instance.get_node_sync.return_value = None
+            mock_kg_factory.return_value = mock_kg_instance
+
+            with patch("core.tools.queue_tools.QueueStorage") as MockQueueStorage:
+                MockQueueStorage.return_value = mock_queue_storage
+
+                daemon = ExploreDaemon(
+                    explore_agent=mock_agent,
+                    queue_storage=mock_queue_storage,
+                    config=ExploreDaemonConfig(poll_interval_seconds=0.1)
+                )
+
+                daemon.start()
+                time.sleep(0.3)
+                daemon.stop()
+                daemon.join(timeout=2.0)
+
+                # delete_item should NOT have been called (KG node missing)
+                assert not mock_queue_storage.delete_item.called
+
+
+class TestExploreDaemonKGException:
+    """Test that items stay claimed when KG verification throws exceptions."""
+
+    @pytest.mark.asyncio
+    async def test_explore_daemon_keeps_claimed_when_kg_verification_fails(self):
+        """Item should stay claimed when KG verification raises an exception."""
+        mock_agent = MagicMock()
+        mock_agent.holder_id = "test_holder"
+        mock_agent.run = AsyncMock(return_value=MagicMock(success=True, content="Explored"))
+
+        mock_queue_storage = MagicMock()
+        mock_queue_storage.get_pending_items.return_value = [
+            {"id": 1, "topic": "test_topic", "priority": 5}
+        ]
+        mock_queue_storage.claim_item.return_value = True
+
+        with patch("core.daemon.explore_daemon.get_kg_factory") as mock_kg_factory:
+            mock_kg_instance = MagicMock()
+            # KG verification throws (simulating Neo4j down)
+            mock_kg_instance.get_node_sync.side_effect = RuntimeError("Neo4j connection refused")
+            mock_kg_factory.return_value = mock_kg_instance
+
+            with patch("core.tools.queue_tools.QueueStorage") as MockQueueStorage:
+                MockQueueStorage.return_value = mock_queue_storage
+
+                daemon = ExploreDaemon(
+                    explore_agent=mock_agent,
+                    queue_storage=mock_queue_storage,
+                    config=ExploreDaemonConfig(poll_interval_seconds=0.1)
+                )
+
+                daemon.start()
+                time.sleep(0.3)
+                daemon.stop()
+                daemon.join(timeout=2.0)
+
+                # delete_item should NOT have been called (KG verification failed)
+                assert not mock_queue_storage.delete_item.called

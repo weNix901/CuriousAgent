@@ -247,6 +247,20 @@ class QueueStorage:
         conn.commit()
         return cursor.rowcount > 0
 
+    def delete_item(self, item_id: int, holder_id: str) -> bool:
+        """Delete a queue item permanently. Used when max_retries exceeded or exploration successful with KG verification. Requires holder_id match for safety (prevents accidental deletion)."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            DELETE FROM queue
+            WHERE id = ? AND status = 'claimed' AND holder_id = ?
+            """,
+            (item_id, holder_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
     def release_expired_claims(self) -> int:
         conn = self._get_connection()
         cursor = conn.cursor()
