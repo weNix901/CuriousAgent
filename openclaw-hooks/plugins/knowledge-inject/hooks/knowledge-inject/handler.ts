@@ -1,5 +1,19 @@
 const CA_API = process.env.CA_API_URL || 'http://localhost:4848';
 
+const CONFIG = {
+  MIN_CONTENT_LENGTH: 50,
+  MAX_REACT_RATIO: 0.5,
+};
+
+function filterReActContent(text: string): string {
+  text = text.replace(/Thought:[\s\S]*?(?=Action:|Observation:|$)/gi, '');
+  text = text.replace(/Action:[\s\S]*?(?=Observation:|Thought:|$)/gi, '');
+  text = text.replace(/Observation:[\s\S]*?(?=Thought:|Action:|$)/gi, '');
+  text = text.replace(/<\|FunctionCallBegin\|>[\s\S]*?<\|FunctionCallEnd\|>/gi, '');
+  text = text.replace(/\n{3,}/g, '\n\n').trim();
+  return text;
+}
+
 function extractSummary(result: any): string {
   try {
     const parsed = typeof result.output === 'string' ? JSON.parse(result.output) : result.output;
@@ -34,7 +48,6 @@ function extractTopic(context: any): string {
 }
 
 export const afterToolCallHook = async ({ toolName, result, context }: any) => {
-  // 只处理 researcher agent
   if (context?.agentId !== 'researcher') return;
   if (!/search$/i.test(toolName)) return;
   
@@ -51,11 +64,30 @@ export const afterToolCallHook = async ({ toolName, result, context }: any) => {
   const topic = extractTopic(context);
   if (!topic) return;
   
+  if (summary.length < CONFIG.MIN_CONTENT_LENGTH) {
+    console.log('[knowledge-inject] Content too short, skipping');
+    return;
+  }
+  
+  const reactMarkers = ['Thought:', 'Action:', 'Observation:'];
+  const reactCount = reactMarkers.filter(m => summary.includes(m)).length;
+  if (reactCount / reactMarkers.length > CONFIG.MAX_REACT_RATIO) {
+    console.log('[knowledge-inject] Content is mostly ReAct, skipping');
+    return;
+  }
+  
+  const cleanedSummary = filterReActContent(summary);
+  
+  if (cleanedSummary.length < CONFIG.MIN_CONTENT_LENGTH) {
+    console.log('[knowledge-inject] Content too short after filtering, skipping');
+    return;
+  }
+  
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 1000);
     
-    await fetch(`${CA_API}/api/knowledge/record`, {
+    const response = await fetch(`${CA_API}/api/knowledge/record`, {
       method: 'POST',
       headers: {
         "Content-Type": "application/json",
@@ -64,11 +96,15 @@ export const afterToolCallHook = async ({ toolName, result, context }: any) => {
         "X-OpenClaw-Hook-Event": "after_tool_call",
         "X-OpenClaw-Hook-Type": "plugin_sdk"
       },
-      body: JSON.stringify({ topic, content: summary, sources: urls }),
+      body: JSON.stringify({ topic, content: cleanedSummary, sources: urls }),
       signal: controller.signal
     });
     
     clearTimeout(timeout);
+    if (!response.ok) {
+      console.error(`[knowledge-inject] HTTP ${response.status}`);
+      return;
+    }
     console.log(`[knowledge-inject] Injected "${topic}" with ${urls.length} URLs`);
   } catch (err: any) {
     console.error(`[knowledge-inject] Failed: ${err.message}`);
