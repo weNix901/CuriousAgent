@@ -66,7 +66,11 @@ class MetaCognitiveMonitor:
             return 5.0
 
     def compute_marginal_return(self, topic: str, current_quality: float) -> float:
-        """Compute marginal return (change in quality vs historical average)"""
+        """Compute marginal return (change in quality vs historical average).
+
+        For high-quality topics, uses a floor to avoid the "high quality paradox"
+        where consistently high quality leads to near-zero marginal returns.
+        """
         returns = self.get_marginal_returns(topic)
 
         if not returns:
@@ -76,6 +80,12 @@ class MetaCognitiveMonitor:
         avg_previous = sum(recent_returns) / len(recent_returns)
 
         marginal = (current_quality / 10.0) - avg_previous
+
+        # Fix paradox: if current quality is high (>=7.0) and marginal return
+        # is near-zero or slightly negative, quality is stable at a high level
+        # — this is NOT a reason to stop exploring
+        if current_quality >= 7.0 and marginal >= -0.1:
+            marginal = max(marginal, 0.3)
 
         return round(marginal, 2)
 
@@ -234,7 +244,8 @@ Return only a number."""
         (leaf nodes with known=True).
 
         Returns:
-            List of frontier descriptors
+            List of frontier descriptors, sorted by priority:
+            isolated (no relations) > explicit (no children but has relations)
         """
         frontiers = []
         state = kg.get_state()
@@ -245,11 +256,22 @@ Return only a number."""
 
             children = data.get("children", [])
             if not children:
+                quality = data.get("quality", 0.0)
+                relations_count = kg.get_relations_count(topic)
+
+                frontier_type = "isolated" if relations_count == 0 else "explicit"
                 frontiers.append({
                     "from_node": topic,
-                    "frontier_type": "explicit",
-                    "uncertainty": "high"
+                    "frontier_type": frontier_type,
+                    "uncertainty": "high" if frontier_type == "isolated" else "medium",
+                    "quality": quality,
+                    "relations_count": relations_count,
                 })
+
+        frontiers.sort(key=lambda f: (
+            0 if f["frontier_type"] == "isolated" else 1,
+            -f.get("quality", 0),
+        ))
 
         return frontiers
 

@@ -409,6 +409,10 @@ def daemon_mode(interval_minutes: int = 30):
                            quality=metadata.get("quality") if metadata else None)
             return topic
         
+        async def create_knowledge_node(self, topic, content="", source_urls=None, metadata=None, relations=None):
+            """Create a knowledge node - delegates to add_to_knowledge_graph for compatibility."""
+            return await self.add_to_knowledge_graph(topic, content, source_urls, metadata, relations)
+        
         async def query_knowledge(self, topic, limit=5):
             return []
         
@@ -429,6 +433,19 @@ def daemon_mode(interval_minutes: int = 30):
         
         async def query_kg_children(self, topic):
             return []
+        
+        async def add_relation(self, from_topic, to_topic, relation_type="DERIVED_FROM"):
+            """Add a relation between two topics."""
+            try:
+                kg.add_child(from_topic, to_topic)
+                return True
+            except Exception as e:
+                logger.warning(f"Failed to add relation: {e}")
+                return False
+        
+        async def update_metadata(self, topic, metadata=None, **kwargs):
+            """Update metadata for a topic (no-op for legacy wrapper)."""
+            return True
     
     kg_repo = KGRepository()
     
@@ -820,6 +837,14 @@ def _register_explore_agent_tools(tool_registry, queue_storage):
             return []
         async def get_node_relations(self, topic):
             return []
+        
+        async def add_relation(self, from_topic, to_topic, relation_type="DERIVED_FROM"):
+            repo = await self._ensure_repo()
+            return await repo.add_relation(from_topic, to_topic, relation_type)
+        
+        async def update_metadata(self, topic, metadata=None, **kwargs):
+            repo = await self._ensure_repo()
+            return await repo.update_metadata(topic, metadata)
     
     kg_repo = KGRepository()
     

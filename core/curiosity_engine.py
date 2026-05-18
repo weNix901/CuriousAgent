@@ -23,10 +23,41 @@ STOPWORDS = {
 
 # 研究关键词（用于语义相关性检查）
 RESEARCH_KEYWORDS = {
-    "agent", "llm", "memory", "planning", "reasoning", "reflection",
-    "metacognition", "curiosity", "autonomous", "world model", "cognitive",
+    # Core AI/ML
+    "agent", "llm", "language model", "large language", "gpt", "claude", "gemini",
+    "memory", "planning", "reasoning", "reflection", "metacognition",
+    "curiosity", "autonomous", "world model", "cognitive",
     "framework", "architecture", "training", "arxiv", "reinforcement",
     "chain-of-thought", "prompt", "embedding", "attention", "transformer",
+
+    # NLP & Text
+    "nlp", "natural language", "text generation", "summarization", "translation",
+    "dialogue", "conversation", "chat", "qa", "question answering",
+
+    # AI Agent specifics
+    "tool", "tool-call", "tool use", "function call", "api",
+    "gui", "browser", "workflow", "pipeline", "orchestrat",
+    "rag", "retrieval", "search", "knowledge base", "vector",
+    "multi-agent", "multi agent", "collaborat", "cooperat",
+
+    # Learning & Knowledge
+    "learning", "knowledge", "knowledge graph", "ontolog",
+    "fine-tun", "alignment", "rlhf", "dpo", "sft",
+    "distill", "compress", "quantiz", "efficien",
+
+    # Safety & Evaluation
+    "safety", "guardrail", "evaluat", "benchmark", "metric",
+    "hallucinat", "faithful", "grounding",
+
+    # Research & Implementation
+    "research", "paper", "study", "experiment",
+    "implement", "system", "model", "algorithm",
+    "github", "open source", "codebase",
+
+    # Domain applications
+    "robot", "game", "simulat", "environment",
+    "code", "program", "software", "debug",
+    "data", "dataset", "corpus", "annotation",
 }
 
 
@@ -278,9 +309,35 @@ class CuriosityEngine:
         return filtered[:10]
     
     def _is_research_related(self, keyword: str) -> bool:
-        """检查关键词是否与 AI/Agent 研究相关"""
+        """Check if keyword is related to AI/Agent research.
+
+        Enhanced to support:
+        - GitHub project names (e.g. "MobileLLM/AgentProg")
+        - Chinese-English mixed topics
+        - URLs and technical identifiers
+        """
         kw_lower = keyword.lower()
-        return any(rk in kw_lower for rk in RESEARCH_KEYWORDS)
+
+        # Check against expanded keyword list
+        if any(rk in kw_lower for rk in RESEARCH_KEYWORDS):
+            return True
+
+        # GitHub project patterns (e.g. "org/project" or "GitHub - org/project")
+        if "github" in kw_lower or "/" in kw_lower:
+            # Extract potential keywords from GitHub-style names
+            parts = kw_lower.replace("github", "").replace("-", " ").replace("/", " ").split()
+            if any(p for p in parts if any(rk in p for rk in RESEARCH_KEYWORDS)):
+                return True
+            # If it's a GitHub reference with technical-sounding parts, allow it
+            if len(parts) >= 2 and any(len(p) >= 4 for p in parts):
+                return True
+
+        # Chinese technical terms - check if contains research keywords embedded in Chinese text
+        for rk in RESEARCH_KEYWORDS:
+            if rk in kw_lower:
+                return True
+
+        return False
     
     def auto_queue_topics(self, topics: list, parent_topic: str) -> int:
         """
@@ -325,7 +382,7 @@ class CuriosityEngine:
             
             # 预估评分门槛（使用融合评分）
             score_result = self.score_topic(topic, alpha=0.5)
-            if score_result['final_score'] < 5.0:
+            if score_result['final_score'] < 4.0:
                 continue
             
             # 添加到队列
