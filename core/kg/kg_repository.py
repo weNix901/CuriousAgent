@@ -323,6 +323,80 @@ class KGRepository:
         )
         return result[0].get("success", False) if result else False
 
+    async def update_kg_relation(
+        self,
+        from_topic: str,
+        to_topic: str,
+        relation_type: str,
+        action: str = "add"
+    ) -> bool:
+        """Add or remove a relation between two topics.
+
+        Args:
+            from_topic: Source topic
+            to_topic: Target topic
+            relation_type: Type of the relation (e.g. RELATED, IS_CHILD_OF)
+            action: "add" to create, "remove" to delete
+
+        Returns:
+            bool indicating success
+        """
+        try:
+            if action == "add":
+                query = f"""
+                MATCH (a:Knowledge {{topic: $from_topic}})
+                MATCH (b:Knowledge {{topic: $to_topic}})
+                MERGE (a)-[r:{relation_type}]->(b)
+                RETURN true as success
+                """
+            elif action == "remove":
+                query = f"""
+                MATCH (a:Knowledge {{topic: $from_topic}})-[r:{relation_type}]->(b:Knowledge {{topic: $to_topic}})
+                DELETE r
+                RETURN true as success
+                """
+            else:
+                logger.error(f"Invalid action '{action}' for update_kg_relation")
+                return False
+
+            result = await self._client.execute_write(
+                query,
+                from_topic=from_topic,
+                to_topic=to_topic
+            )
+            return result[0].get("success", False) if result else False
+        except Exception as e:
+            logger.error(f"update_kg_relation failed: {e}")
+            return False
+
+    async def merge_kg_nodes(
+        self,
+        source_topics: List[str],
+        target_topic: str
+    ) -> bool:
+        """Merge multiple source nodes into a target node.
+
+        Wraps the existing merge_nodes method for tool-layer compatibility.
+
+        Args:
+            source_topics: List of topic names to merge (including target)
+            target_topic: The topic to merge into
+
+        Returns:
+            bool indicating success
+        """
+        try:
+            # Build full list: target + all sources (merge_nodes handles dedup)
+            all_topics = [target_topic] + [t for t in source_topics if t != target_topic]
+            return await self.merge_nodes(all_topics, target_topic)
+        except Exception as e:
+            logger.error(f"merge_kg_nodes failed: {e}")
+            return False
+
+    async def get_node_relations(self, topic: str) -> List[Dict[str, str]]:
+        """Get all relations for a topic. Alias for get_relations."""
+        return await self.get_relations(topic)
+
     async def mark_dormant(self, topic: str) -> bool:
         """Mark a node as dormant."""
         return await self.update_status(topic, "dormant")

@@ -75,6 +75,23 @@ class DreamDaemon:
                     logger.debug(f"  - {t}")
             else:
                 logger.info(f"DreamDaemon: completed in {duration_ms}ms (no topics)")
-                
+
+            # After dreaming, repair relations for isolated nodes
+            self._repair_relations()
+
         except Exception as e:
             logger.error(f"DreamDaemon tick failed: {e}")
+
+    def _repair_relations(self) -> None:
+        """Run relation repair service for isolated nodes."""
+        try:
+            from core.relation_repair import RelationRepairService
+            from core.llm_client import LLMClient
+
+            llm = LLMClient()
+            service = RelationRepairService(llm_client=llm)
+            stats = service.scan_and_repair()
+            if stats.get("relations_created", 0) > 0:
+                logger.info(f"[DreamDaemon] Relation repair: {stats}")
+        except Exception as e:
+            logger.warning(f"[DreamDaemon] Relation repair failed: {e}")

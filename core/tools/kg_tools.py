@@ -154,7 +154,7 @@ class GetNodeRelationsTool(Tool):
         topic = kwargs.get("topic", "")
         
         if self._repository:
-            relations = await self._repository.get_node_relations(topic=topic)
+            relations = await self._repository.get_node_relations(topic)
             return str(relations)
         return f"Relations retrieved for topic: {topic}"
     

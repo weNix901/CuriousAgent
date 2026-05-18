@@ -244,6 +244,13 @@ class KGRepositoryFactory:
             return await repo.export_for_r1d3(since=since, status=status, limit=limit)
         return asyncio.run(_export())
 
+    def create_relation_sync(self, from_topic: str, to_topic: str, relation_type: str = "RELATED_TO") -> bool:
+        """Sync wrapper for creating a relation."""
+        async def _create():
+            repo = await self._ensure_connected()
+            return await repo.add_relation(from_topic, to_topic, relation_type)
+        return asyncio.run(_create())
+
 
 def get_kg_factory() -> KGRepositoryFactory:
     """Get KG repository factory singleton."""

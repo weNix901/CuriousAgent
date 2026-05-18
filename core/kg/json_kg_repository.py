@@ -1,9 +1,12 @@
 """JSON-backed KG Repository for knowledge graph operations."""
 import json
+import logging
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class JSONKGRepository:
@@ -248,6 +251,122 @@ class JSONKGRepository:
                 parents.append(rel.get("from"))
 
         return parents
+
+    # ========== Extended Operations ==========
+
+    def update_kg_relation(
+        self,
+        from_topic: str,
+        to_topic: str,
+        relation_type: str,
+        action: str = "add"
+    ) -> bool:
+        """Add or remove a relation between two topics."""
+        if not from_topic or not to_topic:
+            return False
+
+        state = self._load()
+        if "relations" not in state.get("knowledge", {}):
+            state["knowledge"]["relations"] = {}
+
+        key = f"{from_topic}|{to_topic}"
+
+        try:
+            if action == "add":
+                state["knowledge"]["relations"][key] = {
+                    "from": from_topic,
+                    "to": to_topic,
+                    "type": relation_type,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                self._save(state)
+                return True
+            elif action == "remove":
+                if key in state["knowledge"]["relations"]:
+                    del state["knowledge"]["relations"][key]
+                    self._save(state)
+                    return True
+                return False
+            else:
+                return False
+        except Exception as e:
+            logger.error(f"update_kg_relation failed: {e}")
+            return False
+
+    def merge_kg_nodes(
+        self,
+        source_topics: List[str],
+        target_topic: str
+    ) -> bool:
+        """Merge multiple source nodes into a target node."""
+        if not source_topics or not target_topic:
+            return False
+
+        state = self._load()
+        topics = state.get("knowledge", {}).get("topics", {})
+
+        if target_topic not in topics:
+            return False
+
+        sources_to_merge = [t for t in source_topics if t != target_topic and t in topics]
+        if not sources_to_merge:
+            return True
+
+        if "relations" not in state["knowledge"]:
+            state["knowledge"]["relations"] = {}
+
+        target_data = topics[target_topic]
+        for src in sources_to_merge:
+            src_data = topics[src]
+            src_quality = src_data.get("quality", 0.0)
+            if src_quality > target_data.get("quality", 0.0):
+                target_data["quality"] = src_quality
+
+            for k, v in src_data.items():
+                if k not in ("quality",) and v:
+                    if isinstance(v, list):
+                        existing = target_data.get(k, [])
+                        target_data[k] = list(set(existing + v))
+                    elif k not in target_data or not target_data[k]:
+                        target_data[k] = v
+
+        relations = state["knowledge"]["relations"]
+        new_relations = {}
+        for key, rel in relations.items():
+            rel_from = rel.get("from", "")
+            rel_to = rel.get("to", "")
+            if rel_from in sources_to_merge:
+                new_key = f"{target_topic}|{rel_to}"
+                new_relations[new_key] = {
+                    "from": target_topic,
+                    "to": rel_to,
+                    "type": rel.get("type", "unknown"),
+                    "created_at": rel.get("created_at", datetime.now(timezone.utc).isoformat())
+                }
+            if rel_to in sources_to_merge:
+                new_key = f"{rel_from}|{target_topic}"
+                new_relations[new_key] = {
+                    "from": rel_from,
+                    "to": target_topic,
+                    "type": rel.get("type", "unknown"),
+                    "created_at": rel.get("created_at", datetime.now(timezone.utc).isoformat())
+                }
+
+        relations.update(new_relations)
+
+        for src in sources_to_merge:
+            topics.pop(src, None)
+            keys_to_remove = [k for k in relations if k.startswith(f"{src}|") or k.endswith(f"|{src}")]
+            for k in keys_to_remove:
+                relations.pop(k, None)
+
+        target_data["last_updated"] = datetime.now(timezone.utc).isoformat()
+        self._save(state)
+        return True
+
+    def get_node_relations(self, topic: str) -> List[Dict[str, str]]:
+        """Get all relations for a topic. Alias for get_relations."""
+        return self.get_relations(topic)
 
     # ========== Query Operations ==========
 

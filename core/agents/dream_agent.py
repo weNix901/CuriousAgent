@@ -1,4 +1,5 @@
 """DreamAgent - Multi-cycle architecture for insight generation."""
+import logging
 import re
 import time
 import uuid
@@ -13,6 +14,8 @@ from core.tools.queue_tools import QueueStorage
 from core import knowledge_graph_compat as knowledge_graph
 from core.kg.repository_factory import get_kg_factory
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 DREAM_AGENT_TOOLS = [
@@ -46,6 +49,9 @@ class DreamResult(AgentResult):
     candidates_selected: List[str] = field(default_factory=list)
     topics_generated: List[str] = field(default_factory=list)
     source_url_topics: List[str] = field(default_factory=list)
+    l5_relations_created: int = 0
+    l5_pairs_evaluated: int = 0
+    l5_nodes_scanned: int = 0
 
 
 @dataclass
@@ -76,12 +82,16 @@ class DreamAgent(CAAgent):
         self.holder_id = str(uuid.uuid4()) if 'uuid' in globals() else None
 
     def run(self, input_data: str = "") -> DreamResult:
-        """Execute L1→L2→L3→L4 linear pipeline."""
+        """Execute L0→L1→L2→L3→L4 linear pipeline."""
         from core.trace.dream_trace import DreamTraceWriter
         
         trace_writer = DreamTraceWriter()
         trace_id = trace_writer.start_trace()
         overall_start = time.time()
+        
+        l0_start = time.time()
+        l0_result = self._l0_reorganize()
+        l0_duration = int((time.time() - l0_start) * 1000)
         
         l1_start = time.time()
         candidates = self._l1_light_sleep()
@@ -115,15 +125,19 @@ class DreamAgent(CAAgent):
             l4_topics=topics,
             l4_count=len(topics),
             l4_duration_ms=l4_duration,
+            insights_generated=[{"l0_reorganization": l0_result}],
             total_duration_ms=total_duration,
         )
         
         return DreamResult(
-            content=f"DreamAgent generated {len(topics)} topics",
-            success=len(topics) > 0,
+            content=f"DreamAgent reorganized {l0_result['relations_created']} relations, generated {len(topics)} topics",
+            success=len(topics) > 0 or l0_result['relations_created'] > 0,
             iterations_used=1,
             candidates_selected=[c.topic for c in filtered],
-            topics_generated=topics
+            topics_generated=topics,
+            l5_relations_created=l0_result["relations_created"],
+            l5_pairs_evaluated=sum(l0_result.get("phase_stats", {}).values()),
+            l5_nodes_scanned=l0_result["nodes_scanned"],
         )
 
     def _l1_light_sleep(self) -> List[str]:
@@ -382,27 +396,247 @@ class DreamAgent(CAAgent):
         
         return topics_added
 
+    def _l0_reorganize(self) -> dict:
+        """L0: Knowledge reorganization — runs BEFORE candidate selection.
+        
+        Four-phase zero-to-low-cost pipeline:
+        1. Source co-citation: nodes sharing source URLs → RELATED_TO
+        2. Content embedding: node summaries with high cosine similarity → RELATED_TO  
+        3. Graph structure: same parent → IS_SIBLING_OF, overlapping sources → RELATED_TO
+        4. LLM verification: borderline content pairs verified with actual node content
+        
+        Returns: {"relations_created": int, "phase_stats": dict}
+        """
+        import asyncio
+        import numpy as np
+        from core import knowledge_graph_compat as kg
+        from core.kg.repository_factory import get_kg_factory
+        
+        state = kg.get_state()
+        topics = state.get("knowledge", {}).get("topics", {})
+        relations = state.get("knowledge", {}).get("relations", {})
+        
+        already_connected = set()
+        for key, rel in relations.items():
+            already_connected.add(key)
+            already_connected.add(f"{rel.get('to','')}|{rel.get('from','')}")
+        
+        def _create_rel(a: str, b: str, rel_type: str = "RELATED_TO"):
+            key = f"{a}|{b}"
+            if key in already_connected or f"{b}|{a}" in already_connected:
+                return False
+            try:
+                kg.add_child(a, b)
+                key_a = f"{a}|{b}"
+                already_connected.add(key_a)
+                already_connected.add(f"{b}|{a}")
+                return True
+            except Exception as e:
+                logger.warning(f"[DreamAgent L0] Failed to create relation {a[:40]}↔{b[:40]}: {e}")
+                return False
+        
+        total_created = 0
+        phase_stats = {}
+        embed_svc = None
+        
+        # ── Phase 1: Source Co-citation (zero cost) ──
+        source_nodes = {}
+        _noise_prefixes = ("stress_", "test_", "parent_", "child_", "isolated_", "topic_", "dormant_", "active_", "never_", "old_", "recent_")
+        for topic, data in topics.items():
+            if any(topic.startswith(p) for p in _noise_prefixes):
+                continue
+            sources = data.get("sources", []) or []
+            if isinstance(sources, str):
+                sources = [sources]
+            for src in sources:
+                if not src or "example.com" in src or "test.com" in src:
+                    continue
+                source_nodes.setdefault(src, []).append(topic)
+        
+        co_cited = 0
+        for src, node_list in source_nodes.items():
+            if len(node_list) < 2:
+                continue
+            for i in range(len(node_list)):
+                for j in range(i + 1, len(node_list)):
+                    if _create_rel(node_list[i], node_list[j], "RELATED_TO"):
+                        co_cited += 1
+                        logger.debug(f"[DreamAgent L0] Source co-citation: {node_list[i][:40]} ↔ {node_list[j][:40]} (src={src[:50]})")
+        
+        total_created += co_cited
+        phase_stats["source_co_citation"] = co_cited
+        logger.info(f"[DreamAgent L0] Phase1 source co-citation: {co_cited} relations")
+        
+        # ── Phase 2: Content Embedding (low cost) ──
+        content_created = 0
+        try:
+            from core.embedding_service import EmbeddingService
+            embed_svc = EmbeddingService()
+            
+            meaningful = []
+            for topic, data in topics.items():
+                quality = data.get("quality", 0) or 0
+                if quality < 5:
+                    continue
+                content_parts = []
+                for field in ("summary", "definition", "core", "context"):
+                    val = data.get(field, "")
+                    if isinstance(val, str) and len(val) > 20:
+                        content_parts.append(val[:200])
+                if not content_parts:
+                    continue
+                content = " ".join(content_parts)[:600]
+                meaningful.append((topic, content))
+            
+            if len(meaningful) >= 2:
+                texts = [c for _, c in meaningful]
+                embeddings = embed_svc.embed(texts)
+                
+                for i in range(len(meaningful)):
+                    for j in range(i + 1, len(meaningful)):
+                        sim = embed_svc.cosine_similarity(embeddings[i], embeddings[j]) if hasattr(embed_svc, 'cosine_similarity') else float(np.dot(embeddings[i], embeddings[j]) / (np.linalg.norm(embeddings[i]) * np.linalg.norm(embeddings[j]) + 1e-8))
+                        if sim >= 0.85:
+                            if _create_rel(meaningful[i][0], meaningful[j][0], "RELATED_TO"):
+                                content_created += 1
+                                logger.debug(f"[DreamAgent L0] Content embedding: {meaningful[i][0][:40]} ↔ {meaningful[j][0][:40]} (sim={sim:.3f})")
+            
+        except Exception as e:
+            logger.warning(f"[DreamAgent L0] Phase2 embedding failed: {e}")
+        
+        total_created += content_created
+        phase_stats["content_embedding"] = content_created
+        logger.info(f"[DreamAgent L0] Phase2 content embedding: {content_created} relations")
+        
+        # ── Phase 3: Graph Structure (zero cost) ──
+        structure_created = 0
+        
+        # 3a: Same parent → sibling relation
+        parent_children = {}
+        for topic, data in topics.items():
+            parent = data.get("parent_topic")
+            if parent and parent in topics:
+                parent_children.setdefault(parent, []).append(topic)
+        
+        for parent, children in parent_children.items():
+            if len(children) < 2:
+                continue
+            for i in range(len(children)):
+                for j in range(i + 1, len(children)):
+                    if _create_rel(children[i], children[j], "IS_SIBLING_OF"):
+                        structure_created += 1
+        
+        phase_stats["graph_structure"] = structure_created
+        total_created += structure_created
+        if structure_created > 0:
+            logger.info(f"[DreamAgent L0] Phase3 graph structure: {structure_created} relations ({len(parent_children)} parent groups)")
+        
+        # ── Phase 4: LLM Content Verification (moderate cost) ──
+        llm_created = 0
+        try:
+            if not embed_svc:
+                raise RuntimeError("Embedding service not available")
+            
+            from core.llm_client import LLMClient
+            llm = LLMClient()
+            
+            # Find remaining orphans after previous phases
+            node_rel_count = {}
+            for key, rel in relations.items():
+                frm = rel.get("from", "")
+                to = rel.get("to", "")
+                node_rel_count[frm] = node_rel_count.get(frm, 0) + 1
+                node_rel_count[to] = node_rel_count.get(to, 0) + 1
+            
+            remaining_orphans = []
+            for topic, data in topics.items():
+                quality = data.get("quality", 0) or 0
+                if quality < 5:
+                    continue
+                if node_rel_count.get(topic, 0) > 0:
+                    continue
+                remaining_orphans.append((topic, data))
+            
+            # Try to connect remaining orphans using LLM with content
+            for orphan_topic, orphan_data in remaining_orphans[:5]:
+                orphan_content = self._node_content(orphan_data)
+                if not orphan_content:
+                    continue
+                
+                best_candidates = []
+                for cand_topic, cand_data in topics.items():
+                    if cand_topic == orphan_topic:
+                        continue
+                    cand_quality = cand_data.get("quality", 0) or 0
+                    if cand_quality < 5:
+                        continue
+                    cand_content = self._node_content(cand_data)
+                    if not cand_content:
+                        continue
+                    try:
+                        emb = embed_svc.embed([orphan_content[:300], cand_content[:300]])
+                        sim = embed_svc.cosine_similarity(emb[0], emb[1]) if hasattr(embed_svc, 'cosine_similarity') else 0.5
+                    except Exception:
+                        sim = 0.5
+                    if 0.5 <= sim < 0.85:
+                        best_candidates.append((cand_topic, sim, cand_content))
+                
+                best_candidates.sort(key=lambda x: x[1], reverse=True)
+                
+                for cand_topic, sim, cand_content in best_candidates[:2]:
+                    if self._llm_verify_content(llm, orphan_topic, orphan_content, cand_topic, cand_content, sim):
+                        if _create_rel(orphan_topic, cand_topic, "RELATED_TO"):
+                            llm_created += 1
+                            logger.info(f"[DreamAgent L0] LLM verified: {orphan_topic[:40]} ↔ {cand_topic[:40]} (sim={sim:.3f})")
+        except Exception as e:
+            logger.warning(f"[DreamAgent L0] Phase4 LLM verification failed: {e}")
+        
+        total_created += llm_created
+        phase_stats["llm_verified"] = llm_created
+        
+        if total_created > 0:
+            logger.info(f"[DreamAgent L0] Reorganization complete: {total_created} total relations ({phase_stats})")
+        
+        return {
+            "relations_created": total_created,
+            "nodes_scanned": len(topics),
+            "phase_stats": phase_stats,
+        }
+    
+    def _node_content(self, data: dict) -> str:
+        parts = []
+        for field in ("definition", "core", "summary", "context"):
+            val = data.get(field, "")
+            if isinstance(val, str) and len(val.strip()) > 10:
+                parts.append(val.strip()[:300])
+        return "\n\n".join(parts[:2]) if parts else ""
+    
+    def _llm_verify_content(self, llm, topic_a: str, content_a: str, topic_b: str, content_b: str, similarity: float) -> bool:
+        prompt = f"""You are a knowledge graph curator. Determine if these two knowledge points are semantically related.
+
+Topic A: {topic_a}
+Content of A: {content_a[:400]}
+
+Topic B: {topic_b}
+Content of B: {content_b[:400]}
+
+Similarity score from embedding: {similarity:.2f}
+
+Consider:
+- Do they belong to the same domain or research area?
+- Does one concept build upon, extend, or relate to the other?
+- Would connecting them in a knowledge graph add navigational value?
+
+Reply with ONLY 'yes' or 'no'."""
+        try:
+            response = llm.chat(prompt, max_tokens=5).strip().lower()
+            return response.startswith("yes")
+        except Exception:
+            return similarity >= 0.7
+    
     def _create_cites_edge(self, source_topic: str, target_topic: str) -> bool:
         try:
-            from neo4j import GraphDatabase
-            import os
-            
-            uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
-            username = os.environ.get("NEO4J_USERNAME", "neo4j")
-            password = os.environ.get("NEO4J_PASSWORD", "")
-            
-            driver = GraphDatabase.driver(uri, auth=(username, password))
-            with driver.session() as session:
-                result = session.run("""
-                    MATCH (a:Knowledge {topic: $source})
-                    MATCH (b:Knowledge {topic: $target})
-                    MERGE (a)-[r:CITES]->(b)
-                    RETURN type(r) as rel_type
-                """, source=source_topic, target=target_topic)
-                
-                if result.single():
-                    return True
-            driver.close()
-            return False
+            import core.knowledge_graph_compat as kg
+            kg.add_citation(source_topic, target_topic)
+            return True
         except Exception:
             return False

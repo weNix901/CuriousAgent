@@ -78,6 +78,9 @@ class ExploreDaemonConfig:
     poll_interval_seconds: int = 300
     max_retries: int = 3
     retry_delay_seconds: int = 15
+    orphan_scan_enabled: bool = True
+    orphan_scan_min_quality: float = 7.0
+    orphan_scan_max_per_cycle: int = 5
 
 
 @dataclass
@@ -144,6 +147,9 @@ class CuriosityBehaviorConfig:
     max_explore_count: int = 3
     min_marginal_return: float = 0.3
     high_quality_threshold: float = 7.0
+    orphan_max_explore_boost: int = 2
+    high_quality_max_explore_multiplier: float = 2.0
+    very_high_quality_max_explore_multiplier: float = 3.0
 
 
 @dataclass
@@ -338,7 +344,10 @@ def load_config() -> Config:
     explore_daemon_cfg = ExploreDaemonConfig(
         poll_interval_seconds=explore_daemon_raw.get("poll_interval_seconds", 300),
         max_retries=explore_daemon_raw.get("max_retries", 3),
-        retry_delay_seconds=explore_daemon_raw.get("retry_delay_seconds", 15)
+        retry_delay_seconds=explore_daemon_raw.get("retry_delay_seconds", 15),
+        orphan_scan_enabled=explore_daemon_raw.get("orphan_scan_enabled", True),
+        orphan_scan_min_quality=explore_daemon_raw.get("orphan_scan_min_quality", 7.0),
+        orphan_scan_max_per_cycle=explore_daemon_raw.get("orphan_scan_max_per_cycle", 5),
     )
     dream_daemon_raw = daemon_raw.get("dream", {})
     dream_daemon_cfg = DreamDaemonConfig(
@@ -387,7 +396,10 @@ def load_config() -> Config:
     curiosity_cfg = CuriosityBehaviorConfig(
         max_explore_count=curiosity_raw.get("max_explore_count", 3),
         min_marginal_return=curiosity_raw.get("min_marginal_return", 0.3),
-        high_quality_threshold=curiosity_raw.get("high_quality_threshold", 7.0)
+        high_quality_threshold=curiosity_raw.get("high_quality_threshold", 7.0),
+        orphan_max_explore_boost=curiosity_raw.get("orphan_max_explore_boost", 2),
+        high_quality_max_explore_multiplier=curiosity_raw.get("high_quality_max_explore_multiplier", 2.0),
+        very_high_quality_max_explore_multiplier=curiosity_raw.get("very_high_quality_max_explore_multiplier", 3.0)
     )
     injection_raw = behavior_raw.get("injection", {})
     injection_cfg = InjectionBehaviorConfig(

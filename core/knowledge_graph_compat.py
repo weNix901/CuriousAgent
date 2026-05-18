@@ -136,17 +136,35 @@ def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float 
             return
     
     kg_factory = _get_kg_factory()
-    all_nodes = kg_factory.get_all_nodes_sync(limit=100)
-    
-    for node in all_nodes:
-        existing_topic = node.get("topic", "")
-        if not existing_topic:
-            continue
-        similarity, match_type = normalizer.compute_concept_similarity(topic, existing_topic)
-        if match_type in ("naming_variant", "translated_concept"):
-            if node.get("status") in ("done", "complete"):
-                logger.info(f"Skip duplicate curiosity (KG done): '{topic}' ≈ '{existing_topic}'")
-                return
+
+    # Page through ALL nodes for thorough dedup (not just first 100)
+    page_size = 200
+    offset = 0
+    dedup_found = False
+    while not dedup_found:
+        all_nodes = kg_factory.get_all_nodes_sync(limit=page_size)
+        if not all_nodes:
+            break
+
+        for node in all_nodes:
+            existing_topic = node.get("topic", "")
+            if not existing_topic:
+                continue
+            similarity, match_type = normalizer.compute_concept_similarity(topic, existing_topic)
+            if match_type in ("naming_variant", "translated_concept"):
+                if node.get("status") in ("done", "complete"):
+                    logger.info(f"Skip duplicate curiosity (KG done): '{topic}' ≈ '{existing_topic}'")
+                    return
+                dedup_found = True
+                break
+
+        # If we got fewer nodes than page_size, we've seen all
+        if len(all_nodes) < page_size:
+            break
+        offset += page_size
+        # Safety: don't iterate more than 5000 nodes
+        if offset >= 5000:
+            break
     
     score = min(10.0, relevance * 0.35 + depth * 0.25 + 5.0 * 0.4)
     
@@ -520,20 +538,49 @@ def get_all_nodes(active_only: bool = False) -> list:
 
 
 def add_child(parent: str, child: str) -> None:
-    """Add child relationship. Only creates relation if both nodes exist in KG.
-    If child doesn't exist, adds it to queue for exploration instead."""
+    """Add child relationship. Creates parent node on-the-fly if needed.
+    If child doesn't exist, adds it to queue for exploration and creates relation."""
     kg_factory = _get_kg_factory()
     
     parent_exists = kg_factory.get_node_sync(parent) is not None
     child_exists = kg_factory.get_node_sync(child) is not None
     
+    async def _ensure_and_relate():
+        repo = await kg_factory._ensure_connected()
+        if not parent_exists:
+            try:
+                await repo.create_knowledge_node(
+                    topic=parent, content="",
+                    source_urls=[], relations=[],
+                    metadata={"auto_created": True, "completeness_score": 0}
+                )
+            except Exception:
+                pass
+        if not child_exists:
+            try:
+                await repo.create_knowledge_node(
+                    topic=child, content="",
+                    source_urls=[], relations=[],
+                    metadata={"auto_created": True, "completeness_score": 0}
+                )
+            except Exception:
+                pass
+        await repo.add_relation(parent, child, "IS_CHILD_OF")
+    
     if parent_exists and child_exists:
-        async def _add_relation():
-            repo = await kg_factory._ensure_connected()
-            await repo.add_relation(parent, child, "IS_CHILD_OF")
-        asyncio.run(_add_relation())
+        asyncio.run(_ensure_and_relate())
     elif not child_exists:
         add_curiosity(topic=child, reason=f"Child topic of: {parent}", relevance=6.0, depth=5.0)
+        try:
+            asyncio.run(_ensure_and_relate())
+        except Exception:
+            pass
+    elif not parent_exists:
+        try:
+            asyncio.run(_ensure_and_relate())
+            logger.info(f"Auto-created parent '{parent}' for relation to '{child}'")
+        except Exception:
+            pass
 
 
 def get_children(topic: str) -> list:
@@ -573,23 +620,49 @@ def reactivate(topic: str) -> None:
 
 
 def add_citation(citing_topic: str, cited_topic: str) -> None:
-    """Add citation relationship. Only creates relation if both nodes exist in KG.
-    If cited_topic doesn't exist, adds it to queue for exploration instead."""
+    """Add citation relationship. Auto-creates citing node if needed.
+    If cited_topic doesn't exist, adds it to queue for exploration."""
     kg_factory = _get_kg_factory()
     
-    # Check if both nodes exist in KG
     citing_exists = kg_factory.get_node_sync(citing_topic) is not None
     cited_exists = kg_factory.get_node_sync(cited_topic) is not None
     
-    # Only add relation if both exist in KG (status=done)
+    async def _ensure_and_cite():
+        repo = await kg_factory._ensure_connected()
+        if not citing_exists:
+            try:
+                await repo.create_knowledge_node(
+                    topic=citing_topic, content="",
+                    source_urls=[], relations=[],
+                    metadata={"auto_created": True, "completeness_score": 0}
+                )
+            except Exception:
+                pass
+        if not cited_exists:
+            try:
+                await repo.create_knowledge_node(
+                    topic=cited_topic, content="",
+                    source_urls=[], relations=[],
+                    metadata={"auto_created": True, "completeness_score": 0}
+                )
+            except Exception:
+                pass
+        await repo.add_relation(citing_topic, cited_topic, "CITES")
+    
     if citing_exists and cited_exists:
-        async def _add_citation():
-            repo = await kg_factory._ensure_connected()
-            await repo.add_relation(citing_topic, cited_topic, "CITES")
-        asyncio.run(_add_citation())
+        asyncio.run(_ensure_and_cite())
     elif not cited_exists:
-        # Cited topic not in KG - add to queue for exploration
         add_curiosity(topic=cited_topic, reason=f"Cited by: {citing_topic}", relevance=7.0, depth=5.0)
+        try:
+            asyncio.run(_ensure_and_cite())
+        except Exception:
+            pass
+    elif not citing_exists:
+        try:
+            asyncio.run(_ensure_and_cite())
+            logger.info(f"Auto-created citing node '{citing_topic}' for CITES to '{cited_topic}'")
+        except Exception:
+            pass
 
 
 def update_topic_quality(topic: str, quality: float) -> None:
@@ -1021,16 +1094,11 @@ def get_meta_cognitive_state() -> dict:
 
 
 def get_topic_explore_count(topic: str) -> int:
-    """Get exploration count for topic from traces.db."""
-    import sqlite3
-    
-    traces_db = os.path.join(os.path.dirname(__file__), "..", "knowledge", "traces.db")
-    conn = sqlite3.connect(traces_db)
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM explorer_traces WHERE topic = ?", (topic,))
-    count = cursor.fetchone()[0]
-    conn.close()
-    return count
+    """Get exploration count for topic from state.json explore_counts."""
+    state = _load_state()
+    state = _ensure_meta_cognitive(state)
+    mc = state.get("meta_cognitive", {})
+    return mc.get("explore_counts", {}).get(topic, 0)
 
 
 def get_topic_marginal_returns(topic: str) -> list:
@@ -1119,6 +1187,21 @@ def get_recently_dreamed(within_days: int) -> set:
                 continue
     
     return result
+
+
+def get_relations_count(topic: str) -> int:
+    """Get number of relations for a topic."""
+    kg_factory = _get_kg_factory()
+
+    async def _count():
+        repo = await kg_factory._ensure_connected()
+        relations = await repo.get_relations(topic)
+        return len(relations)
+
+    try:
+        return asyncio.run(_count())
+    except Exception:
+        return 0
 
 
 def strengthen_connection(topic_a: str, topic_b: str, delta: float = 0.1):
@@ -1366,6 +1449,7 @@ __all__ = [
     "get_recently_dreamed",
     "strengthen_connection",
     "get_directly_connected",
+    "get_relations_count",
     "get_shortest_path_length",
     "get_connection_strength",
     "get_recent_explorations",

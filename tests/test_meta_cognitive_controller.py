@@ -49,7 +49,8 @@ class TestShouldExplore:
             monitor = MetaCognitiveMonitor()
             controller = MetaCognitiveController(monitor)
             test_topic = create_test_topic("count-test")
-            for i in range(3):
+            # quality=7.0 → max=3*2=6, orphan boost +2 → 8; need 8 explorations
+            for i in range(8):
                 kg_module.update_meta_exploration(test_topic, 7.0, 0.5, False)
             allowed, reason = controller.should_explore(test_topic)
             assert allowed is False
@@ -63,7 +64,7 @@ class TestShouldExplore:
             kg_module.update_meta_exploration(test_topic, 7.0, 0.5, False)
             allowed, reason = controller.should_explore(test_topic)
             assert allowed is True
-            assert "1/3" in reason
+            assert "1/8" in reason
 
 
 class TestShouldContinue:
@@ -83,7 +84,8 @@ class TestShouldContinue:
             kg_module.update_meta_exploration(test_topic, 8.0, 0.8, False)
             allowed, reason = controller.should_continue(test_topic)
             assert allowed is True
-            assert "healthy" in reason.lower()
+            # Quality-aware logic: high quality (8.0) with positive marginal return
+            assert "positive" in reason.lower() or "healthy" in reason.lower()
 
     def test_should_continue_low_return(self):
         with isolated_knowledge_graph() as kg_module:

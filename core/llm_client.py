@@ -47,7 +47,7 @@ class LLMClient:
         # Backward compatibility attributes
         self.api_key = api_key or os.environ.get("MINIMAX_API_KEY") or os.environ.get("VOLCENGINE_API_KEY", "")
         self.model = os.environ.get("VOLCENGINE_MODEL", "minimax-m2.7")
-        self.timeout = 60
+        self.timeout = 120
     
     def chat(self, prompt: str, **kwargs) -> str:
         """Send chat request"""

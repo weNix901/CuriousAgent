@@ -12,6 +12,9 @@ function buildGraphData() {
     var name = item[0], v = item[1], inQ = !!qMap[name.toLowerCase()];
     var score = 0;
     if (inQ) for (var i = 0; i < queue.length; i++) if (queue[i].topic === name) { score = queue[i].score || 0; break; }
+    var q = typeof v.quality === 'number' ? v.quality : 0;
+    var c = v.completeness_score || 0;
+    var valueScore = q * (0.5 + c * 0.1);
     return { 
       id: name, 
       depth: v.depth || 0, 
@@ -23,7 +26,8 @@ function buildGraphData() {
       completeness: v.completeness_score || 0,
       definition: v.definition || '',
       core: v.core || '',
-      context: v.context || ''
+      context: v.context || '',
+      valueScore: valueScore
     };
   });
 
@@ -194,15 +198,15 @@ function renderGraph() {
       .on('end', function(e, d) { if (!e.active) _g.sim.alphaTarget(0); d.fx = null; d.fy = null; }))
     .on('click', function(e, d) { e.stopPropagation(); showDetail('knowledge', d.id); });
 
-  nodeSel.append('circle').attr('r', function(d) { return d.inQueue ? Math.max(18, d.depth * 2.4) : Math.max(12, d.depth * 1.8); })
+  nodeSel.append('circle').attr('r', function(d) { return d.inQueue ? Math.max(18, d.valueScore * 2.4) : Math.max(12, d.valueScore * 1.8); })
     .attr('fill', nodeColor).attr('fill-opacity', 1.0)
     .attr('stroke', function(d) { return d.inQueue ? '#fff' : 'none'; }).attr('stroke-width', function(d) { return d.inQueue ? 2 : 0; });
 
-  nodeSel.append('text').attr('class', 'node-label').attr('dx', function(d) { return Math.max(20, d.depth * 2) + 4; }).attr('dy', 4)
+  nodeSel.append('text').attr('class', 'node-label').attr('dx', function(d) { return Math.max(20, d.valueScore * 2) + 4; }).attr('dy', 4)
     .text(function(d) { return d.id.length > 26 ? d.id.substring(0, 23) + '...' : d.id; });
 
   nodeSel.append('title').text(function(d) { 
-    var info = d.id + '\n质量:' + (d.quality || '待探索') + ' | 完整性:' + (d.completeness || 0) + '/5';
+    var info = d.id + '\n质量:' + (d.quality || '待探索') + ' | 完整性:' + (d.completeness || 0) + '/5 | 价值分:' + d.valueScore.toFixed(1);
     if (d.definition) info += '\n定义: ' + d.definition.slice(0, 50) + '...';
     return info;
   });
@@ -215,7 +219,7 @@ function renderGraph() {
     .force('link', d3.forceLink(data.links).id(function(d) { return d.id; }).distance(dist).strength(stren))
     .force('charge', d3.forceManyBody().strength(charge))
     .force('center', d3.forceCenter(W / 2, H / 2))
-    .force('collision', d3.forceCollide().radius(function(d) { return Math.max(25, d.depth * 2.5) + 30; }))
+    .force('collision', d3.forceCollide().radius(function(d) { return Math.max(25, d.valueScore * 2.5) + 30; }))
     .on('tick', function() {
       link.attr('x1', function(d) { return d.source.x; }).attr('y1', function(d) { return d.source.y; })
         .attr('x2', function(d) { return d.target.x; }).attr('y2', function(d) { return d.target.y; });
