@@ -2,11 +2,20 @@
 
 Scans KG for nodes without relations and attempts to find/establish
 connections based on semantic similarity and LLM verification.
+
+v0.3.4: Added persistence for repaired orphans to prevent repeated processing.
 """
+import json
 import logging
-from typing import List, Dict, Optional
+import os
+from datetime import datetime, timezone
+from typing import List, Dict, Optional, Set
 
 logger = logging.getLogger(__name__)
+
+REPAIR_HISTORY_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "knowledge", "repaired_orphans.json"
+)
 
 
 class RelationRepairService:
@@ -18,12 +27,49 @@ class RelationRepairService:
         self.min_quality = self.config.get("repair_min_quality", 5.0)
         self.max_repairs_per_cycle = self.config.get("max_repairs_per_cycle", 10)
         self.similarity_threshold = self.config.get("similarity_threshold", 0.5)
+        self._repaired_orphans: Set[str] = set()
+        self._load_history()
+
+    def _load_history(self) -> None:
+        if os.path.exists(REPAIR_HISTORY_FILE):
+            try:
+                with open(REPAIR_HISTORY_FILE, "r") as f:
+                    data = json.load(f)
+                    self._repaired_orphans = set(data.get("repaired", []))
+                    logger.info(
+                        f"[RelationRepair] Loaded {len(self._repaired_orphans)} repaired orphans from history"
+                    )
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning(f"[RelationRepair] Failed to load history: {e}")
+                self._repaired_orphans = set()
+
+    def _save_history(self) -> None:
+        try:
+            os.makedirs(os.path.dirname(REPAIR_HISTORY_FILE), exist_ok=True)
+            with open(REPAIR_HISTORY_FILE, "w") as f:
+                json.dump(
+                    {
+                        "repaired": list(self._repaired_orphans),
+                        "last_updated": datetime.now(timezone.utc).isoformat(),
+                        "count": len(self._repaired_orphans),
+                    },
+                    f,
+                    indent=2,
+                )
+        except IOError as e:
+            logger.warning(f"[RelationRepair] Failed to save history: {e}")
+
+    def reset_history(self) -> None:
+        self._repaired_orphans.clear()
+        self._save_history()
+        logger.info("[RelationRepair] History reset, all orphans will be re-scanned")
 
     def scan_and_repair(self) -> Dict[str, int]:
         """Main entry point: scan for isolated nodes and repair relations.
 
         Returns:
-            {"scanned": int, "orphan_found": int, "relations_created": int, "relations_verified": int}
+            {"scanned": int, "orphan_found": int, "relations_created": int, 
+             "relations_verified": int, "skipped_already_repaired": int}
         """
         from core.kg.repository_factory import get_kg_factory
 
@@ -35,6 +81,7 @@ class RelationRepairService:
             "orphan_found": 0,
             "relations_created": 0,
             "relations_verified": 0,
+            "skipped_already_repaired": 0,
         }
 
         for node in all_nodes:
@@ -47,7 +94,10 @@ class RelationRepairService:
 
             stats["scanned"] += 1
 
-            # Check if node has any relations
+            if topic in self._repaired_orphans:
+                stats["skipped_already_repaired"] += 1
+                continue
+
             relations = self._get_relations_count(topic)
             if relations > 0:
                 continue
@@ -57,13 +107,11 @@ class RelationRepairService:
             if stats["relations_created"] >= self.max_repairs_per_cycle:
                 break
 
-            # Try to find candidate relations
             candidates = self._find_relation_candidates(topic, all_nodes)
             for candidate in candidates:
                 if stats["relations_created"] >= self.max_repairs_per_cycle:
                     break
 
-                # Verify relation with LLM
                 if self._verify_relation(topic, candidate["topic"], candidate["similarity"]):
                     stats["relations_verified"] += 1
                     try:
@@ -73,6 +121,8 @@ class RelationRepairService:
                             relation_type=candidate.get("relation_type", "RELATED_TO"),
                         )
                         stats["relations_created"] += 1
+                        self._repaired_orphans.add(topic)
+                        self._save_history()
                         logger.info(
                             f"[RelationRepair] Created relation: "
                             f"{topic} --{candidate.get('relation_type', 'RELATED_TO')}--> {candidate['topic']}"
