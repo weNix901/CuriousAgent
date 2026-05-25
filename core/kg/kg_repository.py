@@ -38,7 +38,7 @@ class KGRepository:
         metadata: Dict[str, Any] = None,
         key_points: List[str] = None,
         keywords: List[str] = None
-    ) -> str:
+    ) -> Optional[str]:
         """Create a knowledge node with optional relations and embedding."""
         source_urls = source_urls or []
         relations = relations or []
@@ -50,7 +50,7 @@ class KGRepository:
             "heat": 0,
             "quality": 0.0,
             "confidence": 0.0,
-            "status": "pending",
+            "status": "no_content",  # Changed from "pending" - use "no_content" for stub nodes
             "depth": 5
         }
         for key, value in default_metadata.items():
@@ -140,9 +140,12 @@ class KGRepository:
                 rel.get("type", "IS_CHILD_OF")
             )
 
-        if result:
-            return result[0].get("id", topic)
-        return topic
+        # v0.3.4 DIAGNOSTIC: Return None on failure instead of pretending success
+        if not result:
+            logger.error(f"[KG] create_knowledge_node returned empty for '{topic}' - Neo4j write may have failed")
+            return None
+        logger.info(f"[KG] create_knowledge_node SUCCESS for '{topic}'")
+        return result[0].get("id", topic)
 
     async def query_knowledge(
         self,
@@ -306,13 +309,13 @@ class KGRepository:
         self,
         from_topic: str,
         to_topic: str,
-        relation_type: str = "IS_CHILD_OF"
+        relation_type: str
     ) -> bool:
-        """Create a relation between two topics."""
+        """Create a relation between two topics (MERGE for uniqueness)."""
         query = f"""
         MATCH (a:Knowledge {{topic: $from_topic}})
         MATCH (b:Knowledge {{topic: $to_topic}})
-        CREATE (a)-[r:{relation_type}]->(b)
+        MERGE (a)-[r:{relation_type}]->(b)
         RETURN true as success
         """
 

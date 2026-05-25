@@ -306,13 +306,14 @@ class ExploreAgent(CAAgent):
                     final_summary = f"Exploration of '{topic}' complete with {len(collected_sources)} sources"
                 
                 add_tool = self.tool_registry.get("add_to_kg")
+                kg_write_success = False
                 if add_tool and final_summary:
                     pdf_path = None
                     txt_path = None
                     source_url = collected_sources[0] if collected_sources else None
                     
                     if extracted_knowledge:
-                        await add_tool.execute(
+                        add_result = await add_tool.execute(
                             topic=extracted_knowledge.get("topic", topic),
                             content=extracted_knowledge.get("content", {}).get("definition", ""),
                             source_urls=collected_sources,
@@ -330,13 +331,23 @@ class ExploreAgent(CAAgent):
                                 "source_trusted": extracted_knowledge.get("source", {}).get("source_trusted", False)
                             }
                         )
+                        if add_result and "Added" in add_result:
+                            kg_write_success = True
+                            logger.info(f"[ExploreAgent] KG write SUCCESS for '{topic}'")
+                        else:
+                            logger.error(f"[ExploreAgent] KG write FAILED for '{topic}': {add_result}")
                     else:
-                        await add_tool.execute(
+                        add_result = await add_tool.execute(
                             topic=topic,
                             content=final_summary[:2000],
                             source_urls=collected_sources,
                             metadata={"depth": iterations, "quality": 5.0 + len(collected_sources)}
                         )
+                        if add_result and "Added" in add_result:
+                            kg_write_success = True
+                            logger.info(f"[ExploreAgent] KG write SUCCESS for '{topic}'")
+                        else:
+                            logger.error(f"[ExploreAgent] KG write FAILED for '{topic}': {add_result}")
                     
                     await self._enqueue_deep_read(
                         topic=topic,
@@ -344,6 +355,8 @@ class ExploreAgent(CAAgent):
                         txt_path=txt_path,
                         source_url=source_url
                     )
+                elif not add_tool:
+                    logger.warning(f"[ExploreAgent] add_to_kg tool not found, KG write skipped")
                 
                 quality = 5.0 + len(collected_sources)
                 self._push_webhook(topic, quality=quality, source_type="explore")
@@ -431,13 +444,14 @@ class ExploreAgent(CAAgent):
             final_summary = f"Exploration of '{topic}' reached max iterations with {len(collected_sources)} sources"
         
         add_tool = self.tool_registry.get("add_to_kg")
+        kg_write_success = False
         if add_tool and final_summary:
             pdf_path = None
             txt_path = None
             source_url = collected_sources[0] if collected_sources else None
             
             if extracted_knowledge:
-                await add_tool.execute(
+                add_result = await add_tool.execute(
                     topic=extracted_knowledge.get("topic", topic),
                     content=extracted_knowledge.get("content", {}).get("definition", ""),
                     source_urls=collected_sources,
@@ -455,13 +469,23 @@ class ExploreAgent(CAAgent):
                         "source_trusted": extracted_knowledge.get("source", {}).get("source_trusted", False)
                     }
                 )
+                if add_result and "Added" in add_result:
+                    kg_write_success = True
+                    logger.info(f"[ExploreAgent] KG write SUCCESS for '{topic}'")
+                else:
+                    logger.error(f"[ExploreAgent] KG write FAILED for '{topic}': {add_result}")
             else:
-                await add_tool.execute(
+                add_result = await add_tool.execute(
                     topic=topic,
                     content=final_summary[:2000],
                     source_urls=collected_sources,
                     metadata={"depth": iterations, "quality": 5.0 + len(collected_sources)}
                 )
+                if add_result and "Added" in add_result:
+                    kg_write_success = True
+                    logger.info(f"[ExploreAgent] KG write SUCCESS for '{topic}'")
+                else:
+                    logger.error(f"[ExploreAgent] KG write FAILED for '{topic}': {add_result}")
             
             await self._enqueue_deep_read(
                 topic=topic,

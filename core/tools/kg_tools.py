@@ -231,23 +231,41 @@ class AddToKGTool(Tool):
         metadata["completeness_score"] = completeness
         
         if self._repository:
-            result = await self._repository.create_knowledge_node(
-                topic=topic,
-                content=content,
-                source_urls=source_urls,
-                relations=relations,
-                metadata=metadata
-            )
+            # v0.3.4 DIAGNOSTIC: Add detailed logging for KG write
+            logger.info(f"[KGWrite] Attempting to create node: topic={topic}, content_len={len(content)}, sources={len(source_urls)}")
+            
+            try:
+                result = await self._repository.create_knowledge_node(
+                    topic=topic,
+                    content=content,
+                    source_urls=source_urls,
+                    relations=relations,
+                    metadata=metadata
+                )
+                
+                # v0.3.4 DIAGNOSTIC: Check result
+                if result:
+                    logger.info(f"[KGWrite] SUCCESS: created node '{topic}', result={result}")
+                else:
+                    logger.error(f"[KGWrite] FAILED: create_knowledge_node returned None/empty for '{topic}'")
+                    return f"ERROR: Failed to create KG node for '{topic}'"
+                
+            except Exception as e:
+                logger.error(f"[KGWrite] EXCEPTION: create_knowledge_node failed for '{topic}': {e}")
+                return f"ERROR: KG write exception for '{topic}': {str(e)[:100]}"
             
             # v0.3.3: Create DERIVED_FROM relation if parent_topic exists
             if parent_topic:
                 try:
                     await self._repository.add_relation(parent_topic, topic, "DERIVED_FROM")
+                    logger.info(f"[KGWrite] Created DERIVED_FROM relation: {parent_topic} -> {topic}")
                 except Exception as e:
-                    logger.warning(f"Failed to create DERIVED_FROM relation: {e}")
+                    logger.warning(f"[KGWrite] Failed to create DERIVED_FROM relation: {e}")
             
             return f"Added node: {topic} (completeness: {completeness}/5)"
-        return f"Node added: {topic} (completeness: {completeness}/5)"
+        
+        logger.warning(f"[KGWrite] No repository configured, skipping KG write for '{topic}'")
+        return f"Node added: {topic} (completeness: {completeness}/5) [no_repo]"
     
     def to_schema(self) -> dict[str, Any]:
         return super().to_schema()
