@@ -279,6 +279,37 @@ class QueueStorage:
         conn.commit()
         return cursor.rowcount
 
+    def requeue_to_back(self, item_id: int, holder_id: str, reason: str | None = None) -> bool:
+        """Requeue a claimed item but push it to the BACK of the pending queue.
+
+        Unlike plain requeue (which keeps FIFO position at the head), this bumps
+        created_at to now so the item is retried only after all older/equal-
+        priority items have been drained. Prevents a poison item from starving
+        the rest of the queue by looping at the head forever.
+
+        requeue_count is incremented so callers can track how many times an item
+        has bounced and isolate it once the limit is exceeded.
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        now = time.time()
+        cursor.execute(
+            """
+            UPDATE queue
+            SET status = 'pending',
+                holder_id = NULL,
+                claimed_at = NULL,
+                claim_timeout = NULL,
+                failed_reason = ?,
+                requeue_count = requeue_count + 1,
+                created_at = ?
+            WHERE id = ? AND status = 'claimed' AND holder_id = ?
+            """,
+            (reason, now, item_id, holder_id),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
     def get_claimed_items(self, holder_id: str) -> list[dict]:
         conn = self._get_connection()
         cursor = conn.cursor()

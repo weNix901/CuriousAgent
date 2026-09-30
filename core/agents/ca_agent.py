@@ -12,6 +12,11 @@ class AgentResult:
     success: bool
     iterations_used: int
     trace_id: str = None
+    # Exploration-quality payload. Populated by ExploreAgent so daemon-side
+    # consumers (BehaviorWriter, metrics) can act on it instead of having it
+    # silently dropped when the internal dict is re-wrapped into this dataclass.
+    quality: float = None
+    findings: dict = None
 
 
 @dataclass

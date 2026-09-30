@@ -144,6 +144,9 @@ class ExploreAgent(CAAgent):
             content=react_result.get("content", f"Explored topic: {explored_topic}"),
             success=react_result.get("success", True),
             iterations_used=react_result.get("iterations", 0),
+            trace_id=react_result.get("trace_id"),
+            quality=react_result.get("quality"),
+            findings=react_result.get("findings"),
         )
 
     async def _claim_topic(self, topic: str) -> dict[str, Any]:
@@ -275,13 +278,10 @@ class ExploreAgent(CAAgent):
 
             if not action or action.lower() == "done":
                 total_duration = int((time.time() - loop_start) * 1000)
-                trace_writer.finish_trace(
-                    trace_id=trace_id,
-                    status="done",
-                    total_steps=iterations,
-                    tools_used=list(tools_used_set),
-                    duration_ms=total_duration,
-                )
+                # NOTE: do NOT finish_trace here. Quality is only known after the
+                # summary/KG stage below; finishing now would write quality_score=NULL
+                # and risk a second finish_trace overwriting it (race). Single write
+                # at the end of this branch (see below).
                 
                 final_summary = ""
                 extracted_knowledge = None
@@ -297,11 +297,16 @@ class ExploreAgent(CAAgent):
                         )
                         try:
                             extracted_knowledge = json.loads(extract_result)
-                            final_summary = extracted_knowledge.get("content", {}).get("definition", "")
+                            # LLM returns flat structure with definition/core/context at top level
+                            final_summary = extracted_knowledge.get("definition", "") or extracted_knowledge.get("content", {}).get("definition", "") or ""
                         except:
                             final_summary = extract_result
                 elif content_parts:
-                    final_summary = "\n".join(content_parts[-3:])
+                    # content_parts holds raw ReAct transcripts ("Thought: ... /
+                    # Action: ... / Observation: ..."). Never persist that as a
+                    # knowledge summary — it leaked "Thought:" garbage into
+                    # behaviors.md when all searches failed. Use the cleaned form.
+                    final_summary = self._clean_react_transcript(content_parts[-3:])
                 else:
                     final_summary = f"Exploration of '{topic}' complete with {len(collected_sources)} sources"
                 
@@ -315,13 +320,13 @@ class ExploreAgent(CAAgent):
                     if extracted_knowledge:
                         add_result = await add_tool.execute(
                             topic=extracted_knowledge.get("topic", topic),
-                            content=extracted_knowledge.get("content", {}).get("definition", ""),
+                            content=extracted_knowledge.get("definition", ""),
                             source_urls=collected_sources,
-                            definition=extracted_knowledge.get("content", {}).get("definition", ""),
-                            core=extracted_knowledge.get("content", {}).get("fact", ""),
-                            context=extracted_knowledge.get("content", {}).get("context", ""),
-                            examples=extracted_knowledge.get("content", {}).get("examples", []),
-                            formula=extracted_knowledge.get("content", {}).get("formula", ""),
+                            definition=extracted_knowledge.get("definition", ""),
+                            core=extracted_knowledge.get("core", ""),
+                            context=extracted_knowledge.get("context", ""),
+                            examples=extracted_knowledge.get("examples", []),
+                            formula=extracted_knowledge.get("formula", ""),
                             parent_topic=extracted_knowledge.get("relations", {}).get("parent"),
                             metadata={
                                 "depth": iterations,
@@ -360,12 +365,31 @@ class ExploreAgent(CAAgent):
                 
                 quality = 5.0 + len(collected_sources)
                 self._push_webhook(topic, quality=quality, source_type="explore")
-                
+
+                # Single finish_trace for this path: all fields at once so quality
+                # is never clobbered by a later partial update (BUG-6 race fix).
+                try:
+                    trace_writer.finish_trace(
+                        trace_id=trace_id,
+                        status="done",
+                        total_steps=iterations,
+                        tools_used=list(tools_used_set),
+                        quality_score=quality,
+                        duration_ms=int((time.time() - loop_start) * 1000),
+                    )
+                except Exception as e:
+                    logger.warning(f"[ExploreAgent] failed to record quality on trace {trace_id}: {e}")
+
                 return {
                     "success": True,
                     "content": final_summary,
                     "iterations": iterations,
                     "trace_id": trace_id,
+                    "quality": quality,
+                    "findings": {
+                        "summary": final_summary,
+                        "sources": list(collected_sources),
+                    },
                 }
 
             step_start = time.time()
@@ -411,13 +435,8 @@ class ExploreAgent(CAAgent):
             messages.append({"role": "user", "content": f"Observation: {observation}"})
 
         total_duration = int((time.time() - loop_start) * 1000)
-        trace_writer.finish_trace(
-            trace_id=trace_id,
-            status="done",
-            total_steps=iterations,
-            tools_used=list(tools_used_set),
-            duration_ms=total_duration,
-        )
+        # Do NOT finish_trace here — quality is computed below. Single write at the
+        # end of this path prevents quality_score being clobbered (BUG-6 race fix).
 
         final_summary = ""
         extracted_knowledge = None
@@ -433,13 +452,16 @@ class ExploreAgent(CAAgent):
                 )
                 try:
                     extracted_knowledge = json.loads(extract_result)
-                    final_summary = extracted_knowledge.get("content", {}).get("definition", "")
+                    # LLM returns flat structure with definition/core/context at top level
+                    final_summary = extracted_knowledge.get("definition", "") or extracted_knowledge.get("content", {}).get("definition", "") or ""
                 except:
                     final_summary = extract_result
             else:
                 final_summary = f"Explored {topic} with {len(collected_sources)} sources"
         elif content_parts:
-            final_summary = "\n".join(content_parts[-3:])
+            # See note in the earlier branch: strip ReAct scaffolding so we never
+            # write "Thought:/Action:/Observation:" noise into the knowledge base.
+            final_summary = self._clean_react_transcript(content_parts[-3:])
         else:
             final_summary = f"Exploration of '{topic}' reached max iterations with {len(collected_sources)} sources"
         
@@ -453,13 +475,13 @@ class ExploreAgent(CAAgent):
             if extracted_knowledge:
                 add_result = await add_tool.execute(
                     topic=extracted_knowledge.get("topic", topic),
-                    content=extracted_knowledge.get("content", {}).get("definition", ""),
+                    content=extracted_knowledge.get("definition", ""),
                     source_urls=collected_sources,
-                    definition=extracted_knowledge.get("content", {}).get("definition", ""),
-                    core=extracted_knowledge.get("content", {}).get("fact", ""),
-                    context=extracted_knowledge.get("content", {}).get("context", ""),
-                    examples=extracted_knowledge.get("content", {}).get("examples", []),
-                    formula=extracted_knowledge.get("content", {}).get("formula", ""),
+                    definition=extracted_knowledge.get("definition", ""),
+                    core=extracted_knowledge.get("core", ""),
+                    context=extracted_knowledge.get("context", ""),
+                    examples=extracted_knowledge.get("examples", []),
+                    formula=extracted_knowledge.get("formula", ""),
                     parent_topic=extracted_knowledge.get("relations", {}).get("parent"),
                     metadata={
                         "depth": iterations,
@@ -496,13 +518,66 @@ class ExploreAgent(CAAgent):
         
         quality = 5.0 + len(collected_sources)
         self._push_webhook(topic, quality=quality, source_type="explore")
-        
+
+        # Persist quality onto the trace so downstream consumers (BehaviorWriter,
+        # metrics, daemon orchestration) can see it. Single write with all fields
+        # to avoid a later partial update clobbering quality (BUG-6 race fix).
+        try:
+            trace_writer.finish_trace(
+                trace_id=trace_id,
+                status="done",
+                total_steps=iterations,
+                tools_used=list(tools_used_set),
+                quality_score=quality,
+                duration_ms=int((time.time() - loop_start) * 1000),
+            )
+        except Exception as e:
+            logger.warning(f"[ExploreAgent] failed to record quality on trace {trace_id}: {e}")
+
         return {
             "success": True,
             "content": final_summary + f"\n\nReached max iterations ({self.config.max_iterations})",
             "iterations": iterations,
             "trace_id": trace_id,
+            "quality": quality,
+            "findings": {
+                "summary": final_summary,
+                "sources": list(collected_sources),
+            },
         }
+
+    def _clean_react_transcript(self, parts: list[str]) -> str:
+        """Strip ReAct scaffolding from raw transcript fragments.
+
+        content_parts entries look like:
+            "Thought: ..."
+            "Action: fetch_page({...})\nObservation: Error: HTTP 404"
+        Observed failure mode: when every search/fetch failed, the raw transcript
+        was written verbatim into the knowledge base and surfaced in
+        curious-agent-behaviors.md as a bogus "finding". Keep only observable
+        content and drop empty/error-only observations; fall back to a neutral
+        placeholder when nothing usable remains.
+        """
+        chunks: list[str] = []
+        for part in parts:
+            for line in part.split("\n"):
+                line = line.strip()
+                if not line:
+                    continue
+                # Drop pure chain-of-thought / tool-call scaffolding lines.
+                if line.startswith("Thought:") or line.startswith("Action:"):
+                    continue
+                if line.startswith("Observation:"):
+                    obs = line[len("Observation:"):].strip()
+                    low = obs.lower()
+                    if not obs or low.startswith("error") or "timed out" in low \
+                            or "not found" in low or "no results" in low:
+                        continue
+                    chunks.append(obs)
+                else:
+                    chunks.append(line)
+        cleaned = "\n".join(chunks).strip()
+        return cleaned
 
     def _parse_react_response(self, response: str) -> dict[str, Any]:
         """Parse ReAct response from non-JSON format."""

@@ -35,6 +35,9 @@ class ExploreDaemonConfig:
     poll_interval_seconds: float = 300.0
     max_retries: int = 3
     retry_delay_seconds: float = 15.0
+    # Max times an item may bounce to the back after empty-KG results before it
+    # is purged (dead-lettered). Prevents poison items looping forever.
+    max_requeue_before_purge: int = 5
 
 
 class ExploreDaemon(threading.Thread):
@@ -130,13 +133,53 @@ class ExploreDaemon(threading.Thread):
             return
         
         logger.info(f"ExploreDaemon: claimed item {item_id} - {topic}")
-        
+
+        # Read the persisted requeue_count BEFORE exploring. This value survives
+        # across ticks (requeue_to_back bumps it), so a poison item that keeps
+        # "succeeding" with empty-KG results is eventually purged instead of
+        # looping forever at the head / re-claiming forever.
+        current_item = self.queue_storage.get_item(item_id) or {}
+        requeue_count = current_item.get("requeue_count", 0)
+        purge_threshold = getattr(self.config, "max_requeue_before_purge", 5)
+
         retries = 0
         while retries < self.config.max_retries and self.running:
             try:
                 result = await self.explore_agent.run(topic, pre_claimed_item_id=item_id)
                 
                 if result.success:
+                    # Feed high-quality discoveries into the behavior-rule pipeline.
+                    # NOTE: explore_agent.run() returns an AgentResult dataclass, but
+                    # intermediate returns may be dicts. Handle both shapes defensively.
+                    # This was the missing link that left curious-agent-behaviors.md
+                    # frozen since 2026-04-17.
+                    try:
+                        def _rget(obj, key, default=None):
+                            if isinstance(obj, dict):
+                                return obj.get(key, default)
+                            return getattr(obj, key, default)
+
+                        quality = _rget(result, "quality")
+                        findings = _rget(result, "findings") or {}
+                        if quality is not None and quality >= 7.0:
+                            from core.agent_behavior_writer import AgentBehaviorWriter
+                            bw = AgentBehaviorWriter()
+                            bw_result = bw.process(
+                                topic, findings, quality, findings.get("sources", [])
+                            )
+                            if bw_result.get("applied"):
+                                logger.info(
+                                    f"ExploreDaemon: BehaviorWriter wrote '{topic}' "
+                                    f"→ {bw_result.get('section')} (Q={quality})"
+                                )
+                            else:
+                                logger.debug(
+                                    f"ExploreDaemon: BehaviorWriter skipped '{topic}': "
+                                    f"{bw_result.get('reason')}"
+                                )
+                    except Exception as e:
+                        logger.warning(f"ExploreDaemon: BehaviorWriter failed for '{topic}': {e}")
+
                     try:
                         kg_factory = get_kg_factory()
                         node = kg_factory.get_node_sync(topic)
@@ -144,12 +187,35 @@ class ExploreDaemon(threading.Thread):
                             # KG has valid content → delete queue item
                             self.queue_storage.delete_item(item_id, self.explore_agent.holder_id)
                             logger.info(f"ExploreDaemon: item {item_id} {topic} → KG verified, queue deleted")
-                        else:
-                            # KG empty or content too brief → keep claimed, timeout will release
-                            logger.warning(f"ExploreDaemon: KG empty/brief for {topic}, keeping claimed (will timeout)")
+                            return
+                        # KG empty/brief after a "successful" explore → poison risk.
+                        reason = "explore_success_but_kg_empty"
                     except Exception as e:
-                        # KG verification itself failed (Neo4j down, etc.) → keep claimed, don't delete
-                        logger.warning(f"ExploreDaemon: KG verification failed for {topic}: {e}, keeping claimed")
+                        # KG verification itself failed (Neo4j down, etc.)
+                        reason = f"kg_verify_error: {e}"
+                        logger.warning(f"ExploreDaemon: KG verification failed for {topic}: {e}")
+
+                    # Reached here only when KG NOT verified (empty/brief or error).
+                    # requeue_count is the persisted bounce counter across ticks.
+                    if requeue_count + 1 >= purge_threshold:
+                        # Bounced too many times → purge permanently (dead letter).
+                        self._log_dead_letter(item_id, topic, reason)
+                        self.queue_storage.delete_item(item_id, self.explore_agent.holder_id)
+                        logger.warning(
+                            f"ExploreDaemon: PURGED poison item {item_id} {topic} "
+                            f"after {requeue_count + 1} empty-KG bounces ({reason})"
+                        )
+                        return
+
+                    # Otherwise push to the BACK so it stops starving the head;
+                    # requeue_count is incremented in DB and survives next tick.
+                    self.queue_storage.requeue_to_back(
+                        item_id, self.explore_agent.holder_id, reason=reason
+                    )
+                    logger.warning(
+                        f"ExploreDaemon: KG empty/brief for {topic} "
+                        f"(bounce {requeue_count + 1}/{purge_threshold}), requeued to back"
+                    )
                     return
                 else:
                     retries += 1
@@ -193,6 +259,7 @@ class ExploreDaemon(threading.Thread):
                 topic = node.get("topic", "")
                 quality = node.get("quality", 0.0)
                 status = node.get("status", "pending")
+                quality = quality or 0.0  # Defensive: avoid None < float TypeError
 
                 if quality < min_quality or status not in ("done", "complete"):
                     continue
@@ -216,14 +283,29 @@ class ExploreDaemon(threading.Thread):
                         kg_compat._save_state(state)
                         logger.info(f"[OrphanScan] Re-activated completed orphan: {topic} (quality={quality:.1f})")
 
+                # Try to add - dedup may skip if node has content
+                # (for empty done nodes, dedup now allows re-exploration)
+                before_count = len(kg_compat._get_queue_storage().get_pending_items()) if hasattr(kg_compat, '_get_queue_storage') else 0
                 kg_compat.add_curiosity(
                     topic=topic,
                     reason=f"OrphanScan: high-quality isolated node (quality={quality:.1f})",
                     relevance=quality,
                     depth=7.0,
                 )
-                enqueued += 1
-                logger.info(f"[OrphanScan] Enqueued orphan node: {topic} (quality={quality:.1f})")
+                # Only count as enqueued if queue actually grew
+                after_count = kg_compat._get_queue_storage().get_pending_items().__len__() if hasattr(kg_compat, '_get_queue_storage') else 0
+                # Actually, add_curiosity doesn't return - check by re-querying
+                # Use a simpler heuristic: check if pending grew
+                try:
+                    qs = kg_compat._get_queue_storage()
+                    new_pending = [i for i in qs.get_pending_items() if i['topic'] == topic]
+                    if new_pending:
+                        enqueued += 1
+                        logger.info(f"[OrphanScan] Enqueued orphan node: {topic} (quality={quality:.1f})")
+                    else:
+                        logger.debug(f"[OrphanScan] Skipped (dedup): {topic}")
+                except Exception:
+                    pass
 
             if enqueued > 0:
                 logger.info(f"[OrphanScan] Total {enqueued} orphan nodes enqueued for re-exploration")

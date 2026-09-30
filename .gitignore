@@ -70,3 +70,12 @@ ui/views/internal-view.html
 RELEASE_NOTE_v0.3.*
 HEARTBEAT.md
 knowledge/audit.db
+
+# Phase 1 数据治理（2026-10-01）— 回滚/归档，不推送
+.trash_phase1_*/
+archives/
+knowledge/ops.db
+config.json.bak*
+*.py.bak*
+papers/
+test_fix.py

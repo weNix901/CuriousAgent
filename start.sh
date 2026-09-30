@@ -76,6 +76,8 @@ mkdir -p logs
 if [ -f .env ]; then
     log "加载 .env"
     source .env
+    # 显式 export 确保子进程继承
+    export BAILIAN_API_KEY VOLCENGINE_API_KEY SILICONFLOW_API_KEY BOCHA_API_KEY SERPER_API_KEY NEO4J_PASSWORD NEO4J_USERNAME NEO4J_URI
 else
     err ".env 文件不存在"
     exit 1
