@@ -404,14 +404,20 @@ def daemon_mode(interval_minutes: int = 30):
     class KGRepository:
         """Async wrapper for sync knowledge_graph functions."""
         async def add_to_knowledge_graph(self, topic, content="", source_urls=None, metadata=None, relations=None):
-            await kg.add_knowledge_async(topic=topic, depth=metadata.get("depth", 5) if metadata else 5,
-                           summary=content, sources=source_urls if source_urls else metadata.get("sources", []) if metadata else None,
-                           quality=metadata.get("quality") if metadata else None)
+            # Pass full metadata so 6-element fields (definition/core/context/examples/formula) reach Neo4j
+            await kg.add_knowledge_async(
+                topic=topic,
+                depth=metadata.get("depth", 5) if metadata else 5,
+                summary=content,
+                sources=source_urls if source_urls else metadata.get("sources", []) if metadata else None,
+                quality=metadata.get("quality") if metadata else None,
+                metadata=metadata
+            )
             return topic
         
         async def create_knowledge_node(self, topic, content="", source_urls=None, metadata=None, relations=None):
             """Create a knowledge node - delegates to add_to_knowledge_graph for compatibility."""
-            return await self.add_to_knowledge_graph(topic, content, source_urls, metadata, relations)
+            return await self.add_to_knowledge_graph(topic, content, source_urls, metadata=metadata, relations=relations)
         
         async def query_knowledge(self, topic, limit=5):
             return []
@@ -814,20 +820,28 @@ def _register_explore_agent_tools(tool_registry, queue_storage):
                 self._repo = AsyncKGRepository(client)
             return self._repo
         
-        async def add_to_knowledge_graph(self, topic, content="", source_urls=None, metadata=None, relations=None):
+        async def add_to_knowledge_graph(self, topic, content="", source_urls=None, metadata=None, relations=None, **kwargs):
             repo = await self._ensure_repo()
+            # Build metadata dict, spreading 6-element fields from metadata
+            meta = {"depth": 5, "quality": 0, "status": "done"}
+            if metadata:
+                if "depth" in metadata: meta["depth"] = metadata["depth"]
+                if "quality" in metadata: meta["quality"] = metadata["quality"]
+                for key in ("definition", "core", "context", "examples", "formula", "parent_topic", "keywords", "source_type"):
+                    if key in metadata:
+                        meta[key] = metadata[key]
             await repo.create_knowledge_node(
                 topic=topic,
                 content=content,
-                source_urls=source_urls if source_urls else metadata.get("sources", []) if metadata else [],
+                source_urls=source_urls if source_urls else [],
                 relations=relations or [],
-                metadata={
-                    "depth": metadata.get("depth", 5) if metadata else 5,
-                    "quality": metadata.get("quality", 0) if metadata else 0,
-                    "status": "done"
-                }
+                metadata=meta
             )
-            return topic
+            return f"Added to KG: {topic}"
+        
+        # Delegate create_knowledge_node to add_to_knowledge_graph (for AddToKGTool compatibility)
+        async def create_knowledge_node(self, topic, content="", source_urls=None, relations=None, metadata=None, **kwargs):
+            return await self.add_to_knowledge_graph(topic, content, source_urls, metadata=metadata, relations=relations, **kwargs)
         
         async def query_knowledge(self, topic, limit=5):
             return []

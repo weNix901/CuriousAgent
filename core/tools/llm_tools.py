@@ -53,7 +53,7 @@ class LLMAnalyzeTool(Tool):
 
     async def _analyze_with_fallback(self, content: str, analysis_type: str) -> str:
         """Analyze content with provider fallback."""
-        providers = ["volcengine", "minimax"]
+        providers = ["deepseek", "volcengine", "minimax"]
         last_error = None
 
         for provider in providers:
@@ -145,7 +145,7 @@ class LLMCandidateIdentifyTool(Tool):
         if not prompt:
             return "Error: Empty prompt provided"
 
-        providers = ["volcengine", "minimax"]
+        providers = ["deepseek", "volcengine", "minimax"]
         last_error = None
 
         for provider in providers:
@@ -204,7 +204,7 @@ class LLMKnowledgeExtractTool(Tool):
         return result
 
     async def _extract_with_fallback(self, content: str, topic: str, source_url: str) -> str:
-        providers = ["volcengine", "minimax"]
+        providers = ["deepseek", "volcengine", "minimax"]
         last_error = None
 
         for provider in providers:

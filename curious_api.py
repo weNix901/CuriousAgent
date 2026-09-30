@@ -689,6 +689,16 @@ def api_inject():
             result_data["async_triggered"] = True
         # ===== T-9 集成点 结束 =====
 
+        # === Bug Fix: Immediate Poll for High-Priority Injection ===
+        inject_priority = data.get("inject_priority", False)
+        effective_score = final_score + (priority_cfg.boost_score if priority_triggered else 0)
+        if effective_score >= 8 or inject_priority:
+            try:
+                from core.daemon.explore_daemon import _request_immediate_poll
+                _request_immediate_poll()
+            except ImportError:
+                pass
+
         return jsonify(result_data)
     except Exception as e:
         import traceback

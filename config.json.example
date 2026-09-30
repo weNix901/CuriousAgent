@@ -39,7 +39,10 @@
     "explore": {
       "poll_interval_seconds": 300,
       "max_retries": 3,
-      "retry_delay_seconds": 15
+      "retry_delay_seconds": 15,
+      "orphan_scan_enabled": true,
+      "orphan_scan_min_quality": 7.0,
+      "orphan_scan_max_per_cycle": 5
     },
     "dream": {
       "interval_seconds": 21600

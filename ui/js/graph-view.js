@@ -1,4 +1,15 @@
-var _g = { sim: null, link: null, nodeSel: null, data: null, W: 900, H: 960 };
+// 关系类型配置：颜色 + 样式
+var LINK_TYPE_CONFIG = {
+  // 内置类型
+  'decomposition': { color: '#58a6ff', width: 3, dash: '8,4', label: '分解关系', builtin: true },
+  'cites':         { color: '#3fb950', width: 4, dash: '0',   label: '论文引用', builtin: true },
+  'semantic':      { color: '#8b949e', width: 2, dash: '5,5', label: '语义相似', builtin: true },
+  // 其他类型的默认样式（按需动态扩展）
+  '_default_':     { color: '#8b949e', width: 2, dash: '0',   label: '其他关系', builtin: false }
+};
+
+// 动态发现的关系类型
+var _g = { sim: null, link: null, nodeSel: null, data: null, W: 900, H: 960, linkTypes: {}, activeTypes: {} };
 
 function buildGraphData() {
   if (!state) return { nodes: [], links: [] };
@@ -33,22 +44,49 @@ function buildGraphData() {
 
   var links = [], seen = {};
 
-  // v0.3.3: Use Neo4j edges from API (DERIVED_FROM, CITES)
+  // v0.3.3: Use Neo4j edges from API (all relationship types)
   var kgEdges = state.kg_edges || [];
+
+  // 第一步：动态收集所有关系类型
+  _g.linkTypes = {};
   kgEdges.forEach(function(e) {
-    // Skip self-referencing edges
+    if (e.type && e.type !== 'DEPENDS_ON') {  // DEPENDS_ON 是内部关系，不显示
+      _g.linkTypes[e.type] = true;
+    }
+  });
+
+  // 第二步：为新类型生成配置（分配未使用颜色）
+  var USED_COLORS = ['#58a6ff', '#3fb950', '#f85149', '#d29922', '#e040fb', '#ff7b72', '#79c0ff', '#7ee787'];
+  var colorIdx = 0;
+  for (var t in _g.linkTypes) {
+    if (!LINK_TYPE_CONFIG[t]) {
+      LINK_TYPE_CONFIG[t] = {
+        color: USED_COLORS[colorIdx % USED_COLORS.length],
+        width: 2,
+        dash: '4,4',
+        label: t,
+        builtin: false
+      };
+      colorIdx++;
+    }
+  }
+
+  // 第三步：构建连线数据
+  kgEdges.forEach(function(e) {
+    // Skip self-referencing and internal edges
     if (e.source === e.target) return;
+    if (e.type === 'DEPENDS_ON') return;
     if (topics[e.source] && topics[e.target]) {
       var key = [e.source, e.target].sort().join('|');
       if (!seen[key]) {
         seen[key] = true;
-        var type = e.type === 'DERIVED_FROM' ? 'decomposition' : e.type.toLowerCase();
-        links.push({ source: e.source, target: e.target, type: type });
+        var type = e.type === 'DERIVED_FROM' ? 'decomposition' : (e.type || '_other_').toLowerCase();
+        links.push({ source: e.source, target: e.target, type: type, rawType: e.type });
       }
     }
   });
 
-  // Legacy: fallback to topics.children
+  // Legacy: fallback to topics.children (标注为 decomposition)
   for (var parent in topics) {
     var children = (topics[parent] && topics[parent].children) || [];
     for (var i = 0; i < children.length; i++) {
@@ -57,22 +95,30 @@ function buildGraphData() {
         var key = [parent, child].sort().join('|');
         if (!seen[key]) {
           seen[key] = true;
-          links.push({ source: parent, target: child, type: 'decomposition' });
+          links.push({ source: parent, target: child, type: 'decomposition', rawType: 'DERIVED_FROM' });
         }
       }
     }
   }
 
+  // Legacy cites
   for (var citing in topics) {
     var cites = (topics[citing] && topics[citing].cites) || [];
     for (var i = 0; i < cites.length; i++) {
       var cited = cites[i];
       var key = [citing, cited].sort().join('|');
       if (!seen[key] && topics[cited]) {
-        links.push({ source: citing, target: cited, type: 'cites' });
+        links.push({ source: citing, target: cited, type: 'cites', rawType: 'CITES' });
         seen[key] = true;
       }
     }
+  }
+
+  // 初始化 activeTypes（默认全部显示）
+  _g.activeTypes = {};
+  for (var t in LINK_TYPE_CONFIG) {
+    if (t === '_default_') continue;
+    _g.activeTypes[t] = true;
   }
 
   // DISABLED: Semantic similarity links (title token overlap)
@@ -176,19 +222,16 @@ function renderGraph() {
 
   var link = g.append('g').selectAll('line').data(data.links).enter().append('line').attr('class', 'graph-link')
     .attr('stroke', function(d) {
-      if (d.type === 'cites') return '#3fb950';
-      if (d.type === 'decomposition') return '#58a6ff';
-      return '#8b949e';
+      var cfg = LINK_TYPE_CONFIG[d.type] || LINK_TYPE_CONFIG['_default_'];
+      return cfg.color;
     })
     .attr('stroke-width', function(d) {
-      if (d.type === 'cites') return 4;
-      if (d.type === 'decomposition') return 3;
-      return 2;
+      var cfg = LINK_TYPE_CONFIG[d.type] || LINK_TYPE_CONFIG['_default_'];
+      return cfg.width;
     })
     .attr('stroke-dasharray', function(d) {
-      if (d.type === 'decomposition') return '8,4';
-      if (d.type === 'semantic') return '5,5';
-      return '0';
+      var cfg = LINK_TYPE_CONFIG[d.type] || LINK_TYPE_CONFIG['_default_'];
+      return cfg.dash;
     })
     .attr('stroke-opacity', 0.7);
 
@@ -227,6 +270,7 @@ function renderGraph() {
     });
 
   _g.sim = sim; _g.link = link; _g.nodeSel = nodeSel; _g.data = data;
+  buildLinkTypeControls();
   toggleLinkType();
   toggleLabels();
 }
@@ -251,15 +295,78 @@ function resetGraphLayout() {
   log('🔄 图谱布局已重置', 'info');
 }
 
+function buildLinkTypeControls() {
+  var container = document.getElementById('ctrl-link-types');
+  if (!container) return;
+  container.innerHTML = '';
+
+  // 按 builtin 排序：builtin 类型在前
+  var sortedTypes = Object.keys(_g.activeTypes).sort(function(a, b) {
+    var ca = LINK_TYPE_CONFIG[a] && LINK_TYPE_CONFIG[a].builtin ? 0 : 1;
+    var cb = LINK_TYPE_CONFIG[b] && LINK_TYPE_CONFIG[b].builtin ? 0 : 1;
+    return ca - cb;
+  });
+
+  sortedTypes.forEach(function(type) {
+    var cfg = LINK_TYPE_CONFIG[type] || LINK_TYPE_CONFIG['_default_'];
+    var label = cfg.label || type;
+    var checked = _g.activeTypes[type] !== false;
+    var id = 'ctrl-link-' + type;
+
+    var wrapper = document.createElement('label');
+    wrapper.className = 'ctrl-check';
+    wrapper.setAttribute('data-type', type);
+
+    var checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = id;
+    checkbox.checked = checked;
+    checkbox.dataset.type = type;
+    checkbox.onchange = function() {
+      _g.activeTypes[this.dataset.type] = this.checked;
+      toggleLinkType();
+      updateLegend();
+    };
+
+    // 颜色指示点
+    var dot = document.createElement('span');
+    dot.style.display = 'inline-block';
+    dot.style.width = '12px';
+    dot.style.height = '3px';
+    dot.style.background = cfg.color;
+    dot.style.borderRadius = '2px';
+    dot.style.marginRight = '4px';
+    dot.style.verticalAlign = 'middle';
+
+    wrapper.appendChild(checkbox);
+    wrapper.appendChild(dot);
+    wrapper.appendChild(document.createTextNode(label));
+    container.appendChild(wrapper);
+  });
+}
+
+function updateLegend() {
+  var legend = document.getElementById('graph-legend');
+  if (!legend) return;
+
+  var allTypes = Object.keys(LINK_TYPE_CONFIG).filter(function(t) { return t !== '_default_'; });
+  var visibleTypes = allTypes.filter(function(t) { return _g.activeTypes[t]; });
+
+  var items = visibleTypes.map(function(type) {
+    var cfg = LINK_TYPE_CONFIG[type];
+    var dashStyle = cfg.dash && cfg.dash !== '0'
+      ? 'border-top: ' + cfg.width + 'px ' + (cfg.dash.split(',')[1] > 3 ? 'dashed' : 'dotted') + ' ' + cfg.color
+      : 'background:' + cfg.color;
+    return '<div class="legend-item"><div class="legend-dot" style="' + dashStyle + '; width:14px; height:' + Math.max(cfg.width, 2) + 'px; border-radius:0;"></div>' + cfg.label + '</div>';
+  }).join('');
+
+  legend.innerHTML = items;
+}
+
 function toggleLinkType() {
   if (!_g.link) return;
-  var showDecomp = document.getElementById('ctrl-show-decomp').checked;
-  var showCites = document.getElementById('ctrl-show-cites').checked;
-  var showSem = document.getElementById('ctrl-show-semantic').checked;
   _g.link.attr('display', function(d) {
-    if (d.type === 'decomposition' && !showDecomp) return 'none';
-    if (d.type === 'cites' && !showCites) return 'none';
-    if (d.type === 'semantic' && !showSem) return 'none';
+    if (_g.activeTypes[d.type] === false) return 'none';
     return null;
   });
 }

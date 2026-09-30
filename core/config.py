@@ -62,8 +62,8 @@ class DreamAgentScoringWeights:
 class DreamAgentConfig:
     """DreamAgent (multi-cycle) configuration."""
     scoring_weights: DreamAgentScoringWeights = field(default_factory=DreamAgentScoringWeights)
-    min_score_threshold: float = 0.8
-    min_recall_count: int = 3
+    min_score_threshold: float = 0.2
+    min_recall_count: int = 0
     max_candidates: int = 100
     max_scored: int = 20
 
@@ -81,6 +81,10 @@ class ExploreDaemonConfig:
     orphan_scan_enabled: bool = True
     orphan_scan_min_quality: float = 7.0
     orphan_scan_max_per_cycle: int = 5
+    # Max times an item may be bounced to the back of the queue after empty-KG
+    # results before it is purged (dead-lettered). Prevents poison items from
+    # looping forever.
+    max_requeue_before_purge: int = 5
 
 
 @dataclass
@@ -348,6 +352,7 @@ def load_config() -> Config:
         orphan_scan_enabled=explore_daemon_raw.get("orphan_scan_enabled", True),
         orphan_scan_min_quality=explore_daemon_raw.get("orphan_scan_min_quality", 7.0),
         orphan_scan_max_per_cycle=explore_daemon_raw.get("orphan_scan_max_per_cycle", 5),
+        max_requeue_before_purge=explore_daemon_raw.get("max_requeue_before_purge", 5),
     )
     dream_daemon_raw = daemon_raw.get("dream", {})
     dream_daemon_cfg = DreamDaemonConfig(

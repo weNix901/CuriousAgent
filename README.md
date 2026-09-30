@@ -1,6 +1,6 @@
 # Curious Agent
 
-[![Version](https://img.shields.io/badge/version-v0.3.3-blue)](https://github.com/weNix901/CuriousAgent)
+[![Version](https://img.shields.io/badge/version-v0.3.4-blue)](https://github.com/weNix901/CuriousAgent)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](#)
 [![Neo4j](https://img.shields.io/badge/neo4j-5.x-green)](#)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#)
@@ -44,7 +44,7 @@ PDF / 网页 / GitHub / 文档 / 博客 / 教程
 
 ---
 
-## v0.3.3 核心能力
+## v0.3.4 核心能力
 
 ### 📖 全文深读——把书读薄
 
@@ -113,6 +113,40 @@ CA 会自己检查：
 - "不懂的领域要主动补充"
 
 **一次学会，永久升级**。
+
+#### 行为规则管道（v0.3.4 修复）
+
+「知识变本事」的落地链路是一条完整管道，v0.3.4 修复了它长期断裂的问题：
+
+```
+ExploreAgent 探索
+      ↓  quality = 5.0 + 来源数
+Daemon 接收结果
+      ↓  quality ≥ 7.0 才触发
+AgentBehaviorWriter
+      ↓  按类型分类（推理/元认知/工具发现…）
+curious-agent-behaviors.md
+      ↓  OpenClaw 索引（extraPaths）
+R1D3 的 context —— 下次对话直接引用
+```
+
+**为什么之前断了**：探索质量分（quality）在返回路径上被丢弃，且守护进程从未调用写入器。
+修复后：质量分正确落库 → 守护进程触发写入 → 规则进入行为库 → 被检索进上下文。
+
+### 🗄️ 唯一真值源——四源架构（v0.3.4 数据治理）
+
+早期运行状态与知识存在多份平行副本（13 个数据源），互不同步、持续腐化。
+v0.3.4 收敛为 **4 个真值源**：
+
+| # | 真值源 | 内容 |
+|---|--------|------|
+| ① | **Neo4j** | 所有知识（节点 / 关系 / 质量 / 来源） |
+| ② | **knowledge/queue.db** | 探索队列（唯一） |
+| ③ | **knowledge/ops.db** | 运行状态（配额 / 审计 / 断言 / 元认知 / 根技术池） |
+| ④ | **文件** | 仅日志与人类可读报告 |
+
+**原则**：知识进 Neo4j，运行状态进 SQLite，每个概念只有一个写入点，
+快照/缓存一律只读派生。已废除 `state.json` 平行副本。
 
 ### ⚙️ 配置随时改——Web UI 可视化
 
@@ -196,6 +230,15 @@ curl "http://localhost:4848/api/kg/trace/LTKD"
 | `GET /api/kg/roots` | 根技术池 |
 | `GET /api/kg/trace/{topic}` | 根技术追溯 |
 
+### v0.3.4 新增
+
+| Endpoint | 说明 |
+|----------|------|
+| `GET /api/health` | 健康检查 |
+| `GET /api/queue/pending` | 待处理队列项 |
+| `POST /api/knowledge/explore` | 按知识边界触发探索 |
+| `GET /api/knowledge/confidence?topic=` | 话题置信度 + 缺口（Hook 契约，v0.3.4 修正） |
+
 ### v0.3.3 新增
 
 | Endpoint | 说明 |
@@ -236,6 +279,9 @@ curious-agent/
 │   │   ├── deep_read_daemon.py # DeepReadDaemon (v0.3.3)
 │   │   └── dream_daemon.py    # DreamAgent 守护
 │   │
+│   ├── agent_behavior_writer.py # 行为规则写入器 (v0.3.4 接入)
+│   ├── knowledge_graph_compat.py # KG 兼容层（Neo4j + ops.db）
+│   │
 │   ├── kg/
 │   │   ├── kg_repository.py   # KG Repository
 │   │   └── repository_factory.py
@@ -253,9 +299,12 @@ curious-agent/
 │   └── views/*.html
 │
 ├── papers/                    # 论文 TXT 存储
-├── knowledge/                 # KG 状态
+├── knowledge/                 # 真值源 (v0.3.4)
+│   ├── queue.db               # ① 探索队列（唯一）
+│   ├── ops.db                 # ② 运行状态（配额/审计/断言/元认知）
+│   └── traces.db              # 派生跟踪数据
 └── tests/                     # 测试套件
-```
+````
 
 ---
 
@@ -263,7 +312,8 @@ curious-agent/
 
 | Version | Theme | Highlights |
 |---------|-------|-----------|
-| **v0.3.3** | DeepRead + Web Scrape | 滑动窗口100%覆盖、6-element结构、网页抓取管道、Settings UI |
+| **v0.3.4** | Behavior Pipeline + Data Governance | 行为规则管道修复（质量分落库/类型截断/垃圾过滤）、数据源 13→4 统一、`state.json` 退场 |
+| v0.3.3 | DeepRead + Web Scrape | 滑动窗口100%覆盖、6-element结构、网页抓取管道、Settings UI |
 | v0.3.2 | Bootstrap Hook | Session startup API、行为规范统一 |
 | v0.3.1 | Observability | Hook审计、追踪可视化、外部Agent跟踪 |
 | v0.3.0 | Cognitive | 4级置信度、自动注入未知话题 |
@@ -281,6 +331,8 @@ curious-agent/
 | ✅ | Neo4j KG 可视化 |
 | ✅ | Settings Web UI |
 | ✅ | 三 Agent 协同架构 |
+| ✅ | 行为规则管道（知识→行为库→上下文） |
+| ✅ | 唯一真值源架构（13→4 数据源统一） |
 | ⚪ | 自适应调度（基于队列深度） |
 | ⚪ | 自进化引擎（Bayesian权重更新） |
 | ⚪ | 多语言论文支持 |
@@ -298,6 +350,7 @@ curious-agent/
 | **有内容就能读** | 论文、网页、GitHub、文档、博客——都能处理 |
 | **知识变本事** | 读到的好方法变成你的做事套路 |
 | **不用管它** | 自动运行，没事就自己读，越读越懂 |
+| **架构干净** | 知识进图库、状态进SQLite，唯一真值源，无平行副本 |
 
 ---
 

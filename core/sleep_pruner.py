@@ -27,13 +27,13 @@ class SleepPruner(BaseAgent):
     """
     
     # Interval constants (in minutes)
-    INITIAL_INTERVAL_MINUTES = 240  # 4 hours
+    INITIAL_INTERVAL_MINUTES = 60  # Reduced from 240 for more frequent pruning  # 4 hours
     MAX_INTERVAL_MINUTES = 1440     # 24 hours
     
     # Default thresholds
     DEFAULT_DREAM_WINDOW_DAYS = 7
     DEFAULT_CONSOLIDATION_WINDOW_DAYS = 14
-    DEFAULT_QUALITY_THRESHOLD = 5.0
+    DEFAULT_QUALITY_THRESHOLD = 3.0  # Reduced to catch more nodes
     
     def __init__(
         self,

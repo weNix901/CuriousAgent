@@ -71,7 +71,69 @@ def _get_queue_storage() -> QueueStorage:
 
 
 def _load_state() -> dict:
-    """Load state.json for root pool and meta-cognitive data (kept file-based)."""
+    """Load runtime state from ops.db (single source of truth).
+
+    Phase 1 data governance: state.json is retired. Runtime state now lives in
+    knowledge/ops.db (meta_cognitive + runtime_kv). Falls back to the default
+    skeleton shape when ops.db is empty, so callers keep working unchanged.
+    """
+    empty = {
+        "version": "1.0",
+        "last_update": None,
+        "knowledge": {"topics": {}},
+        "curiosity_queue": [],
+        "exploration_log": [],
+        "config": {
+            "curiosity_top_k": 3,
+            "max_knowledge_nodes": 5000,
+            "notification_threshold": 7.0,
+        },
+        "search_exhausted": False,
+        "search_exhausted_reason": None,
+        ROOT_POOL_KEY: {"candidates": [], "last_updated": None},
+        "meta_cognitive": {
+            "explore_counts": {},
+            "marginal_returns": {},
+            "last_quality": {},
+            "exploration_log": [],
+            "completed_topics": {},
+        },
+        "insight_generation": {},
+    }
+    try:
+        import sqlite3
+        if not os.path.exists(OPS_DB):
+            return empty
+        conn = sqlite3.connect(OPS_DB, timeout=10)
+        state = dict(empty)
+        # runtime_kv
+        try:
+            for key, value in conn.execute("SELECT key, value FROM runtime_kv"):
+                try:
+                    state[key] = json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    state[key] = value
+        except sqlite3.OperationalError:
+            pass
+        # meta_cognitive
+        try:
+            mc = dict(empty["meta_cognitive"])
+            for topic, data in conn.execute("SELECT topic, data FROM meta_cognitive"):
+                try:
+                    mc[topic] = json.loads(data)
+                except (json.JSONDecodeError, TypeError):
+                    mc[topic] = data
+            state["meta_cognitive"] = mc
+        except sqlite3.OperationalError:
+            pass
+        conn.close()
+        return state
+    except Exception as e:
+        logger.warning(f"_load_state <- ops.db failed: {e}")
+        return empty
+
+def _load_state_legacy() -> dict:
+    """DEPRECATED: original state.json loader, kept for reference/migration."""
     if not os.path.exists(STATE_FILE):
         return {
             "version": "1.0",
@@ -103,18 +165,53 @@ def _load_state() -> dict:
         return {}
 
 
+OPS_DB = os.path.join(os.path.dirname(__file__), "../knowledge/ops.db")
+
+
 def _save_state(state: dict) -> None:
-    """Save state.json (for root pool and meta-cognitive data)."""
-    import fcntl
+    """Persist runtime state to the ops DB (single source of truth).
+
+    Phase 1 data governance: state.json is deprecated as a parallel copy of
+    knowledge + runtime state. Knowledge now lives only in Neo4j; runtime
+    state (meta_cognitive, search_exhausted, root pool, exploration log,
+    insight generation) lives in knowledge/ops.db. This function routes
+    writes there instead of rewriting state.json.
+
+    Kept name/signature for backward compatibility with all call sites.
+    """
     state["last_update"] = datetime.now(timezone.utc).isoformat()
-    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        try:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            json.dump(state, f, ensure_ascii=False, indent=2)
-            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-        except BlockingIOError:
-            pass
+    try:
+        import sqlite3
+        conn = sqlite3.connect(OPS_DB, timeout=10)
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS meta_cognitive (
+                topic TEXT PRIMARY KEY, data TEXT NOT NULL,
+                updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')));
+            CREATE TABLE IF NOT EXISTS runtime_kv (
+                key TEXT PRIMARY KEY, value TEXT NOT NULL,
+                updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')));
+        """)
+        # meta_cognitive
+        mc = state.get("meta_cognitive") or {}
+        for topic, data in (mc.items() if isinstance(mc, dict) else []):
+            conn.execute(
+                "INSERT OR REPLACE INTO meta_cognitive(topic,data,updated_at) VALUES(?,?,?)",
+                (topic, json.dumps(data, ensure_ascii=False), state["last_update"]),
+            )
+        # scalar / structural runtime keys
+        for key in ("search_exhausted", "search_exhausted_reason",
+                    "root_pool", "root_technology_pool", "exploration_log",
+                    "insight_generation", "kg_stats", "queue_stats",
+                    "version", "curiosity_queue"):
+            if key in state:
+                conn.execute(
+                    "INSERT OR REPLACE INTO runtime_kv(key,value,updated_at) VALUES(?,?,?)",
+                    (key, json.dumps(state[key], ensure_ascii=False), state["last_update"]),
+                )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.warning(f"_save_state -> ops.db failed: {e}")
 
 
 def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float = 5.0, **extra) -> None:
@@ -153,8 +250,20 @@ def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float 
             similarity, match_type = normalizer.compute_concept_similarity(topic, existing_topic)
             if match_type in ("naming_variant", "translated_concept"):
                 if node.get("status") in ("done", "complete"):
-                    logger.info(f"Skip duplicate curiosity (KG done): '{topic}' ≈ '{existing_topic}'")
-                    return
+                    # Check if the done node has actual content (sources/children/cites/summary)
+                    # If it has NO content, it's an "empty shell" - allow re-exploration
+                    sources = node.get("sources", []) or []
+                    children = node.get("children", []) or []
+                    cites = node.get("cites", []) or []
+                    summary = node.get("summary", "") or ""
+                    has_content = bool(sources or children or cites or (len(summary) > 20))
+                    if has_content:
+                        logger.info(f"Skip duplicate curiosity (KG done with content): '{topic}' ≈ '{existing_topic}'")
+                        return
+                    # Empty done node - allow re-exploration
+                    logger.info(f"KG done but empty (no content): '{topic}' — forcing re-exploration")
+                    dedup_found = True
+                    break
                 dedup_found = True
                 break
 
@@ -473,7 +582,7 @@ def get_state() -> dict:
         "version": "1.0",
         "last_update": datetime.now(timezone.utc).isoformat(),
         "knowledge": {"topics": topics},
-        "curiosity_queue": [],
+        "curiosity_queue": list_pending(),  # Was hardcoded [] — fixed to read from QueueStorage
         "kg_stats": kg_stats,
         "queue_stats": queue_stats,
         "root_pool": state.get(ROOT_POOL_KEY, {"candidates": []}),

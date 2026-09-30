@@ -4,8 +4,8 @@ Curious Agent Core Package
 Exports key components for V1 architecture.
 """
 
-__version__ = "0.3.1"
-__version_name__ = "Observability Layer"
+__version__ = "0.3.4"
+__version_name__ = "Behavior Pipeline + Data Governance"
 
 from core.knowledge_graph_compat import (
     get_state,
