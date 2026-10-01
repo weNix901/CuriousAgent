@@ -33,9 +33,9 @@ id18「知识图谱」查询，语义检索命中了 **"Knowledge Distillation"*
 - 直接打在 C1 公理："决策权归属外部测量"——**但测量对象本身错了，测的就不是它**
 - 影响面：所有"语义近但主题不同"的长查询，四态会**系统性失真**
 
-### 1.3 新增项：C2（缺口生成）+ C3（发现回流）
+### 1.3 新增项：C2（缺口生成）+ C3（发现回流）+ 三项游离待办
 
-v0.3.5 只盯 C1-B，遗漏 CA2.0 Phase 3/4。实测：
+**v0.3.5 只盯 C1-B，遗漏 CA2.0 Phase 3/4。实测：**
 
 | 组件 | 实测状态 |
 |------|---------|
@@ -43,6 +43,43 @@ v0.3.5 只盯 C1-B，遗漏 CA2.0 Phase 3/4。实测：
 | C2-B 显式需求 | ❌ `learning_needs/` 目录不存在 |
 | C3-B 行为库接通 | ✅ **已通**（4794 行，extraPaths 正确） |
 | C3-C 命中追踪 | ❌ 无检索命中日志 |
+
+#### 并入项：三项游离待办（weNix 2026-10-01 决定全部并入）
+
+**① 7 个 pre-existing 测试失败（历史债，根因已查明）**
+
+`tests/test_api_v026.py` 7 个失败，根因是 **commit `09d6b37`（2026-04-17）**
+一次性删除了 6 条路由却未同步测试：
+
+| 被删路由 | 对应测试 |
+|----------|---------|
+| `/api/kg/dream_insights` | TestDreamInsightsAPI (×2) |
+| `/api/kg/dormant` | TestDormantNodesAPI |
+| `/api/kg/reactivate` | TestReactivateAPI (×2) |
+| `/api/kg/frontier` | TestFrontierAPI |
+| `/api/kg/calibration` | TestCalibrationAPI |
+| **`/api/kg/confidence/<topic>`** | **→ Bug A 的根源：该路由 2026-04-17 被删，Hook 一直 404** |
+
+底层实现大部分仍在（`meta_cognitive_monitor.detect_frontier` /
+`get_calibration_error`、`kg_repository.mark_dormant`/`reactivate` 都活着），
+只是路由层被削。
+
+→ **处置**：优先**恢复 5 条路由**（接线到现存实现；frontier/calibration 是 C1 有用信号），
+而非删测试。
+
+**② confidence 空节点伪装（R-v0.3.5-1）**
+软调制公式 `sim × (0.5 + 0.5·q/10)`，quality=0 时 `sim=0.9 → 0.45`。
+空节点可伪装"有点知识"。**与批0 同类**（四态输入失真）→ **并入批0** 一起修。
+
+**③ C1-C Hook 端到端验证**
+批5/批6 只做了单元级验证（实测端点 200、Skill 输出正确），但
+**knowledge-gate Hook 在真实 agent 回复里是否真的注入四态上下文，未验**。
+Bug A 的教训就是"看着修好了其实没生效"——必须补端到端验证。
+→ **作为批0 的验证门**。
+
+---
+
+#### （原）C2/C3 实测细节
 
 → C2 整块缺失，C3 只差"反馈环"一段。
 
@@ -106,6 +143,9 @@ CA2.0 剩余三块：**C1-B（冲突检测）→ C2（缺口生成）→ C3（�
 | 批 | 任务 | 依赖 | 交付物 | 归属 |
 |---|------|------|--------|------|
 | **0** | **检索匹配正确性预检**（C0 残留） | 无 | 匹配门限/别名/主题一致性检查；防错节点污染四态输入 | CA |
+| **0b** | **confidence 空节点伪装修复**（R-v0.3.5-1） | 批0 | 公式边界修正；空节点不再伪装 known | CA |
+| **0c** | **C1-C Hook 端到端验证** | 批0 | 真实 agent 回复中验证四态注入生效 | R1D3 |
+| **0d** | **恢复 5 条被删路由**（历史债） | 无 | dream_insights/dormant/reactivate/frontier/calibration | CA |
 | **1** | **接通 provider 一致性管道** | 无 | 分解器验证结果落 `ops.db`；死端点复活 | CA |
 | **2** | **C1-B 冲突检测** | 批1 | `conflict_resolver.py` + 四态输出加 `conflict` 字段 | CA |
 | **3** | **20 问标注集复核** | 无（并行） | weNix 修正 `expected`；θ/冲突阈值回测 | weNix+CA |
@@ -267,6 +307,9 @@ def resolve_conflict(
 | 项 | 标准 | 验证方式 |
 |----|------|---------|
 | 批0 | 检索匹配正确 | `知识图谱` 不再错匹配；真命中不受影响 |
+| 批0b | 空节点不伪装 | quality=0 节点不再得到 known 判定 |
+| 批0c | Hook 端到端生效 | 真实回复中四态上下文实际注入 |
+| 批0d | 路由恢复 | 7 个陈旧测试全部转绿 |
 | 批1 | provider 一致性落库 | `ops.db.provider_agreement` 有数据 |
 | 批2 | C1-B 冲突可判 | 构造样本 → `conflict != none` |
 | 批3 | 人工基准建立 | `human_review.reviewed_by` 非空 + agreement ≥ 70% |
