@@ -32,28 +32,61 @@ class KnowledgeConfidenceHandler:
             )
         
         if not semantic_results:
+            # C1-A: no node matched → `unknown` (search may still answer) or
+            # `void` (no match AND prior failed exploration). The early-return
+            # branch previously omitted coverage fields entirely; add them so
+            # every response carries the four-state label.
+            failed = self._topic_has_failed_exploration(topic)
             return {
                 "confidence": 0.0,
                 "explore_count": 0,
                 "gaps": ["No matching knowledge found"],
                 "level": "novice",
-                "topic": topic
+                "topic": topic,
+                "coverage": "void" if failed else "unknown",
+                "coverage_reason": (
+                    "no node and prior exploration failed" if failed
+                    else "no matching node"
+                ),
+                "source_count": 0,
+                "explore_failed": failed,
             }
         
         best_match = semantic_results[0]
         matched_topic = best_match["topic"]
         similarity_score = best_match["score"]
         quality = best_match.get("quality", 0.0) or 0.0
-        
-        confidence = similarity_score * (quality / 10.0)
-        
+        source_count = best_match.get("source_count")
+        if source_count is None:
+            srcs = best_match.get("source_urls")
+            source_count = len(srcs) if isinstance(srcs, (list, tuple)) else 0
+
+        # C0-B fix (v0.3.5): old formula `similarity * (quality/10)` zeroed the
+        # whole confidence whenever quality=0, even at similarity 0.83 (observed
+        # with LTKD). Quality now acts as a soft modulator in [0.5, 1.0] instead
+        # of a hard on/off gate; similarity decides the hit, quality only damps.
+        quality_factor = 0.5 + 0.5 * (max(0.0, min(quality, 10.0)) / 10.0)
+        confidence = similarity_score * quality_factor
+
+        # C1-A (v0.3.5): four-state coverage via the standalone resolver.
+        # Thresholds θ₁/θ₂ live in coverage_resolver and are calibrated
+        # against the 20-question labelled set (see calibrate()).
+        from core.api.coverage_resolver import resolve_coverage
+        verdict = resolve_coverage(
+            similarity=similarity_score,
+            quality=quality,
+            source_count=source_count,
+            matched_topic=matched_topic,
+            explore_failed=False,
+        )
+
         if confidence >= 0.8:
             level = "expert"
         elif confidence >= 0.5:
             level = "intermediate"
         else:
             level = "beginner"
-        
+
         return {
             "confidence": confidence,
             "matched_topic": matched_topic,
@@ -61,9 +94,32 @@ class KnowledgeConfidenceHandler:
             "quality": quality,
             "level": level,
             "gaps": [],
-            "topic": topic
+            "topic": topic,
+            "coverage": verdict.coverage,
+            "coverage_reason": verdict.reason,
+            "source_count": source_count,
         }
     
+    def _topic_has_failed_exploration(self, topic: str) -> bool:
+        """C1-A: has this topic a recorded failed exploration in the queue?
+
+        Drives the `void` vs `unknown` distinction: no KG node + no failed
+        history = `unknown` (search may still answer); no node + prior failure
+        = `void` (system-level no-basis). Best-effort: any error → False.
+        """
+        try:
+            from core.tools.queue_tools import QueueStorage
+            qs = QueueStorage()
+            qs.initialize()
+            conn = qs._get_connection()
+            row = conn.execute(
+                "SELECT count(*) FROM queue WHERE status='failed' AND topic = ?",
+                (topic,),
+            ).fetchone()
+            return bool(row and row[0] > 0)
+        except Exception:
+            return False
+
     def _confidence_to_level(self, confidence: float) -> str:
         if confidence < 0.3:
             return "novice"
