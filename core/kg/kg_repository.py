@@ -177,7 +177,13 @@ class KGRepository:
         status_filter: str = "done"
     ) -> List[Dict[str, Any]]:
         """Query knowledge nodes using vector similarity search.
-        
+
+        C0-A fix (v0.3.5): short queries (e.g. acronyms like "RAG", "LTKD")
+        embed into the semantic-space centroid and score below the vector
+        threshold against every single node, producing false negatives even
+        when an exact node exists. For short queries we also run a keyword
+        channel and merge results, so an existing node is never silently missed.
+
         Uses the vector index to find semantically similar nodes.
         Falls back to text search if embedding_service is not available.
         
@@ -204,9 +210,11 @@ class KGRepository:
             CALL db.index.vector.queryNodes('knowledge_embeddings', $top_k, $embedding)
             YIELD node, score
             WHERE node.status = $status AND score >= $threshold
+                  AND coalesce(node.archived, false) = false
             RETURN node.topic as topic, node.content as content, 
                    node.heat as heat, node.quality as quality, 
-                   node.confidence as confidence, score
+                   node.confidence as confidence,
+                   node.source_urls as source_urls, score
             ORDER BY score DESC
             """
             
@@ -217,7 +225,19 @@ class KGRepository:
                 threshold=threshold,
                 status=status_filter
             )
-            
+
+            # C0-A: merge keyword channel for short / acronym queries.
+            # Vector search alone misses short tokens; a topic-substring match
+            # recovers exact nodes the embedding channel dropped.
+            if not result and len(query_text.strip()) <= 12:
+                kw = await self._keyword_channel(query_text, top_k, status_filter)
+                if kw:
+                    logger.info(
+                        f"Semantic miss for short query '{query_text}'; "
+                        f"keyword channel recovered {len(kw)} node(s)"
+                    )
+                    return kw
+
             return result
             
         except Exception as e:
@@ -225,6 +245,38 @@ class KGRepository:
             # Fallback to text search on error
             logger.warning("Falling back to text search due to error")
             return await self.query_knowledge(query_text, limit=top_k)
+
+    async def _keyword_channel(
+        self, query_text: str, top_k: int, status_filter: str
+    ) -> List[Dict[str, Any]]:
+        """Keyword/substring fallback used for short queries (C0-A).
+
+        Matches nodes whose topic contains the query (case-insensitive), so
+        acronyms and short noun phrases still resolve to an existing node.
+        Returns rows shaped like the vector channel (incl. a synthetic score)
+        so downstream consumers need no special-casing.
+        """
+        q = query_text.strip().lower()
+        if not q:
+            return []
+        query = """
+        MATCH (n:Knowledge)
+        WHERE toLower(n.topic) CONTAINS $q AND n.status = $status
+              AND coalesce(n.archived, false) = false
+        RETURN n.topic as topic, n.content as content,
+               n.heat as heat, n.quality as quality,
+               n.confidence as confidence,
+               n.source_urls as source_urls, 0.75 as score
+        ORDER BY n.quality DESC
+        LIMIT $top_k
+        """
+        try:
+            return await self._client.execute_query(
+                query, q=q, status=status_filter, top_k=top_k
+            )
+        except Exception as e:
+            logger.warning(f"Keyword channel failed for '{query_text}': {e}")
+            return []
 
     async def get_node(self, topic: str) -> Optional[Dict[str, Any]]:
         query = """
