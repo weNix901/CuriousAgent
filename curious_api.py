@@ -29,7 +29,6 @@ UI_DIR = os.path.join(os.path.dirname(__file__), "ui")
 # =============================================================================
 
 HOOK_ENDPOINTS = {
-    "/api/knowledge/confidence",
     "/api/knowledge/learn",
     "/api/knowledge/check",
     "/api/knowledge/record",
@@ -135,11 +134,12 @@ def _build_audit_record(req, resp, latency_ms):
     path = req.path
     
     hook_name_map = {
-        "/api/knowledge/confidence": "knowledge-query-skill",
         "/api/knowledge/learn": "knowledge-learn-hook",
         "/api/knowledge/session/startup": "knowledge-bootstrap-hook",
         "/api/knowledge/check": "knowledge-gate-hook",
-        "/api/kg/confidence": "knowledge-gate-hook",
+        # Plan A (v0.3.5): /api/kg/confidence serves BOTH the knowledge-gate
+        # hook and the knowledge-query skill; header name disambiguates.
+        "/api/kg/confidence": "confidence-endpoint",
         "/api/knowledge/record": "knowledge-inject-hook",
     }
     
@@ -870,19 +870,21 @@ def api_metacognitive_completed():
 
 @app.route("/api/kg/confidence/<path:topic>", methods=["GET"])
 def api_kg_confidence(topic):
-    """C1-C-1 (v0.3.5): the endpoint the `knowledge-gate` hook actually calls.
+    """Single confidence endpoint (four-state coverage + legacy interval).
 
-    BUG FIX (2026-10-01): handler.ts has always fetched
-    /api/kg/confidence/<topic>, but no such route existed in curious_api.py
-    (77 routes checked, none matched). Flask returned 404, the hook's
-    try/catch swallowed it, and knowledge-gate silently contributed nothing
-    to the agent's context — exactly the "silent failure" class noted in
-    TOOLS.md. This route restores it and shares one implementation with
-    /api/knowledge/confidence so the two can never drift apart again.
+    C1-C-1 (v0.3.5, Plan A): ONE route serves both the `knowledge-gate` hook
+    and the `knowledge-query` skill.
 
-    Response keeps the legacy confidence_high/confidence_low interval fields
-    (the old contract asserted by tests/test_api_v026.py) AND adds the
-    four-state coverage fields.
+    History: two near-identical routes existed — /api/kg/confidence/<topic>
+    (called by the hook; but had NO registered route → Flask 404 → the hook's
+    try/catch swallowed it → knowledge-gate silently injected nothing) and
+    /api/knowledge/confidence (called by the skill). Their core logic was
+    identical (`KnowledgeConfidenceHandler.check_confidence`); only the
+    response wrapping differed. Plan A consolidated to this single route and
+    repointed the skill at it, deleting the duplicate.
+
+    Response keeps the legacy confidence_low/high interval contract asserted
+    by tests/test_api_v026.py AND the four-state coverage fields in `result`.
     """
     try:
         from core.api.host_agent_integration import KnowledgeConfidenceHandler
@@ -902,28 +904,6 @@ def api_kg_confidence(topic):
             "confidence_low": max(0.0, conf - 0.1),
             "confidence_high": min(1.0, conf + 0.1),
             "result": result,
-        })
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"status": "error", "error": str(e)}), 500
-
-
-@app.route("/api/knowledge/confidence", methods=["GET"])
-def api_knowledge_confidence():
-    try:
-        from core.api.host_agent_integration import KnowledgeConfidenceHandler
-        
-        topic = request.args.get("topic", "").strip()
-        if not topic:
-            return jsonify({"error": "topic parameter is required"}), 400
-        
-        handler = KnowledgeConfidenceHandler()
-        result = handler.check_confidence(topic)
-        
-        return jsonify({
-            "status": "ok",
-            "result": result
         })
     except Exception as e:
         import traceback
