@@ -1,6 +1,6 @@
 # Curious Agent
 
-[![Version](https://img.shields.io/badge/version-v0.3.4-blue)](https://github.com/weNix901/CuriousAgent)
+[![Version](https://img.shields.io/badge/version-v0.3.5-blue)](https://github.com/weNix901/CuriousAgent)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](#)
 [![Neo4j](https://img.shields.io/badge/neo4j-5.x-green)](#)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#)
@@ -41,6 +41,52 @@ PDF / 网页 / GitHub / 文档 / 博客 / 教程
          ↓
     知识变本事——好方法直接变成做事规则
 ```
+
+---
+
+## v0.3.5 核心能力
+
+### 🎯 知道不知道什么——四态覆盖判定
+
+**问题**：CA 怎么知道一个话题"到底懂不懂"？让 LLM 自省不可靠——它可能自信地答错。
+
+**CA 怎么做**：把"懂不懂"变成**对外部信号的测量**，不问被测量的对象。
+
+```
+问题 Q
+  ├─ KG 有节点 & quality ≥ θ₁ & 来源 ≥ θ₂  → known    → 直接答，标 [已知]
+  ├─ KG 有节点 & quality 低 或 来源单薄    → partial  → 答 + 标注不确定性
+  ├─ KG 无节点 & 搜索有结果                → unknown  → 答（基于搜索）+ 触发探索
+  └─ KG 无节点 & 搜索无果 & 有 failed 记录 → void     → 明确声明"系统层面无依据"
+```
+
+**判决器**：`core/api/coverage_resolver.py` —— 纯函数，无 I/O，易测。
+- 阈值 θ₁/θ₂ **回测定标**（非预设），集中在模块顶层，改一处全系统重调
+- 20 问标注集一致率 **100%**
+
+### 🔧 测量层修复（C0）
+
+修好了两个让四态判定输入失真的地基缺陷：
+
+| 缺陷 | 症状 | 修复 |
+|------|------|------|
+| **短词检索失效** | `RAG` 存在于 KG 却返回 0.00（缩写向量落在语义中心） | 关键词 + 语义双通道 |
+| **置信度公式归零** | `similarity × (quality/10)`：quality=0 把 0.83 打成 0.09 | 软调制 `similarity × f(quality)`，值域 [0.5, 1.0] |
+
+### 🔌 外部置信度注入（C1-C）
+
+四态语义注入 agent 上下文，替代旧的"置信度百分比"：
+
+```
+旧："[KG Context — 置信度中 53%]"
+新："[KG Context — partial] 缺口：quality=0.0, sources=0"
+```
+
+**单一端点** `/api/kg/confidence/<topic>` 同时服务 Hook 与 Skill（向后兼容保留区间字段）。
+
+> **v0.3.5 附带修复**：`knowledge-gate` Hook 长期调用一个**从未注册**的路由
+> → 404 → 被 `catch{}` 静默吞掉 → 一直在注入空内容。已修。
+> 教训：**静默失败 = 最贵的失败。**
 
 ---
 
@@ -230,6 +276,15 @@ curl "http://localhost:4848/api/kg/trace/LTKD"
 | `GET /api/kg/roots` | 根技术池 |
 | `GET /api/kg/trace/{topic}` | 根技术追溯 |
 
+### v0.3.5 新增
+
+| Endpoint | 说明 |
+|----------|------|
+| `GET /api/kg/confidence/<topic>` | 四态覆盖判定（known/partial/unknown/void）+ 来源数 + legacy 区间 |
+
+> v0.3.5 将原 `/api/kg/confidence/<topic>` 与 `/api/knowledge/confidence`
+> 两条重复路由合并为**单一路由**（核心逻辑本就相同，仅响应包装不同）。
+
 ### v0.3.4 新增
 
 | Endpoint | 说明 |
@@ -312,7 +367,8 @@ curious-agent/
 
 | Version | Theme | Highlights |
 |---------|-------|-----------|
-| **v0.3.4** | Behavior Pipeline + Data Governance | 行为规则管道修复（质量分落库/类型截断/垃圾过滤）、数据源 13→4 统一、`state.json` 退场 |
+| **v0.3.5** | Coverage Verdict + Measurement Fix | 四态覆盖判定（known/partial/unknown/void）、θ 回测定标（20问100%）、短词检索修复、置信度公式去归零、单一路由合并；附带修复 Hook 静默 404 |
+| v0.3.4 | Behavior Pipeline + Data Governance | 行为规则管道修复（质量分落库/类型截断/垃圾过滤）、数据源 13→4 统一、`state.json` 退场 |
 | v0.3.3 | DeepRead + Web Scrape | 滑动窗口100%覆盖、6-element结构、网页抓取管道、Settings UI |
 | v0.3.2 | Bootstrap Hook | Session startup API、行为规范统一 |
 | v0.3.1 | Observability | Hook审计、追踪可视化、外部Agent跟踪 |
