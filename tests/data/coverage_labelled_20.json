@@ -1,0 +1,41 @@
+{
+  "_meta": {
+    "name": "C1-A coverage labelled set (20 questions)",
+    "version": "v0.3.5",
+    "created": "2026-10-01",
+    "author": "R1D3-researcher",
+    "status": "PENDING WEINX REVIEW",
+    "purpose": "Calibration + acceptance baseline for the four-state coverage resolver (known/partial/unknown/void).",
+    "warning": "The 'expected' field is a SYSTEM-PROPOSED label reproduced from live KG signals, NOT an independent human annotation. It must be reviewed and corrected by weNix before it counts as a human baseline. Until reviewed, agreement computes self-consistency only.",
+    "signals_source": "live handler check_confidence(topic), 2026-10-01",
+    "theta1": 4.0,
+    "theta2": 1,
+    "human_review": {
+      "reviewed_by": null,
+      "reviewed_at": null,
+      "notes": "For each row: confirm or correct 'expected'. Add 'review_note' if changed."
+    }
+  },
+  "questions": [
+    {"id": 1,  "topic": "RAG",                  "similarity": 0.750, "quality": 9.0, "source_count": 4, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "Reranker 模型在 RAG 中的作用"},
+    {"id": 2,  "topic": "transformer attention", "similarity": 0.753, "quality": 7.0, "source_count": 3, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "GitHub - huggingface/transformers"},
+    {"id": 3,  "topic": "FlashAttention",        "similarity": 0.000, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "unknown", "expected": "unknown", "matched_topic": null},
+    {"id": 4,  "topic": "向量数据库",              "similarity": 0.760, "quality": 6.5, "source_count": 2, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "SereneDB"},
+    {"id": 5,  "topic": "Reranker",              "similarity": 0.753, "quality": 9.0, "source_count": 4, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "Reranker 模型在 RAG 中的作用"},
+    {"id": 6,  "topic": "知识蒸馏",                "similarity": 0.760, "quality": 8.0, "source_count": 0, "explore_failed": false, "system_coverage": "partial", "expected": "partial", "matched_topic": "Knowledge Distillation"},
+    {"id": 7,  "topic": "注意力机制",              "similarity": 0.000, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "unknown", "expected": "unknown", "matched_topic": null},
+    {"id": 8,  "topic": "LLM",                   "similarity": 0.752, "quality": 4.5, "source_count": 1, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "TypeLLM/TypeLLM"},
+    {"id": 9,  "topic": "embedding",             "similarity": 0.750, "quality": 9.6, "source_count": 5, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "Sentence-BERT"},
+    {"id": 10, "topic": "量子计算",                "similarity": 0.000, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "unknown", "expected": "unknown", "matched_topic": null},
+    {"id": 11, "topic": "乱码xyz",                "similarity": 0.000, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "unknown", "expected": "unknown", "matched_topic": null},
+    {"id": 12, "topic": "LTKD",                  "similarity": 0.826, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "partial", "expected": "partial", "matched_topic": "Component Complementarity of LTKD"},
+    {"id": 13, "topic": "agent memory",          "similarity": 0.800, "quality": 5.0, "source_count": 0, "explore_failed": false, "system_coverage": "partial", "expected": "partial", "matched_topic": "agent_memory"},
+    {"id": 14, "topic": "agent 上下文管理",         "similarity": 0.874, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "partial", "expected": "partial", "matched_topic": "agent上下文管理系统"},
+    {"id": 15, "topic": "MCP",                   "similarity": 0.758, "quality": 8.0, "source_count": 5, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "Floot MCP"},
+    {"id": 16, "topic": "Neo4j",                 "similarity": 0.000, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "unknown", "expected": "unknown", "matched_topic": null},
+    {"id": 17, "topic": "语义搜索",                "similarity": 0.788, "quality": 7.0, "source_count": 6, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "en related research - 搜索"},
+    {"id": 18, "topic": "知识图谱",                "similarity": 0.786, "quality": 8.0, "source_count": 0, "explore_failed": false, "system_coverage": "partial", "expected": "partial", "matched_topic": "Knowledge Distillation"},
+    {"id": 19, "topic": "prompt engineering",    "similarity": 0.796, "quality": 7.0, "source_count": 5, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "Prompt Engineering and LLMs with Langchain"},
+    {"id": 20, "topic": "chain of thought",      "similarity": 0.000, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "unknown", "expected": "unknown", "matched_topic": null}
+  ]
+}
