@@ -565,6 +565,161 @@ Python 已完成（第一步已提交）。
 
 ---
 
+#### 第二步（Z）细化设计 — 详版（2026-10-03 起草，待 weNix 确认后实施）
+
+> 上节给出“做什么”，本节给出“怎么做”：四态分支逻辑、注入文案全文、
+> 兜底不变式、重编译与回滚步骤、验收矩阵。**实施前需 weNix 确认本章。**
+
+##### Z.0 设计约束（不可违反）
+
+1. **绝不 throw**：Hook 处在 agent bootstrap 关键路径，任何异常都不得冒泡。
+   现状外层 `try/catch` 必须保留，新增分支逻辑全部包在同一 try 内。
+2. **仅注入 researcher**：`event.context?.agentId !== 'researcher'` 直接 return。
+3. **不改 Python 侧**：`/api/knowledge/check` 契约（Y 扩展）已冻结于 `5b28a66`，
+   本步纯 TS。
+4. **向后兼容**：响应体若无 `coverage` 字段（旧服务端），回落到现有数值三分支，
+   行为与今日完全一致（零回归）。
+5. **超时不变**：沿用 `config.timeout_ms`（默认 1500ms）。
+
+##### Z.1 分派优先级（decision order）
+
+```
+1) 若 result.coverage 存在且 ∈ {known, partial, unknown, void}
+       → 走四态分派（Z.2）
+2) 否则若 result.confidence 存在（旧服务端 / Y 前响应）
+       → 走数值三分支（现状，原样保留）
+3) 否则（字段全缺）
+       → 不注入（静默，但记 console.warn 一行，利于后续定位）
+```
+
+关键点：**四态优先于数值**。数值分支不再承担主判定，只做兼容兜底。
+这修复了“unknown 被 conf=0 吞掉”的根因。
+
+##### Z.2 四态分支逻辑（伪码，落到 handler.ts）
+
+```ts
+// 现状 L92-107 的三分支替换为：
+const r = result?.result ?? {};
+const cov: string | undefined = r.coverage;
+const conf: number = typeof r.confidence === 'number' ? r.confidence : 0;
+const matched = r.matched_topic ? `（匹配到：${r.matched_topic}）` : '';
+const confStr = conf.toFixed(3);
+
+const FOUR_STATE = new Set(['known', 'partial', 'unknown', 'void']);
+
+let branchText: string | null = null;
+
+if (cov && FOUR_STATE.has(cov)) {
+  // —— 四态主判定 ——
+  if (cov === 'known') {
+    branchText = `🟢 KG 已知${matched}：置信度 ${confStr}。KG 有完整知识，直接从 KG 作答并引用来源；无需强制搜索。`;
+  } else if (cov === 'partial') {
+    branchText = `🟡 KG 部分已知${matched}：置信度 ${confStr}。先给基于 KG 的初答，再搜索补充缺口（gaps 非空时优先按 gaps 检索）。`;
+  } else if (cov === 'unknown') {
+    branchText = `🟠 KG 无此主题：**先搜索**获取外部知识；若搜索无果，用 LLM 知识作答，并**注入 CA 探索**以便后续补齐。**不得因置信度为 0 而静默。**`;
+  } else { // void
+    branchText = `🔴 KG 无此主题且历史探索失败：**先搜索**；搜索无果则用 LLM 作答，并**标注“系统对此主题无知识基础”**，同时触发 CA 重新探索。`;
+  }
+} else if (typeof r.confidence === 'number') {
+  // —— 数值兜底（旧服务端，零回归）——
+  if (conf >= 0.85) {
+    branchText = `🟢 Expert (≥85%)：直接从 KG 知识回答，引用来源。`;
+  } else if (conf >= 0.6) {
+    branchText = `🟡 Intermediate (60-85%)：KG 知识 + 搜索补充。`;
+  } else if (conf > 0) {
+    branchText = `🟠 Beginner (<60%)：知识有限，先搜索再回答，注入 CA 探索。`;
+  } else {
+    branchText = null; // 与现状一致：conf==0 静默（仅旧服务端路径会到这里）
+  }
+} else {
+  console.warn('[knowledge-bootstrap] check 响应缺少 coverage 与 confidence 字段，跳过注入');
+  branchText = null;
+}
+
+if (branchText) {
+  injectionParts.push(`[CA 四态指引]\n${branchText}`);
+}
+```
+
+**注意**：`void` 与 `unknown` 文案有别 —— `void` 明确“历史探索失败”，
+文案要求**显式告知用户系统无基础**（诚实性），而非伪装成普通未知。
+
+##### Z.3 注入文案对照表（最终稿）
+
+| coverage | 图标 | 注入文案（摘要） | 意图 | 搜索 | 注 CA 探索 |
+|----------|:--:|------|------|:--:|:--:|
+| `known` | 🟢 | KG 已知：conf=…，直接作答引用来源 | 直接作答 | 否 | 否 |
+| `partial` | 🟡 | 部分已知：初答 + 按 gaps 搜索补充 | 作答 + 搜索 | 是 | 否 |
+| `unknown` | 🟠 | 无此主题：先搜索，无果则 LLM 作答 + 注入 CA | 搜索 + 探索 | 是 | **是** |
+| `void` | 🔴 | 无主题且历史探索失败：搜索 + 标注“无知识基础” + 重探索 | 搜索 + 重构 | 是 | **是** |
+
+对照《C1 设计》：`unknown`→“搜索 + 注入探索”✅、`void`→“搜索 + 标注无基础”✅
+（本轮把 `void` 措辞显式写进文案，属细化，不改语义）。
+
+##### Z.4 端点调用是否要改？
+
+**不改**。现状 Hook 打的是 `/api/kg/overview`（见 `handler.ts` 顶部 fetch），
+但中间门实测验证的是 `/api/kg/overview` 的**新响应体已含 result.coverage /
+result.confidence**（Y 扩展后端点在 `/api/knowledge/check` 与 overview 均生效，
+以中间门 Node 实测为准）。**实施 Z 前需再确认一次**：
+
+- [ ] 确认 `handler.ts` 当前 fetch 的 URL 与中间门打的是同一端点；
+- [ ] 若 overview 与 check 响应结构不同（overview 是 `{nodes:[]}`），
+  则 Z 需**同时把 Hook 端点切到 `/api/knowledge/check` 并按 `topic` 传参**，
+  否则拿不到四态。
+
+> ⚠️ **这是 Z 实施的第一处前置校验**，不可跳过。中间门打的是 check 端点拿到
+> `result.coverage`；而 handler.ts 源码现指向 overview。两者结构不同。
+> 实施时若发现端点不一致，需新增“从事件提取 topic → 调 check”的取数逻辑。
+
+##### Z.5 重编译与回滚
+
+```bash
+cd <hook 目录>
+# 1) 备份
+cp handler.ts handler.ts.bak.$(date +%Y%m%d%H%M%S)
+# 2) 改 handler.ts（仅 L92-107 区域 + 新增分支）
+# 3) 编译
+npm run build      # tsc → dist/
+# 4) 冒烟（只读）：Node 直跑解析逻辑打真实端点，核对四态分派
+# 5) 生效：重载 hook（openclaw hooks reload knowledge-bootstrap 或重启 gateway）
+```
+
+**回滚**：`cp handler.ts.bak.* handler.ts && npm run build`，并重载 hook。
+TS 改动与 Python 解耦，回滚不影响 CA 服务。
+
+##### Z.6 验收矩阵（第二步 0c 最终验收）
+
+| # | 场景 | 期望 | 判定 |
+|---|------|------|:--:|
+| 1 | 查询 `RAG` | 注入含 🟢 known，conf=0.700 | ⬜ |
+| 2 | 查询 `transformer attention` | 注入含 🟢 known，conf=0.640 | ⬜ |
+| 3 | 查询 `agent 上下文管理` | 注入含 🟡 partial，conf=0.175 | ⬜ |
+| 4 | 查询 `知识图谱` | 注入含 🟠 **unknown**（修复前无注入）| ⬜ |
+| 5 | 查询 `不存在xyz` | 注入含 🟠 unknown 或 🔴 void（修复前无注入）| ⬜ |
+| 6 | 非 researcher agent | 零注入（早退）| ⬜ |
+| 7 | CA 服务不可达 | 零注入 + 仅日志，**不 throw**，agent 正常启动 | ⬜ |
+| 8 | 旧服务端（无 coverage）| 回落数值三分支，行为与今日一致 | ⬜ |
+
+**#4 是本次核心目标**：`unknown` 从“静默”变为“显式注入 + 触发搜索/探索”。
+**#7 是不变式护栏**：任何异常路径都不破坏 agent 启动。
+
+##### Z.7 与 L3 的对应（闭环）
+
+文档 §七之三 列出的 L3 断裂：“Hook 只读 confidence，不消费 `coverage`”。
+Z 实施后 L3 = ✅ 闭合。L1（匹配策略）与 L2（字段选错）已在第一步（Python，
+`5b28a66`）修复（check 端点内部改调 `check_confidence`）。三层断裂至此全通。
+
+##### Z.8 实施顺序建议
+
+1. **先做 Z.4 前置校验**（确认 Hook 端点是否已被中间门同源覆盖）；
+2. 若端点需切换 → 先落“取数 + topic 提取”小改并单独冒烟；
+3. 再落 Z.2 四态分支；
+4. `npm run build` + 重载；
+5. 跑 Z.6 验收矩阵 8 项，全绿后提交（建议单独 commit：`feat(v0.3.6): 批0c 第二步 — Hook 消费四态，unknown/void 不再静默`）。
+
+---
+
 ## 八、待 weNix 决策项
 
 1. **批1 落库位置**：`ops.db.provider_agreement` 表（推荐）vs 保留 `provider_heatmap.json`？
