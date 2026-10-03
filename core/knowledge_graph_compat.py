@@ -1298,6 +1298,22 @@ def get_recently_dreamed(within_days: int) -> set:
     return result
 
 
+def get_all_relations() -> list:
+    """Get ALL relations in one batch (v0.3.6 perf primitive).
+
+    Returns a list of ``{"source": ..., "target": ..., "relation_type": ...}``
+    dicts. Use this instead of calling :func:`get_relations_count` per node in
+    loops — each per-node call spawns its own ``asyncio.run()`` round-trip,
+    which is O(n) round-trips for O(n) nodes.
+    """
+    kg_factory = _get_kg_factory()
+    try:
+        return kg_factory.get_all_relations_sync() or []
+    except Exception as e:
+        logger.warning(f"get_all_relations failed: {e}")
+        return []
+
+
 def get_relations_count(topic: str) -> int:
     """Get number of relations for a topic."""
     kg_factory = _get_kg_factory()
