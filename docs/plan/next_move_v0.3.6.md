@@ -500,14 +500,24 @@ matched_topic, similarity, quality, source_count, topic` —— 旧契约四字�
   - `void` → 搜索 + 标注"系统无基础"
 
 **第二步（TS，后续）**：Hook 消费 `coverage`，注入四态上下文，完成 0c 验收
-（"真实回复中四态实际注入"）。
+（“真实回复中四态实际注入”）。
 
 ### 0c 验收标准（分层）
 
 | 阶段 | 标准 | 验证方式 |
 |------|------|---------|
 | 第一步 | `/api/knowledge/check` 返回有效 confidence + 四态 | live curl `RAG` → confidence 0.7 且含 `coverage=known` |
+| **中间门** | **Hook 从新响应中取到正确的 `confidence`** | 模拟 `handler.ts` 调端点，确认解析值 == 期望（只读，不改 TS）|
 | 第二步 | 真实 agent 回复中四态上下文实际注入 | 带 Hook 的对话流，检查注入内容含 coverage |
+
+**中间门（新，2026-10-03）** —— 为何要单独立门：
+Hook 的失败模式是“静默”（`handler.ts` 外层 try/catch 吞异常，Bug A 教训）。
+若跳过中间门直接做第二步，一旦 Hook 取数错（如字段路径变化），会表现为
+“改了但没生效”，难以定位。中间门只读验证：
+1. Hook 的解析路径 `kgData.result.confidence` 在新响应体下仍成立；
+2. 取值与 `check_confidence` 的预期一致（如 RAG→0.70）；
+3. Hook 的三档分支（≥0.85 / ≥0.6 / >0）对当前数据落在预期档位。
+通过后才进第二步。
 
 ---
 
