@@ -427,11 +427,96 @@ timeout 150 python3 -m pytest tests/api/ tests/test_api_v026.py -q -p no:cachepr
 
 ---
 
+## 七之三、批0c — knowledge-gate Hook 端到端勘察（2026-10-03，只读）
+
+### 勘察结论：Hook 链路上存在三层断裂（"看着修好了其实没生效"）
+
+Hook 实调 `/api/knowledge/check`。追踪 → 该端点用 `get_node_sync(topic)`
+**精确匹配**，且读取 **`confidence` 字段**。实测（全库 3724 节点）：
+
+```
+total=3724   status=done=3050   confidence>0 = 0   quality>0 = 1366
+```
+
+`confidence>0` 的节点数 **= 0**（全库从未写入过非零 confidence）。
+
+| 层 | 问题 | 证据 |
+|----|------|------|
+| **L1 匹配策略** | 端点用精确匹配，非语义 | `RAG` → 0%（节点名不含 "RAG"） |
+| **L2 字段选错** | 读恒为 0 的 `confidence`；有效信号是 `quality` | 精确命中节点仍返回 0% |
+| **L3 四态未接** | Hook 只读 confidence，不消费 `coverage` | handler.ts 无 coverage 分支 |
+
+**这就是 Bug A 的完整解释**：路由修了（v0.3.5）、四态做了（0/0b）、E1 门加了，
+但 Hook 走的是**另一条匹配方式错 + 字段错 + 不读四态**的路。
+
+### 只读验证：改用 `check_confidence` 后的预期值（2026-10-03）
+
+| 查询 | 现状 | 修复后（check_confidence） |
+|------|------|---------------------------|
+| `RAG` | 0.0 / novice | **0.700 / intermediate / known** |
+| `知识图谱` | 0.0 / novice | **0.000 / unknown**（E1 拦幽灵节点）|
+| `transformer attention` | 0.0 / novice | **0.640 / intermediate / known** |
+| `agent 上下文管理` | 0.0 / novice | **0.175 / beginner / partial**（0b 生效）|
+| `不存在的话题xyz` / `""` | 0.0 / novice | 0.000 / unknown（兜底）|
+
+`check_confidence` 输出键：`confidence, level, gaps, coverage, coverage_reason,
+matched_topic, similarity, quality, source_count, topic` —— 旧契约四字段
+（`confidence`/`level`/`gaps`/`guidance`/`should_search`/`should_inject`）
+全部可映射，其余为纯派生。
+
+### 修法（决策：Y 扩展契约；分两步）
+
+**第一步（Python，本期实现）**：`/api/knowledge/check` 内部改调
+`KnowledgeConfidenceHandler.check_confidence()`，响应体**扩展**（向后兼容）：
+
+```json
+{
+  "success": true,
+  "result": {
+    "topic": "...",
+    "confidence": 0.70,          // 旧字段，值改为有效置信度
+    "level": "intermediate",     // 旧字段
+    "gaps": [],                  // 旧字段
+    "guidance": "...",          // 旧字段（由四态派生）
+    "should_search": true,       // 旧字段（由四态派生）
+    "should_inject": true,       // 旧字段（由四态派生）
+
+    "coverage": "known",         // 新增（四态）
+    "coverage_reason": "...",    // 新增
+    "matched_topic": "...",      // 新增
+    "similarity": 0.756,         // 新增
+    "quality": 8.5,              // 新增
+    "source_count": 5            // 新增
+  }
+}
+```
+
+- 旧字段**保留**（Hook 零改即可拿到正确 confidence）
+- 新字段**追加**（L3 可解，Hook 后续可消费四态）
+- `guidance`/`should_search`/`should_inject` 由四态映射：
+  - `known` → 不搜索，直接用 KG
+  - `partial` → 建议搜索补充
+  - `unknown` → 搜索 + 注入探索
+  - `void` → 搜索 + 标注"系统无基础"
+
+**第二步（TS，后续）**：Hook 消费 `coverage`，注入四态上下文，完成 0c 验收
+（"真实回复中四态实际注入"）。
+
+### 0c 验收标准（分层）
+
+| 阶段 | 标准 | 验证方式 |
+|------|------|---------|
+| 第一步 | `/api/knowledge/check` 返回有效 confidence + 四态 | live curl `RAG` → confidence 0.7 且含 `coverage=known` |
+| 第二步 | 真实 agent 回复中四态上下文实际注入 | 带 Hook 的对话流，检查注入内容含 coverage |
+
+---
+
 ## 八、待 weNix 决策项
 
 1. **批1 落库位置**：`ops.db.provider_agreement` 表（推荐）vs 保留 `provider_heatmap.json`？
 2. **批3 时序**：是否在批1 完成后立即复核标注集（解锁阈值定标）？
 3. **C2-B 显式需求目录**：`shared_knowledge/r1d3/learning_needs/` 由谁写？（R1D3 主动声明 vs 从对话推断）
+4. **批0c 第二步时序**：Hook 消费四态（TS 改动 + 重编译）本期做还是下期？
 
 ---
 

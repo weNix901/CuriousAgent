@@ -1573,51 +1573,90 @@ def api_kg_mark_shared(topic):
 
 @app.route("/api/knowledge/check", methods=["POST"])
 def api_knowledge_check():
-    """Query KG confidence and guidance for a topic."""
+    """Query KG confidence and guidance for a topic.
+
+    批0c 第一步 (v0.3.6): 旧实现用 kg_factory.get_node_sync(topic) 精确匹配
+    且读恒为 0 的 `confidence` 字段（实测全库 confidence>0 的节点数 = 0）。
+    → Hook 对任何非逐字同名的话题都拿到 0% → 永远注入 "No KG knowledge"。
+
+    现改为委托 KnowledgeConfidenceHandler.check_confidence()：它做语义检索
+    + E1 内容实质门（批0）+ quality 调制（批0b）+ 四态判定。
+
+    契约策略（Y 扩展，向后兼容）：
+      · 旧字段保留：confidence/level/gaps/guidance/should_search/should_inject
+        （Hook 零改即可拿到有效值）
+      · 新字段追加：coverage/coverage_reason/matched_topic/similarity/
+        quality/source_count（供 Hook 后续消费四态，批0c 第二步）
+    """
     try:
-        from core.hooks.cognitive_hook import CognitiveHook
-        from core.kg.repository_factory import KGRepositoryFactory
-        from core.config import get_config
-        
+        from core.api.host_agent_integration import KnowledgeConfidenceHandler
+
         data = request.get_json() or {}
-        topic = data.get("topic", "").strip()
-        
+        topic = (data.get("topic") or "").strip()
+
         if not topic:
             return jsonify({"error": "topic is required"}), 400
-        
-        config = get_ca_config()
-        hook_config = {
-            "confidence_threshold": config.hooks.confidence_threshold,
-            "auto_inject_unknowns": config.hooks.auto_inject_unknowns,
-            "search_before_llm": config.hooks.search_before_llm,
+
+        handler = KnowledgeConfidenceHandler()
+        res = handler.check_confidence(topic)
+
+        confidence = res.get("confidence", 0.0) or 0.0
+        level = res.get("level", "novice")
+        gaps = res.get("gaps", []) or []
+        coverage = res.get("coverage", "unknown")
+
+        # 四态 → 旧字段派生（保持旧契约语义，由四态单一事实源导出）
+        if coverage == "known":
+            should_search = False
+            should_inject = False
+            if not gaps:
+                gaps = []
+            guidance = (
+                f"[COGNITIVE FRAMEWORK] Topic: '{topic}' | KG coverage: known "
+                f"({confidence:.0%}) | KG 有该主题的完整知识，直接使用。"
+            )
+        elif coverage == "partial":
+            should_search = True
+            should_inject = True
+            guidance = (
+                f"[COGNITIVE FRAMEWORK] Topic: '{topic}' | KG coverage: partial "
+                f"({confidence:.0%}) | KG 有部分知识，建议搜索补充后再回答。"
+            )
+        elif coverage == "void":
+            should_search = True
+            should_inject = True
+            guidance = (
+                f"[COGNITIVE FRAMEWORK] Topic: '{topic}' | KG coverage: void "
+                f"| KG 无此主题且历史探索失败，系统无此知识基础。搜索后从 LLM 作答，"
+                f"并注入 CA 重新探索。"
+            )
+        else:  # unknown
+            should_search = True
+            should_inject = True
+            guidance = (
+                f"[COGNITIVE FRAMEWORK] Topic: '{topic}' | KG coverage: unknown "
+                f"| KG 无此主题，先搜索，失败则从 LLM 作答，并注入 CA 探索。"
+            )
+
+        result = {
+            # —— 旧字段（保留，向后兼容）——
+            "topic": topic,
+            "confidence": confidence,
+            "level": level,
+            "gaps": gaps,
+            "guidance": guidance,
+            "should_search": should_search,
+            "should_inject": should_inject,
+            # —— 新字段（Y 扩展，四态透出）——
+            "coverage": coverage,
+            "coverage_reason": res.get("coverage_reason", ""),
+            "matched_topic": res.get("matched_topic"),
+            "similarity": res.get("similarity", 0.0),
+            "quality": res.get("quality", 0.0),
+            "source_count": res.get("source_count", 0),
         }
-        
-        cognitive_hook = CognitiveHook(hook_config)
-        kg_factory = KGRepositoryFactory.get_instance()
-        
-        kg_node = kg_factory.get_node_sync(topic)
-        
-        if kg_node:
-            kg_confidence = kg_node.get("confidence", 0.0)
-            gaps = kg_node.get("gaps", [])
-        else:
-            kg_confidence = 0.0
-            gaps = ["No knowledge graph entry found"]
-        
-        guidance = cognitive_hook.check_confidence(topic, kg_confidence, gaps)
-        
-        return jsonify({
-            "success": True,
-            "result": {
-                "topic": topic,
-                "confidence": kg_confidence,
-                "level": guidance.level.value,
-                "gaps": gaps,
-                "guidance": guidance.guidance_message,
-                "should_search": guidance.should_search,
-                "should_inject": guidance.should_inject,
-            }
-        })
+
+        return jsonify({"success": True, "result": result})
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
