@@ -96,11 +96,29 @@ class KnowledgeConfidenceHandler:
                 "match_reason": substance.reason,
             }
 
-        # C0-B fix (v0.3.5): old formula `similarity * (quality/10)` zeroed the
-        # whole confidence whenever quality=0, even at similarity 0.83 (observed
-        # with LTKD). Quality now acts as a soft modulator in [0.5, 1.0] instead
-        # of a hard on/off gate; similarity decides the hit, quality only damps.
-        quality_factor = 0.5 + 0.5 * (max(0.0, min(quality, 10.0)) / 10.0)
+        # Confidence formula history (two fixes must coexist):
+        #
+        # C0-B (v0.3.5): old `similarity * (quality/10)` zeroed the whole score
+        # whenever quality=0, even at similarity 0.83 (LTKD). Quality became a
+        # soft modulator in [0.5, 1.0] so a hit is never fully erased.
+        #
+        # 0b (v0.3.6): the old modulator had a 0.5 FLOOR, so a quality=0 node
+        # still scored 0.45 at sim=0.9 — nearly indistinguishable from a real
+        # low-quality node (quality=4.5 → 0.44). 0b asks that a zero-quality
+        # node not masquerade as "some knowledge". Measured on the labelled
+        # set: option A (reweight to .25/.75) dragged down ALL quality>0 rows
+        # too (RAG .712→.694, LLM .545→.442) — out-of-scope collateral. Option
+        # B (segmented) leaves quality>0 rows byte-identical and only damps
+        # quality==0, so it satisfies 0b without touching the C0-B fix.
+        #
+        # Segmented modulator: quality==0 → 0.2 (still NON-zero, so C0-B holds),
+        # quality>0 → original [0.5, 1.0] curve (C0-B behaviour unchanged).
+        # NB: real node quality is 0 or >=4 in practice, so the seam is not
+        # exercised by live data.
+        if quality <= 0.0:
+            quality_factor = 0.2
+        else:
+            quality_factor = 0.5 + 0.5 * (max(0.0, min(quality, 10.0)) / 10.0)
         confidence = similarity_score * quality_factor
 
         # C1-A (v0.3.5): four-state coverage via the standalone resolver.
