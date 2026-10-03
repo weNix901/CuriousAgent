@@ -61,6 +61,41 @@ class KnowledgeConfidenceHandler:
             srcs = best_match.get("source_urls")
             source_count = len(srcs) if isinstance(srcs, (list, tuple)) else 0
 
+        # 批0 (v0.3.6) E1: substance gate. A retrieval hit is not automatically
+        # usable knowledge. Ghost nodes (content/definition/core all empty)
+        # carry high quality but nothing to read — e.g. '知识图谱' →
+        # 'Knowledge Distillation' (quality=8.0, content=""). Trusting such a
+        # node corrupts the four-state verdict. When the gate fails we treat it
+        # exactly like "no matching node": downgrade to unknown/void. This runs
+        # BEFORE the coverage resolver so the wrong node's quality never leaks
+        # into the four-state judgment.
+        from core.api.topic_consistency import check_match_substance
+        substance = check_match_substance(best_match, query=topic, matched_topic=matched_topic)
+        if not substance.dependable:
+            failed = self._topic_has_failed_exploration(topic)
+            logger.info(
+                "E1 substance gate: rejecting matched node %r for query %r (%s)",
+                matched_topic, topic, substance.reason,
+            )
+            return {
+                "confidence": 0.0,
+                "explore_count": 0,
+                "gaps": ["Matched node carries no content"],
+                "level": "novice",
+                "topic": topic,
+                "coverage": "void" if failed else "unknown",
+                "coverage_reason": (
+                    "matched node is a ghost (empty content)"
+                    + ("; prior exploration failed" if failed else "")
+                ),
+                "source_count": 0,
+                "explore_failed": failed,
+                "rejected_match": matched_topic,
+                "rejected_similarity": similarity_score,
+                "match_verdict": substance.verdict,
+                "match_reason": substance.reason,
+            }
+
         # C0-B fix (v0.3.5): old formula `similarity * (quality/10)` zeroed the
         # whole confidence whenever quality=0, even at similarity 0.83 (observed
         # with LTKD). Quality now acts as a soft modulator in [0.5, 1.0] instead
