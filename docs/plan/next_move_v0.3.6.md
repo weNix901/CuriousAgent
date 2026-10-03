@@ -565,10 +565,30 @@ Python 已完成（第一步已提交）。
 
 ---
 
-#### 第二步（Z）细化设计 — 详版（2026-10-03 起草，待 weNix 确认后实施）
+#### 第二步（Z）细化设计 — 详版（2026-10-03 起草，2026-10-04 勘误定向）
 
 > 上节给出“做什么”，本节给出“怎么做”：四态分支逻辑、注入文案全文、
 > 兜底不变式、重编译与回滚步骤、验收矩阵。**实施前需 weNix 确认本章。**
+>
+> **⚠️ 勘误（2026-10-04）**：Z 的目标 Hook 是 **`knowledge-gate`**
+> （事件 `before_agent_reply`），**不是** `knowledge-bootstrap`（事件
+> `agent:bootstrap`）。两者是不同的 Hook：
+>
+> | Hook | 事件 | 端点 | 与 Z 的关系 |
+> |------|------|------|------|
+> | `knowledge-bootstrap` | `agent:bootstrap` | `/api/kg/overview`（**已 404**）| ❌ 非 Z 目标；另立议题 |
+> | **`knowledge-gate`** | **`before_agent_reply`** | **`/api/knowledge/check`** | ✅ **Z 的真实目标** |
+>
+> 因此 **Z.4 原先“端点可能要切换”的担忧不成立** —— `knowledge-gate`
+> 本来就打 `check`（中间门验证的正是它），且已有 `extractTopic()`（L65-72），
+> 无需新建取数层。Z 的改动就落在
+> `openclaw-hooks/plugins/knowledge-gate/hooks/knowledge-gate/handler.ts`
+> 的 **L91-107**（现状三档分支）。
+>
+> 附带发现（另立议题，不属 Z 范围）：`knowledge-bootstrap` 打的是
+> `/api/kg/overview`，该路由在当前 `curious_api.py` **不存在（404）**；
+> 会话级替代端点 `/api/knowledge/session/startup`（GET，返回拼好的
+> `injection_content`）已存在。建议另开一条修 `knowledge-bootstrap`。
 
 ##### Z.0 设计约束（不可违反）
 
@@ -598,7 +618,8 @@ Python 已完成（第一步已提交）。
 ##### Z.2 四态分支逻辑（伪码，落到 handler.ts）
 
 ```ts
-// 现状 L92-107 的三分支替换为：
+// 目标文件：openclaw-hooks/plugins/knowledge-gate/hooks/knowledge-gate/handler.ts
+// 替换该文件 L91-107（现状三档分支）：
 const r = result?.result ?? {};
 const cov: string | undefined = r.coverage;
 const conf: number = typeof r.confidence === 'number' ? r.confidence : 0;
@@ -656,21 +677,23 @@ if (branchText) {
 对照《C1 设计》：`unknown`→“搜索 + 注入探索”✅、`void`→“搜索 + 标注无基础”✅
 （本轮把 `void` 措辞显式写进文案，属细化，不改语义）。
 
-##### Z.4 端点调用是否要改？
+##### Z.4 端点调用确认（2026-10-04 勘误：无需切换）
 
-**不改**。现状 Hook 打的是 `/api/kg/overview`（见 `handler.ts` 顶部 fetch），
-但中间门实测验证的是 `/api/kg/overview` 的**新响应体已含 result.coverage /
-result.confidence**（Y 扩展后端点在 `/api/knowledge/check` 与 overview 均生效，
-以中间门 Node 实测为准）。**实施 Z 前需再确认一次**：
+**结论：不改端点。** `knowledge-gate/handler.ts` 已经打对端点了 ——
+`queryKG()`（L20-45）打的就是 `POST /api/knowledge/check`，正是中间门验证
+四态的那个端点；`extractTopic()`（L65-72）也已从 `context.messages` 提取
+用户末条消息作为 topic。**Z.4 原设的“端点可能错”风险由勘误排除。**
 
-- [ ] 确认 `handler.ts` 当前 fetch 的 URL 与中间门打的是同一端点；
-- [ ] 若 overview 与 check 响应结构不同（overview 是 `{nodes:[]}`），
-  则 Z 需**同时把 Hook 端点切到 `/api/knowledge/check` 并按 `topic` 传参**，
-  否则拿不到四态。
+已确认（只读实测）：
+- ✅ `POST /api/knowledge/check {"topic":"RAG"}` → 200，响应含
+  `result.coverage=known` / `result.confidence=0.700` / `result.matched_topic`
+- ✅ `knowledge-gate` 事件为 `before_agent_reply`（有用户消息 → 能提取 topic）
 
-> ⚠️ **这是 Z 实施的第一处前置校验**，不可跳过。中间门打的是 check 端点拿到
-> `result.coverage`；而 handler.ts 源码现指向 overview。两者结构不同。
-> 实施时若发现端点不一致，需新增“从事件提取 topic → 调 check”的取数逻辑。
+> **⚠️ 副产物（不属 Z，另立议题）**：`knowledge-bootstrap`
+> （workspace `hooks/knowledge-bootstrap/handler.ts`）打 `/api/kg/overview`，
+> 实测 **404**（`curious_api.py` 无此路由）。会话级替代端点
+> `GET /api/knowledge/session/startup` 已存在（返回拼好的 `injection_content`）。
+> 建议另开 issue 修它，不与 Z 混。
 
 ##### Z.5 重编译与回滚
 
@@ -710,13 +733,14 @@ TS 改动与 Python 解耦，回滚不影响 CA 服务。
 Z 实施后 L3 = ✅ 闭合。L1（匹配策略）与 L2（字段选错）已在第一步（Python，
 `5b28a66`）修复（check 端点内部改调 `check_confidence`）。三层断裂至此全通。
 
-##### Z.8 实施顺序建议
+##### Z.8 实施顺序建议（2026-10-04 勘误后）
 
-1. **先做 Z.4 前置校验**（确认 Hook 端点是否已被中间门同源覆盖）；
-2. 若端点需切换 → 先落“取数 + topic 提取”小改并单独冒烟；
-3. 再落 Z.2 四态分支；
+1. ~~先做 Z.4 前置校验~~ → **已完成**（端点正确，无需切换）；
+2. 直接落 Z.2 四态分支到 `knowledge-gate/handler.ts` L91-107；
+3. ~~数值分支兜底~~ 保留（防端点变动）；
 4. `npm run build` + 重载；
-5. 跑 Z.6 验收矩阵 8 项，全绿后提交（建议单独 commit：`feat(v0.3.6): 批0c 第二步 — Hook 消费四态，unknown/void 不再静默`）。
+5. 跑 Z.6 验收矩阵 8 项，全绿后提交（建议单独 commit：
+   `feat(v0.3.6): 批0c 第二步 — knowledge-gate 消费四态，unknown/void 不再静默`）。
 
 ---
 
