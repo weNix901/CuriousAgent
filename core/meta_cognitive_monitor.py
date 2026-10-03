@@ -250,6 +250,24 @@ Return only a number."""
         frontiers = []
         state = kg.get_state()
 
+        # v0.3.6 perf: batch-fetch ALL relations once, then build a per-topic
+        # degree map. Previously this loop called kg.get_relations_count(topic)
+        # for every known leaf node — each call did its own asyncio.run() +
+        # round-trip. On a 2981-node graph that was ~20s. One batch query + a
+        # local dict brings it to sub-second. No behaviour change.
+        relations_count_by_topic: dict[str, int] = {}
+        try:
+            all_relations = kg.get_all_relations() or []
+            for rel in all_relations:
+                src = rel.get("source")
+                tgt = rel.get("target")
+                if src:
+                    relations_count_by_topic[src] = relations_count_by_topic.get(src, 0) + 1
+                if tgt and tgt != src:
+                    relations_count_by_topic[tgt] = relations_count_by_topic.get(tgt, 0) + 1
+        except Exception:
+            logger.warning("detect_frontier: batch relation fetch failed, falling back", exc_info=True)
+
         for topic, data in state["knowledge"]["topics"].items():
             if not data.get("known"):
                 continue
@@ -257,7 +275,7 @@ Return only a number."""
             children = data.get("children", [])
             if not children:
                 quality = data.get("quality", 0.0)
-                relations_count = kg.get_relations_count(topic)
+                relations_count = relations_count_by_topic.get(topic, 0)
 
                 frontier_type = "isolated" if relations_count == 0 else "explicit"
                 frontiers.append({

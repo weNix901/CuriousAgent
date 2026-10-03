@@ -884,7 +884,7 @@ def api_kg_confidence(topic):
     repointed the skill at it, deleting the duplicate.
 
     Response keeps the legacy confidence_low/high interval contract asserted
-    by tests/test_api_v026.py AND the four-state coverage fields in `result`.
+    by tests/test_kg_routes.py AND the four-state coverage fields in `result`.
     """
     try:
         from core.api.host_agent_integration import KnowledgeConfidenceHandler
@@ -900,10 +900,140 @@ def api_kg_confidence(topic):
         return jsonify({
             "status": "ok",
             "topic": topic,
-            # legacy interval contract (tests/test_api_v026.py)
+            # legacy interval contract (tests/test_kg_routes.py)
             "confidence_low": max(0.0, conf - 0.1),
             "confidence_high": min(1.0, conf + 0.1),
             "result": result,
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# v0.3.6 批0d — 对位路由恢复
+#
+# 设计依据: docs/plan/next_move_v0.3.6.md §1.3（CA2.0 高阶对位）
+# 测试: tests/test_kg_routes.py
+#
+# 这 4 条路由是 v0.2.x 重构中被 09d6b37 删除的历史遗留，本期按 CA2.0 目标
+# 重新取舍后恢复（dormant/reactivate 不对位，已删除，不恢复）。
+# 路由只读取状态、不写库，因此不影响运行中的 CA 进程；重启后生效。
+# ---------------------------------------------------------------------------
+
+
+def _load_dream_insights(topic: str | None = None) -> list[dict]:
+    """读取 DreamAgent 洞察（C3 发现回流的原料）。
+
+    归并 Neo4j 留待后续；本期直接读 knowledge/dream_insights/*.json。
+    """
+    import glob
+
+    insights_dir = os.path.join(
+        os.path.dirname(__file__), "knowledge", "dream_insights"
+    )
+    insights: list[dict] = []
+    for path in sorted(glob.glob(os.path.join(insights_dir, "*.json"))):
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+        except Exception:
+            continue
+        if topic:
+            related = list(data.get("source_topics") or [])
+            if data.get("trigger_topic"):
+                related.append(data["trigger_topic"])
+            if topic not in related:
+                continue
+        insights.append(data)
+    return insights
+
+
+@app.route("/api/kg/dream_insights")
+@app.route("/api/kg/dream_insights/<path:topic>")
+def api_kg_dream_insights(topic=None):
+    """Dream insights（C3 发现回流 + §2.3.4 F8-c）。
+
+    返回 DreamAgent 产出的洞察列表；可选按 topic 过滤。
+    """
+    try:
+        topic = (topic or "").strip() or None
+        insights = _load_dream_insights(topic)
+        return jsonify({
+            "status": "ok",
+            "topic": topic,
+            "insights": insights,
+            "total": len(insights),
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/kg/frontier")
+def api_kg_frontier():
+    """Knowledge frontier（C2-A 缺口计算器上游数据源）。
+
+    detect_frontier() 返回 leaf nodes + uncertainty + quality，即“可探索边界”。
+    """
+    try:
+        from core.meta_cognitive_monitor import MetaCognitiveMonitor
+
+        monitor = MetaCognitiveMonitor()
+        frontiers = monitor.detect_frontier()
+        return jsonify({
+            "status": "ok",
+            "frontiers": frontiers,
+            "total": len(frontiers),
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/kg/calibration")
+def api_kg_calibration():
+    """Calibration（C1 自省质量 / 公理B）。
+
+    实现修复（v0.3.6）：get_calibration_error() 在无预测样本时返回 0.0，
+    而 Brier=0.0 本义是“完美校准”——空数据会被误读成满分。此处区分
+    no_data 与 well_calibrated，遵守 R8 / 设计原则6（失败必须可见）。
+    """
+    try:
+        from core.meta_cognitive_monitor import MetaCognitiveMonitor
+        from core.exploration_history import ExplorationHistory
+
+        # 先判断是否存在“已评分的预测样本”；没有则显式报 no_data。
+        has_samples = False
+        try:
+            history = ExplorationHistory()
+            predictions = history.get_all_predictions() or []
+            has_samples = any(
+                p.get("actual_outcome") is not None for p in predictions
+            )
+        except Exception:
+            has_samples = False
+
+        monitor = MetaCognitiveMonitor()
+        error = monitor.get_calibration_error()
+
+        if not has_samples:
+            verdict = "no_data"
+        elif error < 0.1:
+            verdict = "well_calibrated"
+        elif error < 0.25:
+            verdict = "moderate"
+        else:
+            verdict = "overconfident"
+
+        return jsonify({
+            "status": "ok",
+            "calibration_error": error,
+            "verdict": verdict,
+            "has_samples": has_samples,
         })
     except Exception as e:
         import traceback

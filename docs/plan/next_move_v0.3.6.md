@@ -33,6 +33,27 @@ id18「知识图谱」查询，语义检索命中了 **"Knowledge Distillation"*
 - 直接打在 C1 公理："决策权归属外部测量"——**但测量对象本身错了，测的就不是它**
 - 影响面：所有"语义近但主题不同"的长查询，四态会**系统性失真**
 
+### 1.3.1 【2026-10-02 实测修订】0d 方向修正：不是「恢复历史」，是「按 CA2.0 目标取舍」
+
+**修订前（错误）**：0d = 「恢复 5 条被删路由」，含 `/api/kg/confidence/<topic>`。
+
+**实测证据（2026-10-02，全只读）**：
+
+| 路由 | live curl @ :4848 | pytest 状态 | CA2.0 目标对位 | 结论 |
+|------|:---:|:---:|------|------|
+| `/api/kg/confidence/<topic>` | **HTTP 200** ✅ | **passed** ✅ | 服务 C1-C（我的 hook） | ⛔ **已在（v0.3.5 `fd56b6b` 恢复）。绝不重复注册** |
+| `/api/kg/dream_insights` (+`/<topic>`) | 404 ❌ | 2 failed | **C3 回流 + F8-c 治理** | ✅ 恢复（纯接线） |
+| `/api/kg/frontier` | 404 ❌ | 1 failed | **C2 缺口数据源** | ✅ 恢复（作为 C2 上游） |
+| `/api/kg/calibration` | 404 ❌ | 1 failed | C1 自省质量 | ⚠️ 恢复，但**先修空历史假信号**（+`no_data` 态） |
+| `/api/kg/dormant` | 404 ❌ | 1 failed | **无对位** | ❌ 不恢复，删测试 |
+| `/api/kg/reactivate` | 404 ❌ | 2 failed | C2-D 弱相关 | ❌ 低优先，宜并入 C2-D；本期删测试 |
+
+**两条关键事实（推翻旧计划）**：
+1. **confidence 从未「缺失」** —— 它 2026-04-17 被 `09d6b37` 删、2026-10-01 由 `fd56b6b` 恢复。当前 200 且返回体完整（`coverage`/`confidence`/`similarity`/`source_count`）。**把它算进恢复清单 = 双注册 → Flask 启动 `AssertionError` → CA 起不来 → knowledge-gate hook 全断 → R1D3 失能。**
+2. **`dormant` 底层缺的是「查询能力」不是「路由」** —— `knowledge_graph_compat` 只有 `mark_dormant`（写），无 `get_dormant_nodes`（读）。CA2.0 §4.1-4.3（C1/C2/C3）**无任何对 dormant 列表的需求**。属 v0.2.6 遗留端点。
+
+> **教训（同 AGENTS.md）**：上一轮用「底层实现存活」推断「可接线恢复」，是又一个「用现象推断结论」。**实现存活 ≠ 语义对位 ≠ 系统需要。** 判定必须读到实现体 + 对照高阶目标。
+
 ### 1.3 新增项：C2（缺口生成）+ C3（发现回流）+ 三项游离待办
 
 **v0.3.5 只盯 C1-B，遗漏 CA2.0 Phase 3/4。实测：**
@@ -145,7 +166,7 @@ CA2.0 剩余三块：**C1-B（冲突检测）→ C2（缺口生成）→ C3（�
 | **0** | **检索匹配正确性预检**（C0 残留） | 无 | 匹配门限/别名/主题一致性检查；防错节点污染四态输入 | CA |
 | **0b** | **confidence 空节点伪装修复**（R-v0.3.5-1） | 批0 | 公式边界修正；空节点不再伪装 known | CA |
 | **0c** | **C1-C Hook 端到端验证** | 批0 | 真实 agent 回复中验证四态注入生效 | R1D3 |
-| **0d** | **恢复 5 条被删路由**（历史债） | 无 | dream_insights/dormant/reactivate/frontier/calibration | CA |
+| **0d** | **路由与 CA2.0 目标对齐**（非「恢复历史」） | 无 | 恢复 3 条对位路由（dream_insights×2/frontier/calibration）；删 2 条不对位测试（dormant/reactivate） | CA |
 | **1** | **接通 provider 一致性管道** | 无 | 分解器验证结果落 `ops.db`；死端点复活 | CA |
 | **2** | **C1-B 冲突检测** | 批1 | `conflict_resolver.py` + 四态输出加 `conflict` 字段 | CA |
 | **3** | **20 问标注集复核** | 无（并行） | weNix 修正 `expected`；θ/冲突阈值回测 | weNix+CA |
@@ -164,6 +185,25 @@ CA2.0 剩余三块：**C1-B（冲突检测）→ C2（缺口生成）→ C3（�
 
 **实例**：`知识图谱` → 命中 `Knowledge Distillation`（sim=0.786，差 0.028 输给
 第二名）→ 误判 `partial`，真值应为 `unknown`。
+
+**⚠️ 0d 前置：先修 `tests` 包名冲突（阻塞整个测试基线）**
+
+`tests/test_meta_cognitive_controller.py` / `test_meta_cognitive_monitor.py` 在**收集期即 ImportError**：
+
+```
+ImportError: cannot import name 'isolated_knowledge_graph' from 'tests.test_utils' (unknown location)
+```
+
+**根因（实测）**：`PYTHONPATH` 中的 `/root/dev/dualLoopAgent/openharness` 使 `import tests` 解析到
+**另一个仓库**的 `tests/__init__.py`（`/root/dev/dualLoopAgent/openharness/tests/__init__.py`），
+不是本仓库的 `tests/`。本仓库无 `tests/__init__.py`，导致符号「在文件中存在却报 unknown location」。
+
+**修法（待定，需 weNix 确认）**：
+- 选项 A：本仓库补 `tests/__init__.py` + 在 conftest 中 `sys.path.insert(0, repo_root)` 置顶 → 保证本仓库 `tests` 优先
+- 选项 B：改用 `conftest.py` 的 `rootdir` 与 `importmode=importlib`（pytest.ini），避免同名包
+- **不选**：改全局 PYTHONPATH（会波及 dualLoopAgent）
+
+**验收**：`pytest tests/ --co` 无 collection error。
 
 **改动方向**（待细化，先定候选方案）：
 
@@ -309,7 +349,7 @@ def resolve_conflict(
 | 批0 | 检索匹配正确 | `知识图谱` 不再错匹配；真命中不受影响 |
 | 批0b | 空节点不伪装 | quality=0 节点不再得到 known 判定 |
 | 批0c | Hook 端到端生效 | 真实回复中四态上下文实际注入 |
-| 批0d | 路由恢复 | 7 个陈旧测试全部转绿 |
+| 批0d | 路由与目标对齐 | 4 个对位测试转绿（dream_insights×2/frontier/calibration）；2 个不对位测试移除（dormant/reactivate） |
 | 批1 | provider 一致性落库 | `ops.db.provider_agreement` 有数据 |
 | 批2 | C1-B 冲突可判 | 构造样本 → `conflict != none` |
 | 批3 | 人工基准建立 | `human_review.reviewed_by` 非空 + agreement ≥ 70% |
@@ -329,6 +369,61 @@ def resolve_conflict(
 | R3 | C2 相关性代理"读心"倾向 | 🟡 | 坚持外部可查信号，不做意图推断 |
 | R4 | confidence 空节点伪装（R-v0.3.5-1） | 🟡 | 观察项，本版不修 |
 | R5 | 20 问标注集不覆盖 void 态 | 🟡 | 批3 复核时补 void 样本（需 failed 记录） |
+| **R6** | **0d 误把 confidence 计入恢复 → 双注册 → CA 起不来 → R1D3 hook 全断** | 🔴 | 已在 §1.3.1 实测排除；编码前必须 `grep -c "api/kg/confidence" curious_api.py` 确认唯一 |
+| **R7** | **`tests` 包名冲突（dualLoopAgent 抢占）→ 基线无法收集** | 🔴 | 0d 前置修（见批0 前置节）；`pytest tests/ --co` 必须无 error |
+| **R8** | **calibration 空历史 Brier=0.0 被读成「完美校准」** | 🟡 | 恢复时新增 `no_data` verdict；无预测样本时不报 well_calibrated |
+
+---
+
+## 七之半、v0.3.6 测试基线（2026-10-02 重建）
+
+### 基线建立命令（可复现）
+
+```bash
+cd /root/dev/curious-agent
+timeout 150 python3 -m pytest tests/api/ tests/test_api_v026.py -q -p no:cacheprovider
+```
+
+> 注：全量 `pytest tests/` 有 1017 条，单次运行 > 400s 被 SIGKILL；
+> 且收集期触发真实 DreamAgent（日志洪水）。**本期基线以「api 子集」为准**。
+
+### 当前基线（修订前，2026-10-02）
+
+| 子集 | 结果 |
+|------|------|
+| `tests/api/` + `tests/test_api_v026.py` | **7 failed, 41 passed**（44.5s） |
+| `tests/` 全量收集 | **1017 collected, 2 errors**（无法完成全跑） |
+
+### 目标基线（v0.3.6 完成后）
+
+| 子集 | 目标 |
+|------|------|
+| `tests/api/` + `tests/test_api_v026.py` | **全绿**（删除 2 条不对位测试后，不再有绕过断言） |
+| `tests/` 全量收集 | **0 error**（修好 `tests` 包名冲突） |
+
+### 测试文件版本标注规范（本版开始强执行）
+
+每个测试文件首行 docstring 必须写清**对应版本 + 覆盖的 CA2.0 条目**：
+
+```python
+"""<端点/能力> 测试（v0.3.6）
+
+对应设计：docs/plan/next_move_v0.3.6.md 批0d
+对应 CA2.0 条目：C3-B / C2-A
+变更说明：<新增/修正/删除及原因>
+"""
+```
+
+### 测试处置清单（0d）
+
+| 类/测试 | 处置 | 原因 |
+|---------|------|------|
+| `TestConfidenceAPI` | **保留**（已绿） | 对应 C1-C；confidence 路由已存在 |
+| `TestDreamInsightsAPI` (×2) | 保留 | 对应 C3 回流 + F8-c |
+| `TestFrontierAPI` | 保留 | 对应 C2 缺口数据源 |
+| `TestCalibrationAPI` | 保留（断言加 `no_data` 分支） | C1 自省；空历史时非 well_calibrated |
+| `TestDormantNodesAPI` | **删除** | CA2.0 无对位；v0.2.6 遗留 |
+| `TestReactivateAPI` (×2) | **删除** | 宜并入 C2-D；本期无对位 |
 
 ---
 
