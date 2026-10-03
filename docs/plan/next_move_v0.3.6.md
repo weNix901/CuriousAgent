@@ -519,6 +519,50 @@ Hook 的失败模式是“静默”（`handler.ts` 外层 try/catch 吞异常，
 3. Hook 的三档分支（≥0.85 / ≥0.6 / >0）对当前数据落在预期档位。
 通过后才进第二步。
 
+#### 中间门实测结果（2026-10-03，通过）
+
+Node 直接执行 Hook 解析逻辑打真实端点：
+
+| topic | Hook 解析 conf | coverage | 现有分支 |
+|-------|:---:|:---:|------|
+| `RAG` | 0.700 | known | 中(60-85%) |
+| `transformer attention` | 0.640 | known | 中(60-85%) |
+| `知识图谱` | 0.000 | unknown | **conf=0 → 不注入** |
+| `agent 上下文管理` | 0.175 | partial | 低(<60%) |
+| `不存在xyz` | 0.000 | unknown | **conf=0 → 不注入** |
+
+修复前这些全是 conf=0（永远不注入）。中间门揭示新问题：**`coverage=unknown`
+被现有三分支静默吞掉**（conf=0 → 无注入）—— 按 C1 设计，unknown 应触发
+“搜索 + 注入探索”。这成为第二步（Z）的核心动机。
+
+#### 第二步（Z）设计 — Hook 消费四态
+
+**目标**：Hook 从“只看 confidence 数值”改为“以 `coverage` 四态为主轴”，
+使 `unknown`/`void` 不再静默。
+
+**现状问题**（`handler.ts` L92-107）：三分支只看 `confidence` 数值；
+`coverage=unknown` 且 conf=0 时，`else if (confidence > 0)` 不成立 → **零注入**。
+四态信息已随响应体到达，Hook 却未读。
+
+**改法**：新增 `coverage` 优先分派（数值分支降为兜底）：
+
+| coverage | 注入文案 | 意图 |
+|-----------|---------|------|
+| `known` | KG 有完整知识（conf=…），直接使用 | 直接作答 |
+| `partial` | KG 有部分知识（conf=…），建议搜索补充 | 作答 + 搜索 |
+| `unknown` | KG 无此主题，先搜索，失败则 LLM 作答并注入 CA 探索 | 搜索 + 探索 |
+| `void` | KG 无此主题且历史探索失败，系统无知识基础 | 搜索 + 重构探索 |
+
+- 旧数值分支**保留为 fallback**（当响应无 `coverage` 字段时，如旧服务端）
+- 注入文案可带上 `matched_topic`（当 known/partial 时），增强可解释性
+- 不变式：仍绝不 throw；仍仅当 `context.agentId === 'researcher'` 时注入
+
+**验收**：带 Hook 的真实 agent 回复中，对 `知识图谱` 类查询能看到
+`coverage: unknown` 的注入（而非静默），对 `RAG` 类看到 known 注入。
+
+**变更面**：`handler.ts` + `npm run build`（tsc → dist）。与 Python 侧解耦，
+Python 已完成（第一步已提交）。
+
 ---
 
 ## 八、待 weNix 决策项
