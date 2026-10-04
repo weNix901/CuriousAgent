@@ -88,23 +88,63 @@ export const beforeAgentReplyHook = async ({ context }: any) => {
     // 安全提取 — Promise.allSettled 可能返回 rejected
     const kgData = kgResult.status === 'fulfilled' ? kgResult.value : null;
     const confData = confResult.status === 'fulfilled' ? confResult.value : null;
-    const confidence = kgData?.result?.confidence || 0;
 
-    if (confidence >= 0.85) {
-      contextParts.push(
-        `[KG Context — 置信度高 ${(confidence * 100).toFixed(0)}%]\n` +
-        `KG 有完整知识。`
-      );
-    } else if (confidence >= 0.6) {
-      contextParts.push(
-        `[KG Context — 置信度中 ${(confidence * 100).toFixed(0)}%]\n` +
-        `KG 有部分知识，建议搜索补充。`
-      );
-    } else if (confidence > 0) {
-      contextParts.push(
-        `[KG Context — 置信度低 ${(confidence * 100).toFixed(0)}%]\n` +
-        `KG 知识有限。`
-      );
+    // 批0c 第二步（Z）：以 coverage 四态为主轴，数值分支降为兜底。
+    // 修复 unknown/void 被 conf=0 静默吞掉的问题。
+    const r = kgData?.result ?? {};
+    const coverage: string | undefined = r.coverage;
+    const confidence: number =
+      typeof r.confidence === 'number' ? r.confidence : 0;
+    const matched = r.matched_topic ? `（匹配到：${r.matched_topic}）` : '';
+    const confPct = (confidence * 100).toFixed(0);
+    const FOUR_STATE = ['known', 'partial', 'unknown', 'void'];
+
+    if (coverage && FOUR_STATE.includes(coverage)) {
+      // —— 四态主判定 ——
+      if (coverage === 'known') {
+        contextParts.push(
+          `[KG Context — 已知${matched} ${confPct}%]\n` +
+          `KG 有该主题的完整知识，直接从 KG 作答并引用来源；无需强制搜索。`
+        );
+      } else if (coverage === 'partial') {
+        contextParts.push(
+          `[KG Context — 部分已知${matched} ${confPct}%]\n` +
+          `KG 有部分知识：先给基于 KG 的初答，再搜索补充缺口。`
+        );
+      } else if (coverage === 'unknown') {
+        contextParts.push(
+          `[KG Context — 未知${matched}]\n` +
+          `KG 无此主题：**先搜索**获取外部知识；若搜索无果，用 LLM 知识作答，` +
+          `并注入 CA 探索以便后续补齐。**不得因置信度为 0 而静默。**`
+        );
+      } else {
+        // void
+        contextParts.push(
+          `[KG Context — 无知识基础${matched}]\n` +
+          `KG 无此主题且历史探索失败：**先搜索**；搜索无果则用 LLM 作答，` +
+          `并**标注“系统对此主题无知识基础”**，同时触发 CA 重新探索。`
+        );
+      }
+    } else if (typeof r.confidence === 'number') {
+      // —— 数值兜底（旧服务端 / 无 coverage 字段，零回归）——
+      if (confidence >= 0.85) {
+        contextParts.push(
+          `[KG Context — 置信度高 ${confPct}%]\n` +
+          `KG 有完整知识。`
+        );
+      } else if (confidence >= 0.6) {
+        contextParts.push(
+          `[KG Context — 置信度中 ${confPct}%]\n` +
+          `KG 有部分知识，建议搜索补充。`
+        );
+      } else if (confidence > 0) {
+        contextParts.push(
+          `[KG Context — 置信度低 ${confPct}%]\n` +
+          `KG 知识有限。`
+        );
+      }
+    } else {
+      console.warn('[knowledge-gate] check 响应缺少 coverage 与 confidence 字段，跳过注入');
     }
 
     // F2 修复：/api/knowledge/confidence 返回 { result: { confidence, quality, level, ... } }
