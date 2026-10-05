@@ -48,6 +48,10 @@ class CoverageVerdict:
     source_count: int = 0
     matched_topic: Optional[str] = None
     explore_failed: bool = False
+    # 批2 (v0.3.6): ADDITIONAL dimension — do NOT let this change `coverage`.
+    # A `known` topic stays `known`; conflict merely annotates source disagreement.
+    conflict: str = "none"   # none | weak | strong
+    conflict_reason: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -58,6 +62,8 @@ class CoverageVerdict:
             "source_count": self.source_count,
             "matched_topic": self.matched_topic,
             "explore_failed": self.explore_failed,
+            "conflict": self.conflict,
+            "conflict_reason": self.conflict_reason,
         }
 
 
@@ -69,8 +75,14 @@ def resolve_coverage(
     explore_failed: bool = False,
     theta1: float = DEFAULT_THETA1,
     theta2: int = DEFAULT_THETA2,
+    conflict: str = "none",
+    conflict_reason: str = "",
 ) -> CoverageVerdict:
-    """Pure function: KG signals → four-state verdict. No I/O, easy to test."""
+    """Pure function: KG signals → four-state verdict. No I/O, easy to test.
+
+    `conflict`/`conflict_reason` (批2, v0.3.6) are an ADDITIONAL dimension: they
+    are attached to the verdict verbatim and never influence `coverage`.
+    """
     # No hit at all → unknown or void.
     if similarity <= 0.0 or matched_topic is None:
         return CoverageVerdict(
@@ -81,6 +93,8 @@ def resolve_coverage(
             quality=quality,
             source_count=source_count,
             explore_failed=explore_failed,
+            conflict=conflict,
+            conflict_reason=conflict_reason,
         )
 
     # Hit exists → known or partial.
@@ -92,6 +106,8 @@ def resolve_coverage(
             quality=quality,
             source_count=source_count,
             matched_topic=matched_topic,
+            conflict=conflict,
+            conflict_reason=conflict_reason,
         )
 
     return CoverageVerdict(
@@ -102,6 +118,8 @@ def resolve_coverage(
         quality=quality,
         source_count=source_count,
         matched_topic=matched_topic,
+        conflict=conflict,
+        conflict_reason=conflict_reason,
     )
 
 
