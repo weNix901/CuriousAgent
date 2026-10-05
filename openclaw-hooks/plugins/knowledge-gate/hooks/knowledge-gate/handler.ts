@@ -8,53 +8,28 @@ const COMMON_HEADERS = {
   "X-OpenClaw-Hook-Type": "plugin_sdk",
 };
 
-async function queryKG(topic: string): Promise<any> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1000);
-
-    const response = await fetch(
-      `${CA_API}/api/knowledge/check`,
-      {
-        method: 'POST',
-        headers: COMMON_HEADERS,
-        body: JSON.stringify({ topic }),
-        signal: controller.signal
-      }
-    );
-
-    clearTimeout(timeout);
-    if (!response.ok) {
-      // F3: 失败可观测 —— 不再静默吞掉
-      console.error(`[knowledge-gate] /api/knowledge/check HTTP ${response.status}`);
-      return null;
-    }
-    return await response.json();
-  } catch (err: any) {
-    console.error(`[knowledge-gate] /api/knowledge/check failed: ${err?.message}`);
-    return null;
-  }
-}
-
-// F2 修复：/api/kg/confidence/{topic} 不存在 → 实际端点是 /api/knowledge/confidence?topic=
+// C1-C-3 (v0.3.6): 四态查询端点。
+// 端点形状经 2026-10-04 实测确认：路径参数 `/api/kg/confidence/<topic>` → 200，
+// 而查询串 `?topic=` → 404（旧 F2 注释把方向搞反了，已废弃）。
 async function queryConfidence(topic: string): Promise<any> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 1000);
 
     const response = await fetch(
-      `${CA_API}/api/knowledge/confidence?topic=${encodeURIComponent(topic)}`,
+      `${CA_API}/api/kg/confidence/${encodeURIComponent(topic)}`,
       { headers: COMMON_HEADERS, signal: controller.signal }
     );
 
     clearTimeout(timeout);
     if (!response.ok) {
-      console.error(`[knowledge-gate] /api/knowledge/confidence HTTP ${response.status}`);
+      // F3: 失败可观测 —— 不再静默吞掉
+      console.error(`[knowledge-gate] /api/kg/confidence HTTP ${response.status}`);
       return null;
     }
     return await response.json();
   } catch (err: any) {
-    console.error(`[knowledge-gate] /api/knowledge/confidence failed: ${err?.message}`);
+    console.error(`[knowledge-gate] /api/kg/confidence failed: ${err?.message}`);
     return null;
   }
 }
@@ -77,24 +52,22 @@ export const beforeAgentReplyHook = async ({ context }: any) => {
     const topic = extractTopic(context);
     if (!topic) return;
 
-    // 并发查询（Promise.allSettled 不抛异常），超时会自动 abort
-    const [kgResult, confResult] = await Promise.allSettled([
-      queryKG(topic),
-      queryConfidence(topic)
-    ]);
+    const confData = await queryConfidence(topic);
 
     const contextParts: string[] = [];
 
-    // 安全提取 — Promise.allSettled 可能返回 rejected
-    const kgData = kgResult.status === 'fulfilled' ? kgResult.value : null;
-    const confData = confResult.status === 'fulfilled' ? confResult.value : null;
-
-    // 批0c 第二步（Z）：以 coverage 四态为主轴，数值分支降为兜底。
-    // 修复 unknown/void 被 conf=0 静默吞掉的问题。
-    const r = kgData?.result ?? {};
+    // C1-C-3 (v0.3.6): 以 coverage 四态为主轴。
+    // 四态映射（结论优先，按需展开）：
+    //   known   → 直接引用 KG 作答
+    //   partial → 初答 + 标注不确定性/缺口
+    //   unknown → 先搜索再回答；CA 异步探索补全（不得静默）
+    //   void    → 声明"系统层面无依据"
+    const r = confData?.result ?? {};
     const coverage: string | undefined = r.coverage;
     const confidence: number =
       typeof r.confidence === 'number' ? r.confidence : 0;
+    const reason: string = r.coverage_reason || 'unknown';
+    const sourceCount: number = r.source_count ?? 0;
     const matched = r.matched_topic ? `（匹配到：${r.matched_topic}）` : '';
     const confPct = (confidence * 100).toFixed(0);
     const FOUR_STATE = ['known', 'partial', 'unknown', 'void'];
@@ -104,12 +77,12 @@ export const beforeAgentReplyHook = async ({ context }: any) => {
       if (coverage === 'known') {
         contextParts.push(
           `[KG Context — 已知${matched} ${confPct}%]\n` +
-          `KG 有该主题的完整知识，直接从 KG 作答并引用来源；无需强制搜索。`
+          `KG 有该主题的完整知识（来源 ${sourceCount} 条），直接引用作答并注明来源；无需强制搜索。`
         );
       } else if (coverage === 'partial') {
         contextParts.push(
           `[KG Context — 部分已知${matched} ${confPct}%]\n` +
-          `KG 有部分知识：先给基于 KG 的初答，再搜索补充缺口。`
+          `KG 有部分知识：先给基于 KG 的初答，再搜索补充缺口。缺口原因：${reason}`
         );
       } else if (coverage === 'unknown') {
         contextParts.push(
@@ -122,7 +95,7 @@ export const beforeAgentReplyHook = async ({ context }: any) => {
         contextParts.push(
           `[KG Context — 无知识基础${matched}]\n` +
           `KG 无此主题且历史探索失败：**先搜索**；搜索无果则用 LLM 作答，` +
-          `并**标注“系统对此主题无知识基础”**，同时触发 CA 重新探索。`
+          `并**标注“系统对此主题无知识基础”**，勿凭 LLM 硬答，同时触发 CA 重新探索。`
         );
       }
     } else if (typeof r.confidence === 'number') {
@@ -144,14 +117,7 @@ export const beforeAgentReplyHook = async ({ context }: any) => {
         );
       }
     } else {
-      console.warn('[knowledge-gate] check 响应缺少 coverage 与 confidence 字段，跳过注入');
-    }
-
-    // F2 修复：/api/knowledge/confidence 返回 { result: { confidence, quality, level, ... } }
-    // 不再依赖不存在的 confidence_high / confidence_low 字段
-    const conf = confData?.result?.confidence;
-    if (conf != null && conf < 0.6) {
-      contextParts.push(`[探索状态] 该话题置信度 ${(conf * 100).toFixed(0)}%，仍在完善中。`);
+      console.warn('[knowledge-gate] confidence 响应缺少 coverage 与 confidence 字段，跳过注入');
     }
 
     if (contextParts.length > 0) {

@@ -229,7 +229,34 @@ class CuriosityDecomposer:
             if r and r.get("verified", False):
                 valid.append(r)
         
+        # 批1（v0.3.6）: 落库 provider 一致性（死管道复活）
+        self._persist_provider_agreement(results)
+        
         return valid
+    
+    def _persist_provider_agreement(self, results: list) -> None:
+        """批1（v0.3.6）: 把 provider 验证结果落 ops.db.provider_agreement。
+        
+        之前 provider_results 只在内存用一次就丢（死管道）。此处落库后，
+        C1-B 冲突检测（批2）可直接消费。落库失败绝不影响分解主流程。
+        """
+        try:
+            from core.provider_agreement_store import record_agreement
+            # 参与查询的全部 provider 名（用于标记无结果的 provider）
+            queried = [p.name for p in self.providers.get_enabled()]
+            for r in results:
+                if isinstance(r, Exception) or not r:
+                    continue
+                cand = r.get("sub_topic") or r.get("candidate")
+                if not cand:
+                    continue
+                record_agreement(
+                    topic=cand,
+                    provider_results=r.get("provider_results", {}),
+                    providers_queried=queried,
+                )
+        except Exception as e:
+            logger.warning(f"[decomposer] provider_agreement persist failed: {e}")
     
     async def _verify_with_providers_relaxed(self, candidates: list[str]) -> list[dict]:
         """Verify with relaxed threshold (1 provider or total >= 5)"""

@@ -744,6 +744,56 @@ Z 实施后 L3 = ✅ 闭合。L1（匹配策略）与 L2（字段选错）已在
 
 ---
 
+### 批0c — 附带发现：`knowledge-bootstrap` 端点 404（另立议题，2026-10-05 记录）
+
+**背景**：批0c 第二步（Z）实施时发现，`knowledge-bootstrap` Hook 与 `knowledge-gate`
+是**两个不同的 Hook**，走**不同的端点**，其端点已失效。
+
+| Hook | 事件 | 端点 | 实测 | 说明 |
+|------|------|------|------|------|
+| `knowledge-gate` | `before_agent_reply` | `POST /api/knowledge/check` | **200** ✅ | Z 的目标，正常 |
+| `knowledge-bootstrap` | `agent:bootstrap` | `GET /api/kg/overview` | **404** ❌ | 本议题 |
+
+**实测证据（2026-10-04，只读）**：
+
+```
+GET /api/kg/overview            → HTTP 404（curious_api.py 无此路由）
+GET /api/knowledge/session/startup → HTTP 200（返回拼好的 injection_content）
+```
+
+**影响**：`knowledge-bootstrap` Hook 每次会话启动都打 404，其 `catch` 块
+（`handler.ts` 末段 `console.error('[knowledge-bootstrap] KG fetch failed')`）
+会打日志但**不注入任何内容**——即会话级 CA 知识摘要注入**长期静默失效**。
+这与 Bug A（knowledge-gate 404 静默）是**同一类故障**：路由不存在 → 404 →
+被 catch 吞掉 → 功能看起来在、实际全断。
+
+**根因**：`09d6b37`（2026-04-17）删除路由时未同步此 Hook 的端点引用。
+
+**修法（候选，待评估）**：
+
+| 方案 | 做法 | 说明 |
+|------|------|------|
+| A | Hook 改打 `GET /api/knowledge/session/startup` | 该端点已存在，返回拼好的 `injection_content`，语义最贴（会话启动摘要） |
+| B | 恢复 `/api/kg/overview` 路由 | 与 0d「非恢复历史」原则可能冲突；需先确认 CA2.0 是否需要 overview 语义 |
+
+**倾向 A**：复用既有、语义对位的端点，避免又回到"用实现存活推断可恢复"的旧错。
+
+**附属问题（同一 Hook）**：
+1. `handler.ts` 调用 **`config.timeout_ms`**（L34 `AbortSignal.timeout(config.timeout_ms)`），
+   但 `DEFAULT_CONFIG`（L3-13）**无 `timeout_ms` 字段** → 仅当服务端 config 返回该键时才有效，
+   否则 `setTimeout(..., undefined)` → 立即触发（1.5s 默认失效）。**需补默认值**。
+2. Hook 事件名 `X-OpenClaw-Hook-Event: agent:bootstrap`，而 `HOOK.md` 声明事件为
+   `agent:bootstrap`——需确认事件名拼写在 OpenClaw 侧正确（否则 Handler 根本不触发）。
+
+**验收**：会话启动时 `knowledge-bootstrap` 不再 404；CA KG 摘要实际注入
+`bootstrapFiles`/`messages`（可通过注入日志验证）。
+
+> **⚠️ 纪律**：本议题**不与 Z 混**。Z 已按方案 A 落地（managed handler 更新，
+> 2026-10-05）；`knowledge-bootstrap` 的 404 修复**单独开 issue**，
+> 待 weNix 决策方案 A/B 后实施。
+
+---
+
 ## 八、待 weNix 决策项
 
 1. **批1 落库位置**：`ops.db.provider_agreement` 表（推荐）vs 保留 `provider_heatmap.json`？
