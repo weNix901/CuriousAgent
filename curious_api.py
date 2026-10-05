@@ -1656,6 +1656,20 @@ def api_knowledge_check():
             "source_count": res.get("source_count", 0),
         }
 
+        # 批4a (v0.3.6): C2 缺口订阅 —— C1 判 unknown/void 的话题落为缺口记录。
+        # 来源依据 CA2.0 §3.2：缺口一等公民来源 = C1 unknown/void（用户问了我没有）。
+        # 仅在此处（四态唯一出口）落库；失败绝不阻断查询（record_gap 内部已 try/except）。
+        try:
+            from core.api.gap_store import record_gap
+            record_gap(
+                topic=topic,
+                coverage=coverage,
+                quality=res.get("quality", 0.0) or 0.0,
+                source_count=res.get("source_count", 0) or 0,
+            )
+        except Exception:
+            pass
+
         return jsonify({"success": True, "result": result})
     except Exception as e:
         traceback.print_exc()
