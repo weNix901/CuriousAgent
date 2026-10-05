@@ -4,7 +4,7 @@
     "version": "v0.3.5",
     "created": "2026-10-01",
     "author": "R1D3-researcher",
-    "status": "PENDING WEINX REVIEW",
+    "status": "REVIEWED (weNix 2026-10-05, post-E1/E2)",
     "purpose": "Calibration + acceptance baseline for the four-state coverage resolver (known/partial/unknown/void).",
     "warning": "The 'expected' field is a SYSTEM-PROPOSED label reproduced from live KG signals, NOT an independent human annotation. It must be reviewed and corrected by weNix before it counts as a human baseline. Until reviewed, agreement computes self-consistency only.",
     "signals_source": "live handler check_confidence(topic), 2026-10-01",
@@ -12,8 +12,8 @@
     "theta2": 1,
     "human_review": {
       "reviewed_by": "weNix",
-      "reviewed_at": "2026-10-01T15:29:00+08:00",
-      "notes": "Reviewed 2026-10-01. Corrections: id8 LLM known->partial (q=4.5/src=1 too thin); id18 知识图谱 expected partial->unknown (matched 'Knowledge Distillation' is a WRONG match — semantic-near but different topic, quality/sources belong to that wrong node)."
+      "reviewed_at": "2026-10-05T20:54:00+08:00",
+      "notes": "Reviewed 2026-10-01 (id8 LLM known->partial; id18 知识图谱 partial->unknown). Re-reviewed 2026-10-05 after E1/E2 gates landed: id8 LLM expected corrected partial->unknown (TypeLLM match is a token-substring absorption, now rejected by E2 — system has no usable LLM node). id8/id18 input signals refreshed to post-fix live values (sim=0/q=0/matched=None) so calibration measures the CURRENT pipeline, not pre-fix ghost-node signals."
     }
   },
   "questions": [
@@ -24,7 +24,7 @@
     {"id": 5,  "topic": "Reranker",              "similarity": 0.753, "quality": 9.0, "source_count": 4, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "Reranker 模型在 RAG 中的作用"},
     {"id": 6,  "topic": "知识蒸馏",                "similarity": 0.760, "quality": 8.0, "source_count": 0, "explore_failed": false, "system_coverage": "partial", "expected": "partial", "matched_topic": "Knowledge Distillation"},
     {"id": 7,  "topic": "注意力机制",              "similarity": 0.000, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "unknown", "expected": "unknown", "matched_topic": null},
-    {"id": 8,  "topic": "LLM",                   "similarity": 0.752, "quality": 4.5, "source_count": 1, "explore_failed": false, "system_coverage": "known",   "expected": "partial", "matched_topic": "TypeLLM/TypeLLM", "review_note": "weNix 2026-10-01: corrected known->partial (q=4.5/src=1 too thin; only just crossed theta)"},
+    {"id": 8,  "topic": "LLM",                   "similarity": 0.000, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "unknown", "expected": "unknown", "matched_topic": null, "review_note": "weNix 2026-10-05: corrected partial->unknown. Original signal (sim=0.752/q=4.5/matched='TypeLLM/TypeLLM') was a token-substring absorption — 'LLM' swallowed by 'TypeLLM'. E2 consistency gate (v0.3.6) now rejects this match, so system correctly reports unknown (no usable node). Input signals updated to post-E1/E2 live values (sim=0/q=0/matched=None)."},
     {"id": 9,  "topic": "embedding",             "similarity": 0.750, "quality": 9.6, "source_count": 5, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "Sentence-BERT"},
     {"id": 10, "topic": "量子计算",                "similarity": 0.000, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "unknown", "expected": "unknown", "matched_topic": null},
     {"id": 11, "topic": "乱码xyz",                "similarity": 0.000, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "unknown", "expected": "unknown", "matched_topic": null},
@@ -34,7 +34,7 @@
     {"id": 15, "topic": "MCP",                   "similarity": 0.758, "quality": 8.0, "source_count": 5, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "Floot MCP"},
     {"id": 16, "topic": "Neo4j",                 "similarity": 0.000, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "unknown", "expected": "unknown", "matched_topic": null},
     {"id": 17, "topic": "语义搜索",                "similarity": 0.788, "quality": 7.0, "source_count": 6, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "en related research - 搜索"},
-    {"id": 18, "topic": "知识图谱",                "similarity": 0.786, "quality": 8.0, "source_count": 0, "explore_failed": false, "system_coverage": "partial", "expected": "unknown", "matched_topic": "Knowledge Distillation", "review_note": "weNix 2026-10-01: corrected partial->unknown. WRONG match — 'Knowledge Distillation' is semantic-near but a different topic; q=8.0/src=0 belong to that wrong node, not to 知识图谱. Exposes a retrieval-accuracy gap (see v0.3.6 plan)."},
+    {"id": 18, "topic": "知识图谱",                "similarity": 0.000, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "unknown", "expected": "unknown", "matched_topic": null, "review_note": "weNix 2026-10-01: corrected partial->unknown. WRONG match — 'Knowledge Distillation' is semantic-near but a different topic; q=8.0/src=0 belong to that wrong node, not to 知识图谱. 2026-10-05: E1 substance gate now rejects this ghost node; input signals updated to post-fix live values (sim=0/q=0/matched=None)."},
     {"id": 19, "topic": "prompt engineering",    "similarity": 0.796, "quality": 7.0, "source_count": 5, "explore_failed": false, "system_coverage": "known",   "expected": "known",   "matched_topic": "Prompt Engineering and LLMs with Langchain"},
     {"id": 20, "topic": "chain of thought",      "similarity": 0.000, "quality": 0.0, "source_count": 0, "explore_failed": false, "system_coverage": "unknown", "expected": "unknown", "matched_topic": null}
   ]
