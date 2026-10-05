@@ -50,6 +50,8 @@ from typing import Any, Dict, Optional
 
 TRUSTWORTHY = "trustworthy"
 EMPTY = "empty"
+CONSISTENT = "consistent"
+INCONSISTENT = "inconsistent"
 
 
 @dataclass
@@ -151,3 +153,129 @@ def check_match_substance(
         f"(quality={quality}, sources={src_count}) — not usable knowledge",
         signals,
     )
+
+
+# =============================================================================
+# E2 (批0 residuals, v0.3.6): topic consistency — token-substring absorption.
+# =============================================================================
+#
+# Distinct failure class from E1. E1 catches GHOST nodes (content empty).
+# E2 catches SUBSTANTIVE nodes that are matched to the WRONG topic because the
+# query token got absorbed into a longer unrelated token.
+#
+# Reproduced 2026-10-05:
+#     query "LLM"   → top-1 'TypeLLM/TypeLLM' (sim=0.7514, quality=4.5)
+#     query "知识图谱" → 'Knowledge Distillation' (E1 already handles this)
+#
+# Why E1 misses it: 'TypeLLM/TypeLLM' HAS content — it is not a ghost. The
+# problem is purely lexical/semantic: "LLM" is a proper substring of the
+# LONGER token "TypeLLM". A token-substring absorption is a strong signal that
+# the node is a DIFFERENT topic that merely happens to contain the query
+# string. Feeding its quality/sources into the four-state judge corrupts the
+# verdict (LLM judged `known`, truth is `partial`/`unknown`).
+#
+# Decisive discriminator (measured on the labelled set, 2026-10-05):
+#     absoption rules out  "LLM"→"TypeLLM"   (: absorbed, no shared token)
+#     preserves legitimate  "RAG"→"... (RAG) ..." (exact shared token)
+#                           "MCP"→"MCP (Model Context Protocol)"
+#                           "embedding"→"embedding"
+#
+# Design notes (why this rule, not a similarity threshold):
+#   * Raising the similarity threshold does NOT help: the bad match (0.7514)
+#     scores HIGHER than some legitimate legs (transformer→transformers).
+#   * Alias tables are language-specific and high-maintenance.
+#   * The substring test is PURE, symmetric, and needs no per-topic config.
+#
+# Conservative (same philosophy as E1): we only flag when the query's ENTIRE
+# token set is "explained" by absorption — i.e. no query token appears as an
+# independent token in the match AND at least one query token is a genuine
+# substring-extension of a longer matched token. A lone shared token, or any
+# exact token match, keeps the node legitimate.
+
+_CH_ALNUM = __import__("re").compile(r"[A-Za-z0-9]+|[\u4e00-\u9fff]+")
+
+
+def _tokens(text: str) -> set:
+    return set(_CH_ALNUM.findall((text or "").lower()))
+
+
+@dataclass
+class ConsistencyVerdict:
+    consistent: bool
+    verdict: str
+    reason: str
+    signals: dict = field(default_factory=dict)
+
+    def to_dict(self) -> dict:
+        return {
+            "consistency": self.verdict,
+            "consistency_ok": self.consistent,
+            "consistency_reason": self.reason,
+            "consistency_signals": self.signals,
+        }
+
+
+def check_topic_consistency(
+    query: str,
+    matched_topic: str,
+    min_absorb_len: int = 2,
+) -> ConsistencyVerdict:
+    """E2: does the matched topic actually CONTAIN the query as a token?
+
+    Flags token-substring absorption ("LLM" absorbed into "TypeLLM").
+
+    Rules (all must hold to flag INCONSISTENT):
+        1. No exact shared token between query and matched topic.
+        2. At least one query token is a PROPER substring of a matched token,
+           with length difference >= min_absorb_len (default 2). This avoids
+           flagging benign truncations (singular/plural: "transformer" vs
+           "transformers" differ by 1).
+        3. Every query token is accounted for by absorption (the query is
+           fully "eaten", not merely partially overlapping).
+
+    Never raises. Empty inputs → consistent (cannot judge → pass through).
+    """
+    q = (query or "").strip()
+    m = (matched_topic or "").strip()
+    if not q or not m:
+        return ConsistencyVerdict(
+            True, CONSISTENT, "empty query or match — consistency not assessable")
+
+    qt = _tokens(q)
+    mt = _tokens(m)
+    if not qt or not mt:
+        return ConsistencyVerdict(
+            True, CONSISTENT, "no comparable tokens",
+            {"query_tokens": sorted(qt), "matched_tokens": sorted(mt)})
+
+    shared = qt & mt
+    if shared:
+        return ConsistencyVerdict(
+            True, CONSISTENT,
+            f"query token(s) present verbatim in match: {sorted(shared)}",
+            {"query_tokens": sorted(qt), "matched_tokens": sorted(mt),
+             "shared": sorted(shared)})
+
+    # No exact overlap — look for absorption: query token ⊂ longer matched token.
+    absorbed = []
+    for a in qt:
+        for b in mt:
+            if a in b and len(b) - len(a) >= min_absorb_len:
+                absorbed.append((a, b))
+                break
+
+    if absorbed and len(absorbed) == len(qt):
+        # Every query token was swallowed by a longer unrelated token.
+        return ConsistencyVerdict(
+            False, INCONSISTENT,
+            f"token-substring absorption: {absorbed} — query {q!r} looks "
+            f"contained in {m!r} but shares no independent token",
+            {"query_tokens": sorted(qt), "matched_tokens": sorted(mt),
+             "absorbed": absorbed})
+
+    # Partial overlap / no absorption: not confident enough to reject.
+    return ConsistencyVerdict(
+        True, CONSISTENT,
+        "no decisive inconsistency signal",
+        {"query_tokens": sorted(qt), "matched_tokens": sorted(mt),
+         "absorbed": absorbed})
