@@ -1,6 +1,6 @@
 # Curious Agent
 
-[![Version](https://img.shields.io/badge/version-v0.3.5-blue)](https://github.com/weNix901/CuriousAgent)
+[![Version](https://img.shields.io/badge/version-v0.3.6-blue)](https://github.com/weNix901/CuriousAgent)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](#)
 [![Neo4j](https://img.shields.io/badge/neo4j-5.x-green)](#)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#)
@@ -41,6 +41,57 @@ PDF / 网页 / GitHub / 文档 / 博客 / 教程
          ↓
     知识变本事——好方法直接变成做事规则
 ```
+
+---
+
+## v0.3.6 核心能力
+
+### 🔗 冲突检测地基：provider 一致性落库（批1）
+
+**问题**：分解器的多 Provider 验证产出 `{provider: 结果数}`，但**只在内存用一次就丢**——
+`/api/providers/record` 端点存在却无调用方，`provider_heatmap.json` 从未生成。
+信号5（provider 一致性）是**死数据**。
+
+**修法**：验证结果落库 `ops.db.provider_agreement(topic, provider, result_count, agreed, ts)`。
+- 真值源 = SQLite（v0.3.4 数据治理），非文件副本
+- **幂等**：同 topic 重复写覆盖，不累积
+- 记录"未找到"的 provider（`agreed=0`）→ C1-B 冲突检测需要"谁没找到"
+- `get_agreement()` 直接输出 `disagreement` 布尔，供冲突检测消费
+
+```
+RAG      → {bocha:0, serper:5}  disagreement=True（分歧：一个找到一个没找到）
+Reranker → {bocha:0, serper:5}  disagreement=True
+```
+
+### 🚦 Hook 端到端：四态感知回路真正闭合（批0c）
+
+修好了 `knowledge-gate` Hook 的**三层断裂**（Bug A「看着修好了其实没生效」）：
+
+| 层 | 问题 | 修复 |
+|----|------|------|
+| L1 匹配策略 | 端点用精确匹配，`RAG` 查不到含 RAG 的节点 | `/api/knowledge/check` 内部改调语义 `check_confidence()` |
+| L2 字段选错 | 读恒为 0 的 `confidence` 字段 | 值改为有效置信度（经 quality 调制） |
+| L3 四态未接 | Hook 只读数值，不消费 `coverage` | Hook 以四态为主轴分派，`unknown`/`void` 不再静默 |
+
+**端到端验收矩阵（8 项全绿）**：
+
+| 查询 | 结果 |
+|------|------|
+| `RAG` | 🟢 known 0.700 |
+| `transformer attention` | 🟢 known 0.640 |
+| `agent 上下文管理` | 🟡 partial 0.175 |
+| `知识图谱` | 🟠 **unknown**（修复前静默） |
+| `不存在xyz` | 🟠 unknown |
+| CA 不可达 | ✅ 不 throw，仅日志（护栏不变式） |
+| 旧服务端（无 coverage） | ✅ 回落数值三分支，零回归 |
+
+### 🧱 四态输入净化
+
+| 批次 | 修复 |
+|------|------|
+| 批0 | E1 内容实质门——拒绝"幽灵节点"污染四态输入 |
+| 批0b | quality=0 节点不再伪装"有点知识"（θ₁ 修正） |
+| 批0d | 恢复 4 条 CA2.0 对位路由（dream_insights/frontier/calibration） |
 
 ---
 
@@ -285,6 +336,15 @@ curl "http://localhost:4848/api/kg/trace/LTKD"
 > v0.3.5 将原 `/api/kg/confidence/<topic>` 与 `/api/knowledge/confidence`
 > 两条重复路由合并为**单一路由**（核心逻辑本就相同，仅响应包装不同）。
 
+### v0.3.6 新增
+
+| Endpoint | 说明 |
+|----------|------|
+| `POST /api/knowledge/check` | 接四态 + Y 扩展契约（旧字段保留 + `coverage`/`matched_topic`/`similarity` 追加） |
+| `GET /api/kg/frontier` | 缺口前沿数据源（C2 上游） |
+| `GET /api/kg/calibration` | 自省质量（含 `no_data` 态） |
+| `GET /api/kg/dream_insights` | C3 回流 + F8-c 治理 |
+
 ### v0.3.4 新增
 
 | Endpoint | 说明 |
@@ -367,7 +427,8 @@ curious-agent/
 
 | Version | Theme | Highlights |
 |---------|-------|-----------|
-| **v0.3.5** | Coverage Verdict + Measurement Fix | 四态覆盖判定（known/partial/unknown/void）、θ 回测定标（20问100%）、短词检索修复、置信度公式去归零、单一路由合并；附带修复 Hook 静默 404 |
+| **v0.3.6** | Measurement Wire-up | provider 一致性落库（死管道复活）、Hook 三层断裂修复（端到端 8 项验收）、四态输入净化（E1 门 + 空节点保护）、恢复 4 条对位路由 |
+| v0.3.5 | Coverage Verdict + Measurement Fix | 四态覆盖判定（known/partial/unknown/void）、θ 回测定标（20问100%）、短词检索修复、置信度公式去归零、单一路由合并；附带修复 Hook 静默 404 |
 | v0.3.4 | Behavior Pipeline + Data Governance | 行为规则管道修复（质量分落库/类型截断/垃圾过滤）、数据源 13→4 统一、`state.json` 退场 |
 | v0.3.3 | DeepRead + Web Scrape | 滑动窗口100%覆盖、6-element结构、网页抓取管道、Settings UI |
 | v0.3.2 | Bootstrap Hook | Session startup API、行为规范统一 |
