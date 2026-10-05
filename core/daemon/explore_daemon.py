@@ -38,6 +38,10 @@ class ExploreDaemonConfig:
     # Max times an item may bounce to the back after empty-KG results before it
     # is purged (dead-lettered). Prevents poison items looping forever.
     max_requeue_before_purge: int = 5
+    # 批4c (v0.3.6): C2 gap→queue 自动入队。
+    gap_scan_enabled: bool = True
+    # 每轮 tick 最多入队的缺口数（限流，防一次灌爆）。
+    gap_scan_max_per_cycle: int = 2
 
 
 class ExploreDaemon(threading.Thread):
@@ -121,6 +125,8 @@ class ExploreDaemon(threading.Thread):
 
         if not pending_items:
             logger.debug("ExploreDaemon: queue empty, waiting...")
+            # 批4c: 队列空时，正好是自主缺口入队的时机（C2 自主行为）。
+            self._enqueue_gaps()
             await self._scan_orphan_nodes()
             return
         
@@ -236,6 +242,66 @@ class ExploreDaemon(threading.Thread):
     def _log_dead_letter(self, item_id: int, topic: str, reason: str):
         """Log dead letter for analysis (non-blocking)."""
         logger.warning(f"[DEAD_LETTER] item_id={item_id}, topic={topic}, reason={reason}")
+
+    def _enqueue_gaps(self):
+        """批4c (v0.3.6): C2 缺口→队列自动入队闭环。
+
+        链路（CA2.0 §3.2）：C1 unknown/void → 4a 落库 ops.db.gaps
+        → 4b gap_calculator 算分 → 高价值缺口 → add_curiosity(去重) → 入队
+        → mark_consumed（避免重复入队）。
+
+        限流：每轮最多 gap_scan_max_per_cycle 条（防一次灌爆）。
+        任何异常 → 静默返回（绝不打断现有探索主循环）。
+        """
+        if not getattr(self.config, "gap_scan_enabled", True):
+            return
+        try:
+            from core.api.gap_calculator import compute_from_store
+
+            max_per_cycle = getattr(self.config, "gap_scan_max_per_cycle", 2)
+            candidates = compute_from_store(only_unconsumed=True)
+            if not candidates:
+                return
+
+            from core import knowledge_graph_compat as kg_compat
+            qs = kg_compat._get_queue_storage()
+            enqueued = 0
+            for score in candidates:
+                if enqueued >= max_per_cycle:
+                    break
+                before = {i["topic"] for i in qs.get_pending_items()}
+                kg_compat.add_curiosity(
+                    topic=score.topic,
+                    reason=(f"C2 gap auto-queue: {score.status}, "
+                            f"value={score.value:.3f} ({score.reason})"),
+                    relevance=score.value * 10.0,
+                    depth=6.0,
+                )
+                after = {i["topic"] for i in qs.get_pending_items()}
+                if score.topic in (after - before):
+                    # 真入队了 → 标记已消费，避免下轮重复
+                    try:
+                        from core.api.gap_store import mark_consumed
+                        mark_consumed(score.topic)
+                    except Exception:
+                        pass
+                    enqueued += 1
+                    logger.info(
+                        f"[GapQueue] Enqueued gap '{score.topic}' "
+                        f"(value={score.value:.3f}, seen-driven)"
+                    )
+                else:
+                    # 去重跳过（已有同义待探索项）→ 仍标记消费，避免反复尝试
+                    try:
+                        from core.api.gap_store import mark_consumed
+                        mark_consumed(score.topic)
+                    except Exception:
+                        pass
+                    logger.debug(f"[GapQueue] Dedup-skipped gap: {score.topic}")
+            if enqueued:
+                logger.info(f"[GapQueue] cycle done: {enqueued} gap(s) auto-enqueued")
+        except Exception as e:
+            logger.debug(f"[GapQueue] gap auto-enqueue skipped: {e}")
 
     async def _scan_orphan_nodes(self):
         """Scan for high-quality isolated nodes and re-enqueue them."""
