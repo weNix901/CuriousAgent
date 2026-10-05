@@ -96,6 +96,39 @@ class KnowledgeConfidenceHandler:
                 "match_reason": substance.reason,
             }
 
+        # E2 (批0 residuals, v0.3.6): topic consistency. The E1 gate above only
+        # catches GHOST nodes (empty content). A node can carry substance and
+        # still be the WRONG topic — e.g. query "LLM" → 'TypeLLM/TypeLLM'
+        # (token-substring absorption). Trusting such a node feeds the wrong
+        # quality/sources into the four-state judge. Like E1, a failed check is
+        # treated exactly as "no usable match": downgrade to unknown/void.
+        from core.api.topic_consistency import check_topic_consistency
+        consistency = check_topic_consistency(topic, matched_topic)
+        if not consistency.consistent:
+            failed = self._topic_has_failed_exploration(topic)
+            logger.info(
+                "E2 consistency gate: rejecting matched node %r for query %r (%s)",
+                matched_topic, topic, consistency.reason,
+            )
+            return {
+                "confidence": 0.0,
+                "explore_count": 0,
+                "gaps": ["Matched node is a different topic (token absorption)"],
+                "level": "novice",
+                "topic": topic,
+                "coverage": "void" if failed else "unknown",
+                "coverage_reason": (
+                    "matched node is a different topic (token-substring absorption)"
+                    + ("; prior exploration failed" if failed else "")
+                ),
+                "source_count": 0,
+                "explore_failed": failed,
+                "rejected_match": matched_topic,
+                "rejected_similarity": similarity_score,
+                "match_verdict": consistency.verdict,
+                "match_reason": consistency.reason,
+            }
+
         # Confidence formula history (two fixes must coexist):
         #
         # C0-B (v0.3.5): old `similarity * (quality/10)` zeroed the whole score
