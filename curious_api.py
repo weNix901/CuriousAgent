@@ -897,6 +897,22 @@ def api_kg_confidence(topic):
         result = handler.check_confidence(topic)
 
         conf = result.get("confidence", 0.0)
+
+        # 批5 C3-C (v0.3.6): 检索命中追踪 —— 记录本次检索事实。
+        # 在四态出口落库（hook 走这条路由）。失败绝不阻断查询。
+        try:
+            from core.api.retrieval_store import record_retrieval
+            record_retrieval(
+                query_topic=topic,
+                coverage=result.get("coverage", "unknown"),
+                matched_topic=result.get("matched_topic"),
+                similarity=result.get("similarity", 0.0) or 0.0,
+                quality=result.get("quality", 0.0) or 0.0,
+                source_count=result.get("source_count", 0) or 0,
+            )
+        except Exception:
+            pass
+
         return jsonify({
             "status": "ok",
             "topic": topic,
@@ -1664,6 +1680,22 @@ def api_knowledge_check():
             record_gap(
                 topic=topic,
                 coverage=coverage,
+                quality=res.get("quality", 0.0) or 0.0,
+                source_count=res.get("source_count", 0) or 0,
+            )
+        except Exception:
+            pass
+
+        # 批5 C3-C (v0.3.6): 检索命中追踪 —— 记录 discovery 是否被检索/引用。
+        # CA2.0 §4.3「发现回流」第三环：文件被加载 + 检索命中日志。
+        # 与批4a 同出口落库（四态唯一出口）；失败绝不阻断查询。
+        try:
+            from core.api.retrieval_store import record_retrieval
+            record_retrieval(
+                query_topic=topic,
+                coverage=coverage,
+                matched_topic=res.get("matched_topic"),
+                similarity=res.get("similarity", 0.0) or 0.0,
                 quality=res.get("quality", 0.0) or 0.0,
                 source_count=res.get("source_count", 0) or 0,
             )
