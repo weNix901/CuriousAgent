@@ -1,0 +1,12 @@
+{
+  "id": "knowledge-inject",
+  "hooks": [
+    "knowledge-inject"
+  ],
+  "version": "1.0.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}
