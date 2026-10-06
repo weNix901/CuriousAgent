@@ -43,6 +43,30 @@ THRESHOLD_CEIL = 0.80
 SATURATION_FLOOR = 1
 SATURATION_CEIL = 10
 
+# =============================================================================
+# 批4b-2 动态阈值参数（队列健康度驱动）
+# =============================================================================
+#
+# 驱动力 = 队列健康度（外部可观测统计：pending 积压 + 近窗消费速率）。
+# 三条规则 + 滞回（hysteresis），防止阈值在边界上抖动（颤振）。
+#
+# 收紧（backlog 高 & 消费慢）→ 阈值升 → 只放行最高价值缺口（防止灌爆）
+# 放松（backlog 低）      → 阈值降 → 欢迎更多缺口
+# 常态                    → 保持默认
+
+# 队列健康度阈值（规则触发点）
+BACKLOG_HIGH = 100          # pending > 此值 视为积压
+CONSUME_LOW = 10            # 近1h done < 此值 视为消费滞缓
+BACKLOG_LOW = 20            # pending < 此值 视为空闲
+
+# 三档目标阈值
+THRESHOLD_TIGHT = 0.70      # 收紧档（积压+滞缓）
+THRESHOLD_NORMAL = DEFAULT_GAP_THRESHOLD   # 常态档 0.35
+THRESHOLD_LOOSE = 0.25      # 放松档（空闲）
+
+# 滞回带宽：状态切换需越过触发点 ± 此带宽，防止在边界反复横跳。
+HYSTERESIS_BAND = 0.05
+
 
 class GapConfig:
     """缺口计算参数（唯一真源）。
@@ -58,6 +82,7 @@ class GapConfig:
         self,
         relevance_saturation: int = RELEVANCE_SATURATION,
         gap_threshold: float = DEFAULT_GAP_THRESHOLD,
+        source: str = "static-default",
     ):
         # 上下限钳制：无论来源（默认/配置/动态），都不允许越界。
         self.relevance_saturation = max(
@@ -66,46 +91,160 @@ class GapConfig:
         self.gap_threshold = max(
             THRESHOLD_FLOOR, min(float(gap_threshold), THRESHOLD_CEIL)
         )
+        # 来源标注（排查用）：static-default / adaptive-driven / overrides
+        self.source = source
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "relevance_saturation": self.relevance_saturation,
             "gap_threshold": self.gap_threshold,
-            "source": "static-default",
+            "source": self.source,
         }
 
     @classmethod
-    def resolve(cls, overrides: Optional[Dict[str, Any]] = None) -> "GapConfig":
-        """解析配置。4b-2 的接入点。
+    def resolve(
+        cls,
+        overrides: Optional[Dict[str, Any]] = None,
+        dynamic: bool = True,
+        queue_stats: Optional[Dict[str, Any]] = None,
+        prev_threshold: Optional[float] = None,
+    ) -> "GapConfig":
+        """解析配置（4b-2 接入点）。
 
-        第一版：返回默认（可被 overrides 覆盖）。
-        4b-2：在此处接入 dynamic_threshold() / 外部统计，调用方不变。
+        优先级：显式 overrides > 动态阈值 > 静态默认。
+
+        Args:
+            overrides: 显式参数（最高优先级，不被动态覆盖）。
+            dynamic: True（默认）→ 尝试队列健康度驱动的动态阈值；
+                     False → 强制静态默认（向后兼容 / 测试可重现）。
+            queue_stats: 注入队列信号（测试用）；None → 实时拉取。
+            prev_threshold: 上一轮阈值（滞回用）。
         """
         o = overrides or {}
+        cfg: Dict[str, Any] = {}
+        if dynamic and "gap_threshold" not in o:
+            try:
+                cfg = dynamic_threshold(queue_stats=queue_stats, prev_threshold=prev_threshold)
+            except Exception:
+                cfg = {}
+        if "gap_threshold" in o:
+            source = "overrides"
+        else:
+            source = cfg.get("source", "static-default")
         return cls(
-            relevance_saturation=o.get("relevance_saturation", RELEVANCE_SATURATION),
-            gap_threshold=o.get("gap_threshold", DEFAULT_GAP_THRESHOLD),
+            relevance_saturation=o.get(
+                "relevance_saturation",
+                cfg.get("relevance_saturation", RELEVANCE_SATURATION),
+            ),
+            gap_threshold=o.get(
+                "gap_threshold",
+                cfg.get("gap_threshold", DEFAULT_GAP_THRESHOLD),
+            ),
+            source=source,
         )
 
 
-def dynamic_threshold() -> Dict[str, Any]:
-    """4b-2 占位：动态阈值骨架。
+def dynamic_threshold(
+    queue_stats: Optional[Dict[str, Any]] = None,
+    prev_threshold: Optional[float] = None,
+) -> Dict[str, Any]:
+    """4b-2：动态阈值 —— 队列健康度驱动的自适应入队闸门。
 
-    第一版【固定返回默认，行为零变化】。骨架存在是为了锁定接口契约：
-    4b-2 将填入"外部可观测统计驱动"的实现，并带滞回 + 硬上下限。
+    驱动力 = 队列健康度（外部可观测统计），绝不让 LLM 拍（C1 公理：
+    决策权归属外部测量，不归属被测对象）。
 
-    预期实现（见对话定稿）：
-        pending = queue.pending_count()
-        recent_done = queue.done_in_last(hours=1)
-        if pending > 100 and recent_done < 10:  → 收紧 (0.7)
-        elif pending < 20:                       → 放松 (0.25)
-        else:                                    → 常态 (0.35)
-    驱动力 = 队列健康度（外部信号），绝不让 LLM 拍。
+    三档规则（带滞回，防颤振）：
+        pending > BACKLOG_HIGH 且 recent_done < CONSUME_LOW
+                              → 收紧 THRESHOLD_TIGHT (0.70)
+        pending < BACKLOG_LOW → 放松 THRESHOLD_LOOSE (0.25)
+        其余                  → 常态 THRESHOLD_NORMAL (0.35)
+
+    滞回：给定 prev_threshold 时，仅在越过触发点 ± HYSTERESIS_BAND 才切换，
+    避免 pending 在 100 附近抖动导致阈值反复跳变。
+
+    Args:
+        queue_stats: {"pending": int, "recent_done": int}；None → 从 QueueStorage
+                     实时拉取（失败则回退静态默认，行为与 4b 一致）。
+        prev_threshold: 上一轮阈值（用于滞回）；None → 不做滞回（首轮/无状态）。
+
+    Returns:
+        {"relevance_saturation": int, "gap_threshold": float, "source": str}
     """
+    # 获取外部信号
+    pending: Optional[int] = None
+    recent_done: Optional[int] = None
+    if queue_stats is not None:
+        pending = queue_stats.get("pending")
+        recent_done = queue_stats.get("recent_done")
+    else:
+        try:
+            from core.tools.queue_tools import QueueStorage
+            qs = QueueStorage()
+            qs.initialize()
+            try:
+                pending = qs.pending_count()
+                recent_done = qs.done_in_last(hours=1.0)
+            finally:
+                qs.close()
+        except Exception:
+            pending = None
+            recent_done = None
+
+    # 信号不可得 → 回退静态默认（绝不因动态化故障改变既有行为）
+    if pending is None or recent_done is None:
+        return {
+            "relevance_saturation": RELEVANCE_SATURATION,
+            "gap_threshold": DEFAULT_GAP_THRESHOLD,
+            "source": "static-default (queue signal unavailable)",
+        }
+
+    pending = int(pending)
+    recent_done = int(recent_done)
+
+    # 滞回：用上一轮阈值判断当前处于哪个档，再决定是否切换
+    # prev=None 时直接按原始触发点判档
+    if prev_threshold is None:
+        if pending > BACKLOG_HIGH and recent_done < CONSUME_LOW:
+            target = THRESHOLD_TIGHT
+        elif pending < BACKLOG_LOW:
+            target = THRESHOLD_LOOSE
+        else:
+            target = THRESHOLD_NORMAL
+    else:
+        prev = float(prev_threshold)
+        # 判断是否已处于某档（含滞回带宽）
+        is_tight = prev >= THRESHOLD_TIGHT - HYSTERESIS_BAND
+        is_loose = prev <= THRESHOLD_LOOSE + HYSTERESIS_BAND
+
+        if is_tight:
+            # 解除收紧需 pending 回落到 BACKLOG_HIGH*(1-band) 以下
+            if pending < BACKLOG_HIGH * (1 - HYSTERESIS_BAND):
+                target = THRESHOLD_NORMAL
+            else:
+                target = THRESHOLD_TIGHT
+        elif is_loose:
+            # 解除放松需 pending 回升到 BACKLOG_LOW*(1+band) 以上
+            if pending > BACKLOG_LOW * (1 + HYSTERESIS_BAND):
+                target = THRESHOLD_NORMAL
+            else:
+                target = THRESHOLD_LOOSE
+        else:
+            # 常态：按原始触发点判档
+            if pending > BACKLOG_HIGH and recent_done < CONSUME_LOW:
+                target = THRESHOLD_TIGHT
+            elif pending < BACKLOG_LOW:
+                target = THRESHOLD_LOOSE
+            else:
+                target = THRESHOLD_NORMAL
+
+    # 硬上下限钳制（无论来源）
+    target = max(THRESHOLD_FLOOR, min(float(target), THRESHOLD_CEIL))
+
     return {
         "relevance_saturation": RELEVANCE_SATURATION,
-        "gap_threshold": DEFAULT_GAP_THRESHOLD,
-        "source": "static-default (4b-2 will enable adaptive)",
+        "gap_threshold": round(target, 4),
+        "source": (f"adaptive-driven (pending={pending}, "
+                   f"recent_done={recent_done})"),
     }
 
 
