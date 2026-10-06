@@ -23,6 +23,8 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+# ops.db 单一真源 = <project_root>/knowledge/ops.db。
+# 本文件在 core/ 下，上溯一级到项目根（原本已正确，加注释防回退）。
 _DEFAULT_DB = os.path.join(os.path.dirname(os.path.dirname(__file__)), "knowledge", "ops.db")
 
 _SCHEMA = """

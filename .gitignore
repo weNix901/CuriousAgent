@@ -84,3 +84,4 @@ config.json.bak*
 *.py.bak*
 papers/
 test_fix.py
+backups/
