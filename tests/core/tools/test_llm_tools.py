@@ -79,8 +79,12 @@ class TestLLMAnalyzeTool:
             assert isinstance(result, str)
 
     @pytest.mark.asyncio
-    async def test_analyze_uses_volcengine_provider(self):
-        """Test llm_analyze uses volcengine as primary provider."""
+    async def test_analyze_uses_primary_provider(self):
+        """Test llm_analyze uses the primary provider (deepseek) first.
+
+        注：原有断言写死 volcengine；后 provider 顺序调整为
+        [deepseek, volcengine, minimax]，测试对齐当前正确行为。
+        """
         tool = LLMAnalyzeTool()
         mock_response = '{"key_points": [], "insights": [], "confidence": 0.5}'
         
@@ -89,20 +93,20 @@ class TestLLMAnalyzeTool:
             await tool.execute(content="Test")
             
             call_args = mock_call.call_args
-            assert call_args[1]["provider"] == "volcengine"
+            assert call_args[1]["provider"] == "deepseek"
 
     @pytest.mark.asyncio
-    async def test_analyze_fallback_to_minimax(self):
-        """Test llm_analyze falls back to minimax on volcengine failure."""
+    async def test_analyze_fallback_chain(self):
+        """Test llm_analyze falls back to next provider on failure."""
         tool = LLMAnalyzeTool()
         mock_response = '{"key_points": [], "insights": [], "confidence": 0.5}'
         
         with patch.object(tool, '_call_llm', new_callable=AsyncMock) as mock_call:
-            mock_call.side_effect = [Exception("volcengine failed"), mock_response]
+            mock_call.side_effect = [Exception("deepseek failed"), mock_response]
             result = await tool.execute(content="Test")
             
             assert mock_call.call_count == 2
-            assert "minimax" in mock_call.call_args_list[1][1]["provider"]
+            assert "volcengine" in mock_call.call_args_list[1][1]["provider"]
 
 
 class TestLLMKnowledgeExtractTool:
@@ -154,7 +158,8 @@ class TestLLMKnowledgeExtractTool:
             assert isinstance(result, str)
 
     @pytest.mark.asyncio
-    async def test_extract_uses_volcengine_provider(self):
+    async def test_extract_uses_primary_provider(self):
+        """Test llm_extract_knowledge uses primary provider (deepseek) first."""
         tool = LLMKnowledgeExtractTool()
         mock_response = '{"topic": "Test", "content": {"definition": "Test"}}'
         
@@ -163,45 +168,50 @@ class TestLLMKnowledgeExtractTool:
             await tool.execute(content="Test", topic="Test")
             
             call_args = mock_call.call_args
-            assert call_args[1]["provider"] == "volcengine"
-            assert "minimax" in mock_call.call_args_list[1][1]["provider"]
+            # _call_extraction(content, topic, source_url, provider) —— 位置参数
+            assert call_args[0][3] == "deepseek"
 
 
 class TestLLMToolsIntegration:
-    """Integration tests for LLM tools."""
+    """Integration tests for LLM tools.
+
+    注：原测试引用 LLMSummarizeTool，但该工具从未在 core/tools/llm_tools.py 中
+    存在（仅 Analyze/CandidateIdentify/KnowledgeExtract）。已改为用实际存在的
+    两个工具验证共享 LLM client 基础设施。
+    """
 
     @pytest.mark.asyncio
     async def test_both_tools_use_same_llm_client_infrastructure(self):
         """Test both tools use the same LLM client infrastructure."""
         analyze_tool = LLMAnalyzeTool()
-        summarize_tool = LLMSummarizeTool()
+        extract_tool = LLMKnowledgeExtractTool()
         mock_response = '{"result": "test"}'
         
         with patch.object(analyze_tool, '_call_llm', new_callable=AsyncMock) as mock_analyze:
-            with patch.object(summarize_tool, '_call_llm', new_callable=AsyncMock) as mock_summarize:
+            with patch.object(extract_tool, '_call_extraction', new_callable=AsyncMock) as mock_extract:
                 mock_analyze.return_value = mock_response
-                mock_summarize.return_value = mock_response
+                mock_extract.return_value = mock_response
                 
                 await analyze_tool.execute(content="Test")
-                await summarize_tool.execute(content="Test")
+                await extract_tool.execute(content="Test", topic="Test")
                 
                 assert mock_analyze.called
-                assert mock_summarize.called
+                assert mock_extract.called
 
     @pytest.mark.asyncio
     async def test_tools_handle_empty_content(self):
         """Test tools handle empty content gracefully."""
         analyze_tool = LLMAnalyzeTool()
-        summarize_tool = LLMSummarizeTool()
+        extract_tool = LLMKnowledgeExtractTool()
         mock_response = '{"error": "empty content", "key_points": [], "insights": []}'
         
         with patch.object(analyze_tool, '_call_llm', new_callable=AsyncMock) as mock_analyze:
-            with patch.object(summarize_tool, '_call_llm', new_callable=AsyncMock) as mock_summarize:
+            with patch.object(extract_tool, '_call_extraction', new_callable=AsyncMock) as mock_extract:
                 mock_analyze.return_value = mock_response
-                mock_summarize.return_value = mock_response
+                mock_extract.return_value = mock_response
                 
                 analyze_result = await analyze_tool.execute(content="")
-                summarize_result = await summarize_tool.execute(content="")
+                extract_result = await extract_tool.execute(content="", topic="")
                 
                 assert isinstance(analyze_result, str)
-                assert isinstance(summarize_result, str)
+                assert isinstance(extract_result, str)

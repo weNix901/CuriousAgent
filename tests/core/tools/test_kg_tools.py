@@ -54,6 +54,51 @@ class MockKGRepository:
         }
         self._nodes[topic] = node
         return topic
+
+    async def create_knowledge_node(
+        self,
+        topic,
+        content="",
+        source_urls=None,
+        relations=None,
+        metadata=None,
+        key_points=None,
+        keywords=None,
+    ):
+        """Create a knowledge node (对齐真实 KGRepository 签名)."""
+        self._nodes[topic] = {
+            "topic": topic,
+            "content": content,
+            "source_urls": source_urls or [],
+            "relations": relations or [],
+            "metadata": metadata or {},
+            "key_points": key_points or [],
+            "keywords": keywords or [],
+        }
+        return topic
+
+    async def add_relation(self, from_topic, to_topic, relation_type="RELATED"):
+        """Add a relation (对齐真实 KGRepository)。"""
+        self._relations.append({
+            "topic": from_topic,
+            "related_topic": to_topic,
+            "type": relation_type,
+        })
+        return True
+
+    async def update_metadata(self, topic, heat=None, quality=None, confidence=None, depth=None):
+        """Update node metadata (对齐真实 KGRepository 签名)。"""
+        if topic not in self._nodes:
+            return False
+        if heat is not None:
+            self._nodes[topic]["heat"] = heat
+        if quality is not None:
+            self._nodes[topic]["quality"] = quality
+        if confidence is not None:
+            self._nodes[topic]["confidence"] = confidence
+        if depth is not None:
+            self._nodes[topic]["depth"] = depth
+        return True
     
     async def update_kg_status(self, topic, status):
         """Update node status."""
