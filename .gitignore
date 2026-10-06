@@ -71,6 +71,11 @@ RELEASE_NOTE_v0.3.*
 HEARTBEAT.md
 knowledge/audit.db
 
+# 运行时数据库 / 临时备份（2026-10-06）
+core/knowledge/ops.db
+core/knowledge/*.db
+*.bak.*
+
 # Phase 1 数据治理（2026-10-01）— 回滚/归档，不推送
 .trash_phase1_*/
 archives/

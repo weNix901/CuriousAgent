@@ -1,0 +1,12 @@
+{
+  "id": "knowledge-gate",
+  "hooks": [
+    "knowledge-gate"
+  ],
+  "version": "1.0.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}
