@@ -35,7 +35,8 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_DB = os.path.join(os.path.dirname(os.path.dirname(__file__)), "knowledge", "ops.db")
+# ops.db 单一真源 = <project_root>/knowledge/ops.db（本文件在 core/api/，上溯三级）。
+_DEFAULT_DB = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "knowledge", "ops.db")
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS retrieval_events (

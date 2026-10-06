@@ -27,7 +27,11 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_DB = os.path.join(os.path.dirname(os.path.dirname(__file__)), "knowledge", "ops.db")
+# ops.db 单一真源 = <project_root>/knowledge/ops.db。
+# 本文件位于 core/api/，需上溯三级到项目根后再进 knowledge/。
+# （历史 bug：曾用 dirname(dirname(...)) = core/，导致落到 core/knowledge/ops.db，
+#   与 knowledge/ops.db 分裂。2026-10-07 合并修复。）
+_DEFAULT_DB = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "knowledge", "ops.db")
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS gaps (
