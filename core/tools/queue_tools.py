@@ -394,6 +394,45 @@ class QueueStorage:
         stats["total"] = sum(stats["by_status"].values())
         return stats
 
+    # ------------------------------------------------------------------
+    # 批4b-2 (v0.3.6): 队列健康度信号（外部可观测统计）
+    # 供 gap_calculator.dynamic_threshold() 消费，驱动动态阈值。
+    # 纪律：绝不抛异常（返回安全默认），不得打断调用方主路径。
+    # ------------------------------------------------------------------
+    def pending_count(self) -> int:
+        """当前 pending 条目数（积压程度）。失败 → 0。"""
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT COUNT(*) FROM queue WHERE status = 'pending'"
+            )
+            row = cursor.fetchone()
+            return int(row[0]) if row else 0
+        except Exception as e:
+            logger.warning(f"[queue] pending_count failed: {e}")
+            return 0
+
+    def done_in_last(self, hours: float = 1.0) -> int:
+        """最近 hours 小时内完成的条目数（消费速率代理）。失败 → 0。
+
+        completed_at 存的是 epoch 秒（strftime('%s','now') / time.time() 口径）。
+        """
+        try:
+            cutoff = time.time() - float(hours) * 3600.0
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT COUNT(*) FROM queue "
+                "WHERE status = 'done' AND completed_at >= ?",
+                (cutoff,),
+            )
+            row = cursor.fetchone()
+            return int(row[0]) if row else 0
+        except Exception as e:
+            logger.warning(f"[queue] done_in_last failed: {e}")
+            return 0
+
     def close(self) -> None:
         if self._connection:
             self._connection.close()
