@@ -26,10 +26,7 @@ from core.agents.explore_agent import ExploreAgent, ExploreAgentConfig
 from core.tools.registry import ToolRegistry
 from core.trace.explorer_trace import TraceWriter
 from core.reasoning_compressor import ReasoningCompressor, CompressionLevel
-from core.curiosity_decomposer import CuriosityDecomposer
 from core.quality_v2 import QualityV2Assessor
-from core.provider_registry import init_default_providers
-from core.exceptions import ClarificationNeeded
 
 
 VALID_DEPTHS = {"shallow", "medium", "deep"}
@@ -75,13 +72,8 @@ def run_one_cycle(depth: str = "medium") -> dict:
     
     llm_manager = LLMManager.get_instance(llm_config)
     
-    registry = init_default_providers()
-    state = kg.get_state()
-    decomposer = CuriosityDecomposer(
-        llm_client=llm_manager,
-        provider_registry=registry,
-        kg=state
-    )
+    # [deprecated 2026-10-07] CuriosityDecomposer 已废弃（语义拆解链路，
+    # 生产由 ExploreAgent(ReAct) 取代）。实例化与相关 registry/state 读取一并移除。
     
     # Initialize monitor early for potential parent exploration (Bug #26)
     monitor = MetaCognitiveMonitor(llm_client=llm_manager)

@@ -4,8 +4,9 @@ Answers "do the sources agree?" as an EXTERNAL measurement over provider
 agreement signals — same axiom as C1-A (decision authority belongs to external
 measurement, not to introspection). Never asks the LLM.
 
-Input: provider agreement for a topic (from ops.db.provider_agreement, wired by
-批1 via core.provider_agreement_store).
+Input: provider agreement for a topic.
+[deprecated 2026-10-07] upstream生产者 CuriosityDecomposer 已废弃，
+当前无活跃数据源，resolve_conflict_for_topic() 恒返回 none。
 
 Verdict (per CA2.0 plan §批2):
 
@@ -139,21 +140,20 @@ def _spread(counts: Dict[str, int]) -> float:
 
 
 def resolve_conflict_for_topic(topic: str, threshold: float = DEFAULT_THRESHOLD) -> ConflictVerdict:
-    """Convenience: pull agreement from ops.db and resolve. Not pure (reads db).
+    """Convenience: pull agreement and resolve. Not pure (reads db).
 
-    Failures degrade to a `none` verdict rather than raising — conflict signal is
-    an annotation; it must never break the caller (same discipline as 批1).
+    [deprecated 2026-10-07] Provider-agreement 数据源（CuriosityDecomposer ->
+    provider_agreement_store）已废弃：语义拆解链路被 ExploreAgent(ReAct) 取代，
+    provider_agreement 表不再有新写入，无生产数据源。
+
+    本函数保留纯 resolve_conflict() 的调用形态，但恒返回 `none` 判定，
+    以免消费者（gap_calculator 批2 conflict 负项）拿到陈旧的 4 条历史数据
+    当作有效信号。冲突信号是注解，绝不打断调用方。
+
+    TODO: 若将来 ExploreAgent 链路重新产出 provider 一致性信号，
+          在此恢复真实查询。
     """
-    try:
-        from core.provider_agreement_store import get_agreement
-        a = get_agreement(topic)
-        return resolve_conflict(
-            provider_results=a.get("providers", {}),
-            provider_count=a.get("provider_count", len(a.get("providers", {}))),
-            threshold=threshold,
-        )
-    except Exception as e:
-        return ConflictVerdict(
-            conflict="none",
-            reason=f"agreement lookup failed: {e}",
-        )
+    return ConflictVerdict(
+        conflict="none",
+        reason="provider-agreement source deprecated (2026-10-07): no active producer",
+    )
