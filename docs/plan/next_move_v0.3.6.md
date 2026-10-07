@@ -161,20 +161,62 @@ CA2.0 剩余三块：**C1-B（冲突检测）→ C2（缺口生成）→ C3（�
 
 ---
 
-## 四、执行批次
+## 四、执行批次（2026-10-07 状态刷新）
 
-| 批 | 任务 | 依赖 | 交付物 | 归属 |
-|---|------|------|--------|------|
-| **0** | **检索匹配正确性预检**（C0 残留） | 无 | 匹配门限/别名/主题一致性检查；防错节点污染四态输入 | CA |
-| **0b** | **confidence 空节点伪装修复**（R-v0.3.5-1） | 批0 | 公式边界修正；空节点不再伪装 known | CA |
-| **0c** | **C1-C Hook 端到端验证** | 批0 | 真实 agent 回复中验证四态注入生效 | R1D3 |
-| **0d** | **路由与 CA2.0 目标对齐**（非「恢复历史」） | 无 | 恢复 3 条对位路由（dream_insights×2/frontier/calibration）；删 2 条不对位测试（dormant/reactivate） | CA |
-| **1** | **接通 provider 一致性管道** | 无 | 分解器验证结果落 `ops.db`；死端点复活 | CA |
-| **2** | **C1-B 冲突检测** | 批1 | `conflict_resolver.py` + 四态输出加 `conflict` 字段 | CA |
-| **3** | **20 问标注集复核** | 无（并行） | weNix 修正 `expected`；θ/冲突阈值回测 | weNix+CA |
-| **4** | **C2 缺口自动生成**（2026-10-05 重审：来源=C1 unknown/void，非 frontier） | 批0c + 批2 | `ops.db.gaps` + `gap_calculator.py` + `gap→queue` 闭环 | CA |
-| **5** | **C3-C 命中追踪** | 批4 | 检索命中日志 + discovery 引用回填 | R1D3+CA |
-| **6** | **C3-D 反馈回好奇** | 批5 | 被引用发现 → 提升同类缺口优先级 | CA |
+| 批 | 任务 | 依赖 | 交付物 | 归属 | 状态 |
+|---|------|------|--------|------|------|
+| **0** | **检索匹配正确性预检**（C0 残留） | 无 | 匹配门限/别名/主题一致性检查；防错节点污染四态输入 | CA | ✅ |
+| **0b** | **confidence 空节点伪装修复**（R-v0.3.5-1） | 批0 | 公式边界修正；空节点不再伪装 known | CA | ✅ |
+| **0c** | **C1-C Hook 端到端验证** | 批0 | 真实 agent 回复中验证四态注入生效 | R1D3 | ✅ |
+| **0d** | **路由与 CA2.0 目标对齐**（非「恢复历史」） | 无 | 恢复 3 条对位路由（dream_insights×2/frontier/calibration）；删 2 条不对位测试（dormant/reactivate） | CA | ✅ |
+| **1** | **接通 provider 一致性管道** | 无 | 分解器验证结果落 `ops.db`；死端点复活 | CA | ⚠️ **作废 → 重做** |
+| **2** | **C1-B 冲突检测** | 批1 | `conflict_resolver.py` + 四态输出加 `conflict` 字段 | CA | ⚠️ **数据源失效** |
+| **3** | **20 问标注集复核** | 无（并行） | weNix 修正 `expected`；θ/冲突阈值回测 | weNix+CA | ✅（20/20）| 
+| **4** | **C2 缺口自动生成**（2026-10-05 重审：来源=C1 unknown/void，非 frontier） | 批0c + 批2 | `ops.db.gaps` + `gap_calculator.py` + `gap→queue` 闭环 | CA | ✅ |
+| **5** | **C3-C 命中追踪** | 批4 | 检索命中日志 + discovery 引用回填 | R1D3+CA | ✅ |
+| **6** | **C3-D 反馈回好奇** | 批5 | 被引用发现 → 提升同类缺口优先级 | CA | 🔄 实施中（方案已校正）|
+| **7** | **knowledge-bootstrap 404 修复** | 无 | 端点切换 + 迁入受控范围 | CA | ✅ |
+| **8** | **批1 重做：provider 一致性接入 ExploreAgent** | 批6 | 真实生产链路的 provider 一致性信号 | CA | ❌ 待做 |
+
+---
+
+### 4.1 2026-10-07 状态刷新说明
+
+本日对 v0.3.6 做了一次全面审计，发现 **批1/批2 的「✅」是虚假完成**：
+
+**批1/批2 建在已废弃链路之上（2026-10-07 确认）**
+
+- `CuriosityDecomposer` 语义拆解链路**从未接入生产**（生产探索由
+  v0.2.9 起的 `ExploreAgent` ReAct 承担）。
+- 该链路已于 2026-10-07 正式废弃（commit `ac70cc9`，迁 `legacy/`）。
+- 后果：批1 落的 `ops.db.provider_agreement` **无生产者**；批2 的
+  `conflict` 字段**恒为 `none`**（`resolve_conflict_for_topic()` 已显式降级）。
+- 因此批1 需**重做**（改为接入 ExploreAgent 链路 = 新增批8），批2 待批8
+  恢复数据源后再评估。
+
+**批6 方向校正（2026-10-07）**
+
+- 原实现方向偏差：纠结「哪个信号不重复计票」（工程细节），偏离 CA2.0
+  §4.3 的目的——**「探出的成果真正进入系统行为」**。
+- 校正后对齐 CA2.0 §4.3 原文反馈环：
+  `被检索的 discovery → 提高同类缺口优先级`。
+- 关键事实澄清：
+  - 「发现」真身 = **行为库条目**（`curious-agent-behaviors.md`，343 条），
+    非 KG 节点；`retrieval_events.matched_topic` 与行为库 topic **同命名空间**，
+    可直接对照。
+  - 「方向聚类」依据 = **Neo4j `IS_CHILD_OF`（34,124 条）**，非 SQLite 的
+    `parent_topic` 字段（后者仅 10 条 `DERIVED_FROM`，**查错对象**）。
+  - CA2.0 §十 指标「发现引用率 = 被检索/被引用的发现占比」现可计算：
+    `(被检索过的行为库条目数) / 343`。
+- 方案 A（纯 `resolved` 台账）经实测**不产生数值 diff**，不满足批6 验收；
+  改用**方向级反馈**（经 `IS_CHILD_OF` 找同方向 → 同方向仍缺的 topic 提权）。
+
+**测试基线（2026-10-07）**
+
+- 旧测试套件整体归档为 `legacy_tests_v026/`（commit `951e91a`）。
+- 归档时状态：`95 failed / 995 passed / 1106 collected`；失效根因见
+  `legacy_tests_v026/README.md`。
+- **不新建测试**，待 v0.3.6 收尾后重建干净基线（先隔离 fixture 再写用例）。
 
 ---
 
@@ -397,82 +439,163 @@ CA2.0 §3.2 数据流图**自己写明了**缺口的来源：
 
 ---
 
-### 批5 — C3-C 命中追踪
+### 批5 — C3-C 命中追踪 ✅（已完成，commit `4a96f2a`）
 
 行为库已接通（C3-B ✅），缺"命中追踪"。
 **动作**：记录 discovery 是否被 `memory_search` 检索/被 R1D3 输出引用。
 **证据**：检索命中日志（文件被加载 = extraPaths 配置 + 检索命中日志）。
 
+**实现**：`core/api/retrieval_store.py` 落 `ops.db.retrieval_events`
+（query_topic, matched_topic, similarity, coverage, quality, source_count, matched, created_at）。
+接在四态**两个真实出口**：
+- `curious_api.py:904` → `/api/kg/confidence`（hook 走这条）
+- `curious_api.py:1693` → `/api/knowledge/check`（skill 走这条）
+
 **验收**：从"某个缺口"到"某条 R1D3 输出变化"的文件级追溯链 ≥1 例。
+
+**实测证据（2026-10-07）**：`ops.db.retrieval_events` 已有 **56 条真实记录**。
+追溯链样例：`RAG` 查询 → 命中 `Retrieval-Augmented Generation (RAG) | Pinecone`
+（sim=0.756, known, matched=1）→ 落库可查。
+`FlashAttention` 轨迹 `unknown→unknown→unknown→known→known...`
+（缺口被探索后知识补上）—— 这正是批6 反馈环的原始输入。
 
 ---
 
-### 批6 — C3-D 反馈回好奇
+### 批6 — C3-D 反馈回好奇 🔄（实施中，方案已校正）
 
-**动作**：被引用/被检索的 discovery → 提升同类缺口优先级（反馈环闭合）。
+**CA2.0 §4.3 原文目标**：探出的成果真正进入系统行为。
 
-**验收**：至少 1 例 discovery 被引用后，其同类缺口优先级实际上升（可观测 diff）。
+**原文反馈环**：
+
+```
+缺口 ID
+   ├─► CA 探索 ──► discovery（topic, quality, sources）
+   ├─► 加工 ──────► 行为规则库
+   └─► 进入 context ─► R1D3 可检索 ──► 输出变化
+                        │
+                        ▼
+                    回填：该 discovery 被查询过 → 提高同类缺口优先级
+```
+
+**动作**：被引用/被检索的 discovery → 提升**同类（同方向）** 缺口优先级。
+
+#### 关键事实（2026-10-07 核实，校正前期误判）
+
+| 项 | 结论 | 证据 |
+|----|------|------|
+| 「发现」真身 | **行为库条目**，非 KG 节点 | `curious-agent-behaviors.md`，343 条 |
+| 命名空间 | 行为库 topic ≡ `retrieval_events.matched_topic` | 可直接对照（FlashAttention/知识图谱/never-worked…）|
+| 方向聚类依据 | **Neo4j `IS_CHILD_OF`（34,124 条）** | 非 SQLite `parent_topic` 字段（仅 10 条 DERIVED_FROM）|
+| 发现引用率（§十） | `被检索过的行为库条目 / 343` | — |
+
+> ⚠️ **前期误判记录**：曾查 SQLite `parent_topic`（仅 5 条）便断言"KG 是孤岛，
+> 方案 B 不可行"。**实际 Neo4j `IS_CHILD_OF` 有 34,124 条**，层级充分。
+> 教训：**拿一种关系的空缺冒充整张图的结论** = 未验证先下结论。
+
+> ℹ️ **方案 A 否决记录**：曾尝试"只用 `resolved` 状态、去掉频次加成"（方案 A）。
+> 实测 `boost` 恒 1.0 → **不产生任何数值 diff**，不满足验收。
+> 根因：A 只回答了"是否结案"，未回答"下一步该探什么"——偏离批6 目的。
+
+#### 实现方案（方向级反馈）
+
+```
+1. 从行为库提取发现集合（343 条 topic）
+2. 从 retrieval_events 找出被检索过的 topic（发现引用信号）→ 计算发现引用率
+3. 通过 IS_CHILD_OF 找同方向（同父/兄弟节点）
+4. 同方向仍缺的 topic → 提权 → 进入 C2 队列 → CA 探索
+5. 产出「发现引用率」指标（CA2.0 §十）
+```
+
+**纪律**：方向聚类必须走**外部可观测结构**（Neo4j 关系），不得 LLM 臆断
+（C1 公理：决策权归属外部测量）。失败静默，不破坏缺口计算主流程。
+
+**验收**（对齐 CA2.0 §十）：
+- 至少 1 例 discovery 被引用后，其**同类缺口优先级实际上升**（可观测 diff）
+- 产出「发现引用率」指标
 
 ---
 
 ## 六、验收标准（整体）
 
-| 项 | 标准 | 验证方式 |
-|----|------|---------|
-| 批0 | 检索匹配正确 | `知识图谱` 不再错匹配；真命中不受影响 |
-| 批0b | 空节点不伪装 | quality=0 节点不再得到 known 判定 |
-| 批0c | Hook 端到端生效 | 真实回复中四态上下文实际注入 |
-| 批0d | 路由与目标对齐 | 4 个对位测试转绿（dream_insights×2/frontier/calibration）；2 个不对位测试移除（dormant/reactivate） |
-| 批1 | provider 一致性落库 | `ops.db.provider_agreement` 有数据 |
-| 批2 | C1-B 冲突可判 | 构造样本 → `conflict != none` |
-| 批3 | 人工基准建立 | `human_review.reviewed_by` 非空 + agreement ≥ 70% |
-| 批4 | 缺口自动入队 | 队列自动出现 ≥1 条**来源为 C1 unknown** 的合理任务；低相关缺口不入队（乘法闸门生效） |
-| 批5 | 追溯链 | 缺口→输出变化 ≥1 例 |
-| 批6 | 反馈环 | 优先级上升 ≥1 例 |
+| 项 | 标准 | 验证方式 | 状态 |
+|----|------|---------|------|
+| 批0 | 检索匹配正确 | `知识图谱` 不再错匹配；真命中不受影响 | ✅ |
+| 批0b | 空节点不伪装 | quality=0 节点不再得到 known 判定 | ✅ |
+| 批0c | Hook 端到端生效 | 真实回复中四态上下文实际注入 | ✅ |
+| 批0d | 路由与目标对齐 | 4 个对位测试转绿（dream_insights×2/frontier/calibration）；2 个不对位测试移除（dormant/reactivate） | ✅ |
+| 批1 | provider 一致性落库 | ~~`ops.db.provider_agreement` 有数据~~ → **作废，见批8** | ⚠️ |
+| 批2 | C1-B 冲突可判 | ~~构造样本 → `conflict != none`~~ → **数据源失效，恒 none** | ⚠️ |
+| 批3 | 人工基准建立 | `human_review.reviewed_by` 非空 + agreement ≥ 70% | ✅ 20/20 |
+| 批4 | 缺口自动入队 | 队列自动出现 ≥1 条**来源为 C1 unknown** 的合理任务；低相关缺口不入队（乘法闸门生效） | ✅ |
+| 批5 | 追溯链 | 缺口→输出变化 ≥1 例（`retrieval_events` 56 条真实记录） | ✅ |
+| 批6 | 反馈环 | **同类缺口优先级上升 ≥1 例（可观测 diff）** + 产出发现引用率 | 🔄 |
+| 批7 | knowledge-bootstrap 不再 404 | 会话启动时 hook 打 `session/startup`（200）并注入内容 | ✅ |
+| 批8 | provider 一致性接入生产 | ExploreAgent 链路真实产出 provider 一致性信号 | ❌ |
 
 ---
 
 ## 七、风险登记
 
-| # | 风险 | 等级 | 缓解 |
-|---|------|------|------|
-| R0 | 检索语义错配污染四态输入（C0 残留） | 🔴 | 批0 预检；未修前所有长查询判定不可信 |
-| R1 | provider 一致性数据稀疏（分解不常跑） | 🟡 | 批1 落库后需跑一批 topic 才有样本 |
-| R2 | 冲突阈值无基准可定标 | 🔴 | 依赖批3 人工基准；无基准则阈值只能"观察" |
-| R3 | C2 相关性代理"读心"倾向 | 🟡 | 坚持外部可查信号，不做意图推断 |
-| R4 | confidence 空节点伪装（R-v0.3.5-1） | 🟡 | 观察项，本版不修 |
-| R5 | 20 问标注集不覆盖 void 态 | 🟡 | 批3 复核时补 void 样本（需 failed 记录） |
-| **R6** | **0d 误把 confidence 计入恢复 → 双注册 → CA 起不来 → R1D3 hook 全断** | 🔴 | 已在 §1.3.1 实测排除；编码前必须 `grep -c "api/kg/confidence" curious_api.py` 确认唯一 |
-| **R7** | **`tests` 包名冲突（dualLoopAgent 抢占）→ 基线无法收集** | 🔴 | 0d 前置修（见批0 前置节）；`pytest tests/ --co` 必须无 error |
-| **R8** | **calibration 空历史 Brier=0.0 被读成「完美校准」** | 🟡 | 恢复时新增 `no_data` verdict；无预测样本时不报 well_calibrated |
+| # | 风险 | 等级 | 缓解 | 状态 |
+|---|------|------|------|------|
+| R0 | 检索语义错配污染四态输入（C0 残留） | 🔴 | 批0 预检；未修前所有长查询判定不可信 | ✅ 已修 |
+| R1 | ~~provider 一致性数据稀疏（分解不常跑）~~ | — | **实为死链路**（decomposer 未接入生产）→ 转批8 | ⚠️ 重定义 |
+| R2 | ~~冲突阈值无基准可定标~~ | — | 数据源失效（conflict 恒 none）→ 待批8 恢复后重评 | ⚠️ 阻塞 |
+| R3 | C2 相关性代理"读心"倾向 | 🟡 | 坚持外部可查信号，不做意图推断 | 持续 |
+| R4 | confidence 空节点伪装（R-v0.3.5-1） | 🟡 | 观察项，本版不修 | 持续 |
+| R5 | 20 问标注集不覆盖 void 态 | 🟡 | 批3 复核时补 void 样本（需 failed 记录） | 持续 |
+| **R6** | **0d 误把 confidence 计入恢复 → 双注册 → CA 起不来 → R1D3 hook 全断** | 🔴 | 已在 §1.3.1 实测排除；编码前必须 `grep -c "api/kg/confidence" curious_api.py` 确认唯一 | ✅ 未发生 |
+| **R7** | **`tests` 包名冲突（dualLoopAgent 抢占）→ 基线无法收集** | — | 旧套件已整体归档（`951e91a`）；新基线重建时需重防 | ⚠️ 转移 |
+| **R8** | **calibration 空历史 Brier=0.0 被读成「完美校准」** | 🟡 | 恢复时新增 `no_data` verdict；无预测样本时不报 well_calibrated | 待处理 |
+| **R9** | **（2026-10-07 新增）批1/批2 建在已废弃链路 → 虚假完成** | 🔴 | 已识别；批1 重做为批8；批2 待数据源恢复 | ✅ 已识别 |
+| **R10** | **（2026-10-07 新增）hook 不在版本控制内 → 故障长期隐身** | 🔴 | knowledge-bootstrap 已迁 `plugins/` 受控（`0a28000`）；建议复查其余 internal hook | ✅ 已缓 |
+| **R11** | **（2026-10-07 新增）方向聚类查错关系类型 → 误判不可行** | 🟡 | 已校正：聚类依据 = Neo4j `IS_CHILD_OF`（34,124 条），非 SQLite `parent_topic`（10 条） | ✅ 已校正 |
 
 ---
 
-## 七之半、v0.3.6 测试基线（2026-10-02 重建）
+## 七之半、测试基线（**2026-10-07 整体归档，待重建**）
 
-### 基线建立命令（可复现）
+> ⚠️ **本节已作废。旧测试套件已整体归档为 `legacy_tests_v026/`**
+> （commit `951e91a`）。本节保留作历史记录，具体见 `legacy_tests_v026/README.md`。
 
-```bash
-cd /root/dev/curious-agent
-timeout 150 python3 -m pytest tests/api/ tests/test_api_v026.py -q -p no:cacheprovider
-```
+### 归档决策（2026-10-07）
 
-> 注：全量 `pytest tests/` 有 1017 条，单次运行 > 400s 被 SIGKILL；
-> 且收集期触发真实 DreamAgent（日志洪水）。**本期基线以「api 子集」为准**。
+**weNix 决策**：现有测试套件测的是已不存在的 API，误导成本 > 价值，
+不应在废墟上修。整体归档，待 v0.3.6 收尾后从零重建。
 
-### 当前基线（修订前，2026-10-02）
+**归档时状态**：`95 failed / 995 passed / 8 skipped / 2 xfailed / 1106 collected`
+
+**失效根因（三类）**：
+
+| # | 类别 | 占比 | 代表 |
+|---|------|------|------|
+| 1 | 测的 API 已被 v0.2.9 重构移除/改 stub | ~60-70% | `test_kg_schema_v026`（`connections` 字段已不存在；`strengthen_connection`/`mark_child_explored` 现为 `pass`）|
+| 2 | 测试未做环境隔离，读到生产数据 | 相当部分 | `test_list_pending_empty` 断言 0，实际读到 312 条 |
+| 3 | `e2e/` 疑似真问题 | 少数 | `cannot schedule new futures after shutdown` |
+
+### ⚠️ 关于「隐性规格」的重要澄清
+
+**不要把这些通过的断言当作规格参考。** 它们反映的是**旧版本的规格**，
+很可能在 v0.2.9 → v0.3.6 之间**已被有意改掉**。"通过"只代表"还没被删"，
+不代表"对"。快照的唯一价值是**考古**。
+
+### 新基线正确建法（v0.3.6 收尾后）
+
+1. **先建隔离 fixture**（每测试用 tmp_path 独立 DB；绝不碰生产 `ops.db` / Neo4j）
+2. 再写用例
+3. **只认 v0.3.6 spec / 设计文档**，不参照旧快照
+4. 全量跑完 < 30 秒
+
+> `pytest.ini` 的 `testpaths` 过渡期指向 `legacy_tests_v026`（仅为可显式运行），
+> 重建 `tests/` 后改回 `testpaths = tests`。
+
+### 历史记录：2026-10-02 基线（已作废）
 
 | 子集 | 结果 |
 |------|------|
-| `tests/api/` + `tests/test_api_v026.py` | **7 failed, 41 passed**（44.5s） |
-| `tests/` 全量收集 | **1017 collected, 2 errors**（无法完成全跑） |
-
-### 目标基线（v0.3.6 完成后）
-
-| 子集 | 目标 |
-|------|------|
-| `tests/api/` + `tests/test_api_v026.py` | **全绿**（删除 2 条不对位测试后，不再有绕过断言） |
-| `tests/` 全量收集 | **0 error**（修好 `tests` 包名冲突） |
+| `tests/api/` + `tests/test_api_v026.py` | 7 failed, 41 passed |
+| `tests/` 全量收集 | 1017 collected, 2 errors |
+| `tests/` 全量运行（2026-10-07 实测） | 95 failed, 995 passed, 1106 collected（~26 分钟）|
 
 ### 测试文件版本标注规范（本版开始强执行）
 
@@ -867,15 +990,31 @@ GET /api/knowledge/session/startup → HTTP 200（返回拼好的 injection_cont
 
 ---
 
-## 八、待 weNix 决策项
+## 八、待 weNix 决策项（2026-10-07 刷新）
 
-1. **批1 落库位置**：`ops.db.provider_agreement` 表（推荐）vs 保留 `provider_heatmap.json`？
-2. **批3 时序**：是否在批1 完成后立即复核标注集（解锁阈值定标）？
-3. **C2-B 显式需求目录**：`shared_knowledge/r1d3/learning_needs/` 由谁写？（R1D3 主动声明 vs 从对话推断）
-4. **批0c 第二步时序**：Hook 消费四态（TS 改动 + 重编译）本期做还是下期？
+### 已决
+
+| # | 事项 | 决议 | 日期 |
+|---|------|------|------|
+| 1 | 批1 落库位置 | `ops.db.provider_agreement` —— **但链路已废弃，需重做为批8** | 2026-10-07 |
+| 2 | 批3 时序 | 已完成（20/20） | — |
+| 4 | 批0c 第二步时序 | 已完成 | — |
+| 5 | 批6 信号选型 | ~~方案 A（纯 resolved）~~ → **否决**（无数值 diff）；改**方案 B 方向级反馈** | 2026-10-07 |
+| 6 | 测试套件处置 | **整体归档 + 收尾后重建**（不删）| 2026-10-07 |
+| 7 | knowledge-bootstrap | **修复 + 迁入 plugins/ 受控** | 2026-10-07 |
+| 8 | 批1 重做方式 | **方案 A：接入 ExploreAgent 链路** | 2026-10-07 |
+
+### 待决
+
+1. **C2-B 显式需求目录**：`shared_knowledge/r1d3/learning_needs/` 由谁写？
+   （R1D3 主动声明 vs 从对话推断）—— v0.3.6 批4 已暂缓此项，保持待决。
+2. **批8 设计细节**：ExploreAgent 是否真需要 provider 一致性信号？
+   若需要，接在哪一环（探索前验证 / 探索后比对）？—— 实施批8 前需定。
+3. **`package-lock.json` 策略**：`knowledge-gate` 跟踪、`bootstrap` 忽略，
+   两者不一致，是否对齐？—— 低优先。
 
 ---
 
-_本计划基于 2026-10-01 v0.3.5 实测数据写成。_
-_数据源：Neo4j（1429 节点）、queue.db（failed=17/pending=182）、_
-_coverage_labelled_20.json、provider_heatmap 死管道核查。_
+_本计划基于 2026-10-01 v0.3.5 实测数据写成，2026-10-07 全面刷新。_
+_数据源：Neo4j（3927 节点 / 34,124 `IS_CHILD_OF` + 1,924 `CITES`）、_
+_queue.db、coverage_labelled_20.json、`ops.db`（gaps / retrieval_events / provider_agreement）。_
