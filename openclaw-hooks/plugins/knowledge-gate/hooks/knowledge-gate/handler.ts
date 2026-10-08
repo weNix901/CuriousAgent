@@ -34,6 +34,32 @@ async function queryConfidence(topic: string): Promise<any> {
   }
 }
 
+// C3D-R2 (v0.3.6): 同方向已结案发现查询。
+// 重定向后的 C3-D：给定 topic → 返回同方向「已结案发现」→ 供 R1D3 消费提示。
+// 作用：**扩大消费面**（让已探出的成果真正被用），不再收窄探索面。
+async function queryRelatedDiscoveries(topic: string): Promise<any[]> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1000);
+
+    const response = await fetch(
+      `${CA_API}/api/kg/related_discoveries/${encodeURIComponent(topic)}?k=3`,
+      { headers: COMMON_HEADERS, signal: controller.signal }
+    );
+
+    clearTimeout(timeout);
+    if (!response.ok) {
+      console.error(`[knowledge-gate] related_discoveries HTTP ${response.status}`);
+      return [];
+    }
+    const data = await response.json();
+    return Array.isArray(data?.discoveries) ? data.discoveries : [];
+  } catch (err: any) {
+    console.error(`[knowledge-gate] related_discoveries failed: ${err?.message}`);
+    return [];
+  }
+}
+
 function extractTopic(context: any): string {
   const messages = context.messages || [];
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -53,6 +79,8 @@ export const beforeAgentReplyHook = async ({ context }: any) => {
     if (!topic) return;
 
     const confData = await queryConfidence(topic);
+    // C3D-R2 (v0.3.6): 并行拉取同方向已结案发现（消费提示）。
+    const discoveries = await queryRelatedDiscoveries(topic);
 
     const contextParts: string[] = [];
 
@@ -122,6 +150,20 @@ export const beforeAgentReplyHook = async ({ context }: any) => {
 
     if (contextParts.length > 0) {
       context.additionalContext = (context.additionalContext || '') + '\n\n' + contextParts.join('\n\n');
+    }
+
+    // C3D-R2 (v0.3.6): 同方向已结案发现 —— 消费提示。
+    // 目的：让 CA 探出的成果真正被用（**扩大消费面**）。
+    // 与四态注入分开：这是"可参考的相关知识"，不是"该 topic 的状态"。
+    if (discoveries.length > 0) {
+      const lines = discoveries
+        .map((d: any) => `- ${d.topic}（相似度 ${(d.similarity * 100).toFixed(0)}%）`)
+        .join('\n');
+      const relatedBlock =
+        `[相关发现 — 系统探过的同方向知识]\n` +
+        `以下是与当前话题同方向的、系统已探索并有质量的内容，可按需引用：\n${lines}`;
+      context.additionalContext =
+        (context.additionalContext || '') + '\n\n' + relatedBlock;
     }
   } catch (err: any) {
     // 绝不 throw — 但留日志（F3）
