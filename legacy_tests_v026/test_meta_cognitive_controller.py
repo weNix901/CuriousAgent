@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from unittest.mock import Mock
 from core.meta_cognitive_controller import MetaCognitiveController
 from core.meta_cognitive_monitor import MetaCognitiveMonitor
-from tests.test_utils import isolated_knowledge_graph, create_test_topic
+from legacy_tests_v026.test_utils import isolated_knowledge_graph, create_test_topic
 
 
 class TestMetaCognitiveControllerInit:

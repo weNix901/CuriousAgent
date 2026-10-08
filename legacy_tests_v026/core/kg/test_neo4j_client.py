@@ -124,6 +124,7 @@ class TestNeo4jClientQuery:
             mock_driver.return_value = mock_driver_instance
             
             await client.connect()
+            mock_session.execute_write.reset_mock()
             await client.execute_write("CREATE (n:Node {name: $name})", name="test")
             mock_session.execute_write.assert_called_once()
 

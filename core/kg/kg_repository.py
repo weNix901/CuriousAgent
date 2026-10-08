@@ -363,18 +363,19 @@ class KGRepository:
         to_topic: str,
         relation_type: str
     ) -> bool:
-        """Create a relation between two topics (MERGE for uniqueness)."""
+        """Create a relation between two topics (MERGE + unique key for dedup)."""
         query = f"""
         MATCH (a:Knowledge {{topic: $from_topic}})
         MATCH (b:Knowledge {{topic: $to_topic}})
-        MERGE (a)-[r:{relation_type}]->(b)
+        MERGE (a)-[r:{relation_type} {{key: $rel_key}}]->(b)
         RETURN true as success
         """
 
         result = await self._client.execute_write(
             query,
             from_topic=from_topic,
-            to_topic=to_topic
+            to_topic=to_topic,
+            rel_key=f"{from_topic}|{relation_type}|{to_topic}"
         )
         return result[0].get("success", False) if result else False
 
@@ -401,7 +402,7 @@ class KGRepository:
                 query = f"""
                 MATCH (a:Knowledge {{topic: $from_topic}})
                 MATCH (b:Knowledge {{topic: $to_topic}})
-                MERGE (a)-[r:{relation_type}]->(b)
+                MERGE (a)-[r:{relation_type} {{key: $rel_key}}]->(b)
                 RETURN true as success
                 """
             elif action == "remove":
@@ -417,7 +418,8 @@ class KGRepository:
             result = await self._client.execute_write(
                 query,
                 from_topic=from_topic,
-                to_topic=to_topic
+                to_topic=to_topic,
+                rel_key=f"{from_topic}|{relation_type}|{to_topic}"
             )
             return result[0].get("success", False) if result else False
         except Exception as e:

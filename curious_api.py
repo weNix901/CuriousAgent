@@ -2836,7 +2836,7 @@ def api_system_health():
             "queue": queue_stats,
             "kg": {
                 "total_nodes": len(topics),
-                "storage": "json",
+                "storage": "neo4j" if getattr(kg, "_neo4j_available", False) else "json",
             },
             "recent_errors": recent_errors,
         })
