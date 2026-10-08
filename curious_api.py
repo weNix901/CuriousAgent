@@ -648,14 +648,15 @@ def api_inject():
         # === Phase 2 结束 ===
 
         # === v0.2.9: 只写入 SQLite 队列（ExploreDaemon 专用）===
-        from core.tools.queue_tools import QueueStorage
-        qs = QueueStorage()
-        qs.initialize()
-        qs.add_item(topic=topic, priority=data.get("priority", 5), metadata={
-            "reason": str(data.get("reason", "Web UI 注入")),
-            "score": final_score,
-            "depth": depth
-        })
+        # C2b (2026-10-08): 唯一通路 —— 改走 kg.add_curiosity()（跨库去重）。
+        from core.knowledge_graph_compat import add_curiosity
+        add_curiosity(
+            topic=topic,
+            reason=str(data.get("reason", "Web UI 注入")),
+            relevance=float(data.get("priority", 5)) if isinstance(data.get("priority", 5), (int, float)) else 5.0,
+            depth=depth,
+            score=final_score,
+        )
         # === END ===
 
         # ===== T-9 集成点 开始 =====
@@ -2194,12 +2195,22 @@ def api_queue_add():
         
         if not topic:
             return jsonify({"error": "topic is required"}), 400
-            
-        queue = QueueStorage()
-        queue.initialize()
-        
-        item_id = queue.add_item(topic, priority=priority, metadata=metadata)
-        
+
+        # C2b (2026-10-08): 唯一通路 —— 改走 kg.add_curiosity()（跨库去重）。
+        from core.knowledge_graph_compat import add_curiosity
+        from core.tools.queue_tools import QueueStorage
+        before = {i["topic"] for i in QueueStorage().get_pending_items()}
+        add_curiosity(
+            topic=topic,
+            reason=str(metadata.get("reason", "API 注入")),
+            relevance=float(priority) if isinstance(priority, (int, float)) else 5.0,
+            depth=float(metadata.get("depth", 5.0) or 5.0),
+            **{k: v for k, v in (metadata or {}).items() if k not in ("reason", "depth")}
+        )
+        after = {i["topic"] for i in QueueStorage().get_pending_items()}
+        was_added = topic in (after - before)
+        item_id = 1 if was_added else -1
+
         return jsonify({
             "status": "ok",
             "item_id": item_id,
