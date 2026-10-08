@@ -1,8 +1,71 @@
-"""ExplorationHistory - Thread-safe recording of exploration events."""
+"""ExplorationHistory - Thread-safe recording of exploration events.
+
+SSOT-4 (v0.3.6, 2026-10-08): 载体从已退场的 state 骨架迁到 ops.db.runtime_kv。
+
+原实现读写 `state["exploration_history"]`，走 `_load_state()/_save_state()`。
+但 `_save_state()` 只写它白名单里的键（search_exhausted/root_pool/...），
+**`exploration_history` 不在白名单** → 写入被静默丢弃。
+即：`record_exploration()` 记的共现/预测**一直没落盘**（同 SSOT-1 的静默失效）。
+
+现改为直写 ops.db.runtime_kv（单一真源），key = 'exploration_history'。
+"""
+import json
+import os
+import sqlite3
 import threading
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 import core.knowledge_graph_compat as kg
+
+# ops.db 单一真源（与 knowledge_graph_compat 保持一致）。
+_OPS_DB = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "knowledge", "ops.db"
+)
+_RK_KEY = "exploration_history"
+
+
+def _rk_get() -> Optional[dict]:
+    """从 ops.db.runtime_kv 读 exploration_history。失败/不存在返回 None。"""
+    try:
+        conn = sqlite3.connect(_OPS_DB, timeout=10)
+        try:
+            row = conn.execute(
+                "SELECT value FROM runtime_kv WHERE key = ?", (_RK_KEY,)
+            ).fetchone()
+        finally:
+            conn.close()
+        if not row:
+            return None
+        try:
+            return json.loads(row[0])
+        except (json.JSONDecodeError, TypeError):
+            return None
+    except Exception:
+        return None
+
+
+def _rk_set(value: dict) -> bool:
+    """写 exploration_history 到 ops.db.runtime_kv（upsert）。返回是否成功。"""
+    try:
+        conn = sqlite3.connect(_OPS_DB, timeout=10)
+        try:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS runtime_kv ("
+                "key TEXT PRIMARY KEY, value TEXT NOT NULL, "
+                "updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')))"
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO runtime_kv(key,value,updated_at) "
+                "VALUES(?,?,?)",
+                (_RK_KEY, json.dumps(value, ensure_ascii=False),
+                 datetime.now(timezone.utc).isoformat()),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return True
+    except Exception:
+        return False
 
 
 class ExplorationHistory:
@@ -16,21 +79,29 @@ class ExplorationHistory:
         return cls._instance
     
     def _get_history(self) -> dict:
-        """Read exploration_history from state."""
-        state = kg._load_state()
-        if "exploration_history" not in state:
-            state["exploration_history"] = {
+        """Read exploration_history from ops.db.runtime_kv (SSOT-4)."""
+        history = _rk_get()
+        if not isinstance(history, dict):
+            history = {
                 "co_occurrence": {},
                 "insight_generation": {},
                 "predictions": {}
             }
-        return state["exploration_history"]
+        # 补全缺键（老数据可能只有部分字段）
+        for k, default in (("co_occurrence", {}),
+                           ("insight_generation", {}),
+                           ("predictions", {})):
+            history.setdefault(k, default)
+        return history
     
     def _save_history(self, history: dict):
-        """Save exploration_history to state."""
-        state = kg._load_state()
-        state["exploration_history"] = history
-        kg._save_state(state)
+        """Save exploration_history to ops.db.runtime_kv (SSOT-4)."""
+        if not _rk_set(history):
+            # 失败可见（SSOT-0 纪律），但不阻断调用方
+            import logging
+            logging.getLogger(__name__).warning(
+                "[exploration_history] _rk_set failed — history not persisted"
+            )
     
     def _make_co_occurrence_key(self, topic_a: str, topic_b: str) -> str:
         """Create a sorted key for co-occurrence to ensure consistency."""
