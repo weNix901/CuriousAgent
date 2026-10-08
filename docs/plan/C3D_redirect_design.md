@@ -166,6 +166,50 @@ CA 的探索应来自**系统觉得该知道什么**（主动）。
 | 3 | 消费面接口可用 | 给定 topic 能取到同方向已结案发现 |
 | 4 | 引用率口径修正 | v2 指标可计算，文档说明新旧差异 |
 | 5 | 公理一致 | C3-D 不再压制任何方向 |
+| 6 | **已接入 R1D3（2026-10-08）** | hook + skill 真实调用，2s 预算内返回 |
+
+---
+
+## 五之二、R1D3 接入（C3D-R2 落地，2026-10-08）
+
+重定向后必须接入，否则又是"建好没人用"（重演旧 C3-D 空转）。
+
+### 接入点（两个消费方，同一端点）
+
+| 消费方 | 文件 | 接入方式 |
+|--------|------|----------|
+| Hook | `openclaw-hooks/plugins/knowledge-gate/hooks/knowledge-gate/handler.ts` | `beforeAgentReplyHook` 并行查询，注入 `[相关发现]` 块 |
+| Skill | `~/.openclaw/skills/knowledge-query/scripts/query.py` | `query()` 附 `related_discoveries` 到输出 |
+
+### 新端点
+
+```
+GET /api/kg/related_discoveries/<topic>?k=3
+→ {"success": true, "topic": ..., "discoveries": [{topic, similarity}]}
+```
+
+### 性能约束与解法（关键）
+
+**问题**：端点首次实现耗时 **2.7s**（embedding 加载 806 节点 2.25s），
+超过 hook/skill 的 **2s 预算** → 消费方超时拿到空。
+
+**解法**：`feedback_store` 加进程内 **30s TTL 缓存**（resolved + 预归一化向量）：
+
+```
+首次（预热）: 2.80s
+缓存命中    : 0.048s   ← 后续请求
+```
+
+不引入新真源：缓存仅加速器，失效后重算（真源仍是 Neo4j）。
+
+### 实测验证
+
+```
+skill query.py "FlashAttention"
+→ discoveries: [FlashAttention-3(0.85), FlashAttention-2(0.84), FlashAttention-3(0.83)]
+```
+
+聚类精准：查 FlashAttention → 返回 FlashAttention-2/3 论文。
 
 ---
 
@@ -183,3 +227,4 @@ CA 的探索应来自**系统觉得该知道什么**（主动）。
 
 _本档基于 2026-10-08 全量代码核查 + 行为库实测写成。_
 _相关：`docs/plan/next_move_v0.3.6.md` 批6、`CA2.0_high_level_plan.md` §4.3/§1.3。_
+_更新 2026-10-08：C3D-R2 已接入 R1D3（hook + skill，含 30s 缓存）。_

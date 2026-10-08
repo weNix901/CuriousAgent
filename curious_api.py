@@ -1716,6 +1716,42 @@ def api_knowledge_check():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/kg/related_discoveries/<path:topic>", methods=["GET"])
+def api_kg_related_discoveries(topic):
+    """C3D-R2 (v0.3.6): 同方向已结案发现 —— 供 R1D3 消费提示。
+
+    重定向后的 C3-D 唯一作用：给定 topic → 返回同方向的「已结案发现」，
+    供 R1D3 回答时附上「我探过的相关内容」（**扩大消费面**），
+    而非旧的「被检索 → 缺口提权」（收窄探索面，因果反了）。
+
+    Query: ?k=5（可选，默认 3，上限 10）
+    Response:
+        {"success": true, "topic": ..., "discoveries": [{topic, similarity}]}
+    """
+    try:
+        from core.api.feedback_store import related_discoveries
+
+        topic = (topic or "").strip()
+        if not topic:
+            return jsonify({"error": "topic parameter is required"}), 400
+
+        try:
+            k = int(request.args.get("k", 3))
+        except (TypeError, ValueError):
+            k = 3
+        k = max(1, min(k, 10))
+
+        items = related_discoveries(topic, k=k)
+        return jsonify({
+            "success": True,
+            "topic": topic,
+            "discoveries": items,
+        })
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/knowledge/learn", methods=["POST"])
 def api_knowledge_learn():
     """Inject unknown topic to CA queue."""

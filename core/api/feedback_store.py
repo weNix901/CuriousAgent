@@ -302,6 +302,50 @@ def direction_neighbors(
 # 5. 反馈查找表（供 rank_gaps 消费）
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# 6. 短 TTL 缓存（C3D-R2 接入优化，2026-10-08）
+# ---------------------------------------------------------------------------
+#
+# 问题：related_discoveries 每次调用都要 _load_embeddings(806 节点)→2.25s，
+# 超过 hook/skill 的 2s 预算（实测端点 2.7s → 消费方超时拿到空）。
+#
+# 方案：进程内缓存「resolved 集合 + 其 embedding + 向量矩阵」，30s TTL。
+# 首个请求预热（可能略超 2s），后续请求命中缓存 <10ms。
+# 不引入新真源：缓存只是加速器，失效后重算（真源仍是 Neo4j）。
+_CACHE_TTL_S = 30.0
+_cache: Dict[str, Any] = {"ts": 0.0, "resolved": None, "embs": None, "vectors": None}
+
+
+def _get_cached_corpus() -> Dict[str, Any]:
+    """返回缓存的 {resolved, embs}；过期则重算。失败返回空缓存。"""
+    import time as _t
+    now = _t.time()
+    if _cache.get("resolved") is not None and (now - _cache["ts"]) < _CACHE_TTL_S:
+        return _cache
+    try:
+        resolved = resolved_topics()
+        embs = _load_embeddings(resolved) if resolved else {}
+        # 预归一化向量，避免每次查询重算 norm
+        vectors = {}
+        for t, v in embs.items():
+            if not v:
+                continue
+            n = math.sqrt(sum(x * x for x in v))
+            if n:
+                vectors[t] = [x / n for x in v]
+        _cache.update({"ts": now, "resolved": resolved, "embs": embs, "vectors": vectors})
+    except Exception as e:
+        logger.warning(f"[feedback] _get_cached_corpus failed: {e}")
+    return _cache
+
+
+def _cosine_norm(a_norm: List[float], b_norm: List[float]) -> float:
+    """两个已归一化向量的余弦 = 点积。"""
+    if not a_norm or not b_norm:
+        return 0.0
+    return sum(x * y for x, y in zip(a_norm, b_norm))
+
+
 def related_discoveries(
     topic: str,
     db_path: Optional[str] = None,
@@ -328,26 +372,40 @@ def related_discoveries(
         [{topic, similarity, direction_source?}]，按相似度降序。失败返回 []。
     """
     try:
-        resolved = resolved_topics(db_path)
-        if not resolved or not topic:
+        if not topic:
             return []
-        neighbors = direction_neighbors(
-            resolved={topic}, candidates=resolved, threshold=threshold, emb_fn=emb_fn
-        )
-        # neighbors = {topic: [同方向已结案发现...]}  —— 去掉自身
-        peers = [p for p in neighbors.get(topic, []) if p != topic]
-        if not peers:
-            return []
+        thr = DIRECTION_THRESHOLD if threshold is None else float(threshold)
 
-        # 算每个 peer 与 topic 的相似度（供排序）
-        loader = emb_fn or _load_embeddings
-        embs = loader({topic} | set(peers))
-        tv = embs.get(topic)
-        out: List[Dict[str, Any]] = []
-        for p in peers:
-            pv = embs.get(p)
-            sim = _cosine(tv, pv) if (tv and pv) else 0.0
-            out.append({"topic": p, "similarity": round(sim, 4)})
+        # 测试注入路径：显式 emb_fn 时不做缓存（保证单测可注入）
+        if emb_fn is not None:
+            resolved = resolved_topics(db_path)
+            neighbors = direction_neighbors({topic}, resolved, threshold, emb_fn)
+            peers = [p for p in neighbors.get(topic, []) if p != topic]
+            embs = emb_fn({topic} | set(peers))
+            tv = embs.get(topic)
+            out = [{"topic": p,
+                    "similarity": round(_cosine(tv, embs.get(p)), 4)}
+                   for p in peers]
+            out.sort(key=lambda x: -x["similarity"])
+            return out[: max(1, int(k))]
+
+        # 生产路径：走缓存语料（30s TTL）
+        corpus = _get_cached_corpus()
+        vectors = corpus.get("vectors") or {}
+        resolved = corpus.get("resolved") or set()
+        if not vectors or not resolved or topic not in vectors:
+            return []
+        tv = vectors[topic]
+        out = []
+        for p in resolved:
+            if p == topic:
+                continue
+            pv = vectors.get(p)
+            if not pv:
+                continue
+            sim = _cosine_norm(tv, pv)
+            if sim >= thr:
+                out.append({"topic": p, "similarity": round(sim, 4)})
         out.sort(key=lambda x: -x["similarity"])
         return out[: max(1, int(k))]
     except Exception as e:
