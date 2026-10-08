@@ -1752,6 +1752,39 @@ def api_kg_related_discoveries(topic):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/knowledge/learning_needs", methods=["GET", "POST"])
+def api_learning_needs():
+    """C2-B (v0.3.6): 显式学习需求 —— R1D3 主动声明。
+
+    决策（weNix 2026-10-08）：由 R1D3 写（用户只与 R1D3 交互）。
+    CA 侧只读，作为缺口相关性的第三信号（会话触发 / 共现 / 显式需求）。
+
+    GET  → 列出所有显式需求 {topic: priority}
+    POST {topic, priority?, reason?} → 写一条需求
+    """
+    try:
+        from core.api.learning_needs import explicit_topics, write_need
+
+        if request.method == "GET":
+            return jsonify({"success": True, "needs": explicit_topics()})
+
+        data = request.get_json(silent=True) or {}
+        topic = str(data.get("topic", "")).strip()
+        if not topic:
+            return jsonify({"error": "topic is required"}), 400
+        path = write_need(
+            topic=topic,
+            priority=str(data.get("priority", "normal")),
+            reason=str(data.get("reason", "")),
+        )
+        if not path:
+            return jsonify({"error": "write failed"}), 500
+        return jsonify({"success": True, "topic": topic, "path": path})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/knowledge/learn", methods=["POST"])
 def api_knowledge_learn():
     """Inject unknown topic to CA queue."""

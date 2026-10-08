@@ -309,19 +309,27 @@ def compute_gap_value(
     seen_count: int = 1,
     explore_failed: bool = False,
     relevance_saturation: int = None,
+    explicit_weight: float = 0.0,
 ) -> GapScore:
     """纯函数：缺口记录 → 价值评分。
 
     价值 = 覆盖度缺口 × 相关性   （可解性不进价值，仅随附用于排序）
     relevance_saturation 可注入（4b-2 动态化）；None → 模块默认。
 
-    NOTE (v0.3.6-C2): 调用方应传 real_seen（仅真实会话触发）。rank_gaps()
-    已自动优先取 real_seen；本纯函数保留 seen_count 语义供单测直调。
+    C2-B (2026-10-08)：相关性现在是两信号取**大值**：
+      会话触发（seen_count 归一化） vs 显式需求（explicit_weight）
+    理由：显式需求是 R1D3 主动声明（最强意图），会话触发是隐式频次；
+    取 max 而非相加，避免双重计票。
+
+    NOTE: 调用方应传 real_seen（仅真实会话触发）。rank_gaps() 自动处理。
+    所有信号都是**外部可查**的 —— 不读心（C1 公理）。
     """
     cg = _coverage_gap(quality, status)
-    rel = _relevance(seen_count, saturation=relevance_saturation)
+    rel_session = _relevance(seen_count, saturation=relevance_saturation)
+    rel = max(rel_session, float(explicit_weight or 0.0))
     sol = _solvability(explore_failed)
     value = cg * rel  # 可解性不进乘积（CA2.0 §4.2）
+    rel_src = ("explicit" if rel > rel_session else "seen")
     return GapScore(
         topic=topic,
         value=value,
@@ -330,7 +338,8 @@ def compute_gap_value(
         solvability=sol,
         status=status,
         reason=(f"coverage_gap={cg:.2f} × relevance={rel:.2f} "
-                f"(seen={seen_count}); solvability={sol:.2f} (sort-only)"),
+                f"({rel_src}; seen={seen_count}, explicit={explicit_weight:.2f}); "
+                f"solvability={sol:.2f} (sort-only)"),
     )
 
 
@@ -360,6 +369,27 @@ def rank_gaps(
     """
     cfg = config or GapConfig.resolve()
     thr = cfg.gap_threshold if threshold is None else threshold
+    # C2-B (2026-10-08): 读 R1D3 显式需求（learning_needs），作为相关性第三信号。
+    # 一次读入查表，避免逐 topic 重读目录。失败 → 空表（纪律）。
+    try:
+        from core.api.learning_needs import explicit_topics, PRIORITY_WEIGHT
+        _explicit = explicit_topics()
+    except Exception:
+        _explicit = {}
+        PRIORITY_WEIGHT = {"high": 1.0, "normal": 0.7, "low": 0.4}
+
+    def _explicit_w(topic: str) -> float:
+        if not _explicit:
+            return 0.0
+        if topic in _explicit:
+            return PRIORITY_WEIGHT.get(_explicit[topic], 0.7)
+        low = topic.lower()
+        for t, prio in _explicit.items():
+            tl = t.lower()
+            if tl and (tl in low or low in tl):
+                return PRIORITY_WEIGHT.get(prio, 0.7)
+        return 0.0
+
     scored: List[GapScore] = []
     for g in gaps or []:
         topic = g.get("topic")
@@ -377,6 +407,7 @@ def rank_gaps(
             seen_count=rel_source,
             explore_failed=bool(g.get("explore_failed", False)),
             relevance_saturation=cfg.relevance_saturation,
+            explicit_weight=_explicit_w(topic),
         )
         # 批4d：conflict 负项
         if conflict_lookup:
