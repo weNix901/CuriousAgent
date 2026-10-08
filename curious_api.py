@@ -1677,11 +1677,18 @@ def api_knowledge_check():
         # 仅在此处（四态唯一出口）落库；失败绝不阻断查询（record_gap 内部已 try/except）。
         try:
             from core.api.gap_store import record_gap
+            # v0.3.6-C2: 标注观测来源；只有 user/hook 计入 real_seen（相关性）。
+            # 请求可带 ?observed_by=test 或 body.observed_by 用于压测/复核打点。
+            _obs = (request.args.get("observed_by")
+                    if request and hasattr(request, "args") else None) or \
+                   (request.get_json(silent=True) or {}).get("observed_by") \
+                   if request and hasattr(request, "get_json") else None
             record_gap(
                 topic=topic,
                 coverage=coverage,
                 quality=res.get("quality", 0.0) or 0.0,
                 source_count=res.get("source_count", 0) or 0,
+                observed_by=(_obs or "hook"),
             )
         except Exception:
             pass
