@@ -1,10 +1,16 @@
 // 关系类型配置：颜色 + 样式
+//
+// v0.3.6 (2026-10-08): 与 KG 实际关系类型**完全对应**。
+// Neo4j 实际只有 4 种关系：IS_CHILD_OF / CITES / DERIVED_FROM / RELATED_TO。
+// 旧版把 IS_CHILD_OF（主关系，3381 条）错落入 _default_，导致 UI 无法区分层级关系。
+// key = 小写 rawType，便于动态匹配。
 var LINK_TYPE_CONFIG = {
-  // 内置类型
-  'decomposition': { color: '#58a6ff', width: 3, dash: '8,4', label: '分解关系', builtin: true },
-  'cites':         { color: '#3fb950', width: 4, dash: '0',   label: '论文引用', builtin: true },
-  'semantic':      { color: '#8b949e', width: 2, dash: '5,5', label: '语义相似', builtin: true },
-  // 其他类型的默认样式（按需动态扩展）
+  // —— 与 Neo4j 实际关系一一对应 ——
+  'is_child_of':   { color: '#58a6ff', width: 3, dash: '8,4', label: '层级关系 (IS_CHILD_OF)', builtin: true },
+  'cites':         { color: '#3fb950', width: 4, dash: '0',   label: '论文引用 (CITES)',        builtin: true },
+  'derived_from':  { color: '#d29922', width: 3, dash: '4,4', label: '派生关系 (DERIVED_FROM)', builtin: true },
+  'related_to':    { color: '#bc8cff', width: 2, dash: '5,5', label: '相关关系 (RELATED_TO)',  builtin: true },
+  // 其他未知类型的默认样式（按需动态扩展）
   '_default_':     { color: '#8b949e', width: 2, dash: '0',   label: '其他关系', builtin: false }
 };
 
@@ -47,11 +53,11 @@ function buildGraphData() {
   // v0.3.3: Use Neo4j edges from API (all relationship types)
   var kgEdges = state.kg_edges || [];
 
-  // 第一步：动态收集所有关系类型
+  // 第一步：动态收集所有关系类型（归一化为小写，与 LINK_TYPE_CONFIG 对齐）
   _g.linkTypes = {};
   kgEdges.forEach(function(e) {
     if (e.type && e.type !== 'DEPENDS_ON') {  // DEPENDS_ON 是内部关系，不显示
-      _g.linkTypes[e.type] = true;
+      _g.linkTypes[e.type.toLowerCase()] = true;
     }
   });
 
@@ -80,13 +86,15 @@ function buildGraphData() {
       var key = [e.source, e.target].sort().join('|');
       if (!seen[key]) {
         seen[key] = true;
-        var type = e.type === 'DERIVED_FROM' ? 'decomposition' : (e.type || '_other_').toLowerCase();
+        // v0.3.6: type 直接用 rawType 小写，与 LINK_TYPE_CONFIG 键一一对应
+        // （不再把 DERIVED_FROM 硬转成 decomposition，避免与 KG 实际关系脱节）
+        var type = (e.type || '_other_').toLowerCase();
         links.push({ source: e.source, target: e.target, type: type, rawType: e.type });
       }
     }
   });
 
-  // Legacy: fallback to topics.children (标注为 decomposition)
+  // Legacy: fallback to topics.children (标注为 is_child_of)
   for (var parent in topics) {
     var children = (topics[parent] && topics[parent].children) || [];
     for (var i = 0; i < children.length; i++) {
@@ -95,7 +103,7 @@ function buildGraphData() {
         var key = [parent, child].sort().join('|');
         if (!seen[key]) {
           seen[key] = true;
-          links.push({ source: parent, target: child, type: 'decomposition', rawType: 'DERIVED_FROM' });
+          links.push({ source: parent, target: child, type: 'is_child_of', rawType: 'IS_CHILD_OF' });
         }
       }
     }
@@ -114,11 +122,18 @@ function buildGraphData() {
     }
   }
 
-  // 初始化 activeTypes（默认全部显示）
+  // 初始化 activeTypes（默认全部显示）。
+  // v0.3.6: 以 **实际收集到的关系类型**（小写归一）为准，而非仅 LINK_TYPE_CONFIG 的键；
+  // 否则 KG 出现新关系类型时不会被列入筛选，或大写/小写两套并存。
   _g.activeTypes = {};
+  for (var raw in _g.linkTypes) {
+    if (raw === 'DEPENDS_ON') continue;
+    _g.activeTypes[raw.toLowerCase()] = true;
+  }
+  // 补上配置里声明但当前数据没有的类型（保留筛选入口，灰显可关）
   for (var t in LINK_TYPE_CONFIG) {
     if (t === '_default_') continue;
-    _g.activeTypes[t] = true;
+    if (!(t in _g.activeTypes)) _g.activeTypes[t] = true;
   }
 
   // DISABLED: Semantic similarity links (title token overlap)
