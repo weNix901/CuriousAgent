@@ -258,6 +258,15 @@ class ExploreDaemon(threading.Thread):
         try:
             from core.api.gap_calculator import compute_from_store
 
+            # v0.3.6-C2 (2026-10-08): 时间衰减 —— 已 consumed 但静置超 TTL
+            # 且队列已消化的缺口，重置为未消费，使 C2 从"一次性管道"变"循环"。
+            # 在扫描前执行，保证本轮候选能看到刚重置的缺口。
+            try:
+                from core.api.gap_store import reset_stale_consumed
+                reset_stale_consumed()
+            except Exception:
+                pass
+
             max_per_cycle = getattr(self.config, "gap_scan_max_per_cycle", 2)
             candidates = compute_from_store(only_unconsumed=True)
             if not candidates:
@@ -300,6 +309,11 @@ class ExploreDaemon(threading.Thread):
                     logger.debug(f"[GapQueue] Dedup-skipped gap: {score.topic}")
             if enqueued:
                 logger.info(f"[GapQueue] cycle done: {enqueued} gap(s) auto-enqueued")
+            elif candidates:
+                logger.debug(
+                    f"[GapQueue] {len(candidates)} candidate(s) but none enqueued"
+                    f" (dedup / rate-limit)"
+                )
         except Exception as e:
             logger.debug(f"[GapQueue] gap auto-enqueue skipped: {e}")
 

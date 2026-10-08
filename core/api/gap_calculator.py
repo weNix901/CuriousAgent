@@ -283,6 +283,11 @@ def _relevance(seen_count: int, saturation: int = None) -> float:
     seen_count 来自 4a —— topic 被判 unknown/void 的次数，即"用户问了几次我却没有"。
     这是外部可查信号，无需读心。
 
+    v0.3.6-C2 (2026-10-08)：传入的 seen_count 应为 **real_seen**（只计
+    observed_by ∈ {user,hook} 的观测），而非原始 seen_count。后者混入
+    test/probe 打点，会使 UnknownTopic123 这类测试词相关性虚高。若调用方
+    传的是原始 seen_count，相关性会失真（退化为旧的混噪声行为）。
+
     saturation 可注入（4b-2 动态化）；None → 用模块默认。
     """
     sat = int(saturation) if saturation is not None else RELEVANCE_SATURATION
@@ -309,6 +314,9 @@ def compute_gap_value(
 
     价值 = 覆盖度缺口 × 相关性   （可解性不进价值，仅随附用于排序）
     relevance_saturation 可注入（4b-2 动态化）；None → 模块默认。
+
+    NOTE (v0.3.6-C2): 调用方应传 real_seen（仅真实会话触发）。rank_gaps()
+    已自动优先取 real_seen；本纯函数保留 seen_count 语义供单测直调。
     """
     cg = _coverage_gap(quality, status)
     rel = _relevance(seen_count, saturation=relevance_saturation)
@@ -356,11 +364,19 @@ def rank_gaps(
         topic = g.get("topic")
         if not topic:
             continue
+        # v0.3.6-C2: 相关性只认"真实会话触发"(real_seen)，不认 test/probe 打点。
+        # 回退：老行无 real_seen 时用 observed_by 判定；都无则用 seen_count。
+        if "real_seen" in g and g.get("real_seen") is not None:
+            rel_source = int(g.get("real_seen") or 0)
+        elif (g.get("observed_by") or "") in ("user", "hook"):
+            rel_source = int(g.get("seen_count", 1) or 0)
+        else:
+            rel_source = int(g.get("seen_count", 1) or 0)
         s = compute_gap_value(
             topic=topic,
             status=g.get("status", "unknown"),
             quality=g.get("quality", 0.0),
-            seen_count=g.get("seen_count", 1),
+            seen_count=rel_source,
             explore_failed=bool(g.get("explore_failed", False)),
             relevance_saturation=cfg.relevance_saturation,
         )
