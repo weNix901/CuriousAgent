@@ -412,9 +412,23 @@ def compute_from_store(
         cfg = config or GapConfig.resolve()
         from core.api.gap_store import list_gaps
         gaps = list_gaps(only_unconsumed=only_unconsumed)
-        # [deprecated 2026-10-07] provider-agreement 数据源已废弃
-        # （CuriosityDecomposer 语义拆解链路被 ExploreAgent 取代，无活跃生产者）。
+        # 批2/批8 (v0.3.6, 2026-10-08 重接通): provider-agreement 数据源已恢复
+        # （批8 把一致性信号接入 ExploreAgent 真实搜索链路）。遍历缺口批量取冲突。
         conflict_lookup = None
+        if with_conflict:
+            try:
+                from core.api.conflict_resolver import resolve_conflict_for_topic
+                conflict_lookup = {}
+                for g in gaps:
+                    t = g.get("topic")
+                    if not t:
+                        continue
+                    v = resolve_conflict_for_topic(t)
+                    if v.conflict != "none":
+                        conflict_lookup[t] = v.conflict
+                conflict_lookup = conflict_lookup or None
+            except Exception:
+                conflict_lookup = None
         return rank_gaps(
             gaps,
             threshold=threshold,
