@@ -212,26 +212,29 @@ class CognitiveHook(AgentHook):
         """
         from core.tools.queue_tools import QueueStorage
         
-        qs = QueueStorage()
-        qs.initialize()
-        
         depth_map = {
             AnswerStrategy.LLM_ANSWER: 9.0,
             AnswerStrategy.SEARCH_ANSWER: 6.0,
             AnswerStrategy.KG_ANSWER: 3.0,
         }
-        
-        queue_id = qs.add_item(
+
+        # C2b (2026-10-08): 唯一通路 —— 改走 kg.add_curiosity()（跨库去重）。
+        from core.knowledge_graph_compat import add_curiosity
+        from core.tools.queue_tools import QueueStorage
+        before = {i["topic"] for i in QueueStorage().get_pending_items()}
+        add_curiosity(
             topic=topic,
-            priority=priority,
-            metadata={
-                "source": "cognitive_hook",
-                "strategy": strategy.value,
-                "context": context[:500],
-                "depth": depth_map[strategy],
-                "auto_injected": True,
-            }
+            reason=f"CognitiveHook: {strategy.value} answer, unknown topic",
+            relevance=float(priority) if isinstance(priority, (int, float)) else 8.0,
+            depth=depth_map[strategy],
+            source="cognitive_hook",
+            strategy=strategy.value,
+            context=context[:500],
+            auto_injected=True,
         )
+        after = {i["topic"] for i in QueueStorage().get_pending_items()}
+        was_added = topic in (after - before)
+        queue_id = 1 if was_added else -1
         
         self._stats["topics_injected"] += 1
         

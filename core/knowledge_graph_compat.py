@@ -266,6 +266,14 @@ def _save_state(state: dict) -> None:
 
 
 def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float = 5.0, **extra) -> None:
+    """唯一入队通路（C2b，2026-10-08）。
+
+    **唯一性纪律**：所有"新话题入队"必须走这里，不得直接 QueueStorage.add_item()。
+    唯一理由：本函数做**跨库去重**（队列 pending/done + Neo4j 全图，走
+    concept_normalizer），直接 add_item 只做队列内去重，会漏掉"KG 已完成"的重复。
+
+    extra 可作为 metadata 附加字段（如 task_type / source / score 等）。
+    """
     storage = _get_queue_storage()
     
     from core.concept_normalizer import get_default_normalizer

@@ -70,17 +70,27 @@ class DreamDaemon:
             result = self.agent.run(input_data="generate curiosity topics from knowledge graph")
             duration_ms = int((time.time() - start_time) * 1000)
             
-            # Inject l4_topics into QueueStorage so ExploreDaemon can consume them
+            # Inject l4_topics into queue so ExploreDaemon can consume them.
+            # C2b (2026-10-08): 唯一通路 —— 改走 kg.add_curiosity()（跨库去重），
+            # 不再直接 QueueStorage.add_item()。
             if result and hasattr(result, 'topics_generated'):
                 topics = result.topics_generated or []
                 if topics:
+                    from core.knowledge_graph_compat import add_curiosity
                     from core.tools.queue_tools import QueueStorage
-                    qs = QueueStorage()
-                    qs.initialize()
                     added = 0
                     for t in topics:
-                        rid = qs.add_item(t, priority=6, metadata={"source": "dream_daemon", "l4": True})
-                        if rid > 0:
+                        before = {i["topic"] for i in QueueStorage().get_pending_items()}
+                        add_curiosity(
+                            topic=t,
+                            reason="DreamDaemon: l4 topic",
+                            relevance=6.0,
+                            depth=6.0,
+                            source="dream_daemon",
+                            l4=True,
+                        )
+                        after = {i["topic"] for i in QueueStorage().get_pending_items()}
+                        if t in (after - before):
                             added += 1
                     logger.info(f"DreamDaemon: injected {added}/{len(topics)} topics into queue")
                 logger.info(f"DreamDaemon: generated {len(topics)} topics in {duration_ms}ms")

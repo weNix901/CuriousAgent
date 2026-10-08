@@ -362,45 +362,48 @@ class DreamAgent(CAAgent):
             return ""
 
     def _l4_rem_sleep(self, filtered_candidates: List[ScoredCandidate]) -> List[str]:
-        queue = QueueStorage()
-        queue.initialize()
-        
+        """将梦境候选入队。
+
+        C2b (2026-10-08): 唯一通路 —— 改走 kg.add_curiosity()（跨库去重），
+        不再直接 QueueStorage.add_item()（只有队列内去重，会漏 KG 已完成节点）。
+        """
+        from core.knowledge_graph_compat import add_curiosity
+
         topics_added: List[str] = []
         for candidate in filtered_candidates:
-            pending = queue.get_pending_items()
-            if any(item["topic"] == candidate.topic for item in pending):
-                continue
-                
-            priority = int(candidate.total_score * 10)
-            queue.add_item(
+            # 入队前检测：add_curiosity 返回 None（忽略返回值），入队有效性
+            # 通过入队前后 pending 集合变化判断（复用去重语义）。
+            before = {i["topic"] for i in QueueStorage().get_pending_items()}
+            add_curiosity(
                 topic=candidate.topic,
-                priority=priority,
-                metadata={
-                    "source": "dream_agent",
-                    "score": candidate.total_score,
-                    "scores": candidate.scores
-                }
+                reason=f"Dream: l4 candidate (score={candidate.total_score:.3f})",
+                relevance=min(10.0, candidate.total_score * 10.0),
+                depth=6.0,
+                source="dream_agent",
+                score=candidate.total_score,
+                scores=candidate.scores,
             )
-            topics_added.append(candidate.topic)
-        
+            after = {i["topic"] for i in QueueStorage().get_pending_items()}
+            if candidate.topic in (after - before):
+                topics_added.append(candidate.topic)
+
         source_url_topics = self._extract_topics_from_source_urls(min_quality=7.0)
         for topic_tuple in source_url_topics:
             topic, source_node, url = topic_tuple
-            
-            pending = queue.get_pending_items()
-            if any(item["topic"] == topic for item in pending):
-                continue
-            
-            queue.add_item(
+
+            before = {i["topic"] for i in QueueStorage().get_pending_items()}
+            add_curiosity(
                 topic=topic,
-                priority=6,
-                metadata={
-                    "source": "dream_agent_source_url",
-                    "source_kg_node": source_node,
-                    "source_url": url
-                }
+                reason=f"Dream: source_url derived from '{source_node}'",
+                relevance=6.0,
+                depth=6.0,
+                source="dream_agent_source_url",
+                source_kg_node=source_node,
+                source_url=url,
             )
-            topics_added.append(topic)
+            after = {i["topic"] for i in QueueStorage().get_pending_items()}
+            if topic in (after - before):
+                topics_added.append(topic)
             
             if source_node != topic:
                 self._create_cites_edge(source_node, topic)

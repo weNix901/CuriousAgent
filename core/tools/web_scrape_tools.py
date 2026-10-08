@@ -11,7 +11,7 @@ from typing import Any
 import aiohttp
 
 from core.tools.base import Tool
-from core.tools.queue_tools import QueueStorage
+from core.tools.queue_tools import QueueStorage  # noqa: F401 (kept for type refs)
 
 logger = logging.getLogger(__name__)
 
@@ -112,24 +112,24 @@ class ScrapeWebForDeepReadTool(Tool):
                 return f"Error: Content too short ({len(content)} chars), minimum is {scrape_cfg.get('min_content_length', 1000)}"
             
             txt_path = self._save_content(topic, content)
-            
-            queue_storage = QueueStorage()
-            queue_storage.initialize()
-            
-            queue_storage.add_item(
+
+            # C2b (2026-10-08): 唯一通路 —— 改走 kg.add_curiosity()（跨库去重），
+            # 不再直接 QueueStorage.add_item()。deep_read 任务通过 metadata.task_type 标识。
+            from core.knowledge_graph_compat import add_curiosity
+            add_curiosity(
                 topic=topic,
-                priority=priority,
-                metadata={
-                    "task_type": "deep_read",
-                    "txt_path": txt_path,
-                    "pdf_path": None,
-                    "source_url": url,
-                    "source_type": "web_scrape",
-                    "source_trusted": True,
-                    "trust_level": trust_level,
-                    "source_name": source_name,
-                    "summary_topic": topic
-                }
+                reason=f"WebScrape: {source_name} → deep_read",
+                relevance=float(priority) if isinstance(priority, (int, float)) else 6.0,
+                depth=6.0,
+                task_type="deep_read",
+                txt_path=txt_path,
+                pdf_path=None,
+                source_url=url,
+                source_type="web_scrape",
+                source_trusted=True,
+                trust_level=trust_level,
+                source_name=source_name,
+                summary_topic=topic,
             )
             
             return f"Success: Scraped {len(content)} chars from {source_name}, queued for DeepRead (txt_path={txt_path})"
