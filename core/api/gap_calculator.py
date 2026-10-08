@@ -364,14 +364,11 @@ def rank_gaps(
         topic = g.get("topic")
         if not topic:
             continue
-        # v0.3.6-C2: 相关性只认"真实会话触发"(real_seen)，不认 test/probe 打点。
-        # 回退：老行无 real_seen 时用 observed_by 判定；都无则用 seen_count。
-        if "real_seen" in g and g.get("real_seen") is not None:
-            rel_source = int(g.get("real_seen") or 0)
-        elif (g.get("observed_by") or "") in ("user", "hook"):
-            rel_source = int(g.get("seen_count", 1) or 0)
-        else:
-            rel_source = int(g.get("seen_count", 1) or 0)
+        # v0.3.6-C2: 相关性只认"真实会话触发"(real_seen)。
+        # 唯一通路原则：不再回退到 seen_count（seen_count 混入 test/probe 打点，
+        # 回退=保留旧通路，会让测试词虚高）。real_seen 由 record_gap 统一维护，
+        # 缺失即视为 0（缺值 = 无真实观测，而非"用旧值"）。
+        rel_source = int(g.get("real_seen") or 0)
         s = compute_gap_value(
             topic=topic,
             status=g.get("status", "unknown"),
