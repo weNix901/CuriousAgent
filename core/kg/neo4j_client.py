@@ -26,9 +26,36 @@ class Neo4jClient:
                 max_connection_lifetime=self.max_connection_lifetime
             )
             await self._init_vector_index()
+            await self._init_relation_constraints()
             return True
         except Exception as e:
             raise Exception(f"Failed to connect to Neo4j: {e}")
+
+    async def _init_relation_constraints(self) -> bool:
+        """Create uniqueness constraints for all relation types.
+
+        Neo4j has no uniqueness for relationships by default: even with MERGE,
+        concurrent writers can create duplicate edges. This dialect only accepts
+        *property-based* relationship uniqueness (``REQUIRE r.<prop> IS UNIQUE``),
+        not bare ``REQUIRE r IS UNIQUE``. So we constrain a synthetic ``key``
+        property of the form ``<from>|<relation>|<to>`` which the write path
+        (``add_relation``) always sets. That makes MERGE atomic on the key and
+        prevents duplicates from accumulating again.
+        """
+        relation_types = ["IS_CHILD_OF", "CITES", "DERIVED_FROM", "RELATED_TO"]
+        ok = True
+        for rel_type in relation_types:
+            query = (
+                f"CREATE CONSTRAINT {rel_type.lower()}_key_unique IF NOT EXISTS "
+                f"FOR ()-[r:{rel_type}]-() REQUIRE r.key IS UNIQUE"
+            )
+            try:
+                await self.execute_write(query)
+                logger.info(f"Relation uniqueness constraint '{rel_type}' created/verified")
+            except Exception as e:
+                logger.warning(f"Failed to create relation constraint '{rel_type}': {e}")
+                ok = False
+        return ok
 
     async def _init_vector_index(self) -> bool:
         """Initialize vector index for Knowledge embeddings."""
