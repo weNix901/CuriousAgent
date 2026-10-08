@@ -338,7 +338,6 @@ def rank_gaps(
     gaps: List[Dict[str, Any]],
     threshold: float = None,
     conflict_lookup: Optional[Dict[str, str]] = None,
-    feedback_lookup: Optional[Dict[str, Dict[str, Any]]] = None,
     config: "GapConfig" = None,
 ) -> List[GapScore]:
     """对缺口列表评分排序。
@@ -347,15 +346,17 @@ def rank_gaps(
         gaps: 4a 的 list_gaps() 输出（dict 列表）。
         threshold: 入队闸门（value >= threshold）。None → 用 config/默认。
         conflict_lookup: {topic: conflict}（批2 信号），"strong" 作负项降权。
-        feedback_lookup: {topic: {boost, reason, source_discovery}}（批6 C3-D 方向级信号），
-                         与已结案发现同方向的缺口获相关性加成。
         config: GapConfig；None → resolve() 默认。
 
     Returns:
         按 (value desc, solvability desc) 排序的 GapScore 列表（已过闸门）。
 
     Note: 批2 conflict 作负项 —— 来源分歧高 → 即使缺，优先级也降（不可信）。
-    Note: 批6 feedback 作正项 —— 与已结案发现同方向 → 方向探索奏效 → 优先级升。
+    Note: C3D-R (2026-10-08) —— 已移除 feedback 提权。原批6 用"被检索"驱动
+          缺口提权，因果方向接反（被动→主动），违反 CA2.0 §1.3 公理：
+          会让系统系统性遗忘自己主动探过的方向。现缺口优先级仅由 C2 三因子
+          （覆盖度 × 相关性[real_seen]）决定；C3-D 改为"发现→消费提示"（见
+        　feedback_store.related_discoveries）。
     """
     cfg = config or GapConfig.resolve()
     thr = cfg.gap_threshold if threshold is None else threshold
@@ -377,15 +378,6 @@ def rank_gaps(
             explore_failed=bool(g.get("explore_failed", False)),
             relevance_saturation=cfg.relevance_saturation,
         )
-        # 批6 C3-D：方向级反馈正项（与已结案发现同方向 → 提权）
-        if feedback_lookup:
-            fb = feedback_lookup.get(topic)
-            if fb:
-                b = float(fb.get("boost", 1.0) or 1.0)
-                if b != 1.0:
-                    s.value *= b
-                    src = fb.get("source_discovery", "?")
-                    s.reason += f"; feedback×{b:.2f} (同方向于「{src}」)"
         # 批4d：conflict 负项
         if conflict_lookup:
             c = (conflict_lookup.get(topic) or "none").lower()
@@ -406,10 +398,12 @@ def compute_from_store(
     only_unconsumed: bool = True,
     threshold: float = None,
     with_conflict: bool = True,
-    with_feedback: bool = True,
     config: "GapConfig" = None,
 ) -> List[GapScore]:
-    """便捷入口：从 ops.db.gaps 拉缺口 → 评分排序（含批2 conflict 负项 + 批6 反馈正项）。
+    """便捷入口：从 ops.db.gaps 拉缺口 → 评分排序。
+
+    C3D-R (2026-10-08)：已移除 with_feedback / feedback 提权通路。
+    缺口优先级仅由 C2 三因子决定（不掺检索反馈）。
 
     threshold/config 为 None 时用 GapConfig.resolve()（4b-2 动态化接入点）。
     任何异常 → 返回空列表（绝不打断调用方，同批1/4a 纪律）。
@@ -420,22 +414,11 @@ def compute_from_store(
         gaps = list_gaps(only_unconsumed=only_unconsumed)
         # [deprecated 2026-10-07] provider-agreement 数据源已废弃
         # （CuriosityDecomposer 语义拆解链路被 ExploreAgent 取代，无活跃生产者）。
-        # 原先此处遍历 gaps 查 get_agreement 生成 conflict 负项，现恒为 None，
-        # 以免用陈旧数据影响排序。若将来恢复 provider 一致性信号，在此重接。
         conflict_lookup = None
-        # 批6 C3-D：检索反馈正项（被反复检索的缺口 → 需求强 → 提权）
-        feedback_lookup = None
-        if with_feedback:
-            try:
-                from core.api.feedback_store import feedback_lookup as _fb
-                feedback_lookup = _fb() or None
-            except Exception:
-                feedback_lookup = None
         return rank_gaps(
             gaps,
             threshold=threshold,
             conflict_lookup=conflict_lookup,
-            feedback_lookup=feedback_lookup,
             config=cfg,
         )
     except Exception:

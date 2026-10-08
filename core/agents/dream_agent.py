@@ -344,22 +344,20 @@ class DreamAgent(CAAgent):
         return ""
 
     def _parse_url_domain(self, url: str) -> str:
-        try:
-            parsed = urlparse(url)
-            domain = parsed.netloc.lower()
-            
-            domain_parts = domain.split('.')
-            main_domain = domain_parts[0] if len(domain_parts) > 1 else domain
-            
-            if main_domain in ['www', 'm', 'blog', 'devpress']:
-                main_domain = domain_parts[1] if len(domain_parts) > 1 else ""
-            
-            if main_domain and main_domain not in ['arxiv', 'github', 'csdn', 'qq', 'com', 'cn', 'org', 'net']:
-                return f"{main_domain} related research"
-            
-            return ""
-        except Exception:
-            return ""
+        """从 URL 提取 topic（**已废弃 domain-fallback**）。
+
+        C3D-R 噪声修复（2026-10-08）：原实现对任意域名返回
+        ``f"{main_domain} related research"``（如 "mdpi related research"）。
+        这些是**爬虫域名落下的噪声**，不是发现 —— 实测占真实发现集 16.5%
+        （806 中 133 条），且质量虚高（quality>=7）污染 embedding 聚类
+        （如 "mdpi related research" × "mlcommons related research" cos=0.736）。
+
+        修复：**只接受真标题（h1/meta title）**，不再用域名造 topic。
+        提取不到标题就返回 ""（弃用该 URL 的派生，而非造噪声）。
+        """
+        # 不再从域名构造 topic。域名派生 = 噪声源（"X related research"）。
+        # 仅保留结构化入口：返回空串由调用方跳过。
+        return ""
 
     def _l4_rem_sleep(self, filtered_candidates: List[ScoredCandidate]) -> List[str]:
         """将梦境候选入队。
