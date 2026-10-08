@@ -46,7 +46,82 @@ PDF / 网页 / GitHub / 文档 / 博客 / 教程
 
 ## v0.3.6 核心能力
 
-### 🔗 冲突检测地基：provider 一致性落库（批1）
+### 🏛️ 唯一真源 + 唯一通路（地基修复，本版主线）
+
+v0.3.6 的主线不是加功能，而是**把被破坏的数据地基修回来**。
+
+**发现**：四个 Agent（Explore / Dream / DeepRead / SleepPruner）不是"各用各的源"，
+而是**真源已定义，但一半 Agent 还在读一个已被掏空的旧壳子，且不报错**：
+
+- `state.json` 已退场，但 `_load_state()/_save_state()` 仍返回旧骨架
+- `state["knowledge"]["topics"]` **恒为空** → SleepPruner 写 dormant 静默失效
+  （修复后候选从 **0 → 691 个**）
+- DreamAgent 的 quality/surprise/cross_domain 三维输入恒为默认值
+- `competence_tracker` / `exploration_history` 的写入被 `_save_state` 白名单**静默丢弃**
+
+**SSOT 批次修复**（读通路唯一）：
+
+| 批次 | 修复 |
+|------|------|
+| SSOT-0 | 读源护栏（空 topics 时告警，防静默复发） |
+| SSOT-1 | SleepPruner dormant → Neo4j |
+| SSOT-2 | DreamAgent 输入 → `get_state()`（Neo4j） |
+| SSOT-3 | meta_cognitive_monitor + competence_tracker |
+| SSOT-4 | exploration_history → `ops.db.runtime_kv` |
+| SSOT-5 | curiosity_engine → queue.db |
+| SSOT-6 | 语义化改名 + `_save_state` 白名单改"非 knowledge 键一律持久化" |
+
+**验收**：`scripts/verify_ssot.py` **10/10 PASS**（含反向验证：改前失效、改后生效）。
+
+### 🧹 数据源唯一性与通路一致性（新规范，本版立规）
+
+**weNix 指令**：做改动时保持数据源唯一性与消费通路一致性，
+**不得新增消费逻辑的同时还留着旧通路**。
+
+- 新增 `docs/plan/数据源唯一性与通路一致性规范.md`
+- 真源/通路裁定表：每个概念**一条写通路 + 一条读通路**
+- 6 条新增功能准入 checklist
+- **C2b 落地**：队列写入 6 处绕过 `add_curiosity()` 的旁路全部收敛
+  （`add_item` 调用点 9 → 2：入口自身 + deep_read 登记例外）
+
+### 🎯 C2 缺口生成修复：去噪 + 消费循环
+
+**两处硬伤**（同一个病：噪声数据上建闭环）：
+
+| 硬伤 | 症状 | 修复 |
+|------|------|------|
+| 相关性信号混噪声 | `seen_count` 把真人查询和测试打点混在一起 | `gaps` 表加 `observed_by`/`real_seen`，相关性只认真实会话触发 |
+| 队列一次性死亡 | `consumed` 全=1，候选恒为 0 | `reset_stale_consumed()` 时间衰减 → C2 变循环 |
+
+实测：`UnknownTopic123`（测试词）相关性归零，`FlashAttention`（真缺口）浮现。
+
+### 🔄 C3-D 重定向：反馈回好奇改为"发现→消费"
+
+**病因**：原 C3-D 用"被动查询"驱动"主动探索"，违反 CA2.0 §1.3 公理
+——会让系统系统性遗忘自己主动探过的方向。
+
+**重定向**：
+
+| 批次 | 改动 |
+|------|------|
+| C3D-R1 | 移除提权通路（因果纠正）——缺口优先级只由 C2 三因子决定 |
+| C3D-R2 | `related_discoveries()`：发现 → 消费提示（扩大消费面） |
+| C3D-R3 | 引用率口径修正（分母从 360 条爬虫噪声 → 806 真实发现） |
+
+**接入 R1D3**（hook + skill）：回答时附"系统探过的同方向内容"。
+加 **30s 缓存**解决端点 2.7s 超时（预热 2.80s → 命中 0.048s）。
+
+实测：查 `FlashAttention` → 返回 FlashAttention-2/3 论文（相似度 0.83~0.85）。
+
+### 🧠 显式学习需求（C2-B）：R1D3 主动声明
+
+**决策**：由 **R1D3 写**——用户只与 R1D3 交互，CA 不"从对话推断"需求（读心违反 C1 公理）。
+
+- `shared_knowledge/r1d3/learning_needs/<slug>.md`（YAML front-matter）
+- 接入缺口相关性：**相关性 = max(会话触发, 显式需求权重)**（取大不叠加）
+- 效果：有显式需求的 topic 即使没人问过，缺口优先级也会被拉高 → 主动探索
+
+### 🔗 冲突检测地基：provider 一致性落库（批1/批8）
 
 **问题**：分解器的多 Provider 验证产出 `{provider: 结果数}`，但**只在内存用一次就丢**——
 `/api/providers/record` 端点存在却无调用方，`provider_heatmap.json` 从未生成。
@@ -344,6 +419,8 @@ curl "http://localhost:4848/api/kg/trace/LTKD"
 | `GET /api/kg/frontier` | 缺口前沿数据源（C2 上游） |
 | `GET /api/kg/calibration` | 自省质量（含 `no_data` 态） |
 | `GET /api/kg/dream_insights` | C3 回流 + F8-c 治理 |
+| `GET /api/kg/related_discoveries/<topic>?k=3` | 同方向已结案发现（C3-D 消费提示） |
+| `GET/POST /api/knowledge/learning_needs` | 显式学习需求（C2-B，R1D3 写 / CA 读） |
 
 ### v0.3.4 新增
 
@@ -427,7 +504,7 @@ curious-agent/
 
 | Version | Theme | Highlights |
 |---------|-------|-----------|
-| **v0.3.6** | Measurement Wire-up | provider 一致性落库（死管道复活）、Hook 三层断裂修复（端到端 8 项验收）、四态输入净化（E1 门 + 空节点保护）、恢复 4 条对位路由 |
+| **v0.3.6** | Foundation Repair + C3-D Redirect | SSOT 唯一真源收敛（四 Agent，10/10 验收）、数据源唯一性与通路一致性规范、C2 缺口去噪 + 消费循环、C2b 写入通路收敛、C3-D 重定向（发现→消费 + 接入 R1D3）、C2-B 显式学习需求（R1D3 写）、批8 provider 一致性接入生产 + 批2 冲突检测重接通 |
 | v0.3.5 | Coverage Verdict + Measurement Fix | 四态覆盖判定（known/partial/unknown/void）、θ 回测定标（20问100%）、短词检索修复、置信度公式去归零、单一路由合并；附带修复 Hook 静默 404 |
 | v0.3.4 | Behavior Pipeline + Data Governance | 行为规则管道修复（质量分落库/类型截断/垃圾过滤）、数据源 13→4 统一、`state.json` 退场 |
 | v0.3.3 | DeepRead + Web Scrape | 滑动窗口100%覆盖、6-element结构、网页抓取管道、Settings UI |
@@ -450,6 +527,11 @@ curious-agent/
 | ✅ | 三 Agent 协同架构 |
 | ✅ | 行为规则管道（知识→行为库→上下文） |
 | ✅ | 唯一真值源架构（13→4 数据源统一） |
+| ✅ | SSOT 收敛 + 唯一通路规范（四 Agent 同源） |
+| ✅ | 四态覆盖判定 + 外部置信度注入 |
+| ✅ | C2 缺口自动生成（去噪 + 消费循环） |
+| ✅ | C3-D 发现回流（发现→消费，接入 R1D3） |
+| ✅ | 显式学习需求（R1D3 主动声明） |
 | ⚪ | 自适应调度（基于队列深度） |
 | ⚪ | 自进化引擎（Bayesian权重更新） |
 | ⚪ | 多语言论文支持 |

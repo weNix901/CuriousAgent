@@ -170,13 +170,13 @@ CA2.0 剩余三块：**C1-B（冲突检测）→ C2（缺口生成）→ C3（�
 | **0c** | **C1-C Hook 端到端验证** | 批0 | 真实 agent 回复中验证四态注入生效 | R1D3 | ✅ |
 | **0d** | **路由与 CA2.0 目标对齐**（非「恢复历史」） | 无 | 恢复 3 条对位路由（dream_insights×2/frontier/calibration）；删 2 条不对位测试（dormant/reactivate） | CA | ✅ |
 | **1** | **接通 provider 一致性管道** | 无 | 分解器验证结果落 `ops.db`；死端点复活 | CA | ⚠️ **作废 → 重做** |
-| **2** | **C1-B 冲突检测** | 批1 | `conflict_resolver.py` + 四态输出加 `conflict` 字段 | CA | ⚠️ **数据源失效** |
+| **2** | **C1-B 冲突检测** | 批1 | `conflict_resolver.py` + 四态输出加 `conflict` 字段 | CA | ✅ **2026-10-08 重接通** |
 | **3** | **20 问标注集复核** | 无（并行） | weNix 修正 `expected`；θ/冲突阈值回测 | weNix+CA | ✅（20/20）| 
 | **4** | **C2 缺口自动生成**（2026-10-05 重审：来源=C1 unknown/void，非 frontier） | 批0c + 批2 | `ops.db.gaps` + `gap_calculator.py` + `gap→queue` 闭环 | CA | ✅ |
 | **5** | **C3-C 命中追踪** | 批4 | 检索命中日志 + discovery 引用回填 | R1D3+CA | ✅ |
-| **6** | **C3-D 反馈回好奇** | 批5 | 被引用发现 → 提升同类缺口优先级 | CA | 🔄 实施中（方案已校正）|
+| **6** | **C3-D 反馈回好奇** | 批5 | 被引用发现 → 提升同类缺口优先级 | CA | ✅ **2026-10-08 重定向 + 接入 R1D3** |
 | **7** | **knowledge-bootstrap 404 修复** | 无 | 端点切换 + 迁入受控范围 | CA | ✅ |
-| **8** | **批1 重做：provider 一致性接入 ExploreAgent** | 批6 | 真实生产链路的 provider 一致性信号 | CA | ❌ 待做 |
+| **8** | **批1 重做：provider 一致性接入 ExploreAgent** | 批6 | 真实生产链路的 provider 一致性信号 | CA | ✅ **2026-10-08 完成** |
 
 ---
 
