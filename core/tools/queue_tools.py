@@ -372,6 +372,17 @@ class QueueStorage:
         )
         return [dict(row) for row in cursor.fetchall()]
 
+    def update_priority(self, item_id: int, priority: int) -> bool:
+        """Update the priority of a queue item. Returns True if a row changed."""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE queue SET priority = ? WHERE id = ?",
+            (int(priority), int(item_id)),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+
     def get_failed_items(self, limit: int | None = None) -> list[dict]:
         conn = self._get_connection()
         cursor = conn.cursor()

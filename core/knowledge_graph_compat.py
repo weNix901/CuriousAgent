@@ -76,6 +76,14 @@ def _load_state() -> dict:
     Phase 1 data governance: state.json is retired. Runtime state now lives in
     knowledge/ops.db (meta_cognitive + runtime_kv). Falls back to the default
     skeleton shape when ops.db is empty, so callers keep working unchanged.
+
+    SSOT (v0.3.6-SSOT): this function returns ONLY runtime state
+    (meta_cognitive / runtime_kv / root pool / search flags).
+    **KNOWLEDGE MUST GO TO Neo4j** — the ``knowledge.topics`` key in the
+    returned skeleton is ALWAYS EMPTY by design. Any caller that reads
+    ``state["knowledge"]["topics"]`` is on a deprecated path and will silently
+    see an empty graph. Use ``get_state()`` (which assembles topics from
+    Neo4j) or ``_get_kg_factory()`` directly instead.
     """
     empty = {
         "version": "1.0",
@@ -127,10 +135,53 @@ def _load_state() -> dict:
         except sqlite3.OperationalError:
             pass
         conn.close()
+        _warn_if_knowledge_read(state)
         return state
     except Exception as e:
         logger.warning(f"_load_state <- ops.db failed: {e}")
         return empty
+
+
+# SSOT guardrail (v0.3.6-SSOT): fail visible, never silent.
+# The skeleton returned by _load_state() has an empty knowledge.topics by
+# design (Neo4j is the knowledge source). If any caller still depends on that
+# key it will silently operate on an empty graph. We cannot detect the CALLER
+# from here, but we CAN detect when the caller's assumptions would be wrong:
+# if ops.db has runtime state but no knowledge rows while Neo4j holds nodes,
+# emit a one-shot warning so the migration surface stays visible.
+_ssot_warned: bool = False
+
+
+def _warn_if_knowledge_read(state: dict) -> None:
+    """SSOT guardrail: warn once when knowledge.topics is read while empty.
+
+    Cheap: only fires when knowledge.topics is empty. Emits a single WARNING
+    (per process) so log noise stays bounded but the deprecated read path is
+    observable. Set env KG_SSOT_STRICT=1 to raise instead (CI use).
+    """
+    global _ssot_warned
+    try:
+        topics = (state.get("knowledge") or {}).get("topics")
+        if topics:
+            return  # Non-empty = caller supplied/legacy path, nothing to warn.
+        if _ssot_warned:
+            return
+        _ssot_warned = True
+        msg = (
+            "[SSOT] _load_state() returned empty knowledge.topics. "
+            "Knowledge lives in Neo4j — use get_state() or _get_kg_factory(). "
+            "Reading state['knowledge']['topics'] is a deprecated path "
+            "(see docs/plan/next_move_v0.3.6_SSOT.md)."
+        )
+        if os.environ.get("KG_SSOT_STRICT") == "1":
+            raise RuntimeError(msg)
+        logger.warning(msg)
+    except RuntimeError:
+        raise
+    except Exception:
+        # Guardrail must never break the caller.
+        pass
+
 
 def _load_state_legacy() -> dict:
     """DEPRECATED: original state.json loader, kept for reference/migration."""
@@ -423,6 +474,9 @@ def update_curiosity_score(topic: str, score: float) -> None:
     for item in items:
         storage.update_priority(item["id"], priority)
 
+def get_items_by_topic_score_safe(topic: str, score: float) -> None:
+    """Alias kept for clarity; delegates to update_curiosity_score."""
+    update_curiosity_score(topic, score)
 
 def mark_topic_done(topic: str, reason: str) -> None:
     storage = _get_queue_storage()

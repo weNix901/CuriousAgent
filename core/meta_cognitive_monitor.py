@@ -204,6 +204,12 @@ Return only a number."""
                                delta_contradiction: int = 0):
         """Update topic confidence based on new evidence.
 
+        SSOT (v0.3.6-SSOT): confidence fields live in ops.db.meta_cognitive
+        (the runtime-state source of truth), NOT in the retired state skeleton's
+        knowledge.topics. Previously this wrote to
+        state["knowledge"]["topics"][topic] via _save_state(), which dropped the
+        write silently (the skeleton is always empty).
+
         Args:
             topic: Topic to update
             delta_evidence: Number of supporting evidence (+)
@@ -212,18 +218,17 @@ Return only a number."""
         from core.node_lock_registry import NodeLockRegistry
 
         with NodeLockRegistry.global_write_lock():
-            state = kg.get_state()
-            topic_data = state["knowledge"]["topics"].setdefault(topic, {})
+            # Read current runtime state from ops.db and update the per-topic
+            # meta-cognitive row (single writable home for confidence fields).
+            state = kg._load_state()
+            mc = state.setdefault("meta_cognitive", {})
+            key = f"__confidence__{topic}"
+            topic_data = mc.get(key) or {}
 
-            # Initialize defaults
-            if "confidence_low" not in topic_data:
-                topic_data["confidence_low"] = 0.3
-            if "confidence_high" not in topic_data:
-                topic_data["confidence_high"] = 0.7
-            if "evidence_count" not in topic_data:
-                topic_data["evidence_count"] = 0
-            if "contradiction_count" not in topic_data:
-                topic_data["contradiction_count"] = 0
+            topic_data.setdefault("confidence_low", 0.3)
+            topic_data.setdefault("confidence_high", 0.7)
+            topic_data.setdefault("evidence_count", 0)
+            topic_data.setdefault("contradiction_count", 0)
 
             # Update
             topic_data["confidence_low"] = min(
@@ -235,6 +240,12 @@ Return only a number."""
             topic_data["evidence_count"] = topic_data.get("evidence_count", 0) + delta_evidence
             topic_data["contradiction_count"] = topic_data.get("contradiction_count", 0) + delta_contradiction
 
+            mc[key] = topic_data
+            state["meta_cognitive"] = mc
+
+            # _save_state() routes meta_cognitive rows into ops.db.meta_cognitive.
+            # It writes each top-level mc key as a row; our key carries the
+            # topic name so the row is addressable.
             kg._save_state(state)
 
     def detect_frontier(self) -> list[dict]:
@@ -249,6 +260,22 @@ Return only a number."""
         """
         frontiers = []
         state = kg.get_state()
+
+        # SSOT: build a topic -> children map from Neo4j relations once, so the
+        # frontier loop can rely on the canonical graph instead of the node
+        # payload (get_state() does not populate children/cites).
+        children_by_topic: dict[str, list] = {}
+        try:
+            for rel in (kg.get_all_relations() or []):
+                tgt = rel.get("target")
+                src = rel.get("source")
+                if tgt and src:
+                    children_by_topic.setdefault(src, []).append(tgt)
+        except Exception:
+            logger.warning("detect_frontier: children map build failed", exc_info=True)
+
+        def _children_of(topic: str) -> list:
+            return children_by_topic.get(topic, [])
 
         # v0.3.6 perf: batch-fetch ALL relations once, then build a per-topic
         # degree map. Previously this loop called kg.get_relations_count(topic)
@@ -272,7 +299,10 @@ Return only a number."""
             if not data.get("known"):
                 continue
 
-            children = data.get("children", [])
+            # SSOT: children/cites are not stored on Neo4j nodes by
+            # get_state(); fetch relations directly through the KG factory
+            # (canonical source) instead of relying on the node payload.
+            children = _children_of(topic)
             if not children:
                 quality = data.get("quality", 0.0)
                 relations_count = relations_count_by_topic.get(topic, 0)

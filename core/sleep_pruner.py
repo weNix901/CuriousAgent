@@ -3,6 +3,8 @@ import time
 from datetime import datetime, timezone
 from typing import Optional
 
+from loguru import logger
+
 from core.base_agent import BaseAgent
 from core import knowledge_graph_compat as kg
 from core.node_lock_registry import NodeLockRegistry
@@ -142,7 +144,10 @@ class SleepPruner(BaseAgent):
         candidates = []
         
         with NodeLockRegistry.global_write_lock():
-            state = kg._load_state()
+            # SSOT (v0.3.6-SSOT): read topics from Neo4j (the knowledge source),
+            # NOT from the retired state skeleton (whose knowledge.topics is
+            # always empty). get_state() assembles topics from Neo4j.
+            state = kg.get_state()
             topics = state["knowledge"]["topics"]
             
             for topic_name, topic_data in topics.items():
@@ -283,17 +288,31 @@ class SleepPruner(BaseAgent):
         """
         Mark multiple topics as dormant in a single operation.
         
+        SSOT (v0.3.6-SSOT): writes status='dormant' to Neo4j via
+        kg.mark_dormant(). The previous implementation wrote to the retired
+        state skeleton (state["knowledge"]["topics"]), which is always empty
+        → silent no-op. Now the write lands in the single knowledge source and
+        is observable through kg.get_dormant_nodes().
+        
         Args:
             topics: List of topic names to mark dormant
         """
         with NodeLockRegistry.global_write_lock():
-            state = kg._load_state()
-            
+            marked = 0
             for topic in topics:
-                if topic in state["knowledge"]["topics"]:
-                    state["knowledge"]["topics"][topic]["status"] = "dormant"
-            
-            kg._save_state(state)
+                try:
+                    kg.mark_dormant(topic)
+                    marked += 1
+                except Exception as e:
+                    # Fail visible, never silent (SSOT-0 discipline).
+                    logger.warning(
+                        f"SleepPruner: mark_dormant('{topic}') failed: {e}"
+                    )
+            if marked != len(topics):
+                logger.warning(
+                    f"SleepPruner: dormant write partial — {marked}/{len(topics)} "
+                    f"topics marked in Neo4j"
+                )
     
     def _reset_interval(self):
         """Reset interval to initial value after successful pruning."""
