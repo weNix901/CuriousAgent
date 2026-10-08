@@ -81,25 +81,58 @@ class SearchWebTool(Tool):
             return "Error: query parameter is required"
         
         registry = SearchProviderRegistry()
-        
+
+        # 批1/批8 (v0.3.6): provider 一致性信号落库。
+        # 在真实生产链路（ExploreAgent 的 search_web）采集每个 provider 的
+        # 结果数，供 C1-B 冲突检测消费。失败绝不阻断搜索（纪律）。
+        # 批8 (v0.3.6, 2026-10-08): 为得到**完整的一致性信号**，主+备 provider
+        # 都查询（而非主命中即返回）。否则只有一个 provider 的样本，
+        # C1-B 冲突检测永远拿不到"分歧"（需要 >=2 provider 才能比对）。
+        # 代价：每次搜索多一次 fallback 调用；收益：一致性信号有样本。
+        provider_results: dict[str, int] = {}
+        providers_queried: list[str] = []
+        primary_result = None
+        fallback_result = None
+
         provider = registry.get_primary_provider()
         if provider:
             try:
-                result = await provider.search(query)
-                if result.get("result_count", 0) > 0:
-                    return self._format_results(result)
+                primary_result = await provider.search(query)
+                provider_results[getattr(provider, "name", "primary")] = \
+                    int(primary_result.get("result_count", 0) or 0)
+                providers_queried.append(getattr(provider, "name", "primary"))
             except Exception as e:
                 logger.warning(f"Primary search provider failed for '{query}': {e}", exc_info=True)
-        
+
         fallback = registry.get_fallback_provider()
         if fallback:
             try:
-                result = await fallback.search(query)
-                return self._format_results(result)
+                fallback_result = await fallback.search(query)
+                provider_results[getattr(fallback, "name", "fallback")] = \
+                    int(fallback_result.get("result_count", 0) or 0)
+                providers_queried.append(getattr(fallback, "name", "fallback"))
             except Exception as e:
-                return f"Error: Search failed - {str(e)}"
-        
+                logger.warning(f"Fallback search provider failed for '{query}': {e}", exc_info=True)
+
+        # 先落一致性信号（两个 provider 都查过了）
+        self._record_agreement(query, provider_results, providers_queried)
+
+        # 返回：主优先，主无果用备
+        if primary_result and primary_result.get("result_count", 0) > 0:
+            return self._format_results(primary_result)
+        if fallback_result and fallback_result.get("result_count", 0) > 0:
+            return self._format_results(fallback_result)
+        if primary_result is not None or fallback_result is not None:
+            return "No results found"
         return "Error: No search providers available"
+
+    def _record_agreement(self, topic: str, provider_results: dict, providers_queried: list) -> None:
+        """批1/批8: 落 provider 一致性信号（幂等覆盖）。失败静默，绝不阻断搜索。"""
+        try:
+            from core.provider_agreement_store import record_agreement
+            record_agreement(topic, provider_results, providers_queried)
+        except Exception as e:
+            logger.debug(f"provider_agreement record skipped for '{topic}': {e}")
     
     def _format_results(self, result: dict) -> str:
         from core.trusted_sources import TrustedSourceManager

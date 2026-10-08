@@ -142,18 +142,25 @@ def _spread(counts: Dict[str, int]) -> float:
 def resolve_conflict_for_topic(topic: str, threshold: float = DEFAULT_THRESHOLD) -> ConflictVerdict:
     """Convenience: pull agreement and resolve. Not pure (reads db).
 
-    [deprecated 2026-10-07] Provider-agreement 数据源（CuriosityDecomposer ->
-    provider_agreement_store）已废弃：语义拆解链路被 ExploreAgent(ReAct) 取代，
-    provider_agreement 表不再有新写入，无生产数据源。
+    批2/批8 (v0.3.6, 2026-10-08 重接通): 数据源已恢复 —— 批8 把 provider 一致性
+    接入 ExploreAgent 的真实搜索链路（`SearchWebTool._record_agreement`），
+    `ops.db.provider_agreement` 现由生产链路产出。本函数恢复真实查询。
 
-    本函数保留纯 resolve_conflict() 的调用形态，但恒返回 `none` 判定，
-    以免消费者（gap_calculator 批2 conflict 负项）拿到陈旧的 4 条历史数据
-    当作有效信号。冲突信号是注解，绝不打断调用方。
-
-    TODO: 若将来 ExploreAgent 链路重新产出 provider 一致性信号，
-          在此恢复真实查询。
+    失败 → 返回 none（冲突是注解，绝不打断调用方）。
     """
-    return ConflictVerdict(
-        conflict="none",
-        reason="provider-agreement source deprecated (2026-10-07): no active producer",
-    )
+    try:
+        from core.provider_agreement_store import get_agreement
+        sig = get_agreement(topic)
+        if not sig or sig.get("provider_count", 0) < 2:
+            return ConflictVerdict(
+                conflict="none",
+                reason="no provider-agreement signal (topic not searched by >=2 providers)",
+            )
+        return resolve_conflict(
+            provider_results=sig.get("providers", {}),
+            provider_count=sig.get("provider_count", 0),
+            threshold=threshold,
+        )
+    except Exception as e:
+        logger.warning(f"[conflict] resolve_conflict_for_topic('{topic}') failed: {e}")
+        return ConflictVerdict(conflict="none", reason=f"conflict resolution failed: {e}")
