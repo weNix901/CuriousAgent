@@ -249,16 +249,19 @@ def _save_state(state: dict) -> None:
                 "INSERT OR REPLACE INTO meta_cognitive(topic,data,updated_at) VALUES(?,?,?)",
                 (topic, json.dumps(data, ensure_ascii=False), state["last_update"]),
             )
-        # scalar / structural runtime keys
-        for key in ("search_exhausted", "search_exhausted_reason",
-                    "root_pool", "root_technology_pool", "exploration_log",
-                    "insight_generation", "kg_stats", "queue_stats",
-                    "version", "curiosity_queue"):
-            if key in state:
-                conn.execute(
-                    "INSERT OR REPLACE INTO runtime_kv(key,value,updated_at) VALUES(?,?,?)",
-                    (key, json.dumps(state[key], ensure_ascii=False), state["last_update"]),
-                )
+        # scalar / structural runtime keys.
+        # SSOT-6 (2026-10-08): 本白名单是"静默丢弃"的历史隐患 —— 任何不在
+        # 名单内的键会被默默丢掉（competence_state / exploration_history 都
+        # 曾中招）。现改为：**非 knowledge 的顶层键一律持久化**，并显式排除
+        # 不应落库的键。这样新增运行时键不再需要同步维护白名单（防复发）。
+        _SKIP = {"knowledge", "last_update", "meta_cognitive"}
+        for key, val in (state.items() if isinstance(state, dict) else []):
+            if key in _SKIP:
+                continue
+            conn.execute(
+                "INSERT OR REPLACE INTO runtime_kv(key,value,updated_at) VALUES(?,?,?)",
+                (key, json.dumps(val, ensure_ascii=False), state["last_update"]),
+            )
         conn.commit()
         conn.close()
     except Exception as e:
@@ -1580,6 +1583,22 @@ def _load_state_internal() -> dict:
 
 
 def _save_state_internal(state: dict) -> None:
+    _save_state(state)
+
+
+# ---------------------------------------------------------------------------
+# SSOT-6 (2026-10-08): 语义化新名（保留旧名做别名过渡）
+# ---------------------------------------------------------------------------
+# 旧名 `_load_state/_save_state` 产生误导：它返回的**不是**完整 state
+# （knowledge.topics 恒空），而是纯运行时状态。新名明确语义。
+# 保留旧名 alias，避免 48 处调用点一次性改动引入回归。
+def _load_runtime_state() -> dict:
+    """运行时状态（ops.db: runtime_kv + meta_cognitive）。知识一律走 Neo4j。"""
+    return _load_state()
+
+
+def _save_runtime_state(state: dict) -> None:
+    """持久化运行时状态到 ops.db。"""
     _save_state(state)
 
 
