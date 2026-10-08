@@ -63,8 +63,8 @@ HIT_STATES = ("known", "partial")
 # 依据实测：KD×LLM=0.607（同向）、FlashAttention×知识图谱=0.443（异向）。
 DIRECTION_THRESHOLD = 0.6
 
-# 同类缺口提权上限（避免单方向淹没）
-DIRECTION_BOOST = 1.5
+# 真实发现的门槛：KG 节点 quality ≥ 此值才算"有价值的发现"。
+DISCOVERY_MIN_QUALITY = 7.0
 
 
 def _get_conn(db_path: Optional[str] = None) -> sqlite3.Connection:
@@ -161,14 +161,26 @@ def discovery_reference_rate(db_path: Optional[str] = None) -> Dict[str, Any]:
 # 3. 结案发现（曾为缺口 → 现命中）
 # ---------------------------------------------------------------------------
 
-def resolved_topics(db_path: Optional[str] = None) -> Set[str]:
-    """返回「已从缺口变为命中」的 topic 集合。
+def resolved_topics(
+    db_path: Optional[str] = None,
+    include_kg_known: bool = True,
+) -> Set[str]:
+    """返回「已结案发现」的 topic 集合（探索奏效的成果）。
 
-    判定：该 query_topic 最近一次检索 coverage 已是 known/partial。
+    C3D-R (2026-10-08) 口径修正：
+      原口径只取「曾出现在 retrieval_events 且最近 coverage=known/partial」
+      → 语料被 R1D3 检索行为垄断，且大量是测试词（x/test_topic），
+        真正的探索成果根本不在里面。
+
+      新口径 = seed 集（检索命中的真实 topic）
+             ∪ KG 真实发现集（quality≥DISCOVERY_MIN_QUALITY）
+      这样「已结案发现」= 系统真探出来且有质量的东西，不再被检索历史垄断。
+
     证据形态（真实数据）：FlashAttention: unknown→unknown→known→known...
-    这类 topic 的探索「奏效了」，其方向值得继续探。
     """
     try:
+        out: Set[str] = set()
+        # ① 检索命中过的真实 topic（种子）
         conn = _get_conn(db_path)
         try:
             rows = conn.execute(
@@ -176,13 +188,17 @@ def resolved_topics(db_path: Optional[str] = None) -> Set[str]:
                 "WHERE id = (SELECT MAX(id) FROM retrieval_events "
                 "            WHERE query_topic = re.query_topic)"
             ).fetchall()
-            return {
+            out |= {
                 r["query_topic"]
                 for r in rows
                 if (r["coverage"] or "").lower() in HIT_STATES
             }
         finally:
             conn.close()
+        # ② KG 真实发现集（不被检索历史垄断）
+        if include_kg_known:
+            out |= _real_discoveries(db_path)
+        return out
     except Exception as e:
         logger.warning(f"[feedback] resolved_topics failed: {e}")
         return set()
@@ -286,50 +302,107 @@ def direction_neighbors(
 # 5. 反馈查找表（供 rank_gaps 消费）
 # ---------------------------------------------------------------------------
 
-def feedback_lookup(
+def related_discoveries(
+    topic: str,
     db_path: Optional[str] = None,
     threshold: float = None,
-    boost: float = None,
+    k: int = 5,
     emb_fn=None,
-) -> Dict[str, Dict[str, Any]]:
-    """构建 {topic: {boost, reason}} 反馈查找表。
+) -> List[Dict[str, Any]]:
+    """C3D-R (2026-10-08): 给定 topic → 返回同方向的「已结案发现」。
 
-    对「与已结案发现同方向、且仍在缺口表」的 topic 给相关性加成。
+    这是重定向后的 C3-D 唯一作用：**发现 → 消费提示**（扩大消费面），
+    而非旧的「被检索 → 缺口提权」（收窄探索面，因果反了）。
+
+    用法：R1D3 回答某 topic 时，可附上「我探过的相关内容」——
+    让已探出的成果真正进入消费，而不是被动等用户撞到。
 
     Args:
+        topic: 用户正在问 / 正在处理的 topic。
         db_path: ops.db 路径（测试用）。
-        threshold: 方向聚类阈值。
-        boost: 提权倍率；None → DIRECTION_BOOST。
+        threshold: 方向聚类阈值；None → DIRECTION_THRESHOLD。
+        k: 最多返回几条。
         emb_fn: 注入的 embedding 加载函数（测试用）。
 
-    失败返回空 dict（纪律：反馈是注解，绝不破坏主流程）。
+    Returns:
+        [{topic, similarity, direction_source?}]，按相似度降序。失败返回 []。
     """
     try:
         resolved = resolved_topics(db_path)
-        if not resolved:
-            return {}
+        if not resolved or not topic:
+            return []
+        neighbors = direction_neighbors(
+            resolved={topic}, candidates=resolved, threshold=threshold, emb_fn=emb_fn
+        )
+        # neighbors = {topic: [同方向已结案发现...]}  —— 去掉自身
+        peers = [p for p in neighbors.get(topic, []) if p != topic]
+        if not peers:
+            return []
 
-        # 候选 = 仍在缺口表的 topic
-        from core.api.gap_store import list_gaps
-        gaps = list_gaps(only_unconsumed=False)
-        candidates = {g["topic"] for g in gaps if g.get("topic")}
-        if not candidates:
-            return {}
-
-        neighbors = direction_neighbors(resolved, candidates, threshold, emb_fn)
-        b = DIRECTION_BOOST if boost is None else float(boost)
-
-        out: Dict[str, Dict[str, Any]] = {}
-        for src, cands in neighbors.items():
-            for cand in cands:
-                # 同一候选可能被多个源指到 → 取首个（避免叠加）
-                if cand not in out:
-                    out[cand] = {
-                        "boost": b,
-                        "reason": f"同方向于已结案发现「{src}」",
-                        "source_discovery": src,
-                    }
-        return out
+        # 算每个 peer 与 topic 的相似度（供排序）
+        loader = emb_fn or _load_embeddings
+        embs = loader({topic} | set(peers))
+        tv = embs.get(topic)
+        out: List[Dict[str, Any]] = []
+        for p in peers:
+            pv = embs.get(p)
+            sim = _cosine(tv, pv) if (tv and pv) else 0.0
+            out.append({"topic": p, "similarity": round(sim, 4)})
+        out.sort(key=lambda x: -x["similarity"])
+        return out[: max(1, int(k))]
     except Exception as e:
-        logger.warning(f"[feedback] feedback_lookup failed: {e}")
-        return {}
+        logger.warning(f"[feedback] related_discoveries failed: {e}")
+        return []
+
+
+def _real_discoveries(db_path: Optional[str] = None) -> Set[str]:
+    """C3D-R：真实发现集 —— KG 中 quality ≥ DISCOVERY_MIN_QUALITY 的节点 topic。
+
+    取代旧口径（行为库 360 条）—— 后者混入爬虫网页标题/失败条目（噪声分母）。
+    失败返回空 set。
+    """
+    try:
+        from core.kg.repository_factory import get_kg_factory
+        f = get_kg_factory()
+        nodes = f.get_all_nodes_sync(limit=5000) or []
+        return {
+            n.get("topic")
+            for n in nodes
+            if n.get("topic")
+            and float(n.get("quality", 0) or 0) >= DISCOVERY_MIN_QUALITY
+        }
+    except Exception as e:
+        logger.warning(f"[feedback] _real_discoveries failed: {e}")
+        return set()
+
+
+def discovery_reference_rate_v2(db_path: Optional[str] = None) -> Dict[str, Any]:
+    """发现引用率 v2（CA2.0 §十，C3D-R 修正口径）。
+
+    分子 = 真实发现中被检索过的数（KG quality≥7 且出现在 retrieval_events）
+    分母 = 真实发现总数（KG quality≥7）
+
+    对比旧口径：分母曾是行为库 360 条（混入爬虫垃圾 → 引用率被稀释至 0.92%，
+    不是"用户没用"，是"分母不是发现"）。
+    """
+    try:
+        real = _real_discoveries(db_path)
+        retrieved = retrieved_topics(db_path)
+        referenced = real & retrieved
+        total = len(real)
+        return {
+            "discovered_total": total,
+            "referenced": len(referenced),
+            "reference_rate": round(len(referenced) / total, 4) if total else 0.0,
+            "referenced_topics": sorted(referenced)[:50],
+            "denominator": "kg_quality_ge_7",
+        }
+    except Exception as e:
+        logger.warning(f"[feedback] discovery_reference_rate_v2 failed: {e}")
+        return {
+            "discovered_total": 0,
+            "referenced": 0,
+            "reference_rate": 0.0,
+            "referenced_topics": [],
+            "denominator": "kg_quality_ge_7",
+        }
