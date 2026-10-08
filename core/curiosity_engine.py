@@ -171,6 +171,7 @@ class CuriosityEngine:
                 relevance = min(10.0, relevance + 1.5)
         
         # Recency: 检查知识图谱中该 topic 的更新时间
+        # SSOT (v0.3.6-SSOT): get_state() 从 Neo4j 拼装 topics。
         state = kg.get_state()
         last_updated = None
         for t, v in state["knowledge"]["topics"].items():
@@ -202,20 +203,20 @@ class CuriosityEngine:
     
     def rescore_all(self) -> None:
         """重新评分所有待处理的好奇心项"""
-        state = kg.get_state()
+        # SSOT (v0.3.6-SSOT): queue lives in queue.db; read/write via QueueStorage
+        # (through kg helpers) instead of the retired state skeleton.
+        storage = kg._get_queue_storage()
+        pending = storage.get_pending_items()
         updated = 0
-        for item in state["curiosity_queue"]:
-            if item["status"] == "pending":
-                new_score = self.compute_curiosity_score(
-                    item["topic"],
-                    item.get("relevance", 5.0),
-                    item.get("depth", 5.0)
-                )
-                if abs(new_score - item["score"]) > 0.5:
-                    item["score"] = new_score
-                    updated += 1
-        if updated > 0:
-            kg._save_state(state)
+        for item in pending:
+            new_score = self.compute_curiosity_score(
+                item["topic"],
+                item.get("relevance", 5.0),
+                item.get("depth", 5.0)
+            )
+            if abs(new_score - (item.get("score") or 0.0)) > 0.5:
+                kg.update_curiosity_score(item["topic"], new_score)
+                updated += 1
         return updated
     
     def select_next(self) -> Optional[dict]:

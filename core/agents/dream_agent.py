@@ -151,13 +151,23 @@ class DreamAgent(CAAgent):
             if topic and topic not in candidates:
                 candidates.append(topic)
         
-        # Load state.json for dormant and quality checks
+        # SSOT (v0.3.6-SSOT): get_state() assembles topics from Neo4j.
+        # (The old comment claimed "state.json" but that file is retired; the
+        # skeleton's knowledge.topics is empty — get_state() is the correct
+        # source because it merges Neo4j nodes.)
         state = knowledge_graph.get_state()
         topics = state["knowledge"]["topics"]
         
-        # 2. Get dormant topics from state.json (not Neo4j - no dormant marker there)
-        # Dormant = completed topics that haven't been dreamed recently (> 30 days)
-        # or topics with very low quality (< 3.0) that need re-examination
+        # 2. Dormant detection. Two distinct signals:
+        #    (a) explicit dormant marker in Neo4j (status='dormant', written by
+        #        SleepPruner) — read via get_dormant_nodes();
+        #    (b) "stale but not yet pruned" = completed & not dreamed in 30 days.
+        # SSOT: (a) now reads the real source. (b) still uses meta_cognitive
+        # (ops.db, the correct home for runtime timestamps).
+        for topic in knowledge_graph.get_dormant_nodes():
+            if topic and topic not in candidates:
+                candidates.append(topic)
+
         meta_cognitive = state.get("meta_cognitive", {})
         completed_topics = meta_cognitive.get("completed_topics", {})
         for topic, completion_data in completed_topics.items():
@@ -190,6 +200,7 @@ class DreamAgent(CAAgent):
     def _l2_deep_sleep(self, candidates: List[str]) -> List[ScoredCandidate]:
         """L2: 6-dimension scoring (Relevance, Frequency, Recency, Quality, Surprise, CrossDomain)."""
         scored: List[ScoredCandidate] = []
+        # SSOT (v0.3.6-SSOT): topics assembled from Neo4j by get_state().
         state = knowledge_graph.get_state()
         topics = state["knowledge"]["topics"]
         
