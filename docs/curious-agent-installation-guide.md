@@ -115,7 +115,7 @@
 │   │
 │   ├── kg/                   # KG storage layer
 │   │   ├── neo4j_client.py
-│   │   └── json_kg_repository.py
+│   │   └── kg_repository.py
 │   │
 │   ├── knowledge_graph.py    # KG logic
 │   ├── curiosity_engine.py   # ICM fusion scoring

@@ -2847,11 +2847,11 @@ def api_system_health():
         from core import knowledge_graph_compat as kg
         kg_available = getattr(kg, "_neo4j_available", False)
         if not kg_available:
-            # LOUD failure: Neo4j is the ONLY knowledge backend (JSON is dead
-            # code — nothing instantiates JSONKGRepository, and no fallback
-            # switches to it). Reporting a fake "json" storage here would hide
-            # a real outage behind a plausible-looking value. So: log ERROR and
-            # surface an explicit unavailable state instead of inventing a backend.
+            # LOUD failure: Neo4j is the ONLY knowledge backend (the old JSON
+            # fallback was deleted as dead code — nothing instantiated it, and
+            # no fallback switched to it). Reporting a fake "json" storage here
+            # would hide a real outage behind a plausible-looking value. So: log
+            # ERROR and surface an explicit unavailable state, not a fake backend.
             logging.getLogger("curious_api.health").error(
                 "KG backend UNAVAILABLE: Neo4j unreachable — knowledge layer is "
                 "degraded/empty. There is NO json fallback; 'json' would be a lie."

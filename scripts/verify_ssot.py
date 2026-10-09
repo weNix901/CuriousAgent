@@ -140,11 +140,11 @@ def ssot_structure():
                 continue
             path = os.path.join(root, fn)
             rel = os.path.relpath(path, base)
-            # Skip the JSON fallback backend, the shim itself, and the
-            # v1→v2 migration helper (which legitimately operates on an
-            # in-memory legacy state dict passed in by the caller).
-            if ("json_kg_repository" in rel
-                    or "knowledge_graph_compat.py" in rel
+            # Skip the shim itself and the v1→v2 migration helper (which
+            # legitimately operates on an in-memory legacy state dict passed
+            # in by the caller). Note: the old JSON fallback backend
+            # (json_kg_repository.py) was deleted in v0.3.9 as dead code.
+            if ("knowledge_graph_compat.py" in rel
                     or "models/migration.py" in rel):
                 continue
             lines = open(path, encoding="utf-8").read().splitlines()

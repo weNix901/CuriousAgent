@@ -450,7 +450,6 @@ curious-agent/
 │   ├── kg/                       # Knowledge storage
 │   │   ├── kg_repository.py
 │   │   ├── neo4j_client.py
-│   │   └──────────────────────────────────────────────────────────────────────json_kg_repository.py
 │   │   └──────────────────────────────────────────────────────────────────────repository_factory.py
 │   │
 │   ├── knowledge_graph.py        # KG logic
