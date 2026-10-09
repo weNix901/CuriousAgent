@@ -4,6 +4,7 @@ Curious Agent API Server
 """
 import argparse
 import json
+import logging
 import os
 import queue as queue_mod
 import sqlite3
@@ -1138,6 +1139,15 @@ def main():
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
 
+    # v0.3.9: Make loud-failure diagnostics actually visible. Without a handler,
+    # ERROR logs from logging.getLogger(...) on the KG-unavailable paths would be
+    # swallowed — which is exactly the silent-failure mode we're eliminating.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        stream=sys.stderr,
+    )
+
     url = f"http://10.1.0.13:{args.port}/"
 
     print(f"""
@@ -1188,6 +1198,23 @@ def main():
     # v0.3.1: Initialize trace databases
     from core.trace.explorer_trace import TraceWriter
     TraceWriter()
+
+    # v0.3.9: Fail LOUDLY at startup if the knowledge backend is unreachable.
+    # Neo4j is the ONLY KG backend (JSON is dead code, no fallback). Booting
+    # into a silently-degraded state is exactly the "silent failure" we refuse.
+    from core import knowledge_graph_compat as kg_boot
+    try:
+        _ = kg_boot.get_state()
+    except Exception as e:
+        logging.getLogger("curious_api.boot").error(
+            f"FATAL: KG backend (Neo4j) unreachable at startup: {e}"
+        )
+        raise SystemExit(1)
+    if not getattr(kg_boot, "_neo4j_available", False):
+        logging.getLogger("curious_api.boot").error(
+            "FATAL: KG backend (Neo4j) unavailable at startup (no json fallback)."
+        )
+        raise SystemExit(1)
 
     # Use make_server so we can control shutdown
     from werkzeug.serving import make_server
@@ -2818,6 +2845,29 @@ def api_system_health():
         queue_stats = qs.get_all_stats()
 
         from core import knowledge_graph_compat as kg
+        kg_available = getattr(kg, "_neo4j_available", False)
+        if not kg_available:
+            # LOUD failure: Neo4j is the ONLY knowledge backend (JSON is dead
+            # code — nothing instantiates JSONKGRepository, and no fallback
+            # switches to it). Reporting a fake "json" storage here would hide
+            # a real outage behind a plausible-looking value. So: log ERROR and
+            # surface an explicit unavailable state instead of inventing a backend.
+            logging.getLogger("curious_api.health").error(
+                "KG backend UNAVAILABLE: Neo4j unreachable — knowledge layer is "
+                "degraded/empty. There is NO json fallback; 'json' would be a lie."
+            )
+            return jsonify({
+                "ca_api": {"status": "up", "uptime_seconds": uptime, "port": 4848},
+                "system": _get_system_info(),
+                "kg": {
+                    "total_nodes": None,
+                    "storage": None,
+                    "available": False,
+                    "error": "neo4j_unavailable",
+                },
+                "recent_errors": recent_errors,
+            }), 503
+
         state = kg.get_state()
         topics = state["knowledge"]["topics"]
 
@@ -2836,7 +2886,8 @@ def api_system_health():
             "queue": queue_stats,
             "kg": {
                 "total_nodes": len(topics),
-                "storage": "neo4j" if getattr(kg, "_neo4j_available", False) else "json",
+                "storage": "neo4j",
+                "available": True,
             },
             "recent_errors": recent_errors,
         })
