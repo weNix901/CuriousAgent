@@ -189,35 +189,53 @@ v0.3.6 把旧测试整体归档（`951e91a`），状态 **95 failed / 995 passed
 
 ---
 
-## 五、主线 C — C3-D 反馈环观测化
+## 五、主线 C — C3-D 观测化（**已大部分完成，本主线降级为收口**）
 
-### 5.1 背景
+### 5.1 背景校正（2026-10-09 实测）
 
-批6（C3-D）已实现方向级反馈（`IS_CHILD_OF` 找同方向 → 提权缺口），
-并定义了「发现引用率 = 被检索过的行为库条目数 / 343」。
-但**指标尚未产出为可观测数字**，验收里"产出发现引用率"仍是 TODO。
+原计划假设 C3-D 反馈环"定义了指标但尚未产出数字"。实测发现**这个假设已过期**：
 
-### C-1 — 发现引用率指标落库
+| 原计划假设 | 实测真相 | 证据 |
+|-----------|---------|------|
+| 方向级反馈 = "被检索 → 提权缺口" | ❌ **已废除**（C3D-R，2026-10-08）：因果方向接反，违反 CA2.0 §1.3 | `gap_calculator.py:364` 注释 |
+| 发现引用率"尚未产出" | ❌ **已实现**：`discovery_reference_rate()` + `_v2()` 均已存在 | `feedback_store.py:132,437` |
+| C3-D 未接入 R1D3 | ❌ **已接入**：hook + skill 两消费方 | `fcf4f71` |
+| 需要新建 `/api/metrics/c3d` | ⚠️ 指标函数有，**无端点暴露** | grep 零命中 |
 
-**任务**：
-- 从行为库（`curious-agent-behaviors.md`，343 条）取 topic 集合；
-- 从 `retrieval_events` 取被检索过的 `matched_topic`；
-- 计算 `referenced / 343`，落 `ops.db.metrics`（或 runtime_kv）。
-**产出**：`core/metrics.py` 新增 `discovery_reference_rate()`。
-**验收**：调用返回 0–1 的实数；行为库/事件为空时返回 0（不报错）。
+**实测运行**：
+```
+reference_rate_v2: {discovered_total: 814, referenced: 3, rate: 0.0037}
+reference_rate_v1: {discovered_total: 347, referenced: 3, rate: 0.0086}
+```
+→ 说明 v1/v2 **两个口径并存**（v1 分母=行为库，v2 分母=KG quality≥7）。
 
-### C-2 — 反馈生效可观测
+### C-1 — ✅ **已存在**（仅需确认口径）
 
-**任务**：记录每次 C3-D 提权的前后 diff——
-`gap.priority` 改前/改后 + 触发它的被引用 discovery。
-**产出**：`ops.db.c3d_feedback_log` 表（改前/改后/触发源/时间）。
-**验收**：至少 1 例可查（对齐批6 验收："同类缺口优先级实际上升，可观测 diff"）。
+`feedback_store.discovery_reference_rate_v2()` 已产出 0–1 实数。
+**待办**：
+- 决定 **v1/v2 哪个是正式口径**（v2 分母更合理：KG quality≥7 才是"真发现"）。
+- 若定 v2，则给 v1 加 `@deprecated` 标注 + 文档说明，避免两口径混用（违反"唯一真源"）。
+**验收**：`docs` + docstring 明确唯一口径；另一口径标注废弃或删除。
 
-### C-3 — 指标面板
+### C-2 — ⚠️ **机制已废除，改为"消费面观测"**
+
+原 C3D-R 已删除"提权 diff 日志"需求（机制本身废除）。
+**改为**：观测"发现→消费"通路的实际使用——`related_discoveries` 端点被调用次数 / 返回非空次数。
+**产出**：`ops.db.runtime_kv` 记 `c3d_consume_events`（或轻量计数）。
+**验收**：skill/hook 调用一次 → 计数 +1（可查）。
+
+### C-3 — 指标端点（**本主线唯一实质待办**）
 
 **任务**：`GET /api/metrics/c3d` 返回：
-`{reference_rate, boosted_gaps_recent, last_feedback_at}`。
-**验收**：curl 返回非空结构；UI 可选展示（不阻塞）。
+```json
+{"reference_rate": 0.0037, "denominator": "kg_quality_ge_7",
+ "discovered_total": 814, "referenced": 3, "referenced_topics": [...]}
+```
+（直接包 `discovery_reference_rate_v2()`，不新造逻辑。）
+**验收**：curl 返回非空结构；口径与 C-1 决定一致。
+
+> **结论**：主线 C 原本的三批里，C-1 已存在、C-2 机制被废除，**只剩 C-3（暴露端点）
+> + 口径统一**是真实待办。工作量远小于原估计。
 
 ---
 
@@ -236,19 +254,21 @@ A-0 写入点清点（只读，可并行）
    ├─► A-4 约束自检 + health.constraints_ok
    └─► A-5 重复边巡检
 
-C-1 引用率指标
-   ├─► C-2 反馈 diff 日志
-   └─► C-3 指标面板
+C-1 口径统一（v1/v2 二选一）
+   └─► C-3 暴露 /api/metrics/c3d 端点
+C-2 消费面观测（轻量，独立）
 ```
 
 | 主线 | 批 | 依赖 | 风险 |
 |------|----|------|------|
-| B | B-1 包名冲突 | 无（阻塞项） | 🟡 环境改动 |
+| B | B-1 包名冲突 | 无（✅ 本轮已完成） | 🟢 |
 | B | B-0..B-4 | B-1 | 🟢 |
 | A | A-0 清点 | 无 | 🟢 只读 |
-| A | A-1..A-3 写入点 | A-0 | 🟡 涉 KG 写入 |
+| A | A-1..A-2 写入点 | A-0 | 🟡 涉 KG 写入 |
+| A | A-3 | ✅ 本轮已完成（删除死代码） | — |
 | A | A-4/A-5 护栏 | A-1 | 🟢 |
-| C | C-1..C-3 | 无 | 🟢 |
+| C | C-1/C-3 口径+端点 | 无 | 🟢 |
+| C | C-2 消费观测 | 无 | 🟢 |
 
 ---
 
@@ -261,8 +281,8 @@ C-1 引用率指标
 | 3 | **约束自愈** | 删约束 → 重启 → 自动补回 + health 先报 false 后 true |
 | 4 | **测试基线可信任** | `pytest tests/unit -q` 全绿 < 30s；CI 能拦住回归 |
 | 5 | **无包名污染** | `pytest --collect-only` 零 ImportError |
-| 6 | **发现引用率可算** | `discovery_reference_rate()` 返回 0–1 实数 |
-| 7 | **C3-D 可观测** | `ops.db.c3d_feedback_log` ≥1 条真实提权记录 |
+| 6 | **发现引用率口径唯一** | 只剩一个正式口径（v2），另一个废弃/删除 |
+| 7 | **C3-D 可观测** | `/api/metrics/c3d` 返回非空结构；消费事件可计数 |
 
 ---
 
@@ -272,7 +292,7 @@ C-1 引用率指标
 |---|------|------|
 | R1 | A 系列改写入路径引入新 bug | 每改一处配反向验证（改前脏/改后净），同本轮 F1–F3 |
 | R2 | B 系列删旧用例可能删掉"隐性规格" | 三分类先只读；删除项必须写明"测的是哪条废弃链路" |
-| R3 | C 系列指标口径漂移 | 引用率分子分母定义**写死**（行为库 topic ∩ retrieval_events.matched_topic），不 LLM 臆断 |
+| R3 | C 系列指标口径漂移 | 引用率分子分母定义**写死**（v2: 分子=KG quality≥7 ∩ retrieval_events，分母=KG quality≥7）；v1 标废弃，不 LLM 臆断 |
 | R4 | 双写复发（同 SSOT R4） | 禁止双写；写入点清单（A-0）即为唯一真源裁定 |
 
 **纪律（承接 AGENTS.md + SSOT）**：
@@ -292,7 +312,7 @@ v0.3.6：接通路（数据源唯一性 + 通路一致性 + C3-D 重定向）  �
 v0.3.7：硬化与收口
    ├─ A 数据层防复发（把"人工清理"变成"结构上不可能脏"）
    ├─ B 测试基线重建（从归档 95 failed → 可信任干净基线）
-   └─ C C3-D 观测化（从"定义了指标"→"产出了数字"）
+   └─ C C3-D 收口（口径统一 + 端点暴露；机制本已建成）
 ```
 
 **为什么是"硬化"而非"新功能"**：
@@ -301,7 +321,24 @@ v0.3.6 刚把 C2→C3→C3-D 链路接通，此刻**最该做的是让它跑得�
 
 ---
 
+## 十、本轮已提前完成的项（更新 2026-10-09 晚）
+
+| 原计划项 | 状态 | 说明 |
+|---------|------|------|
+| B-1 包名冲突 | ✅ **已完成** | conftest.py + tests/__init__.py；1106 tests 零 ImportError |
+| A-3 JSON 后端 | ✅ **已完成** | 直接删除死代码（457 行），非"改 key" |
+| F4 health 响亮失败 | ✅ **已完成** | ERROR + 503 + 启动门禁 |
+| C-1 引用率指标 | ⚠️ **已存在** | `discovery_reference_rate_v2()` 已在跑，仅需定口径 |
+
+**剩余真实待办**：A-0/A-1/A-2/A-4/A-5、B-0/B-2/B-3/B-4、C-1 口径统一/C-2/C-3。
+
+---
+
 _本档基于 2026-10-08 v0.3.6 收尾审计 + 2026-10-09 KG 修复实测写成。_
 _数据源：`core/kg/neo4j_client.py`、`core/kg/kg_repository.py`、_
-_`core/kg/json_kg_repository.py`、`scripts/backfill_relation_keys.py`、_
+_`core/api/feedback_store.py`、`scripts/backfill_relation_keys.py`、_
 _`legacy_tests_v026/README.md`、`docs/plan/next_move_v0.3.6*.md`、`knowledge/ops.db`。_
+
+_**2026-10-09 晚校准**：主线 C 原假设"C3-D 尚未观测化"已过期——实测发现_
+_方向级提权机制已废除（C3D-R）、引用率函数已实现、C3-D 已接入 R1D3。_
+_本档已按实情重写主线 C，避免"拿过时假设当待办"。_
