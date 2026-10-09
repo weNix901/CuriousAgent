@@ -40,7 +40,14 @@ v0.3.6 解决的是「数据源唯一性」与「通路一致性」。
 | F1 | Neo4j 关系唯一约束（防重复边复发） | `core/kg/neo4j_client.py` | `ConstraintValidationFailed` 挡下重复 CREATE ✅ |
 | F2 | 写边带 `key` 属性（`<from>\|<type>\|<to>`） | `core/kg/kg_repository.py` | MERGE 幂等，边数不变 ✅ |
 | F3 | 历史边回填脚本 | `scripts/backfill_relation_keys.py` | 5044 边全部打标，0 重复 ✅ |
-| F4 | health 端点 storage 动态化 | `curious_api.py` | 实测返回 `neo4j` ✅ |
+| F4 | health 端点 KG 后端不可用改为响亮失败 | `curious_api.py` | 模拟不可用 → ERROR + 503；启动门禁 SystemExit(1) ✅ |
+| F5 | **删除死代码 `json_kg_repository.py`** | `core/kg/` | 457 行删除，零残留引用 ✅ |
+| F6 | 测试基线 rootdir 固化 | `conftest.py` + `tests/__init__.py` | 1106 tests collected，零 ImportError ✅ |
+
+**F4 关键判断（weNix 2026-10-09）**：原方案是 `null` + `available`，但 weNix 指出
+**应直接响亮失败**——静默降级（哪怕返回 `null`）仍是在"看起来合理地"掩盖故障。
+后端不可用必须：① 打 ERROR 日志 ② 端点返回 503 ③ 启动时拒绝带病启动（SystemExit(1)）。
+顺带修了一个隐藏杀手：全仓库此前**从未配过 logging handler**，ERROR 会被吞掉 = 又一个静默失败。
 
 > **关键发现（写入纪律）**：这套 Neo4j（Kernel **2026.03.1 / Cypher 25**）
 > **只接受属性级关系唯一约束**（`REQUIRE r.key IS UNIQUE`），
@@ -97,12 +104,19 @@ v0.3.6 解决的是「数据源唯一性」与「通路一致性」。
 - `scripts/backfill_relation_keys.py` 增加 `--verify` 模式（只读校验所有边都有 key）。
 **验收**：`--verify` 在干净库上返回 "all edges have key"。
 
-### A-3 — JSON fallback 后端 key 一致性
+### A-3 — ~~JSON fallback 后端 key 一致性~~ ✅ **已随本轮完成（2026-10-09）**
 
-**背景**：`json_kg_repository.py:197` 的历史 bug——key 只用 `f"{from}|{to}"`，
-**不含 relation_type** → 同 topic 对不同关系互相覆盖（见 memory 2026-05-27）。
-**任务**：确认已修为 `f"{from}|{relation_type}|{to}"`（同 Neo4j 口径），若未修则修。
-**验收**：JSON 后端下，同 topic 对的不同关系类型可共存（单测）。
+**决策变更**：原计划是"确认 JSON 后端 key 含 relation_type"，但核查后确认
+**JSON 后端是死代码**（`JSONKGRepository` 全仓库零实例化，无 fallback 切换到它）。
+weNix 决策：**直接删除，不留后患**。
+
+**实际执行**：
+- 删除 `core/kg/json_kg_repository.py`（445 行）
+- 清理 `scripts/verify_ssot.py` 的 skip 引用 + doc/ARCHITECTURE 文件树条目
+- 验证：`*.py` 零残留引用，`import core.kg.repository_factory` OK
+
+→ 该批**无需再做**；原"key 含 relation_type"的历史 bug 随文件删除一并消失。
+commit `33cd302`。
 
 ### A-4 — 约束基线固化 + 启动自检
 
