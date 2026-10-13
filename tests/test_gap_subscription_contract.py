@@ -126,62 +126,50 @@ class TestHookEndpointWritesGap:
 
         这是整条 C2 链路的终点断言：hook 观测 → 队列有燃料。
 
-        ⚠️ 重要（2026-10-13 发现）：**单次** hook 观测不足以过闸门。
-        value = coverage_gap(unknown)=0.80 × relevance(real_seen/saturation)
-        单次 real_seen=1, saturation=3 → rel=0.33 → value=0.267，
-        而 resolve() 的动态闸门可能是 0.35~0.70 → 不够。
-        故断言用 real_seen>=saturation（三次观测）→ rel=1.0 → value=0.80。
-        这不是 bug，是 C2 的设计（频次饱和）；但它意味着"断线修复后队列
-        仍可能空转一段时间"，需显式知晓。
+        ⚠️ 语义（2026-10-13 weNix 定）：**首次观测即应有燃料**。
+        一次真实会话触发（real_seen>=1）即视相关性饱和（rel=1.0），
+        故单次 hook 调用 → value = coverage_gap(0.80) × 1.0 = 0.80，
+        过任何动态闸门（最高 0.70）。见 RELEVANCE_BOOTSTRAP_FLOOR。
         """
         from core.api.gap_calculator import compute_from_store, GapConfig
 
         cfg = GapConfig.resolve()
-        sat = cfg.relevance_saturation
         topic = _unknown_topic()
-        # 观测到饱和次数（real_seen>=sat → rel=1.0 → value=0.80 > 闸门上限0.80?）
-        # 用 sat 次确保 rel 拉满；即使闸门=0.80，value=0.80 也刚好达标。
-        for _ in range(sat):
-            client.get(
-                f"/api/kg/confidence/{topic}",
-                headers={"X-OpenClaw-Hook-Name": "knowledge-gate"},
-            )
-
-        candidates = compute_from_store(only_unconsumed=True)
-        hit = [c for c in candidates if getattr(c, "topic", None) == topic]
-        assert hit, (
-            f"compute_from_store 未产出该 topic 的候选 → C2 回路断开。"
-            f"（observed {sat}x, 应 rel=1.0 → value≈0.80 ≥ 闸门）"
-        )
-        assert hit[0].value > 0, (
-            f"候选 value={hit[0].value} 应 >0（real_seen>0 应产生正相关性）"
-        )
-
-    def test_single_observation_below_gate_but_still_recorded(self, client, temp_db):
-        """单次观测：落库成功(订阅在线)但 value 可能低于闸门(不入队)。
-
-        这是 C2 的**已知**行为，不是断线：订阅是"每次观测都记"，
-        而入队闸门是"价值够高才入"。区分二者是本次修复的核心教训
-        （旧 bug 把"未入队"误判为"断线"）。此测试同时锁住：
-          · 落库：单次观测 → gaps 行存在（订阅在线，非断线）
-          · 闸门：单次观测 → value < sat 时的闸门（正常过滤，非故障）
-        """
-        from core.api.gap_calculator import compute_from_store, GapConfig
-        cfg = GapConfig.resolve()
-        topic = _unknown_topic()
+        # 仅一次真实观测
         client.get(
             f"/api/kg/confidence/{topic}",
             headers={"X-OpenClaw-Hook-Name": "knowledge-gate"},
         )
-        row = _row(temp_db, topic)
-        assert row is not None, "单次观测必须落库（订阅在线）"
-        assert row["real_seen"] == 1
-        # 单次观测不应入队（value 未饱和）——除非闸门被外因调得极低
-        if cfg.gap_threshold > 0.35:
-            cands = {getattr(c, "topic", None) for c in compute_from_store(only_unconsumed=True)}
-            assert topic not in cands, (
-                "单次观测 value≈0.267 不应过闸门(>0.35)；若入队说明 saturation/闸门变"
-            )
+
+        candidates = compute_from_store(only_unconsumed=True)
+        hit = [c for c in candidates if getattr(c, "topic", None) == topic]
+        assert hit, (
+            "单次真实观测未产出候选 → 首次观测无燃料（违反 2026-10-13 需求）"
+        )
+        assert hit[0].value > 0, (
+            f"候选 value={hit[0].value} 应 >0（首次观测 real_seen=1 → rel=1.0）"
+        )
+
+    def test_first_observation_passes_gate(self, client, temp_db):
+        """首次观测即过闸门（weNix 2026-10-13）：一次触发 = 燃料。
+
+        bootstrap 语义：real_seen>=1 → rel=1.0。
+        对比：real_seen=0（无真实触发）→ rel=0 → 不入队（防无源噪声）。
+        """
+        from core.api.gap_calculator import compute_gap_value, GapConfig
+        cfg = GapConfig.resolve()
+        v1 = compute_gap_value(
+            topic="t", status="unknown", quality=0.0, seen_count=1,
+            relevance_saturation=cfg.relevance_saturation,
+        ).value
+        assert v1 >= cfg.gap_threshold, (
+            f"首次观测 value={v1:.3f} 应 >= 闸门 {cfg.gap_threshold}（首次即有燃料）"
+        )
+        v0 = compute_gap_value(
+            topic="t", status="unknown", quality=0.0, seen_count=0,
+            relevance_saturation=cfg.relevance_saturation,
+        ).value
+        assert v0 == 0.0, "无真实触发(real_seen=0) → rel=0 → 不入队"
 
 
 # ---------------------------------------------------------------------------

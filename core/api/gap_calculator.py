@@ -34,6 +34,16 @@ STATUS_WEIGHT = {"void": 1.0, "unknown": 0.8}
 # 相关性：seen_count 的归一化饱和点。达到该次数视为相关性=1.0。
 RELEVANCE_SATURATION = 3
 
+# 首次观测 bootstrap（2026-10-13）
+# 需求（weNix）："首次观测就应该有燃料" —— 单次真实会话触发即应产生可入队候选。
+# 旧行为：rel = n/sat（1/3=0.33）→ value = 0.80×0.33 = 0.267，低于动态闸门
+# （0.35~0.70）→ 真实缺口"落库却不入队"，loop 空转。
+# 修正：真实会话触发（real_seen>=1）首次观测即视相关性饱和（rel=1.0）。
+#   一次真实提问本身就是强信号（外部可查，非读心）；噪声由 覆盖度缺口(乘法)
+#   与 conflict 负项过滤，不由"未被问够次数"过滤（那会压制真实首次需求）。
+#   高桥接行为不变：real_seen=0（无真实触发）仍 rel=0 → 不入队。
+RELEVANCE_BOOTSTRAP_FLOOR = 1.0
+
 # 入队闸门：价值 >= 此阈值才产生任务候选。
 DEFAULT_GAP_THRESHOLD = 0.35
 
@@ -294,7 +304,12 @@ def _relevance(seen_count: int, saturation: int = None) -> float:
     if sat <= 0:
         return 0.0
     n = max(0, int(seen_count or 0))
-    return min(1.0, n / sat)
+    if n <= 0:
+        return 0.0
+    # 首次观测 bootstrap：任一真实触发（n>=1）即达饱和点（rel=1.0）。
+    # 见 RELEVANCE_BOOTSTRAP_FLOOR 注释。
+    ramp = min(1.0, n / sat)
+    return max(RELEVANCE_BOOTSTRAP_FLOOR, ramp)
 
 
 def _solvability(has_failed: bool) -> float:
