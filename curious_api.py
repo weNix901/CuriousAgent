@@ -17,6 +17,7 @@ import webbrowser
 from datetime import datetime, timezone
 
 from flask import Flask, jsonify, request, send_from_directory, g
+from loguru import logger
 from core.config import get_config as get_ca_config
 
 app = Flask(__name__)
@@ -874,16 +875,15 @@ def api_metacognitive_completed():
 def api_kg_confidence(topic):
     """Single confidence endpoint (four-state coverage + legacy interval).
 
-    C1-C-1 (v0.3.5, Plan A): ONE route serves both the `knowledge-gate` hook
-    and the `knowledge-query` skill.
+    C1-C-1 (v0.3.5, Plan A): the single four-state confidence endpoint.
 
-    History: two near-identical routes existed — /api/kg/confidence/<topic>
-    (called by the hook; but had NO registered route → Flask 404 → the hook's
-    try/catch swallowed it → knowledge-gate silently injected nothing) and
-    /api/knowledge/confidence (called by the skill). Their core logic was
-    identical (`KnowledgeConfidenceHandler.check_confidence`); only the
-    response wrapping differed. Plan A consolidated to this single route and
-    repointed the skill at it, deleting the duplicate.
+    C1-C-4 (2026-10-12): THIS is now the ONE canonical four-state exit, and it
+    carries BOTH side-effects (record_gap + record_retrieval). Root cause fixed
+    here: previously the hook called THIS route (no gap subscription) while the
+    gap subscription lived only on POST /api/knowledge/check — so the hook never
+    fed C2 and the gap table starved for 8 days (silent). Two overlapping routes
+    whose names did not encode the side-effect difference = a trap. Now there is
+    one exit; the other is a deprecation shim.
 
     Response keeps the legacy confidence_low/high interval contract asserted
     by tests/test_kg_routes.py AND the four-state coverage fields in `result`.
@@ -899,21 +899,48 @@ def api_kg_confidence(topic):
         result = handler.check_confidence(topic)
 
         conf = result.get("confidence", 0.0)
+        coverage = result.get("coverage", "unknown")
+        quality = result.get("quality", 0.0) or 0.0
+        source_count = result.get("source_count", 0) or 0
+
+        # C1-C-4 (2026-10-12): 四态唯一出口 —— 缺口订阅（批4a）。
+        # CA2.0 §3.2：缺口一等公民来源 = C1 判 unknown/void（用户问了我没有）。
+        # 查询动作本身即缺口观测事件，故写 gap 在此处是题中之义，非副作用滥用。
+        # observed_by 由调用方 header/query 透传；仅 user/hook 计入 real_seen。
+        try:
+            from core.api.gap_store import record_gap
+            _obs = (request.headers.get("X-OpenClaw-Hook-Name") if request
+                    else None) or request.args.get("observed_by") or "hook"
+            recorded = record_gap(
+                topic=topic,
+                coverage=coverage,
+                quality=quality,
+                source_count=source_count,
+                observed_by=_obs,
+            )
+            # F3 纪律：成功路径也留痕，避免"缺口订阅断线"再次静默。
+            if recorded:
+                logger.debug(
+                    f"[gaps] recorded: {topic!r} coverage={coverage} "
+                    f"observed_by={_obs}"
+                )
+        except Exception as _e:
+            # 不阻断查询，但绝不静默（旧 bug 的教训）。
+            logger.warning(f"[gaps] record_gap failed in four-state exit: {_e}")
 
         # 批5 C3-C (v0.3.6): 检索命中追踪 —— 记录本次检索事实。
-        # 在四态出口落库（hook 走这条路由）。失败绝不阻断查询。
         try:
             from core.api.retrieval_store import record_retrieval
             record_retrieval(
                 query_topic=topic,
-                coverage=result.get("coverage", "unknown"),
+                coverage=coverage,
                 matched_topic=result.get("matched_topic"),
                 similarity=result.get("similarity", 0.0) or 0.0,
-                quality=result.get("quality", 0.0) or 0.0,
-                source_count=result.get("source_count", 0) or 0,
+                quality=quality,
+                source_count=source_count,
             )
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.warning(f"[retrieval] record_retrieval failed in four-state exit: {_e}")
 
         return jsonify({
             "status": "ok",
@@ -1632,6 +1659,10 @@ def api_knowledge_check():
       · 新字段追加：coverage/coverage_reason/matched_topic/similarity/
         quality/source_count（供 Hook 后续消费四态，批0c 第二步）
     """
+    # DEPRECATED (2026-10-12, C1-C-4): 四态唯一出口已归一至
+    # GET /api/kg/confidence/<topic>（含缺口订阅 + 检索追踪）。
+    # 此 POST 路由保留为向后兼容薄壳，逻辑与唯一出口一致（也写 gap），
+    # 但新调用方一律应指向 /api/kg/confidence。计划下个版本删除。
     try:
         from core.api.host_agent_integration import KnowledgeConfidenceHandler
 
@@ -1701,25 +1732,25 @@ def api_knowledge_check():
         }
 
         # 批4a (v0.3.6): C2 缺口订阅 —— C1 判 unknown/void 的话题落为缺口记录。
-        # 来源依据 CA2.0 §3.2：缺口一等公民来源 = C1 unknown/void（用户问了我没有）。
-        # 仅在此处（四态唯一出口）落库；失败绝不阻断查询（record_gap 内部已 try/except）。
+        # C1-C-4 (2026-10-12): 与唯一出口 /api/kg/confidence 行为一致（皆写 gap）。
+        # 失败绝不阻断查询，但绝不静默（旧 bug 教训：断线 8 天无信号）。
         try:
             from core.api.gap_store import record_gap
-            # v0.3.6-C2: 标注观测来源；只有 user/hook 计入 real_seen（相关性）。
-            # 请求可带 ?observed_by=test 或 body.observed_by 用于压测/复核打点。
             _obs = (request.args.get("observed_by")
                     if request and hasattr(request, "args") else None) or \
                    (request.get_json(silent=True) or {}).get("observed_by") \
                    if request and hasattr(request, "get_json") else None
-            record_gap(
+            recorded = record_gap(
                 topic=topic,
                 coverage=coverage,
                 quality=res.get("quality", 0.0) or 0.0,
                 source_count=res.get("source_count", 0) or 0,
                 observed_by=(_obs or "hook"),
             )
-        except Exception:
-            pass
+            if recorded:
+                logger.debug(f"[gaps] recorded (legacy check): {topic!r} coverage={coverage}")
+        except Exception as _e:
+            logger.warning(f"[gaps] record_gap failed in legacy /api/knowledge/check: {_e}")
 
         # 批5 C3-C (v0.3.6): 检索命中追踪 —— 记录 discovery 是否被检索/引用。
         # CA2.0 §4.3「发现回流」第三环：文件被加载 + 检索命中日志。
@@ -1734,8 +1765,8 @@ def api_knowledge_check():
                 quality=res.get("quality", 0.0) or 0.0,
                 source_count=res.get("source_count", 0) or 0,
             )
-        except Exception:
-            pass
+        except Exception as _e:
+            logger.warning(f"[retrieval] record_retrieval failed in legacy /api/knowledge/check: {_e}")
 
         return jsonify({"success": True, "result": result})
     except Exception as e:

@@ -270,6 +270,9 @@ class ExploreDaemon(threading.Thread):
             max_per_cycle = getattr(self.config, "gap_scan_max_per_cycle", 2)
             candidates = compute_from_store(only_unconsumed=True)
             if not candidates:
+                # 2026-10-12 抗静默：以前此处静默 return，导致"缺口订阅断线"与
+                # "正常但当前无缺口"无法区分（C2 死锁 8 天无信号）。现留痕。
+                logger.debug("[GapQueue] no candidates this cycle")
                 return
 
             from core import knowledge_graph_compat as kg_compat
@@ -310,12 +313,14 @@ class ExploreDaemon(threading.Thread):
             if enqueued:
                 logger.info(f"[GapQueue] cycle done: {enqueued} gap(s) auto-enqueued")
             elif candidates:
-                logger.debug(
+                logger.warning(
                     f"[GapQueue] {len(candidates)} candidate(s) but none enqueued"
-                    f" (dedup / rate-limit)"
+                    f" (dedup / rate-limit) — investigate if persistent"
                 )
         except Exception as e:
-            logger.debug(f"[GapQueue] gap auto-enqueue skipped: {e}")
+            # 2026-10-12 抗静默：异常从 debug 升为 warning（旧 bug 教训：
+            # 静默吞掉 = 最贵的失败）。
+            logger.warning(f"[GapQueue] gap auto-enqueue skipped: {e}")
 
     async def _scan_orphan_nodes(self):
         """Scan for high-quality isolated nodes and re-enqueue them."""
