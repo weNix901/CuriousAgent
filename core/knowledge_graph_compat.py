@@ -268,6 +268,29 @@ def _save_state(state: dict) -> None:
         logger.warning(f"_save_state -> ops.db failed: {e}")
 
 
+_RESIDUE_MARKERS = (
+    "force-delete", "structure-test", "contract-test",
+    "testtopic", "stress_topic", "stresstopic", "test_data", "test-data",
+)
+
+
+def _is_residue_topic(topic: str) -> bool:
+    """测试/压测产物判定（v0.3.7-D1）。
+
+    命中即拒绝入队。刻意保守：只拦确定是测试产物的模式，不误伤真实话题
+    （例如 'test' 单独出现可能是真话题，故只在明确的测试构造前缀下命中）。
+    """
+    t = (topic or "").strip().lower()
+    if not t:
+        return False
+    if any(m in t for m in _RESIDUE_MARKERS):
+        return True
+    # 'test ...' / 'test-' / 'test_' 前缀形式（test trim / test deep / test alpha）
+    if t == "test" or t.startswith("test ") or t.startswith("test-") or t.startswith("test_"):
+        return True
+    return False
+
+
 def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float = 5.0, **extra) -> None:
     """唯一入队通路（C2b，2026-10-08）。
 
@@ -277,6 +300,16 @@ def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float 
 
     extra 可作为 metadata 附加字段（如 task_type / source / score 等）。
     """
+    # v0.3.7-D1: 残留守卫 — 测试/压测产物绝不得进入探索循环。
+    # 背景：OrphanScan 会挑选 KG 里 quality>=7、status=done 的孤立节点重探。
+    # 测试残留（TestTopicE2E / test trim / force-delete 等）恰好是
+    # "done + 高质量 + 零关系" —— 与合法孤儿的特征完全重叠。且下方 dedup
+    # 对 "empty done node" 是故意放行的（允许重探），于是残留被反复入队，
+    # 每次都被 claim 消耗掉一个循环。这里在唯一入队通路入口一刀切断。
+    if _is_residue_topic(topic):
+        logger.warning(f"Reject residue topic from curiosity queue: '{topic}'")
+        return
+
     storage = _get_queue_storage()
     
     from core.concept_normalizer import get_default_normalizer

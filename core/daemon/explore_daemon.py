@@ -378,29 +378,41 @@ class ExploreDaemon(threading.Thread):
                         kg_compat._save_state(state)
                         logger.info(f"[OrphanScan] Re-activated completed orphan: {topic} (quality={quality:.1f})")
 
+                # v0.3.7-D1: reject residue BEFORE attempting enqueue so we never
+                # emit a misleading "Enqueued" line for a test artifact.
+                if hasattr(kg_compat, "_is_residue_topic") and kg_compat._is_residue_topic(topic):
+                    logger.debug(f"[OrphanScan] Skipped residue topic: {topic}")
+                    continue
+
                 # Try to add - dedup may skip if node has content
                 # (for empty done nodes, dedup now allows re-exploration)
-                before_count = len(kg_compat._get_queue_storage().get_pending_items()) if hasattr(kg_compat, '_get_queue_storage') else 0
+                try:
+                    qs = kg_compat._get_queue_storage()
+                    before_ids = {i["id"] for i in qs.get_pending_items()}
+                except Exception:
+                    qs = None
+                    before_ids = set()
+
                 kg_compat.add_curiosity(
                     topic=topic,
                     reason=f"OrphanScan: high-quality isolated node (quality={quality:.1f})",
                     relevance=quality,
                     depth=7.0,
                 )
-                # Only count as enqueued if queue actually grew
-                after_count = kg_compat._get_queue_storage().get_pending_items().__len__() if hasattr(kg_compat, '_get_queue_storage') else 0
-                # Actually, add_curiosity doesn't return - check by re-querying
-                # Use a simpler heuristic: check if pending grew
-                try:
-                    qs = kg_compat._get_queue_storage()
-                    new_pending = [i for i in qs.get_pending_items() if i['topic'] == topic]
-                    if new_pending:
-                        enqueued += 1
-                        logger.info(f"[OrphanScan] Enqueued orphan node: {topic} (quality={quality:.1f})")
-                    else:
-                        logger.debug(f"[OrphanScan] Skipped (dedup): {topic}")
-                except Exception:
-                    pass
+
+                # Truthful accounting (v0.3.7-D1): only count as enqueued if a
+                # NEW pending row appeared. The old code re-found the pre-existing
+                # pending row and logged "Enqueued" forever — a logging lie.
+                if qs is not None:
+                    try:
+                        after_ids = {i["id"] for i in qs.get_pending_items()}
+                        if after_ids - before_ids:
+                            enqueued += 1
+                            logger.info(f"[OrphanScan] Enqueued orphan node: {topic} (quality={quality:.1f})")
+                        else:
+                            logger.debug(f"[OrphanScan] Skipped (dedup/already pending): {topic}")
+                    except Exception:
+                        pass
 
             if enqueued > 0:
                 logger.info(f"[OrphanScan] Total {enqueued} orphan nodes enqueued for re-exploration")
