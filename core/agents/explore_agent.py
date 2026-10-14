@@ -694,7 +694,26 @@ class ExploreAgent(CAAgent):
             return False
 
     async def _enqueue_deep_read(self, topic: str, pdf_path: str | None, txt_path: str | None, source_url: str | None):
-        """Enqueue a deep_read task after summary is written to KG."""
+        """Enqueue a deep_read task after summary is written to KG.
+
+        v0.3.7-B2 (上游止血): explore 只做搜索+总结，不下载文件，因此它调用
+        本函数时 pdf_path/txt_path **恒为 None**。旧逻辑照样入队 → DeepReadDaemon
+        每次必然 'No TXT available' → 无限 failed + 队列积压（实测 152 pending，
+        100% pdf&txt=None，增长 96/天 > 消费上限 48/天）。
+
+        修复：deep_read 的语义是"读取一个已有可读文件"。没有 pdf_path 也没有
+        txt_path 时，此刻没有可读对象 → 不入队。真正的 web 内容入队由
+        web_scrape_tool 负责（它抓取后会带 txt_path）。
+        结果：切断'每次探索都塞一条空 deep_read'的过度入队。
+        """
+        # 无任何可读文件 → 不是有效的 deep_read 任务，拒绝入队。
+        if not pdf_path and not txt_path:
+            logger.debug(
+                f"Skip deep_read enqueue for '{topic}': no pdf_path/txt_path "
+                f"(explore produces summaries, not files)"
+            )
+            return
+
         from core.tools.queue_tools import QueueStorage
         
         try:
