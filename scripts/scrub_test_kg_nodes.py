@@ -31,11 +31,23 @@ from core.knowledge_graph_compat import _is_residue_topic  # noqa: E402
 
 STRESS_RE = re.compile(r"^stress_topic_", re.I)
 
+# C3D-R (2026-10-08) 已废弃的 domain-fallback 留下的爬虫噪声：
+#   "<domain> related research" / 反爬墙页标题。源头已修（dream_agent
+#   _parse_url_domain 不再造 topic），此处清历史残留。
+WEB_NOISE_RE = re.compile(
+    r"related research$|Client Challenge|Checking your browser|"
+    r"reCAPTCHA|Just a moment",
+    re.I,
+)
+
 
 def is_pollution(topic: str) -> bool:
-    if STRESS_RE.search(topic or ""):
+    t = topic or ""
+    if STRESS_RE.search(t):
         return True
-    return _is_residue_topic(topic)
+    if WEB_NOISE_RE.search(t):
+        return True
+    return _is_residue_topic(t)
 
 
 async def _delete(client, topics: list[str]) -> int:
