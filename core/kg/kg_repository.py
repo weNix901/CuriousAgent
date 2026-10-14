@@ -40,6 +40,10 @@ class KGRepository:
         keywords: List[str] = None
     ) -> Optional[str]:
         """Create a knowledge node with optional relations and embedding."""
+        # v0.3.7-B5: topic 空白归一化。尾空格/前后空白会产生与正常 topic 不同
+        # 的 MERGE key，导致同一话题在 KG 分裂成多个节点，且写入与验证查到
+        # 不同节点（实测 FlashAttention-3 分裂出 3 个）。写入前统一 strip。
+        topic = (topic or "").strip()
         source_urls = source_urls or []
         relations = relations or []
         metadata = metadata or {}

@@ -198,7 +198,13 @@ class ExploreDaemon(threading.Thread):
 
                     try:
                         kg_factory = get_kg_factory()
-                        node = kg_factory.get_node_sync(topic)
+                        # v0.3.7-B5: 话题空白归一化。topic 带尾空格会与 KG 里
+                        # strip 后的节点不匹配 → 查到空节点 → 误判 'KG empty'。
+                        # 实测 FlashAttention-3 因尾空格分裂出 3 个节点，反复
+                        # bounce 5/5 后误 purge。查询前统一 strip。
+                        node = kg_factory.get_node_sync(topic.strip())
+                        if not node:
+                            node = kg_factory.get_node_sync(topic)
                         if node and node.get('content') and len(str(node.get('content', ''))) > 10:
                             # KG has valid content → delete queue item
                             self.queue_storage.delete_item(item_id, self.explore_agent.holder_id)
