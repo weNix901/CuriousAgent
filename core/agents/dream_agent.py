@@ -481,9 +481,14 @@ class DreamAgent(CAAgent):
         
         # ── Phase 2: Content Embedding (low cost) ──
         content_created = 0
+        embed_svc = None
         try:
             from core.embedding_service import EmbeddingService
-            embed_svc = EmbeddingService()
+            from core.config import load_config
+            # EmbeddingService requires an EmbeddingConfig (config.knowledge.embedding).
+            # Previously constructed with no args -> TypeError -> Phase2/Phase4 always
+            # failed silently -> DreamAgent produced 0 topics forever. See v0.3.7 D-3.
+            embed_svc = EmbeddingService(load_config().knowledge.get("embedding"))
             
             meaningful = []
             for topic, data in topics.items():

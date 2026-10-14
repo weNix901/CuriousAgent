@@ -124,7 +124,17 @@ class ExploreDaemon(threading.Thread):
         pending_items = self.queue_storage.get_pending_items(limit=1, exclude_task_type="deep_read")
 
         if not pending_items:
-            logger.debug("ExploreDaemon: queue empty, waiting...")
+            # v0.3.7 D-1: "queue empty" is a LIE when there are pending items we
+            # merely exclude (e.g. deep_read). Distinguish the two cases so the log
+            # reflects reality (CA2.0 §1.5 principle 6: failures must be visible).
+            total_pending = self.queue_storage.pending_count()
+            if total_pending > 0:
+                logger.info(
+                    f"ExploreDaemon: no claimable items (excluded task_type='deep_read'); "
+                    f"but {total_pending} pending item(s) exist — not empty."
+                )
+            else:
+                logger.debug("ExploreDaemon: queue truly empty, waiting...")
             # 批4c: 队列空时，正好是自主缺口入队的时机（C2 自主行为）。
             self._enqueue_gaps()
             await self._scan_orphan_nodes()

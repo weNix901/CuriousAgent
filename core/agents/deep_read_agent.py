@@ -97,7 +97,14 @@ class DeepReadAgent(CAAgent):
             )
 
         result = await self._process_paper(item)
-        await self._mark_done(item)
+        if result.success:
+            await self._mark_done(item)
+        else:
+            # v0.3.7 D-2: a failed item must NOT silently loop forever. Record the
+            # reason and mark it failed so it leaves the pending set. Without this,
+            # an unreadable item (no TXT / no recoverable PDF) is re-claimed every
+            # tick, burning cycles with zero output and zero visible signal.
+            await self._mark_failed(item, reason=str(result.content)[:500])
         return result
     
     async def _claim_deep_read_item(self) -> dict | None:
@@ -508,6 +515,28 @@ Only return the JSON array."""
             queue.mark_done(item_id=item["id"], holder_id=self.holder_id)
         except Exception as e:
             logger.warning(f"Failed to mark done: {e}")
+
+    async def _mark_failed(self, item: dict, reason: str):
+        """Mark queue item as failed with a visible reason (v0.3.7 D-2).
+
+        Makes the failure loud (WARNING) instead of a silent DEBUG line, and
+        records failed_reason so the failure is auditable in queue.db.
+        """
+        from core.tools.queue_tools import QueueStorage
+
+        topic = item.get("topic", "?")
+        logger.warning(f"DeepReadDaemon: item {item['id']} failed — {topic}: {reason}")
+        try:
+            queue = QueueStorage()
+            queue.initialize()
+            queue.mark_failed(
+                item_id=item["id"],
+                holder_id=self.holder_id,
+                requeue=False,
+                reason=reason,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to mark failed: {e}")
 
     def _push_webhook(self, topic: str, quality: float = 0.0, completeness_score: int = 0, source_type: str = "deep_read"):
         """Push discovery webhook to R1D3 (non-blocking)."""
