@@ -506,6 +506,17 @@ class DreamAgent(CAAgent):
                 meaningful.append((topic, content))
             
             if len(meaningful) >= 2:
+                # v0.3.7-D3b (work-bound): Phase2 is O(n²) over quality≥5 nodes.
+                # On a 3310-node KG that is ~1178² / 2 ≈ 694k pair comparisons.
+                # Cap the sample so a tick always terminates (deterministic: the
+                # highest-quality nodes are kept by sorting first).
+                max_meaningful = getattr(self, "_max_phase2_nodes", 200)
+                if len(meaningful) > max_meaningful:
+                    meaningful.sort(
+                        key=lambda kv: (topics.get(kv[0], {}).get("quality", 0) or 0),
+                        reverse=True,
+                    )
+                    meaningful = meaningful[:max_meaningful]
                 texts = [c for _, c in meaningful]
                 embeddings = embed_svc.embed(texts)
                 
@@ -573,14 +584,26 @@ class DreamAgent(CAAgent):
                     continue
                 remaining_orphans.append((topic, data))
             
-            # Try to connect remaining orphans using LLM with content
-            for orphan_topic, orphan_data in remaining_orphans[:5]:
+            # Try to connect remaining orphans using LLM with content.
+            #
+            # v0.3.7-D3b (work-bound): Phase4 is O(orphans × candidates). On a real
+            # KG (3310 nodes, 1178 quality≥5) an unbounded sweep = 5×1178 ≈ 5890
+            # embedding pairs + up to 2 LLM calls each → a SINGLE tick can burn
+            # hours. That is why DreamDaemon fired once and never returned
+            # (thread stuck in epoll_wait on the first tick's I/O). Bound the
+            # candidate scan per orphan so a tick always terminates in minutes.
+            max_orphans = getattr(self, "_max_phase4_orphans", 5)
+            max_candidates_per_orphan = getattr(self, "_max_phase4_candidates", 40)
+            for orphan_topic, orphan_data in remaining_orphans[:max_orphans]:
                 orphan_content = self._node_content(orphan_data)
                 if not orphan_content:
                     continue
-                
+
                 best_candidates = []
+                scanned = 0
                 for cand_topic, cand_data in topics.items():
+                    if scanned >= max_candidates_per_orphan:
+                        break
                     if cand_topic == orphan_topic:
                         continue
                     cand_quality = cand_data.get("quality", 0) or 0
@@ -589,6 +612,7 @@ class DreamAgent(CAAgent):
                     cand_content = self._node_content(cand_data)
                     if not cand_content:
                         continue
+                    scanned += 1
                     try:
                         emb = embed_svc.embed([orphan_content[:300], cand_content[:300]])
                         sim = embed_svc.cosine_similarity(emb[0], emb[1]) if hasattr(embed_svc, 'cosine_similarity') else 0.5
