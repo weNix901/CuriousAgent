@@ -295,6 +295,16 @@ def _is_residue_topic(topic: str) -> bool:
 _ARXIV_PREFIX_RE = re.compile(r"^\[\d{4}\.\d{4,5}(v\d+)?\]\s*")
 _HTML_ENTITY_MAP = {"&#39;": "'", "&amp;": "&", "&quot;": '"', "&#x27;": "'"}
 
+# v0.3.7-B4: 页面段名前缀（导航/页脚标题）。搜索结果的页面标题常带这类前缀
+# （'FAQ - iTerm2 ...' / 'Features - iTerm2 ...'），与站点主页标题同源，
+# 但字符串不同 → 漏过去重。实测产生 iTerm2 的 FAQ/Features 三条变体。
+_PAGE_SECTION_PREFIX_RE = re.compile(
+    r"^(?:FAQ|Features|Documentation|Docs|About|Pricing|Blog|Contact|"
+    r"Overview|Changelog|Support|Download|Home|Menu|Search|"
+    r"Sign\s*in|Log\s*in|Terms|Privacy|Help|Guide|Reference)\s*[-\u2013|\u00b7]\s*",
+    re.IGNORECASE,
+)
+
 
 def _normalize_topic_for_dedup(topic: str) -> str:
     """URL/标题变体归一化（v0.3.7-B1）。
@@ -322,6 +332,7 @@ def _normalize_topic_for_dedup(topic: str) -> str:
     t = _ARXIV_PREFIX_RE.sub("", t)
     for ent, ch in _HTML_ENTITY_MAP.items():
         t = t.replace(ent, ch)
+    t = _PAGE_SECTION_PREFIX_RE.sub("", t)
     t = re.sub(r"\s*[\|·\u2013\u2014]\s*[^-|]{0,60}$", "", t)
     t = re.sub(r"\s+-\s+[A-Z][^-]{0,60}$", "", t)
     t = re.sub(r"\s+", " ", t).strip().lower()

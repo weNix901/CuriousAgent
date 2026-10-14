@@ -64,3 +64,24 @@ class TestNoFalseMerge:
     def test_empty_safe(self):
         assert _normalize_topic_for_dedup("") == ""
         assert _normalize_topic_for_dedup(None) == ""
+
+
+class TestPageSectionPrefix:
+    """v0.3.7-B4: 页面段名前缀（FAQ/Features/Docs...）应被剥离。"""
+
+    @pytest.mark.parametrize("a,b", [
+        ("iTerm2 - macOS Terminal Replacement",
+         "Features - iTerm2 - macOS Terminal Replacement"),
+        ("iTerm2 - macOS Terminal Replacement",
+         "FAQ - iTerm2 - macOS Terminal Replacement"),
+        ("NOVA AI Terminal Assistant",
+         "Documentation | NOVA AI Terminal Assistant"),
+    ])
+    def test_section_prefix_stripped(self, a, b):
+        assert _normalize_topic_for_dedup(a) == _normalize_topic_for_dedup(b)
+
+    def test_legit_title_with_dash_kept(self):
+        # 'Attention - Is All You Need' 不是段前缀（Attention 不在白名单）
+        a = "Attention - Is All You Need"
+        b = "Is All You Need"
+        assert _normalize_topic_for_dedup(a) != _normalize_topic_for_dedup(b)
