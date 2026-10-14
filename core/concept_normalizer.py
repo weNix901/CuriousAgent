@@ -57,39 +57,33 @@ CONCEPT_TRANSLATION_MAP: Dict[str, Set[str]] = {
     "推理": {"inference", "推理"},
     
     # 架构相关
+    # v0.3.7-D1d: 移除单字/超通用词（层/边/图/系统/模型/数据/接口...）——
+    # 它们是**子串级**概念，会引发跨域误合并。实测：
+    #   'graph neural network' ≈ '知识图谱'（都提取出 '图'）
+    #   'edge computing' ≈ '边' / 'system prompt' ≈ '系统'
+    #   → 被判 translated_concept → 去重跳过 → 永不探索（认知不诚实）。
+    # 去重必须基于**具区分度**的概念，不能用单字。
     "架构": {"architecture", "架构设计"},
-    "模块": {"module", "module", "模块"},
-    "层": {"layer", "层"},
+    "模块": {"module", "模块"},
     "节点": {"node", "节点"},
-    "边": {"edge", "边"},
-    "图": {"graph", "图谱"},
-    
-    # 系统相关
-    "系统": {"system", "系统"},
+
+    # 系统相关（保留具区分度的多字词，剔除单字/超通用词）
     "框架": {"framework", "框架"},
     "引擎": {"engine", "引擎"},
     "服务": {"service", "服务"},
-    "接口": {"interface", "接口", "API"},
-    
-    # 数据相关
-    "数据": {"data", "数据"},
+
+    # 数据相关（保留具区分度词，剔除 '数据'/'索引'/'缓存' 等超通用词）
     "存储": {"storage", "存储"},
     "检索": {"retrieval", "检索", "search"},
-    "索引": {"index", "索引"},
-    "缓存": {"cache", "缓存"},
     
-    # 通用概念
+    # 通用概念（v0.3.7-D1d: 剔除单字/超通用词 '模型'/'算法'/'方法'/'技术'/'应用'
+    # 等——太泛，单独出现不足以判定同义。保留明确可判定同义的多字词。）
     "管理": {"management", "管理", "manager"},
     "控制": {"control", "控制", "controller"},
     "优化": {"optimization", "优化", "optimize"},
     "分析": {"analysis", "分析", "analyze"},
     "设计": {"design", "设计"},
     "实现": {"implementation", "实现", "implement"},
-    "模型": {"model", "模型"},
-    "算法": {"algorithm", "算法"},
-    "方法": {"method", "methodology", "方法"},
-    "技术": {"technology", "technique", "技术"},
-    "应用": {"application", "应用", "apply"},
 }
 
 # 反向映射：英文→中文
