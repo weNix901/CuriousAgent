@@ -425,15 +425,27 @@ def rank_gaps(
             explicit_weight=_explicit_w(topic),
         )
         # 批4d：conflict 负项
+        # v0.3.7-D1e: 冲突降权与闸门协同。原实现在降权后直接用 `>= thr`
+        # 比较，导致一个 "死区"：单次真实观测 (real_seen=1) 的 value=0.80，
+        # 遇 weak 冲突 ×0.8 = 0.64 < thr(0.7) → 被静默丢弃 → 该话题永不探索。
+        # 语义上 weak = "有的 provider 找到、有的没找到"(source split)，是
+        # 证据不是否决 (CA2.0 公理B: 可外部验证的判断不依赖自评)。降权应是
+        # **排序**手段，不是**闸门**即"降权即否决"是设计漏洞。
+        #
+        # 修复：先用**降权前**的 value 过闸门（决定'值不值得探索'），再用
+        # 降权后的 value 参与排序（决定'先探索谁'）。这样冲突不再把候选
+        # 整个踢出，只让它在队里靠后。
+        pre_conflict_value = s.value
         if conflict_lookup:
             c = (conflict_lookup.get(topic) or "none").lower()
             if c == "strong":
                 s.value *= 0.5
-                s.reason += "; conflict=strong (×0.5)"
+                s.reason += "; conflict=strong (×0.5, sort-only)"
             elif c == "weak":
                 s.value *= 0.8
-                s.reason += "; conflict=weak (×0.8)"
-        if s.value >= thr:
+                s.reason += "; conflict=weak (×0.8, sort-only)"
+        # 闸门用降权前的价值（降权只影响排序，不决定是否入队）
+        if max(pre_conflict_value, s.value) >= thr:
             scored.append(s)
 
     scored.sort(key=lambda x: (-x.value, -x.solvability))
