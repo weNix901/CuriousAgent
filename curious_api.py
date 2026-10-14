@@ -911,6 +911,24 @@ def api_kg_confidence(topic):
             from core.api.gap_store import record_gap
             _obs = (request.headers.get("X-OpenClaw-Hook-Name") if request
                     else None) or request.args.get("observed_by") or "hook"
+            # v0.3.7-D1c: 测试流量不得伪装成真实观测。e2e 测试
+            # (legacy_tests_v026/e2e/test_cognitive_loop.py) 直接打 live API 且
+            # 不带任何来源标记 → 默认 'hook' → real_seen=1 → 被 C2 当成真实缺口
+            # 入队（BrandNewTopicXYZ123 / TestTopicE2E 就是这么污染生产的）。
+            #
+            # 两层防御（口径优先，而非脆弱的名称猜测）：
+            #   1) 显式测试标记头 X-CA-Test-Mode → observed_by='test'
+            #      （e2e 测试请带此头；这是唯一的权威信号）
+            #   2) 名称残留启发式 → 兼带历史/无头测试的兜底
+            if request and request.headers.get("X-CA-Test-Mode"):
+                _obs = "test"
+            else:
+                try:
+                    from core.knowledge_graph_compat import _is_residue_topic
+                    if _is_residue_topic(topic):
+                        _obs = "test"
+                except Exception:
+                    pass  # 守卫本身不得阻断查询
             recorded = record_gap(
                 topic=topic,
                 coverage=coverage,
@@ -1740,12 +1758,24 @@ def api_knowledge_check():
                     if request and hasattr(request, "args") else None) or \
                    (request.get_json(silent=True) or {}).get("observed_by") \
                    if request and hasattr(request, "get_json") else None
+            _obs = _obs or "hook"
+            # v0.3.7-D1c: legacy /check 与唯一出口 /kg/confidence 行为必须一致。
+            # 测试流量（X-CA-Test-Mode 头或残留名称）一律判为 'test'，不污染 real_seen。
+            if request and request.headers.get("X-CA-Test-Mode"):
+                _obs = "test"
+            else:
+                try:
+                    from core.knowledge_graph_compat import _is_residue_topic
+                    if _is_residue_topic(topic):
+                        _obs = "test"
+                except Exception:
+                    pass
             recorded = record_gap(
                 topic=topic,
                 coverage=coverage,
                 quality=res.get("quality", 0.0) or 0.0,
                 source_count=res.get("source_count", 0) or 0,
-                observed_by=(_obs or "hook"),
+                observed_by=_obs,
             )
             if recorded:
                 logger.debug(f"[gaps] recorded (legacy check): {topic!r} coverage={coverage}")
@@ -1856,6 +1886,27 @@ def api_knowledge_learn():
         
         if not topic:
             return jsonify({"error": "topic is required"}), 400
+
+        # v0.3.7-D1c: 测试流量不得入队。e2e 测试（带 X-CA-Test-Mode）或命中残留
+        # 判定的话题直接拒绝，返回 queue_id=-1（与去重跳过同形），不触碰真实队列。
+        _is_test = bool(request.headers.get("X-CA-Test-Mode"))
+        if not _is_test:
+            try:
+                from core.knowledge_graph_compat import _is_residue_topic
+                _is_test = _is_residue_topic(topic)
+            except Exception:
+                pass
+        if _is_test:
+            logger.info(f"Reject test topic from /learn queue: {topic!r}")
+            return jsonify({
+                "success": True,
+                "result": {
+                    "queue_id": -1,
+                    "topic": topic,
+                    "status": "rejected_test",
+                    "estimated_exploration": "0 minutes",
+                },
+            })
         
         config = get_ca_config()
         hook_config = {
