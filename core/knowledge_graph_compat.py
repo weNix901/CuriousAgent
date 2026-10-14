@@ -11,6 +11,7 @@ import json
 import logging
 import math
 import os
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -291,6 +292,42 @@ def _is_residue_topic(topic: str) -> bool:
     return False
 
 
+_ARXIV_PREFIX_RE = re.compile(r"^\[\d{4}\.\d{4,5}(v\d+)?\]\s*")
+_HTML_ENTITY_MAP = {"&#39;": "'", "&amp;": "&", "&quot;": '"', "&#x27;": "'"}
+
+
+def _normalize_topic_for_dedup(topic: str) -> str:
+    """URL/标题变体归一化（v0.3.7-B1）。
+
+    背景：同一论文常以多个变体入队——arXiv id 前缀、站点后缀、HTML 实体差异：
+        '[1910.03771] Transformers: State-of-the-Art NL Processing'
+        'Transformers: State-of-the-Art NL Processing - ACL Anthology'
+        'Transformers: State-of-the-Art NL Processing'
+    这些**确定同源**，但 concept_normalizer 对英文标题返回 different_concept
+    （提取不到中文概念词）→ 去重漏过 → 同一内容反复探索，浪费队列轮次。
+
+    本函数只做**高置信归一化**（确定同源的变换），不做模糊匹配：
+      1. 去 arXiv id 前缀 [xxxx.xxxxx]
+      2. 解 HTML 实体
+      3. 去站点后缀（| Site / · Site / – Site）
+      4. 去 ' - Site Name' 尾缀
+      5. 空白折叠 + 小写
+
+    注意：对"标题被截断"的变体（如 '...Natural' vs '...Natural Language'）无法
+    从字符串判定同源，故不处理——宁可漏过也不误合并。
+    """
+    t = (topic or "").strip()
+    if not t:
+        return ""
+    t = _ARXIV_PREFIX_RE.sub("", t)
+    for ent, ch in _HTML_ENTITY_MAP.items():
+        t = t.replace(ent, ch)
+    t = re.sub(r"\s*[\|·\u2013\u2014]\s*[^-|]{0,60}$", "", t)
+    t = re.sub(r"\s+-\s+[A-Z][^-]{0,60}$", "", t)
+    t = re.sub(r"\s+", " ", t).strip().lower()
+    return t
+
+
 def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float = 5.0, **extra) -> None:
     """唯一入队通路（C2b，2026-10-08）。
 
@@ -318,10 +355,20 @@ def add_curiosity(topic: str, reason: str, relevance: float = 5.0, depth: float 
     pending_items = storage.get_pending_items()
     done_items = storage.get_completed_items(limit=50)
     
+    # v0.3.7-B1: URL/标题变体归一化去重（在概念相似度之前）。
+    # 处理确定同源的变体（arXiv id 前缀 / 站点后缀 / HTML 实体），
+    # 这些 concept_normalizer 抓不到（英文标题无中文概念词）。
+    norm_new = _normalize_topic_for_dedup(topic)
     for item in pending_items + done_items:
         existing_topic = item.get("topic", "")
         if not existing_topic:
             continue
+        if norm_new and norm_new == _normalize_topic_for_dedup(existing_topic):
+            logger.info(
+                f"Skip duplicate curiosity (URL/title variant): "
+                f"'{topic}' ≈ '{existing_topic}'"
+            )
+            return
         similarity, match_type = normalizer.compute_concept_similarity(topic, existing_topic)
         if match_type in ("naming_variant", "translated_concept"):
             logger.info(f"Skip duplicate curiosity: '{topic}' ≈ '{existing_topic}' ({match_type})")
