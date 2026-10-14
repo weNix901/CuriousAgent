@@ -205,7 +205,16 @@ class ExploreDaemon(threading.Thread):
                         node = kg_factory.get_node_sync(topic.strip())
                         if not node:
                             node = kg_factory.get_node_sync(topic)
-                        if node and node.get('content') and len(str(node.get('content', ''))) > 10:
+                        # v0.3.7-B9: 验证"有内容"时检查全部内容字段，不只 content。
+                        # explore 写入路径写 definition/core/context（content 可为空），
+                        # 旧逻辑只看 content → 106 个有 def/core/context 的节点被误判
+                        # 'KG empty' → bounce 5/5 → 误 purge（实测 8466 等）。
+                        def _node_has_content(n):
+                            for f in ("content", "definition", "core", "context", "summary"):
+                                if len(str(n.get(f, "") or "")) > 10:
+                                    return True
+                            return False
+                        if node and _node_has_content(node):
                             # KG has valid content → delete queue item
                             self.queue_storage.delete_item(item_id, self.explore_agent.holder_id)
                             logger.info(f"ExploreDaemon: item {item_id} {topic} → KG verified, queue deleted")
