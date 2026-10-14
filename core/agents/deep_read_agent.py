@@ -161,10 +161,22 @@ class DeepReadAgent(CAAgent):
         elif source_url:
             if await self._recover_missing_pdf(topic, source_url, pdf_path):
                 txt_path = await self._parse_pdf_to_txt(pdf_path, topic)
-        
+            # v0.3.7-B3 (web 降级): 下载 PDF 失败（网页 URL 不是 PDF，download 报错）
+            # 时，退一步用 web_scrape 抓正文。这样 arxiv-less 的可信网页源
+            # （github/docs 等）也能真正被读进来，而不是永远 'No TXT available'。
+            if (not txt_path or not os.path.exists(txt_path)):
+                txt_path = await self._web_fallback(topic, source_url)
+
         if not txt_path or not os.path.exists(txt_path):
+            # v0.3.7-B3: 区分"可重试"与"永久不可读"。deep_read 没有可读对象
+            # （无 url / 非白名单源 / 抓取失败）→ 这是终态，不是瞬时故障，
+            # 应标 failed 而非无限重试。（上游 B2 已截断新的空 deep_read 入队。）
+            reason = (
+                f"no readable source: {topic} "
+                f"(pdf_path={pdf_path}, source_url={source_url})"
+            )
             return AgentResult(
-                content=f"No TXT available for {topic} (pdf_path={pdf_path}, source_url={source_url})",
+                content=reason,
                 success=False,
                 iterations_used=0,
             )
@@ -202,6 +214,35 @@ class DeepReadAgent(CAAgent):
             iterations_used=1,
         )
     
+    async def _web_fallback(self, topic: str, source_url: str) -> str | None:
+        """v0.3.7-B3: 从可信网页源抓取正文，存为 txt，返回 txt 路径。
+
+        用于 PDF 下载失败（网页 URL 不是 PDF）时的降级。仅对白名单内的可信源
+        生效（WebScrapeTool 内部会再校验一次）。任何异常 → None（不打断）。
+        """
+        try:
+            scrape_tool = self.tool_registry.get("scrape_web_for_deepread")
+            if not scrape_tool:
+                return None
+            # 直接用其内部抓取+存盘能力（不重新入队，避免循环）
+            from core.tools.web_scrape_tools import WebScrapeConfig
+            cfg = WebScrapeConfig()
+            allowed, _, source_name = cfg.is_web_scrape_allowed(source_url)
+            if not allowed:
+                logger.info(f"web fallback not allowed for source: {source_url[:60]}")
+                return None
+            cfg_scrape = cfg.get_scrape_config()
+            content = await scrape_tool._fetch_and_clean(source_url, cfg_scrape)
+            if not content or len(content) < cfg_scrape.get("min_content_length", 1000):
+                logger.info(f"web fallback content too short for {topic}: {len(content or '')} chars")
+                return None
+            txt_path = scrape_tool._save_content(topic, content)
+            logger.info(f"web fallback OK for {topic}: {len(content)} chars → {txt_path}")
+            return txt_path
+        except Exception as e:
+            logger.warning(f"web fallback failed for {topic}: {e}")
+            return None
+
     async def _recover_missing_pdf(self, topic: str, source_url: str | None, pdf_path: str | None) -> bool:
         """Recover missing PDF from source URL."""
         if not source_url:
