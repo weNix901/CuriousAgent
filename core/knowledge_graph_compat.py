@@ -293,7 +293,12 @@ def _is_residue_topic(topic: str) -> bool:
 
 
 _ARXIV_PREFIX_RE = re.compile(r"^\[\d{4}\.\d{4,5}(v\d+)?\]\s*")
-_HTML_ENTITY_MAP = {"&#39;": "'", "&amp;": "&", "&quot;": '"', "&#x27;": "'"}
+
+# v0.3.7-B7: 用标准库 html.unescape 取代手写 4 项映射。
+# 手写映射只覆盖 &#39;/&amp;/&quot;/&#x27;，实测 KG 里另有 130+ 个 &amp;、
+# 24 个 &quot;、15 个 &#8211;、9 个 &mdash; 等残留（共 139 节点）→ 同标题不同
+# 实体形式无法归一。html.unescape 覆盖全部命名/数字实体，一劳永逸。
+_HTML_ENTITY_RE = re.compile(r"&(?:#\d+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);")
 
 # v0.3.7-B4: 页面段名前缀（导航/页脚标题）。搜索结果的页面标题常带这类前缀
 # （'FAQ - iTerm2 ...' / 'Features - iTerm2 ...'），与站点主页标题同源，
@@ -330,8 +335,10 @@ def _normalize_topic_for_dedup(topic: str) -> str:
     if not t:
         return ""
     t = _ARXIV_PREFIX_RE.sub("", t)
-    for ent, ch in _HTML_ENTITY_MAP.items():
-        t = t.replace(ent, ch)
+    # v0.3.7-B7: 解码全部 HTML 实体（命名 + 数字），替代手写 4 项映射。
+    if _HTML_ENTITY_RE.search(t):
+        import html as _html
+        t = _html.unescape(t)
     t = _PAGE_SECTION_PREFIX_RE.sub("", t)
     t = re.sub(r"\s*[\|·\u2013\u2014]\s*[^-|]{0,60}$", "", t)
     t = re.sub(r"\s+-\s+[A-Z][^-]{0,60}$", "", t)

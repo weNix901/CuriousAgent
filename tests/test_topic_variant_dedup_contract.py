@@ -85,3 +85,18 @@ class TestPageSectionPrefix:
         a = "Attention - Is All You Need"
         b = "Is All You Need"
         assert _normalize_topic_for_dedup(a) != _normalize_topic_for_dedup(b)
+
+
+class TestHTMLEntityDecoding:
+    """v0.3.7-B7: 全部 HTML 实体（命名 + 数字）应被解码。"""
+
+    @pytest.mark.parametrize("a,b", [
+        ("Cross-Encoders &amp; Reranking", "Cross-Encoders & Reranking"),
+        ("RND &mdash; DI-engine docs", "RND — DI-engine docs"),
+        ("Hub &#8211; Building global", "Hub – Building global"),
+        ("Range &#8212; dash", "Range — dash"),
+        ("Quote &quot;x&quot;", 'Quote "x"'),
+        ("it&#39;s here", "it's here"),
+    ])
+    def test_entities_decoded(self, a, b):
+        assert _normalize_topic_for_dedup(a) == _normalize_topic_for_dedup(b)
