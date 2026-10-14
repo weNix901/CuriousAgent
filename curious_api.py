@@ -374,12 +374,6 @@ def api_audit_hooks_stats():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/audit/webhooks")
-def api_audit_webhooks():
-    """Webhook push records (v0.3.1 placeholder)."""
-    return jsonify({"webhooks": [], "note": "Reserved for future webhook support"})
-
-
 @app.route("/api/audit/agent/<agent_id>/activity")
 def api_audit_agent_activity(agent_id):
     """Complete activity timeline for an Agent."""

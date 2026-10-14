@@ -172,21 +172,10 @@ class NotificationBehaviorConfig:
 
 
 @dataclass
-class WebhookBehaviorConfig:
-    enabled: bool = False
-    openclaw_host: str = "http://127.0.0.1:18789"
-    token: str = ""
-    timeout_seconds: int = 10
-    retry_count: int = 3
-    retry_delay_seconds: int = 5
-
-
-@dataclass
 class BehaviorConfig:
     curiosity: CuriosityBehaviorConfig = field(default_factory=CuriosityBehaviorConfig)
     injection: InjectionBehaviorConfig = field(default_factory=InjectionBehaviorConfig)
     notification: NotificationBehaviorConfig = field(default_factory=NotificationBehaviorConfig)
-    webhook: WebhookBehaviorConfig = field(default_factory=WebhookBehaviorConfig)
     user_interests: list[str] = field(default_factory=list)
 
 
@@ -418,15 +407,6 @@ def load_config() -> Config:
         enabled=notification_raw.get("enabled", True),
         min_quality=notification_raw.get("min_quality", 7.0)
     )
-    webhook_raw = behavior_raw.get("webhook", {})
-    webhook_cfg = WebhookBehaviorConfig(
-        enabled=webhook_raw.get("enabled", False),
-        openclaw_host=webhook_raw.get("openclaw_host", "http://127.0.0.1:18789"),
-        token=webhook_raw.get("token", ""),
-        timeout_seconds=webhook_raw.get("timeout_seconds", 10),
-        retry_count=webhook_raw.get("retry_count", 3),
-        retry_delay_seconds=webhook_raw.get("retry_delay_seconds", 5)
-    )
     user_interests = behavior_raw.get("user_interests", [])
 
     # Parse hooks
@@ -487,7 +467,6 @@ def load_config() -> Config:
             "curiosity": curiosity_cfg,
             "injection": injection_cfg,
             "notification": notification_cfg,
-            "webhook": webhook_cfg,
             "user_interests": user_interests
         },
         llm={
