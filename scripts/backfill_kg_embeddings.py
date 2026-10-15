@@ -41,7 +41,10 @@ async def backfill_embeddings():
                         break
     
     if not neo4j_password:
-        neo4j_password = "REMOVED_SEE_ENV"
+        raise RuntimeError(
+            "Neo4j password not found. Set NEO4J_PASSWORD in .env "
+            "(never hardcode credentials in source)."
+        )
     
     logger.info(f"Connecting to Neo4j at {neo4j_uri}")
     

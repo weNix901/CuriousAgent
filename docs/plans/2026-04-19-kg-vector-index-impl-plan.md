@@ -31,7 +31,7 @@ async def test_vector_index_exists():
     client = Neo4jClient(
         uri="bolt://localhost:7687",
         username="neo4j",
-        password="REMOVED_SEE_ENV"
+        password=os.environ.get("NEO4J_PASSWORD")
     )
     await client.connect()
     
@@ -120,7 +120,7 @@ async def test_semantic_query_returns_results():
     client = Neo4jClient(
         uri="bolt://localhost:7687",
         username="neo4j",
-        password="REMOVED_SEE_ENV"
+        password=os.environ.get("NEO4J_PASSWORD")
     )
     await client.connect()
     
@@ -258,7 +258,7 @@ async def test_new_node_has_embedding():
     client = Neo4jClient(
         uri="bolt://localhost:7687",
         username="neo4j",
-        password="REMOVED_SEE_ENV"
+        password=os.environ.get("NEO4J_PASSWORD")
     )
     await client.connect()
     
