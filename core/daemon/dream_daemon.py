@@ -10,6 +10,12 @@ from loguru import logger
 
 DEFAULT_DREAM_INTERVAL_S = 30 * 60  # 30 minutes — was 6h, fixed for continuous operation
 
+# A-5 (v0.3.7): edge-integrity patrol cadence, counted in dream ticks.
+# DreamDaemon runs low-frequency (1800s) and does NOT sit on the explore hot
+# path, so this is where the periodic KG edge patrol belongs — NOT in
+# ExploreDaemon's per-tick loop (which is single-threaded and must stay fast).
+EDGE_INTEGRITY_EVERY_N_TICKS = 2
+
 
 @dataclass
 class DreamDaemonConfig:
@@ -27,6 +33,7 @@ class DreamDaemon:
         self.workspace = workspace
         self.config = config or DreamDaemonConfig()
         self._running = False
+        self._tick_count = 0
 
         tool_registry = ToolRegistry()
         if agent_config is None:
@@ -100,8 +107,47 @@ class DreamDaemon:
             # After dreaming, repair relations for isolated nodes
             self._repair_relations()
 
+            # A-5 (v0.3.7): periodic KG edge-integrity patrol (low-frequency,
+            # off the explore hot path). Only every N ticks to keep it cheap.
+            self._tick_count += 1
+            if self._tick_count % EDGE_INTEGRITY_EVERY_N_TICKS == 0:
+                await self._check_edge_integrity()
+
         except Exception as e:
             logger.error(f"DreamDaemon tick failed: {e}")
+
+    async def _check_edge_integrity(self) -> None:
+        """A-5 (v0.3.7): read-only KG edge-integrity patrol.
+
+        Detects edges that are missing the synthetic ``key`` (invisible to the
+        uniqueness constraint → potential silent duplicates). Logs loudly on
+        violation; never raises (a patrol must not kill the dream loop).
+        """
+        try:
+            from core.kg.repository_factory import _get_kg_factory
+            from core.kg.edge_integrity import check_edge_integrity_async
+
+            factory = _get_kg_factory()
+            client = getattr(factory, "_client", None) or getattr(factory, "client", None)
+            if client is None:
+                logger.warning("Edge-integrity patrol skipped: no KG client available")
+                return
+
+            report = await check_edge_integrity_async(client)
+            if report["ok"]:
+                logger.info(
+                    f"Edge-integrity patrol OK: {report['total']} edges, "
+                    f"0 missing key, 0 duplicate"
+                )
+            else:
+                logger.error(
+                    f"Edge-integrity patrol VIOLATION: {report['missing_key']} edges "
+                    f"missing key, {report['duplicate_keys']} duplicate keys "
+                    f"(of {report['total']}). KG not clean — run "
+                    f"'python3 -m core.kg.edge_integrity' for details."
+                )
+        except Exception as e:
+            logger.warning(f"Edge-integrity patrol failed (non-fatal): {e}")
 
     def _repair_relations(self) -> None:
         """Run relation repair service for isolated nodes."""

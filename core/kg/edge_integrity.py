@@ -12,6 +12,8 @@ Usage:
 import logging
 from typing import Any, Dict, List, Optional
 
+import asyncio
+
 logger = logging.getLogger(__name__)
 
 RELATION_TYPES = ["IS_CHILD_OF", "CITES", "DERIVED_FROM", "RELATED_TO"]
@@ -31,10 +33,17 @@ def check_edge_integrity(client: Any, relation_types: Optional[List[str]] = None
     per_type: Dict[str, Dict[str, int]] = {}
 
     def _run(query: str) -> Any:
-        import asyncio
         res = client.execute_write(query)
+        # A sync driver (or plain callable) returns a list directly. An async
+        # Neo4jClient returns a coroutine — but we must NOT call
+        # run_until_complete here: this may already run inside a live event
+        # loop (DreamDaemon). Async callers should use check_edge_integrity_async.
         if asyncio.iscoroutine(res):
-            res = asyncio.get_event_loop().run_until_complete(res)
+            res.close()
+            raise RuntimeError(
+                "check_edge_integrity received an async client; use "
+                "check_edge_integrity_async inside a running event loop."
+            )
         return res
 
     for rel in relation_types:
@@ -46,6 +55,51 @@ def check_edge_integrity(client: Any, relation_types: Optional[List[str]] = None
             f"WHERE r.key IS NULL RETURN count(r) AS c"
         ))
         t_dupes = _scalar(_run(
+            f"MATCH (:Knowledge)-[r:{rel}]->(:Knowledge) "
+            f"WITH r.key AS k, count(*) AS c WHERE k IS NOT NULL AND c > 1 "
+            f"RETURN coalesce(sum(c - 1), 0) AS d"
+        ))
+        total += t_total
+        missing += t_missing
+        dupes += t_dupes
+        per_type[rel] = {"total": t_total, "missing_key": t_missing, "duplicate_keys": t_dupes}
+
+    ok = missing == 0 and dupes == 0
+    if not ok:
+        logger.warning(
+            f"EDGE INTEGRITY VIOLATION: {missing} edges missing key, "
+            f"{dupes} duplicate keys (of {total} total)"
+        )
+    return {
+        "ok": ok,
+        "total": total,
+        "missing_key": missing,
+        "duplicate_keys": dupes,
+        "per_type": per_type,
+    }
+
+
+async def check_edge_integrity_async(
+    client: Any, relation_types: Optional[List[str]] = None
+) -> Dict[str, Any]:
+    """Async variant for callers already inside a running event loop
+    (e.g. DreamDaemon). Same report shape as check_edge_integrity().
+    """
+    relation_types = relation_types or RELATION_TYPES
+    total = 0
+    missing = 0
+    dupes = 0
+    per_type: Dict[str, Dict[str, int]] = {}
+
+    for rel in relation_types:
+        t_total = _scalar(await client.execute_write(
+            f"MATCH (:Knowledge)-[r:{rel}]->(:Knowledge) RETURN count(r) AS c"
+        ))
+        t_missing = _scalar(await client.execute_write(
+            f"MATCH (:Knowledge)-[r:{rel}]->(:Knowledge) "
+            f"WHERE r.key IS NULL RETURN count(r) AS c"
+        ))
+        t_dupes = _scalar(await client.execute_write(
             f"MATCH (:Knowledge)-[r:{rel}]->(:Knowledge) "
             f"WITH r.key AS k, count(*) AS c WHERE k IS NOT NULL AND c > 1 "
             f"RETURN coalesce(sum(c - 1), 0) AS d"
