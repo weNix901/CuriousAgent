@@ -2917,14 +2917,14 @@ def api_system_health():
             None when the backend exposes no such signal (e.g. non-Neo4j shim).
             """
             try:
-                from core.kg.repository_factory import _get_kg_factory  # type: ignore
-            except Exception:
-                pass
-            try:
-                factory = _get_kg_factory()  # noqa: F821
+                from core.kg.repository_factory import get_kg_factory
+                factory = get_kg_factory()
                 client = getattr(factory, "_client", None) or getattr(factory, "client", None)
                 return getattr(client, "constraints_ok", None)
-            except Exception:
+            except Exception as e:
+                logging.getLogger("curious_api.health").warning(
+                    f"constraints_ok lookup failed (loud, non-fatal): {e}"
+                )
                 return None
 
         def _get_system_info():
