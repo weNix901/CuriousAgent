@@ -24,12 +24,46 @@ RELATION_TYPES = ["IS_CHILD_OF", "CITES", "DERIVED_FROM", "RELATED_TO"]
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="Read-only: check every edge has a key and no duplicate keys exist.",
+    )
     args = parser.parse_args()
 
     uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
     user = os.environ.get("NEO4J_USERNAME", "neo4j")
     pwd = os.environ.get("NEO4J_PASSWORD", "")
     driver = GraphDatabase.driver(uri, auth=(user, pwd))
+
+    if args.verify:
+        missing = 0
+        dupes = 0
+        total = 0
+        with driver.session() as s:
+            for rel in RELATION_TYPES:
+                total += s.run(
+                    f"MATCH (:Knowledge)-[r:{rel}]->(:Knowledge) "
+                    f"RETURN count(r) AS c"
+                ).single()["c"]
+                missing += s.run(
+                    f"MATCH (:Knowledge)-[r:{rel}]->(:Knowledge) "
+                    f"WHERE r.key IS NULL RETURN count(r) AS c"
+                ).single()["c"]
+                dupes += s.run(
+                    f"MATCH (:Knowledge)-[r:{rel}]->(:Knowledge) "
+                    f"WITH r.key AS k, count(*) AS c WHERE k IS NOT NULL AND c > 1 "
+                    f"RETURN coalesce(sum(c - 1), 0) AS d"
+                ).single()["d"]
+        driver.close()
+        print(f"total edges: {total}")
+        print(f"edges missing key: {missing}")
+        print(f"duplicate keys: {dupes}")
+        if missing == 0 and dupes == 0:
+            print("OK: all edges have key, no duplicate keys")
+            return 0
+        print("FAIL: key integrity violated")
+        return 1
 
     total_dropped = 0
     total_tagged = 0

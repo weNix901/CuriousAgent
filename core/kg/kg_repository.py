@@ -488,8 +488,8 @@ class KGRepository:
         END
         WITH target, other
         OPTIONAL MATCH (other)-[r]->(m)
-        WITH target, other, collect(r) as relations
-        FOREACH (rel IN relations | MERGE (target)-[type(rel)]->(endNode(rel)))
+        WITH target, other, collect({type: type(r), end: endNode(r), key: startNode(r).topic + '|' + type(r) + '|' + endNode(r).topic}) as relations
+        FOREACH (rel IN relations | MERGE (target)-[nr:type(rel) {key: rel.key}]->(rel.end))
         DETACH DELETE other
         RETURN count(other) as merged_count
         """

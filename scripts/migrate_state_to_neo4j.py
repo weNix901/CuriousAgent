@@ -79,13 +79,14 @@ class StateToNeo4jMigrator:
         return count
     
     def _create_relation(self, tx, source: str, target: str, rel_type: str):
-        """创建关系"""
+        """创建关系（带合成 key，保证与唯一约束一致）"""
+        rel_key = f"{source}|{rel_type}|{target}"
         query = f"""
         MATCH (a:Knowledge {{topic: $source}})
         MATCH (b:Knowledge {{topic: $target}})
-        MERGE (a)-[:{rel_type}]->(b)
+        MERGE (a)-[:{rel_type} {{key: $rel_key}}]->(b)
         """
-        tx.run(query, {"source": source, "target": target})
+        tx.run(query, {"source": source, "target": target, "rel_key": rel_key})
     
     def migrate_queue(self, queue: list) -> int:
         """迁移队列到SQLite"""

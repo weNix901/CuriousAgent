@@ -16,6 +16,8 @@ class Neo4jClient:
         self.password = password
         self.max_connection_lifetime = max_connection_lifetime
         self._driver: Optional[Any] = None
+        self._constraints_ok: Optional[bool] = None
+        self._constraint_results: Dict[str, bool] = {}
 
     async def connect(self) -> bool:
         """Establish connection to Neo4j database."""
@@ -51,11 +53,25 @@ class Neo4jClient:
             )
             try:
                 await self.execute_write(query)
+                self._constraint_results[rel_type] = True
                 logger.info(f"Relation uniqueness constraint '{rel_type}' created/verified")
             except Exception as e:
                 logger.warning(f"Failed to create relation constraint '{rel_type}': {e}")
+                self._constraint_results[rel_type] = False
                 ok = False
+        self._constraints_ok = ok
+        failed = [t for t, v in self._constraint_results.items() if not v]
+        if not ok:
+            logger.warning(
+                f"Relation constraints not fully OK: {len(failed)}/{len(relation_types)} failed "
+                f"({', '.join(failed)})"
+            )
         return ok
+
+    @property
+    def constraints_ok(self) -> Optional[bool]:
+        """Whether all relation uniqueness constraints were created/verified."""
+        return self._constraints_ok
 
     async def _init_vector_index(self) -> bool:
         """Initialize vector index for Knowledge embeddings."""

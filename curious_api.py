@@ -1798,6 +1798,31 @@ def api_knowledge_check():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/metrics/c3d", methods=["GET"])
+def api_metrics_c3d():
+    """C-3 (v0.3.7): 发现消费指标 —— 暴露发现引用率（唯一口径 v2）。
+
+    直接包 ``discovery_reference_rate_v2()``，不新造逻辑。
+    口径：分子 = KG quality≥7 且出现在 retrieval_events；分母 = KG quality≥7。
+    """
+    try:
+        from core.api.feedback_store import discovery_reference_rate_v2
+        data = discovery_reference_rate_v2()
+        return jsonify({
+            "success": True,
+            "reference_rate": data["reference_rate"],
+            "denominator": data.get("denominator", "kg_quality_ge_7"),
+            "discovered_total": data["discovered_total"],
+            "referenced": data["referenced"],
+            "referenced_topics": data["referenced_topics"],
+        })
+    except Exception as e:
+        logging.getLogger("curious_api.metrics").warning(
+            f"c3d metrics failed loudly: {e}"
+        )
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/api/kg/related_discoveries/<path:topic>", methods=["GET"])
 def api_kg_related_discoveries(topic):
     """C3D-R2 (v0.3.6): 同方向已结案发现 —— 供 R1D3 消费提示。
@@ -2885,6 +2910,23 @@ def api_decomposition_stats():
 def api_system_health():
     """Get system health status."""
     try:
+        def _get_constraints_ok():
+            """Surface whether KG relation uniqueness constraints are live (A-4).
+
+            Reads the Neo4jClient's recorded constraint-init result. Returns
+            None when the backend exposes no such signal (e.g. non-Neo4j shim).
+            """
+            try:
+                from core.kg.repository_factory import _get_kg_factory  # type: ignore
+            except Exception:
+                pass
+            try:
+                factory = _get_kg_factory()  # noqa: F821
+                client = getattr(factory, "_client", None) or getattr(factory, "client", None)
+                return getattr(client, "constraints_ok", None)
+            except Exception:
+                return None
+
         def _get_system_info():
             cpu_pct = 0.0
             mem_pct = 0.0
@@ -2964,6 +3006,7 @@ def api_system_health():
                 "total_nodes": len(topics),
                 "storage": "neo4j",
                 "available": True,
+                "constraints_ok": _get_constraints_ok(),
             },
             "recent_errors": recent_errors,
         })
