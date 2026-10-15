@@ -5,9 +5,65 @@
 [![Neo4j](https://img.shields.io/badge/neo4j-5.x-green)](#)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#)
 
-> **别人只帮你收藏链接，CA帮你把资料吃透——读完变本事**
+> **An autonomous-learning agent that knows what it doesn't know — by computing it, not asking the LLM.**
 
-别的系统像只存书单（标题+链接），CA帮你把书读完、拆开揉碎、消化吸收——**PDF、网页、GitHub、文档、博客都能读**，全文不放过，知识不白看。
+Most AI systems either answer whatever you ask (and sound confident even when wrong) or sit idle until prompted. **Curious Agent (CA)** is different: it maintains an **external cognitive state layer** — a knowledge graph it builds by reading papers, web pages, GitHub repos, and docs on its own — and uses the *state of that graph*, not an LLM's self-assessment, to decide what it knows, what it's missing, and what to go learn next.
+
+**Design axiom — LLM weaknesses must be compensated at the system layer.** You can't fine-tune it, read its activations, or trust it to introspect. So "do I know X?" is answered by an observable system fact: *is X in the graph, and how good is it?*
+
+### Why it's different
+
+| Typical agent framework | Curious Agent |
+|---|---|
+| Confidence from the LLM's own words | **Confidence computed from graph state** (node presence × quality × sources) |
+| Waits for a prompt | **Derives its own knowledge gaps** and self-queues exploration |
+| Knowledge in → dead end | **Exploration→consumption loop**, file-level traceable |
+| Four-state honesty: `known / partial / unknown / void` | No silent guessing — "void" means the system genuinely has no basis |
+
+### How it works
+
+```
+PDF / web / GitHub / docs / blogs
+        ↓  full-text deep read (sliding window, no page skipped)
+     extract atomic knowledge points (what / how / who / examples / formula / related)
+        ↓
+     Neo4j knowledge graph  ← single source of truth
+        ↓
+     gap = computable difference in coverage   → self-queued exploration
+        ↓
+     discovery → consumption into agent context (traceable)
+```
+
+### Core capabilities
+
+- 🧠 **Knows what it doesn't know** — four-state coverage verdict (`known`/`partial`/`unknown`/`void`) resolved by a pure function over graph state, not LLM self-report
+- 📖 **Full-text deep read** — sliding-window over long papers (157% coverage on >80K docs), no page skipped
+- 🔎 **Self-directed exploration** — knowledge gaps computed as a difference, auto-enqueued; no human seeding required
+- 🔗 **Knowledge → behavior** — high-quality discoveries become reusable rules indexed into agent context
+- 🗄️ **Single source of truth** — knowledge in Neo4j, runtime state in SQLite; no parallel copies
+- 🚦 **Failures must be visible** — silent failure is treated as a first-class bug (the project has a hard rule against it)
+
+### Stack
+
+Python 3.11+ · Neo4j 5.x · Flask · multi-provider LLM + search (Bocha / Serper)
+
+### Quick start
+
+```bash
+git clone https://github.com/weNix901/CuriousAgent.git
+cd CuriousAgent
+pip install -r requirements.txt
+cp config.json.example config.json   # then set API keys in .env
+bash start.sh                        # API + Web UI on :4848, plus the agent daemon
+```
+
+> 📐 The full high-level design (goals, boundary, axioms, data contracts) is in [`ideas/CA2.0_high_level_plan.md`](ideas/CA2.0_high_level_plan.md).
+
+---
+
+<details>
+<summary>🇨🇳 中文介绍（点击展开）</summary>
+> **别人只帮你收藏链接，CA帮你把资料吃透——读完变本事**
 
 ---
 
@@ -687,3 +743,5 @@ MIT © 2026
 ---
 
 > **设计理念：主动学习、把书读薄、发现短板、知识变本事**
+
+</details>
