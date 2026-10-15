@@ -1,6 +1,6 @@
 # Curious Agent
 
-[![Version](https://img.shields.io/badge/version-v0.3.6-blue)](https://github.com/weNix901/CuriousAgent)
+[![Version](https://img.shields.io/badge/version-v0.3.7-blue)](https://github.com/weNix901/CuriousAgent)
 [![Python](https://img.shields.io/badge/python-3.11+-blue)](#)
 [![Neo4j](https://img.shields.io/badge/neo4j-5.x-green)](#)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#)
@@ -41,6 +41,94 @@ PDF / 网页 / GitHub / 文档 / 博客 / 教程
          ↓
     知识变本事——好方法直接变成做事规则
 ```
+
+---
+
+## v0.3.7 更新——对你意味着什么
+
+> 这一版的中心是一件事：**让 CA 的"自我学习"真的转起来，而且学到的知识不会悄悄变脏。**
+> 一句话：**CA 从"看起来在学"，变成"真的在学、学的东西还干净"。**
+
+### 为什么这一版重要
+
+| 你以前可能遇到的 | v0.3.7 之后 |
+|------------------|-------------|
+| CA 的"自动学习"开着，其实一条都没在读 | ✅ **探索发动机修好了**，真的在产出新知识 |
+| 读失败的资料悄无声息，你不知道它卡在哪 | ✅ **失败会明说**：哪篇读不了、为什么读不了，一眼看到 |
+| 同一个话题被反复入队、白读几遍 | ✅ **同源去重**：URL/标题变体收敛，不再重复读 |
+| GitHub / 网页地址读不进来，直接丢弃 | ✅ **网页降级读取**：可信网页源也能真正读进来 |
+| 知识库越用越乱，重复的关系越积越多 | ✅ **知识图自愈**：重复/残缺的连线被自动巡检 + 清零 |
+| 你说"它到底用了多少学到的东西？" | ✅ **新增指标端点**，引用率一目了然 |
+| 改代码怕把系统改坏 | ✅ **提交前自动跑测试**，坏改动进不去 |
+
+**用一句话说**：这一版把 CA 从"看着在转、其实空转"修成了"**真的在学、学得干净、还看得见**"。
+
+---
+
+## v0.3.7 技术细节
+
+> 下面是给想看实现的人看的。**用户价值见上一节。**
+
+### 🔥 主线 D：探索复活（本版最高优先）
+
+**实测发现**：CA 的核心"发电链路"（缺口 → 队列 → 探索 → 发现）**根本没在转**。
+
+| 实测症状 | 根因 | 修复 |
+|---------|------|------|
+| Daemon 在跑，却每 30s 打印 `queue empty` | 队列有 239 条，只是全被 `exclude_task_type=deep_read` 过滤——**日志在说谎** | D-1：区分"真空"与"有但被排除"，日志说真话 |
+| DreamAgent 每轮恒产 0 个话题 | `EmbeddingService.__init__()` 缺参 → embedding/LLM 验证全失败 | D-3：修构造错误，发动机复活 |
+| DeepReadDaemon 空转，读不到文件就丢弃且无日志 | 失败路径是 DEBUG 级 = 无声 | D-2：失败升为 WARNING + `failed_reason` |
+| 概念去重跨域误合并 | 单字/超通用词（如 `graph neural network`）被误判为重复 | D-1d：单字概念清理，GNN 恢复完整闭环 |
+| 冲突降权把候选一票否决 | 闸门用了降权后的价值 | D-1e：闸门用降权前价值，`FlashAttention` 得以入队 |
+| DreamAgent 一次 tick 永不返回 | 工作无边界 | D-3b：tick 从"永不返回"→ 118s 返回 |
+
+**验收（端到端实证 ≥5 次）**：MoE / LLM alignment / GNN / FlashAttention 完整走完
+`缺口 → 队列 → 探索 → 发现（KG 新节点）`。
+
+### 🧹 主线 B：探索产出质量
+
+| 缺陷 | 症状 | 修复 |
+|------|------|------|
+| B1 URL/标题变体重复入队 | 同一篇论文被反复读 | 归一化去重 |
+| B2 空 deep_read 上游过度入队 | pending 无限增长 | 上游止住空入队 |
+| B3 DeepRead web 降级 | 网页源读不进来 | 可信网页源可真正读进来 |
+| B4 页面段名前缀去重 | FAQ/Features 变体重复 | 段名归一化 |
+| B5 话题空白归一化 | KG 节点分裂 + 误 purge | 空白归一化 |
+| B6/B8 测试污染生产 | 测试产物进探索循环 | 测试流量生产隔离 |
+| B7 HTML 实体全量解码 | `&amp;` 等残留在 KG | 全量解码 + 存量清理 |
+| B9 KG 验证全内容字段 | 误 purge 有内容节点 | 检查全内容字段 |
+
+### 🛡️ 主线 A：数据层防复发（让重复边"结构上不可能脏"）
+
+**背景**：KG 曾因无关系唯一约束累积 **36106 条边**（去重后应约 5000）。
+本版把"人工清理"升级为"结构上不可能脏"。
+
+| 批次 | 修复 |
+|------|------|
+| A-0 | 全量 KG 关系写入路径清点（5 条路径，2 条❌标出） |
+| A-1 | 批量 `MERGE` 路径补合成 `key`（不再绕过唯一约束） |
+| A-2 | 迁移脚本带 `key` + `backfill_relation_keys --verify` 模式 |
+| A-4 | `Neo4jClient.constraints_ok` + health 端点暴露该字段 |
+| A-5 | `core/kg/edge_integrity.py` 边完整性巡检（挂 DreamDaemon 低频旁路） |
+
+**实库验证（Neo4j 5629 条边）发现真问题**：
+- **175 条边缺 `key`**（唯一约束对它们"隐形"→ 可与带 key 的边共存 = 静默重复）
+- `duplicate keys: 0` 是**假安全**——重复边根本没 key，`DISTINCT` 数不出
+- 修复后：**5519 条边，0 缺 key，0 重复 → OK**
+
+> **关键洞察**：重复边的真实形态是"**一条带 key + 一条不带 key**"。
+> 所以巡检**必须查缺 key**，只查重复等于没查。
+
+### ✅ 主线 B（测试基线）与 C（发现消费实证）
+
+| 批次 | 内容 |
+|------|------|
+| B-0 | 归档用例三分类（`legacy_tests_v026/TRIAGE.md`，100 文件） |
+| B-2/B-3 | `tests/{unit,integration,e2e}/` 分层骨架 + 隔离 fixture + markers |
+| B-4 | `.git/hooks/pre-commit` 跑 `tests/unit`，失败即拦 |
+| C-3 | `GET /api/metrics/c3d` 暴露发现引用率（唯一口径 v2） |
+
+**测试基线**：`pytest tests/` **58 → 75 passed**（秒级）。
 
 ---
 
@@ -432,6 +520,14 @@ curl "http://localhost:4848/api/kg/trace/LTKD"
 > v0.3.5 将原 `/api/kg/confidence/<topic>` 与 `/api/knowledge/confidence`
 > 两条重复路由合并为**单一路由**（核心逻辑本就相同，仅响应包装不同）。
 
+### v0.3.7 新增
+
+| Endpoint | 说明 |
+|----------|------|
+| `GET /api/metrics/c3d` | 发现引用率（唯一口径 v2：分子=KG quality≥7 ∩ 检索事件，分母=KG quality≥7） |
+
+> `GET /api/system/health` 的 `kg` 字段新增 `constraints_ok`（关系唯一约束是否生效）。
+
 ### v0.3.6 新增
 
 | Endpoint | 说明 |
@@ -497,6 +593,8 @@ curious-agent/
 │   │
 │   ├── kg/
 │   │   ├── kg_repository.py   # KG Repository
+│   │   ├── neo4j_client.py    # Neo4j 客户端（关系唯一约束）
+│   │   ├── edge_integrity.py  # 边完整性巡检 (v0.3.7 A-5)
 │   │   └── repository_factory.py
 │   │
 │   └── hooks/
@@ -517,6 +615,9 @@ curious-agent/
 │   ├── ops.db                 # ② 运行状态（配额/审计/断言/元认知）
 │   └── traces.db              # 派生跟踪数据
 └── tests/                     # 测试套件
+    ├── unit/                  # 纯逻辑单测（离线，< 30s）(v0.3.7)
+    ├── integration/           # 需真实 Neo4j（opt-in）(v0.3.7)
+    └── e2e/                   # 端到端冒烟（opt-in）(v0.3.7)
 ````
 
 ---
@@ -525,7 +626,8 @@ curious-agent/
 
 | Version | Theme | Highlights |
 |---------|-------|-----------|
-| **v0.3.6** | Foundation Repair + C3-D Redirect | SSOT 唯一真源收敛（四 Agent，10/10 验收）、数据源唯一性与通路一致性规范、C2 缺口去噪 + 消费循环、C2b 写入通路收敛、C3-D 重定向（发现→消费 + 接入 R1D3）、C2-B 显式学习需求（R1D3 写）、批8 provider 一致性接入生产 + 批2 冲突检测重接通 |
+| **v0.3.7** | Exploration Revival + Data Hardening | 探索复活（D 主线：queue 假话/Embedding 故障/DeepRead 失败可见/概念误合并）、产出质量（B1-B9）、数据层防复发（A-0/A-1/A-2/A-4/A-5，实库清零 175 条缺 key 边）、测试基线分层 + CI 拦截、`/api/metrics/c3d` 指标端点 |
+| v0.3.6 | Foundation Repair + C3-D Redirect | SSOT 唯一真源收敛（四 Agent，10/10 验收）、数据源唯一性与通路一致性规范、C2 缺口去噪 + 消费循环、C2b 写入通路收敛、C3-D 重定向（发现→消费 + 接入 R1D3）、C2-B 显式学习需求（R1D3 写）、批8 provider 一致性接入生产 + 批2 冲突检测重接通 |
 | v0.3.5 | Coverage Verdict + Measurement Fix | 四态覆盖判定（known/partial/unknown/void）、θ 回测定标（20问100%）、短词检索修复、置信度公式去归零、单一路由合并；附带修复 Hook 静默 404 |
 | v0.3.4 | Behavior Pipeline + Data Governance | 行为规则管道修复（质量分落库/类型截断/垃圾过滤）、数据源 13→4 统一、`state.json` 退场 |
 | v0.3.3 | DeepRead + Web Scrape | 滑动窗口100%覆盖、6-element结构、网页抓取管道、Settings UI |
@@ -553,6 +655,10 @@ curious-agent/
 | ✅ | C2 缺口自动生成（去噪 + 消费循环） |
 | ✅ | C3-D 发现回流（发现→消费，接入 R1D3） |
 | ✅ | 显式学习需求（R1D3 主动声明） |
+| ✅ | 探索复活（发动机修复 + 失败可见 + 产出质量） |
+| ✅ | 数据层防复发（关系唯一约束 + 边完整性巡检） |
+| ✅ | 测试基线分层 + CI 拦截 |
+| ✅ | 发现引用率指标端点（/api/metrics/c3d） |
 | ⚪ | 自适应调度（基于队列深度） |
 | ⚪ | 自进化引擎（Bayesian权重更新） |
 | ⚪ | 多语言论文支持 |
