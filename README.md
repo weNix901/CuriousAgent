@@ -5,6 +5,8 @@
 [![Neo4j](https://img.shields.io/badge/neo4j-5.x-green)](#)
 [![License](https://img.shields.io/badge/license-MIT-blue)](#)
 
+![Curious Agent — dashboard, live knowledge graph, and internal agent traces](docs/assets/demo.gif)
+
 > **An autonomous-learning agent that knows what it doesn't know — by computing it, not asking the LLM.**
 
 Most AI systems either answer whatever you ask (and sound confident even when wrong) or sit idle until prompted. **Curious Agent (CA)** is different: it maintains an **external cognitive state layer** — a knowledge graph it builds by reading papers, web pages, GitHub repos, and docs on its own — and uses the *state of that graph*, not an LLM's self-assessment, to decide what it knows, what it's missing, and what to go learn next.
@@ -46,6 +48,22 @@ PDF / web / GitHub / docs / blogs
 ### Stack
 
 Python 3.11+ · Neo4j 5.x · Flask · multi-provider LLM + search (Bocha / Serper)
+
+### A concrete run
+
+No seeding, no prompt — drop in one topic and watch what the system does on its own:
+
+1. **Read** — the topic isn't in the graph, so the *gap* is computed as a difference. It self-queues an exploration job (no human trigger).
+2. **Deep read** — it searches the web, fetches full pages, and judges each source with `llm_analyze`; low-quality hits are dropped, tracked ones become cited sources.
+3. **Extract** — `llm_extract_knowledge` produces atomic knowledge points (definition / attributes / relations / context / formula).
+4. **Land in the graph** — nodes and typed edges land in Neo4j. Coverage for the topic moves `unknown → partial → known`.
+5. **Follow the thread** — the new node's relations expose the *next* gap, which is queued and explored too. The graph grows by itself.
+
+In a real run the topic `Attention Residuals` pulled in the related concept `Residual Stream of Transformers` on its own — the second one wasn't asked for, it was inferred from the graph and explored next (quality=11.0). That's the loop working without a human in it.
+
+> The dashboard below is the live graph after this kind of run: **4,000+ nodes**, color-coded by quality (green ≥7, yellow 5–7, red <5, gray = unexplored).
+
+![Live knowledge graph — 4,000+ nodes color-coded by quality](docs/assets/knowledge-graph.png)
 
 ### Quick start
 
