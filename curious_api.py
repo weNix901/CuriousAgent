@@ -2107,6 +2107,62 @@ def assess_quality_assertion():
     })
 
 
+def _build_explore_tool_registry():
+    """Build a fully-populated ToolRegistry for ExploreAgent.
+
+    ExploreAgent's standalone path (_claim_topic) needs the queue tools
+    (get_queue / add_to_queue / claim_queue) to resolve and claim a topic.
+    Previously /api/explorer/run and /api/agents/daemon/explore constructed a
+    bare ToolRegistry(), so agent.run() failed with "Queue tool not available"
+    (surfaced in the meta-cognition panel as "Failed to claim topic").
+    This builder registers the same tool set the daemon entrypoint uses.
+    """
+    from core.tools.registry import ToolRegistry
+    from core.tools.queue_tools import (
+        QueueStorage, AddToQueueTool, ClaimQueueTool, GetQueueTool,
+        MarkDoneTool, MarkFailedTool,
+    )
+    from core.tools.search_tools import SearchWebTool, FetchPageTool, ProcessPaperTool
+    from core.tools.llm_tools import (
+        LLMAnalyzeTool, LLMKnowledgeExtractTool, LLMCandidateIdentifyTool,
+    )
+
+    tool_registry = ToolRegistry()
+    queue_storage = QueueStorage()
+    queue_storage.initialize()
+
+    tool_registry.register(SearchWebTool())
+    tool_registry.register(FetchPageTool())
+    tool_registry.register(ProcessPaperTool())
+    tool_registry.register(AddToQueueTool(storage=queue_storage))
+    tool_registry.register(ClaimQueueTool(storage=queue_storage))
+    tool_registry.register(GetQueueTool(storage=queue_storage))
+    tool_registry.register(MarkDoneTool(storage=queue_storage))
+    tool_registry.register(MarkFailedTool(storage=queue_storage))
+    tool_registry.register(LLMAnalyzeTool())
+    tool_registry.register(LLMKnowledgeExtractTool())
+    tool_registry.register(LLMCandidateIdentifyTool())
+
+    # KG tools (optional — skip gracefully if repository wiring is unavailable)
+    try:
+        from core.tools.kg_tools import (
+            QueryKGTool, AddToKGTool, UpdateKGStatusTool,
+            UpdateKGMetadataTool, GetNodeRelationsTool, UpdateKGRelationTool,
+        )
+        from core.kg.repository_factory import get_kg_factory
+        kg_repo = get_kg_factory()
+        tool_registry.register(QueryKGTool(repository=kg_repo))
+        tool_registry.register(AddToKGTool(repository=kg_repo))
+        tool_registry.register(UpdateKGStatusTool(repository=kg_repo))
+        tool_registry.register(UpdateKGMetadataTool(repository=kg_repo))
+        tool_registry.register(GetNodeRelationsTool(repository=kg_repo))
+        tool_registry.register(UpdateKGRelationTool(repository=kg_repo))
+    except Exception as e:
+        logger.warning(f"_build_explore_tool_registry: KG tools unavailable: {e}")
+
+    return tool_registry
+
+
 @app.route("/api/agents/explore", methods=["POST"])
 def api_agents_explore():
     """Run ExploreAgent on a specific topic."""
@@ -2126,7 +2182,7 @@ def api_agents_explore():
         cfg = get_ca_config()
         agent_cfg = cfg.agents.get("explore", {})
         
-        tool_registry = ToolRegistry()
+        tool_registry = _build_explore_tool_registry()
         queue_storage = QueueStorage()
         queue_storage.initialize()
         
@@ -2236,7 +2292,7 @@ def api_agents_daemon_explore():
         max_retries = daemon_cfg.max_retries
         retry_delay = daemon_cfg.retry_delay_seconds
         
-        tool_registry = ToolRegistry()
+        tool_registry = _build_explore_tool_registry()
         agent_config = ExploreAgentConfig(
             name="explore_agent",
             model=agent_cfg.model,
@@ -2708,7 +2764,7 @@ def api_explorer_run():
         def run_exploration():
             try:
                 from core.tools.registry import ToolRegistry
-                tool_registry = ToolRegistry()
+                tool_registry = _build_explore_tool_registry()
                 
                 agent_cfg = ExploreAgentConfig(
                     name="explorer_agent",
